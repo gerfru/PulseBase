@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Garmin</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; color: #333; background: #f1f5f9; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header h1 { font-size: 1.4rem; margin: 0; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .header a { color: #64748b; text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: #333; }
+        .btn-logout { background: none; border: 1px solid #cbd5e1; color: #64748b; padding: 6px 14px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; }
+        .btn-logout:hover { background: #f1f5f9; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .card.full { grid-column: 1 / -1; }
+        .card h2 { font-size: 1rem; color: #64748b; margin: 0 0 16px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+        .empty { color: #94a3b8; font-size: 0.9rem; text-align: center; padding: 24px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { text-align: left; color: #64748b; font-weight: 500; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
+        tr:last-child td { border-bottom: none; }
+        .sport { white-space: nowrap; }
+        .hrv-card { display: flex; flex-direction: column; gap: 8px; }
+        .hrv-row { display: flex; justify-content: space-between; }
+        .hrv-label { color: #64748b; font-size: 0.9rem; }
+        .hrv-value { font-weight: 600; }
+        .status-badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 0.8rem; font-weight: 600; }
+        .status-balanced { background: #dcfce7; color: #166534; }
+        .status-unbalanced { background: #fef9c3; color: #854d0e; }
+        .status-poor { background: #fee2e2; color: #991b1b; }
+        canvas { max-height: 200px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Hallo, {{ user.name }}</h1>
+        <div class="header-right">
+            <a href="/">Einstellungen</a>
+            <form method="post" action="/logout">
+                <button class="btn-logout" type="submit">Abmelden</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="grid">
+
+        <!-- Aktivitäten -->
+        <div class="card full">
+            <h2>Letzte Aktivitäten</h2>
+            <div id="activities-container"><p class="empty">Lade…</p></div>
+        </div>
+
+        <!-- Schritte -->
+        <div class="card">
+            <h2>Schritte (14 Tage)</h2>
+            <canvas id="steps-chart"></canvas>
+            <p class="empty" id="steps-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <!-- Body Battery -->
+        <div class="card">
+            <h2>Body Battery (14 Tage)</h2>
+            <canvas id="battery-chart"></canvas>
+            <p class="empty" id="battery-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <!-- Schlaf -->
+        <div class="card">
+            <h2>Schlaf-Score (14 Tage)</h2>
+            <canvas id="sleep-chart"></canvas>
+            <p class="empty" id="sleep-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <!-- Ruhepuls -->
+        <div class="card">
+            <h2>Ruhepuls (30 Tage)</h2>
+            <canvas id="hr-chart"></canvas>
+            <p class="empty" id="hr-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <!-- HRV -->
+        <div class="card">
+            <h2>HRV — letzter Messwert</h2>
+            <div id="hrv-container"><p class="empty">Lade…</p></div>
+        </div>
+
+    </div>
+
+    <script>
+    const SPORT_EMOJI = {
+        running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
+        hiking: '🥾', strength_training: '🏋️', yoga: '🧘', default: '⚡'
+    };
+
+    function sportLabel(type) {
+        const emoji = SPORT_EMOJI[type] || SPORT_EMOJI.default;
+        const name = (type || 'unbekannt').replace(/_/g, ' ');
+        return `${emoji} ${name.charAt(0).toUpperCase() + name.slice(1)}`;
+    }
+
+    function fmtDuration(seconds) {
+        if (!seconds) return '—';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+
+    function fmtDist(meters) {
+        if (!meters) return '—';
+        return (meters / 1000).toFixed(1) + ' km';
+    }
+
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        return new Date(iso).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
+    }
+
+    function makeChart(id, type, labels, datasets, options = {}) {
+        return new Chart(document.getElementById(id), {
+            type,
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: datasets.length > 1 } },
+                scales: { y: { beginAtZero: type === 'bar' } },
+                ...options,
+            }
+        });
+    }
+
+    async function load() {
+        const [activities, daily14, daily30, sleep, hrv] = await Promise.all([
+            fetch('/api/activities').then(r => r.json()),
+            fetch('/api/daily?days=14').then(r => r.json()),
+            fetch('/api/daily?days=30').then(r => r.json()),
+            fetch('/api/sleep?days=14').then(r => r.json()),
+            fetch('/api/hrv').then(r => r.json()),
+        ]);
+
+        // Aktivitäten-Tabelle
+        const actEl = document.getElementById('activities-container');
+        if (!activities.length) {
+            actEl.innerHTML = '<p class="empty">Noch keine Aktivitäten — Sync läuft täglich um 6 Uhr.</p>';
+        } else {
+            actEl.innerHTML = `<table>
+                <thead><tr>
+                    <th>Sport</th><th>Datum</th><th>Dauer</th>
+                    <th>Distanz</th><th>Kalorien</th><th>Ø HR</th>
+                </tr></thead>
+                <tbody>${activities.map(a => `<tr>
+                    <td class="sport">${sportLabel(a.sport_type)}</td>
+                    <td>${fmtDate(a.started_at)}</td>
+                    <td>${fmtDuration(a.duration_seconds)}</td>
+                    <td>${fmtDist(a.distance_meters)}</td>
+                    <td>${a.calories ?? '—'}</td>
+                    <td>${a.avg_hr ? a.avg_hr + ' bpm' : '—'}</td>
+                </tr>`).join('')}</tbody>
+            </table>`;
+        }
+
+        // Schritte
+        if (daily14.length) {
+            makeChart('steps-chart', 'bar',
+                daily14.map(d => fmtDate(d.date)),
+                [{ label: 'Schritte', data: daily14.map(d => d.steps || 0),
+                   backgroundColor: '#3b82f6' }]
+            );
+        } else {
+            document.getElementById('steps-chart').style.display = 'none';
+            document.getElementById('steps-empty').style.display = 'block';
+        }
+
+        // Body Battery
+        if (daily14.length) {
+            makeChart('battery-chart', 'line',
+                daily14.map(d => fmtDate(d.date)),
+                [
+                    { label: 'Hoch', data: daily14.map(d => d.body_battery_high),
+                      borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3 },
+                    { label: 'Niedrig', data: daily14.map(d => d.body_battery_low),
+                      borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3 },
+                ]
+            );
+        } else {
+            document.getElementById('battery-chart').style.display = 'none';
+            document.getElementById('battery-empty').style.display = 'block';
+        }
+
+        // Schlaf
+        const sleepSorted = [...sleep].reverse();
+        if (sleepSorted.length) {
+            makeChart('sleep-chart', 'line',
+                sleepSorted.map(s => fmtDate(s.date)),
+                [{ label: 'Score', data: sleepSorted.map(s => s.sleep_score ?? null),
+                   borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3 }],
+                { scales: { y: { min: 0, max: 100 } } }
+            );
+        } else {
+            document.getElementById('sleep-chart').style.display = 'none';
+            document.getElementById('sleep-empty').style.display = 'block';
+        }
+
+        // Ruhepuls
+        if (daily30.length) {
+            makeChart('hr-chart', 'line',
+                daily30.map(d => fmtDate(d.date)),
+                [{ label: 'Ruhepuls', data: daily30.map(d => d.resting_hr),
+                   borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3 }]
+            );
+        } else {
+            document.getElementById('hr-chart').style.display = 'none';
+            document.getElementById('hr-empty').style.display = 'block';
+        }
+
+        // HRV
+        const hrvEl = document.getElementById('hrv-container');
+        if (!hrv) {
+            hrvEl.innerHTML = '<p class="empty">Noch keine HRV-Daten.</p>';
+        } else {
+            const statusClass = hrv.hrv_status === 'BALANCED' ? 'balanced'
+                : hrv.hrv_status === 'UNBALANCED' ? 'unbalanced' : 'poor';
+            hrvEl.innerHTML = `<div class="hrv-card">
+                <div class="hrv-row">
+                    <span class="hrv-label">Letzte Nacht</span>
+                    <span class="hrv-value">${hrv.hrv_last_night ?? '—'} ms</span>
+                </div>
+                <div class="hrv-row">
+                    <span class="hrv-label">Wochenø</span>
+                    <span class="hrv-value">${hrv.hrv_weekly_avg ?? '—'} ms</span>
+                </div>
+                <div class="hrv-row">
+                    <span class="hrv-label">Status</span>
+                    <span class="status-badge status-${statusClass}">${hrv.hrv_status ?? '—'}</span>
+                </div>
+            </div>`;
+        }
+    }
+
+    load().catch(err => console.error('Dashboard Fehler:', err));
+    </script>
+</body>
+</html>

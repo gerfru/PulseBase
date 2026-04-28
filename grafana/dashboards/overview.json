@@ -1,0 +1,87 @@
+{
+  "title": "Garmin Übersicht",
+  "uid": "garmin-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1h",
+  "time": { "from": "now-30d", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "user",
+        "label": "User",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "${DS_TIMESCALEDB}" },
+        "query": "SELECT id AS __value, name AS __text FROM users ORDER BY name",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Aktivitäten letzte 7 Tage",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "${DS_TIMESCALEDB}" },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS value FROM activities WHERE user_id = $user AND started_at >= NOW() - INTERVAL '7 days'",
+          "format": "table"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2,
+      "title": "Kilometer letzte 7 Tage",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "${DS_TIMESCALEDB}" },
+      "targets": [
+        {
+          "rawSql": "SELECT ROUND(COALESCE(SUM(distance_meters), 0) / 1000.0, 1) AS value FROM activities WHERE user_id = $user AND started_at >= NOW() - INTERVAL '7 days'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "km" }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3,
+      "title": "Distanz über Zeit (km)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "${DS_TIMESCALEDB}" },
+      "targets": [
+        {
+          "rawSql": "SELECT started_at AS time, ROUND(distance_meters / 1000.0, 2) AS \"Distanz km\", sport_type AS metric FROM activities WHERE user_id = $user AND started_at BETWEEN $__timeFrom() AND $__timeTo() AND distance_meters IS NOT NULL ORDER BY started_at",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "km", "custom": { "drawStyle": "points", "pointSize": 6 } }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Ø Herzfrequenz pro Aktivität",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "${DS_TIMESCALEDB}" },
+      "targets": [
+        {
+          "rawSql": "SELECT started_at AS time, avg_hr AS \"Ø HR\", sport_type AS metric FROM activities WHERE user_id = $user AND started_at BETWEEN $__timeFrom() AND $__timeTo() AND avg_hr IS NOT NULL ORDER BY started_at",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bpm", "custom": { "drawStyle": "points", "pointSize": 6 } }
+      }
+    }
+  ]
+}
