@@ -1,0 +1,17 @@
+# Secrets
+.env
+.secrets.baseline
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+tokens/
