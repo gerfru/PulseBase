@@ -1,4 +1,4 @@
-.PHONY: up down clean reset logs logs-sync logs-all sync status migrate db gen-secrets setup add-host setup-user restart-api build-api
+.PHONY: up down clean reset logs logs-sync logs-all sync status migrate db gen-secrets setup add-host setup-user restart-api build-api build-sync
 
 up:
 	docker compose up -d --build
@@ -29,7 +29,10 @@ migrate:
 	docker compose up flyway
 
 sync:
-	docker compose restart sync-service
+	docker compose build sync-service && docker compose up -d --force-recreate sync-service
+
+build-sync:
+	docker compose build sync-service && docker compose up -d sync-service
 
 status:
 	docker compose ps

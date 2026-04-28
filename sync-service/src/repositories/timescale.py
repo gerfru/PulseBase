@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Any
 
 import asyncpg
@@ -117,18 +118,21 @@ class TimescaleRepository(
                 """
                 INSERT INTO daily_summary (
                     date, user_id, steps, calories_total, avg_stress, max_stress,
-                    avg_spo2, min_spo2, body_battery_high, body_battery_low, resting_hr
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                    avg_spo2, min_spo2, body_battery_high, body_battery_low, resting_hr,
+                    intensity_moderate, intensity_vigorous
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
                 ON CONFLICT (date, user_id) DO UPDATE SET
-                    steps             = EXCLUDED.steps,
-                    calories_total    = EXCLUDED.calories_total,
-                    avg_stress        = EXCLUDED.avg_stress,
-                    max_stress        = EXCLUDED.max_stress,
-                    avg_spo2          = EXCLUDED.avg_spo2,
-                    min_spo2          = EXCLUDED.min_spo2,
-                    body_battery_high = EXCLUDED.body_battery_high,
-                    body_battery_low  = EXCLUDED.body_battery_low,
-                    resting_hr        = EXCLUDED.resting_hr
+                    steps              = EXCLUDED.steps,
+                    calories_total     = EXCLUDED.calories_total,
+                    avg_stress         = EXCLUDED.avg_stress,
+                    max_stress         = EXCLUDED.max_stress,
+                    avg_spo2           = EXCLUDED.avg_spo2,
+                    min_spo2           = EXCLUDED.min_spo2,
+                    body_battery_high  = EXCLUDED.body_battery_high,
+                    body_battery_low   = EXCLUDED.body_battery_low,
+                    resting_hr         = EXCLUDED.resting_hr,
+                    intensity_moderate = EXCLUDED.intensity_moderate,
+                    intensity_vigorous = EXCLUDED.intensity_vigorous
                 """,
                 summary.date,
                 summary.user_id,
@@ -141,6 +145,22 @@ class TimescaleRepository(
                 summary.body_battery_high,
                 summary.body_battery_low,
                 summary.resting_hr,
+                summary.intensity_moderate,
+                summary.intensity_vigorous,
+            )
+
+    async def upsert_training_status(
+        self, user_id: int, day: date, status: str
+    ) -> None:
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE daily_summary SET training_status = $1
+                WHERE user_id = $2 AND date = $3
+                """,
+                status,
+                user_id,
+                day,
             )
 
     # ── Sleep ─────────────────────────────────────────────────────────────────

@@ -49,7 +49,7 @@ def map_records(details: dict[str, Any] | None) -> list[ActivityRecord]:
         return []
     records: list[ActivityRecord] = []
 
-    metrics = details.get("activityDetailMetrics", [])
+    metrics = details.get("activityDetailMetrics") or []
     polyline = (details.get("geoPolylineDTO") or {}).get("polyline", [])
 
     metric_by_index: dict[int, dict] = {}
@@ -103,7 +103,15 @@ def map_summary(raw: dict[str, Any], user_id: int, day: date) -> DailySummary:
         body_battery_high=bb[0],
         body_battery_low=bb[1],
         resting_hr=raw.get("restingHeartRate"),
+        intensity_moderate=_int_or_none(raw.get("moderateIntensityMinutes")),
+        intensity_vigorous=_int_or_none(raw.get("vigorousIntensityMinutes")),
     )
+
+
+def map_training_status(raw: dict[str, Any]) -> str | None:
+    dto = raw.get("trainingStatusDTO") or {}
+    status = dto.get("trainingStatus") or raw.get("trainingStatus")
+    return str(status) if status else None
 
 
 def map_sleep(raw: dict[str, Any], user_id: int) -> SleepSession | None:

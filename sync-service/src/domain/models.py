@@ -55,6 +55,9 @@ class DailySummary(BaseModel):
     body_battery_high: Optional[int] = None
     body_battery_low: Optional[int] = None
     resting_hr: Optional[int] = None
+    intensity_moderate: Optional[int] = None
+    intensity_vigorous: Optional[int] = None
+    training_status: Optional[str] = None
 
 
 class SleepSession(BaseModel):
