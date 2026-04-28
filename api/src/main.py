@@ -18,6 +18,8 @@ from src.db import (
     get_daily_summaries,
     get_sleep_sessions,
     get_latest_hrv,
+    get_hrv_trend,
+    get_latest_training_status,
 )
 from src.garmin.client import GarminClient
 
@@ -139,8 +141,8 @@ async def logout(request: Request):
 
 @app.get("/")
 async def index(request: Request):
-    user = await require_user(request)
-    return templates.TemplateResponse(request, "index.html", {"user": user})
+    await require_user(request)
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.get("/garmin/link")
@@ -198,9 +200,9 @@ async def dashboard(request: Request):
 
 
 @app.get("/api/activities")
-async def api_activities(request: Request):
+async def api_activities(request: Request, limit: int = 10):
     user = await require_user(request)
-    return await get_recent_activities(user["id"])
+    return await get_recent_activities(user["id"], limit=limit)
 
 
 @app.get("/api/daily")
@@ -219,3 +221,15 @@ async def api_sleep(request: Request, days: int = 14):
 async def api_hrv(request: Request):
     user = await require_user(request)
     return await get_latest_hrv(user["id"])
+
+
+@app.get("/api/hrv/trend")
+async def api_hrv_trend(request: Request, days: int = 30):
+    user = await require_user(request)
+    return await get_hrv_trend(user["id"], days=days)
+
+
+@app.get("/api/training-status")
+async def api_training_status(request: Request):
+    user = await require_user(request)
+    return await get_latest_training_status(user["id"])

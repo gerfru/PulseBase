@@ -15,6 +15,7 @@ from garmin.mapper import (
     map_sleep,
     map_stress,
     map_summary,
+    map_training_status,
 )
 from logging_config import setup_logging
 from repositories.timescale import TimescaleRepository
@@ -88,6 +89,14 @@ async def sync_user(user: dict, repo: TimescaleRepository, days: int = 1) -> Non
             await repo.bulk_insert("stress_intraday", user["id"], readings)
         except Exception as e:
             logger.warning(f"Stress {current} fehlgeschlagen: {e}")
+
+        try:
+            ts_raw = client.get_training_status(current)
+            status = map_training_status(ts_raw)
+            if status:
+                await repo.upsert_training_status(user["id"], current, status)
+        except Exception as e:
+            logger.warning(f"Training status {current} fehlgeschlagen: {e}")
 
         current += timedelta(days=1)
 
