@@ -1,4 +1,4 @@
-.PHONY: up down clean reset logs sync status migrate db gen-secrets setup add-host setup-user restart-api build-api
+.PHONY: up down clean reset logs logs-sync logs-all sync status migrate db gen-secrets setup add-host setup-user restart-api build-api
 
 up:
 	docker compose up -d --build
@@ -11,7 +11,7 @@ clean:
 
 reset:
 	docker compose down --remove-orphans
-	docker volume rm garmin-dev_timescale-data garmin-dev_grafana-data garmin-dev_garmin-tokens garmin-dev_authelia-data 2>/dev/null || true
+	docker volume rm garmin-dev_timescale-data garmin-dev_garmin-tokens 2>/dev/null || true
 	@echo "=== Volumes geloescht — Datenbank wird neu aufgesetzt ==="
 	docker compose up flyway
 	docker compose up -d --build
