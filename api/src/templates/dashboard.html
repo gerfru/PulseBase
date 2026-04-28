@@ -3,91 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard — Garmin</title>
+    <title>Dashboard — PulseBase</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; color: #333; background: #f1f5f9; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
         .header h1 { font-size: 1.4rem; margin: 0; }
-        .header-right { display: flex; align-items: center; gap: 12px; }
+        .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .header a { color: #64748b; text-decoration: none; font-size: 0.9rem; }
         .header a:hover { color: #333; }
         .btn-logout { background: none; border: 1px solid #cbd5e1; color: #64748b; padding: 6px 14px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; }
         .btn-logout:hover { background: #f1f5f9; }
+
+        .time-selector { display: flex; gap: 4px; }
+        .time-btn { background: white; border: 1px solid #cbd5e1; color: #64748b; padding: 5px 12px; font-size: 0.82rem; border-radius: 6px; cursor: pointer; }
+        .time-btn:hover { background: #f8fafc; }
+        .time-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+        .banner { padding: 12px 20px; border-radius: 10px; margin-bottom: 16px; font-size: 0.9rem; }
+        .banner-warning { background: #fef9c3; border: 1px solid #fde047; color: #713f12; }
+        .banner-warning a { color: #92400e; font-weight: 600; }
+
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
         .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
         .card.full { grid-column: 1 / -1; }
-        .card h2 { font-size: 1rem; color: #64748b; margin: 0 0 16px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
-        .empty { color: #94a3b8; font-size: 0.9rem; text-align: center; padding: 24px 0; }
+        .card h2 { font-size: 0.85rem; color: #64748b; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+        .empty { color: #94a3b8; font-size: 0.9rem; text-align: center; padding: 24px 0; margin: 0; }
+
+        /* Scrollable chart wrapper */
+        .chart-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .chart-wrap canvas { display: block; height: 200px; }
+
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         th { text-align: left; color: #64748b; font-weight: 500; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
         td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
         tr:last-child td { border-bottom: none; }
         .sport { white-space: nowrap; }
-        .hrv-card { display: flex; flex-direction: column; gap: 8px; }
-        .hrv-row { display: flex; justify-content: space-between; }
+
+        .hrv-card { display: flex; flex-direction: column; gap: 12px; }
+        .hrv-row { display: flex; justify-content: space-between; align-items: center; }
         .hrv-label { color: #64748b; font-size: 0.9rem; }
-        .hrv-value { font-weight: 600; }
-        .status-badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 0.8rem; font-weight: 600; }
+        .hrv-value { font-weight: 600; font-size: 1rem; }
+        .status-badge { display: inline-block; padding: 3px 12px; border-radius: 99px; font-size: 0.8rem; font-weight: 600; }
         .status-balanced { background: #dcfce7; color: #166534; }
         .status-unbalanced { background: #fef9c3; color: #854d0e; }
         .status-poor { background: #fee2e2; color: #991b1b; }
-        canvas { max-height: 200px; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Hallo, {{ user.name }}</h1>
         <div class="header-right">
-            <a href="/">Einstellungen</a>
+            <div class="time-selector">
+                <button class="time-btn" data-days="7"   onclick="setDays(7)">7T</button>
+                <button class="time-btn" data-days="14"  onclick="setDays(14)">14T</button>
+                <button class="time-btn active" data-days="30"  onclick="setDays(30)">30T</button>
+                <button class="time-btn" data-days="90"  onclick="setDays(90)">90T</button>
+                <button class="time-btn" data-days="365" onclick="setDays(365)">365T</button>
+            </div>
             <form method="post" action="/logout">
                 <button class="btn-logout" type="submit">Abmelden</button>
             </form>
         </div>
     </div>
 
+    {% if not user.garmin_linked %}
+    <div class="banner banner-warning">
+        Garmin Account noch nicht verknüpft —
+        <a href="/garmin/link">jetzt verbinden →</a>
+    </div>
+    {% endif %}
+
     <div class="grid">
 
-        <!-- Aktivitäten -->
         <div class="card full">
             <h2>Letzte Aktivitäten</h2>
             <div id="activities-container"><p class="empty">Lade…</p></div>
         </div>
 
-        <!-- Schritte -->
         <div class="card">
-            <h2>Schritte (14 Tage)</h2>
-            <canvas id="steps-chart"></canvas>
+            <h2>Schritte</h2>
+            <div class="chart-wrap"><canvas id="steps-chart"></canvas></div>
             <p class="empty" id="steps-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- Body Battery -->
         <div class="card">
-            <h2>Body Battery (14 Tage)</h2>
-            <canvas id="battery-chart"></canvas>
+            <h2>Body Battery</h2>
+            <div class="chart-wrap"><canvas id="battery-chart"></canvas></div>
             <p class="empty" id="battery-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- Schlaf -->
         <div class="card">
-            <h2>Schlaf-Score (14 Tage)</h2>
-            <canvas id="sleep-chart"></canvas>
-            <p class="empty" id="sleep-empty" style="display:none">Noch keine Daten</p>
-        </div>
-
-        <!-- Ruhepuls -->
-        <div class="card">
-            <h2>Ruhepuls (30 Tage)</h2>
-            <canvas id="hr-chart"></canvas>
+            <h2>Ruhepuls</h2>
+            <div class="chart-wrap"><canvas id="hr-chart"></canvas></div>
             <p class="empty" id="hr-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- HRV -->
+        <div class="card">
+            <h2>HRV-Verlauf</h2>
+            <div class="chart-wrap"><canvas id="hrv-trend-chart"></canvas></div>
+            <p class="empty" id="hrv-trend-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <div class="card">
+            <h2>Schlaf-Score</h2>
+            <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
+            <p class="empty" id="sleep-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <div class="card">
+            <h2>Schlafphasen</h2>
+            <div class="chart-wrap"><canvas id="sleep-stages-chart"></canvas></div>
+            <p class="empty" id="sleep-stages-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <div class="card">
+            <h2>Stress</h2>
+            <div class="chart-wrap"><canvas id="stress-chart"></canvas></div>
+            <p class="empty" id="stress-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <div class="card">
+            <h2>Intensitätsminuten</h2>
+            <div class="chart-wrap"><canvas id="intensity-chart"></canvas></div>
+            <p class="empty" id="intensity-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <div class="card">
+            <h2>Kalorien</h2>
+            <div class="chart-wrap"><canvas id="calories-chart"></canvas></div>
+            <p class="empty" id="calories-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
         <div class="card">
             <h2>HRV — letzter Messwert</h2>
             <div id="hrv-container"><p class="empty">Lade…</p></div>
+        </div>
+
+        <div class="card">
+            <h2>Trainingszustand</h2>
+            <div id="training-status-container"><p class="empty">Lade…</p></div>
         </div>
 
     </div>
@@ -104,46 +161,91 @@
         return `${emoji} ${name.charAt(0).toUpperCase() + name.slice(1)}`;
     }
 
-    function fmtDuration(seconds) {
-        if (!seconds) return '—';
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
+    function fmtDuration(s) {
+        if (!s) return '—';
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
         return h > 0 ? `${h}h ${m}m` : `${m}m`;
     }
 
-    function fmtDist(meters) {
-        if (!meters) return '—';
-        return (meters / 1000).toFixed(1) + ' km';
-    }
+    function fmtDist(m) { return m ? (m / 1000).toFixed(1) + ' km' : '—'; }
 
     function fmtDate(iso) {
         if (!iso) return '—';
         return new Date(iso).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
     }
 
-    function makeChart(id, type, labels, datasets, options = {}) {
-        return new Chart(document.getElementById(id), {
+    function secToH(s) { return s ? +(s / 3600).toFixed(1) : null; }
+
+    const charts = {};
+
+    function makeChart(id, type, labels, datasets, extra = {}) {
+        if (charts[id]) charts[id].destroy();
+        const canvas = document.getElementById(id);
+        const wrapper = canvas.parentElement;
+
+        // Scale canvas width so all points are readable; enable horizontal scroll for large sets
+        const pxPerPoint = labels.length > 100 ? 10 : labels.length > 30 ? 16 : 24;
+        const canvasW = Math.max(wrapper.clientWidth || 320, labels.length * pxPerPoint);
+        canvas.style.width = canvasW + 'px';
+        canvas.style.height = '200px';
+        canvas.width = canvasW;
+        canvas.height = 200;
+
+        const scaleDefaults = extra.scales || {
+            y: { beginAtZero: type === 'bar', stacked: extra.stacked || false }
+        };
+
+        charts[id] = new Chart(canvas, {
             type,
             data: { labels, datasets },
             options: {
-                responsive: true,
+                responsive: false,
+                maintainAspectRatio: false,
+                animation: false,
                 plugins: { legend: { display: datasets.length > 1 } },
-                scales: { y: { beginAtZero: type === 'bar' } },
-                ...options,
+                scales: scaleDefaults,
             }
         });
     }
 
-    async function load() {
-        const [activities, daily14, daily30, sleep, hrv] = await Promise.all([
-            fetch('/api/activities').then(r => r.json()),
-            fetch('/api/daily?days=14').then(r => r.json()),
-            fetch('/api/daily?days=30').then(r => r.json()),
-            fetch('/api/sleep?days=14').then(r => r.json()),
+    function showEmpty(id) {
+        const canvas = document.getElementById(id + '-chart');
+        if (canvas) canvas.style.display = 'none';
+        const empty = document.getElementById(id + '-empty');
+        if (empty) empty.style.display = 'block';
+    }
+
+    function hideEmpty(id) {
+        const canvas = document.getElementById(id + '-chart');
+        if (canvas) canvas.style.display = '';
+        const empty = document.getElementById(id + '-empty');
+        if (empty) empty.style.display = 'none';
+    }
+
+    let currentDays = 30;
+
+    function setDays(days) {
+        currentDays = days;
+        document.querySelectorAll('.time-btn').forEach(b => {
+            b.classList.toggle('active', +b.dataset.days === days);
+        });
+        load(days);
+    }
+
+    async function load(days) {
+        const actLimit = days <= 7 ? 10 : days <= 30 ? 20 : days <= 90 ? 50 : 150;
+        const sleepLimit = days;
+
+        const [activities, daily, sleep, hrv, hrvTrend, trainingStatus] = await Promise.all([
+            fetch(`/api/activities?limit=${actLimit}`).then(r => r.json()),
+            fetch(`/api/daily?days=${days}`).then(r => r.json()),
+            fetch(`/api/sleep?days=${sleepLimit}`).then(r => r.json()),
             fetch('/api/hrv').then(r => r.json()),
+            fetch(`/api/hrv/trend?days=${days}`).then(r => r.json()),
+            fetch('/api/training-status').then(r => r.json()),
         ]);
 
-        // Aktivitäten-Tabelle
+        // ── Aktivitäten ──────────────────────────────────────────────────────
         const actEl = document.getElementById('activities-container');
         if (!activities.length) {
             actEl.innerHTML = '<p class="empty">Noch keine Aktivitäten — Sync läuft täglich um 6 Uhr.</p>';
@@ -164,85 +266,152 @@
             </table>`;
         }
 
-        // Schritte
-        if (daily14.length) {
-            makeChart('steps-chart', 'bar',
-                daily14.map(d => fmtDate(d.date)),
-                [{ label: 'Schritte', data: daily14.map(d => d.steps || 0),
-                   backgroundColor: '#3b82f6' }]
-            );
-        } else {
-            document.getElementById('steps-chart').style.display = 'none';
-            document.getElementById('steps-empty').style.display = 'block';
-        }
+        const labels = daily.map(d => fmtDate(d.date));
 
-        // Body Battery
-        if (daily14.length) {
-            makeChart('battery-chart', 'line',
-                daily14.map(d => fmtDate(d.date)),
-                [
-                    { label: 'Hoch', data: daily14.map(d => d.body_battery_high),
-                      borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3 },
-                    { label: 'Niedrig', data: daily14.map(d => d.body_battery_low),
-                      borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3 },
-                ]
-            );
-        } else {
-            document.getElementById('battery-chart').style.display = 'none';
-            document.getElementById('battery-empty').style.display = 'block';
-        }
+        // ── Schritte ─────────────────────────────────────────────────────────
+        if (daily.some(d => d.steps)) {
+            hideEmpty('steps');
+            makeChart('steps-chart', 'bar', labels,
+                [{ label: 'Schritte', data: daily.map(d => d.steps || 0), backgroundColor: '#3b82f6' }]);
+        } else { showEmpty('steps'); }
 
-        // Schlaf
+        // ── Body Battery ──────────────────────────────────────────────────────
+        if (daily.some(d => d.body_battery_high)) {
+            hideEmpty('battery');
+            makeChart('battery-chart', 'line', labels, [
+                { label: 'Hoch', data: daily.map(d => d.body_battery_high),
+                  borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                { label: 'Niedrig', data: daily.map(d => d.body_battery_low),
+                  borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+            ]);
+        } else { showEmpty('battery'); }
+
+        // ── Ruhepuls ─────────────────────────────────────────────────────────
+        if (daily.some(d => d.resting_hr)) {
+            hideEmpty('hr');
+            makeChart('hr-chart', 'line', labels,
+                [{ label: 'Ruhepuls', data: daily.map(d => d.resting_hr),
+                   borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }]);
+        } else { showEmpty('hr'); }
+
+        // ── Stress ───────────────────────────────────────────────────────────
+        if (daily.some(d => d.avg_stress)) {
+            hideEmpty('stress');
+            makeChart('stress-chart', 'line', labels,
+                [{ label: 'Stress', data: daily.map(d => d.avg_stress),
+                   borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+                { scales: { y: { beginAtZero: true, max: 100 } } });
+        } else { showEmpty('stress'); }
+
+        // ── Intensitätsminuten ────────────────────────────────────────────────
+        if (daily.some(d => d.intensity_moderate || d.intensity_vigorous)) {
+            hideEmpty('intensity');
+            makeChart('intensity-chart', 'bar', labels, [
+                { label: 'Moderat', data: daily.map(d => d.intensity_moderate || 0),
+                  backgroundColor: '#22c55e', stack: 'intensity' },
+                { label: 'Intensiv', data: daily.map(d => d.intensity_vigorous || 0),
+                  backgroundColor: '#06b6d4', stack: 'intensity' },
+            ], { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Minuten' } } } });
+        } else { showEmpty('intensity'); }
+
+        // ── Kalorien ─────────────────────────────────────────────────────────
+        if (daily.some(d => d.calories_total)) {
+            hideEmpty('calories');
+            makeChart('calories-chart', 'bar', labels,
+                [{ label: 'Kalorien', data: daily.map(d => d.calories_total || 0),
+                   backgroundColor: '#f59e0b' }]);
+        } else { showEmpty('calories'); }
+
+        // ── Schlaf-Score ──────────────────────────────────────────────────────
         const sleepSorted = [...sleep].reverse();
-        if (sleepSorted.length) {
-            makeChart('sleep-chart', 'line',
-                sleepSorted.map(s => fmtDate(s.date)),
+        const sleepLabels = sleepSorted.map(s => fmtDate(s.date));
+        if (sleepSorted.some(s => s.sleep_score != null)) {
+            hideEmpty('sleep');
+            makeChart('sleep-chart', 'line', sleepLabels,
                 [{ label: 'Score', data: sleepSorted.map(s => s.sleep_score ?? null),
-                   borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3 }],
-                { scales: { y: { min: 0, max: 100 } } }
-            );
-        } else {
-            document.getElementById('sleep-chart').style.display = 'none';
-            document.getElementById('sleep-empty').style.display = 'block';
-        }
+                   borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+                { scales: { y: { min: 0, max: 100 } } });
+        } else { showEmpty('sleep'); }
 
-        // Ruhepuls
-        if (daily30.length) {
-            makeChart('hr-chart', 'line',
-                daily30.map(d => fmtDate(d.date)),
-                [{ label: 'Ruhepuls', data: daily30.map(d => d.resting_hr),
-                   borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3 }]
-            );
-        } else {
-            document.getElementById('hr-chart').style.display = 'none';
-            document.getElementById('hr-empty').style.display = 'block';
-        }
+        // ── Schlafphasen ──────────────────────────────────────────────────────
+        if (sleepSorted.some(s => s.deep_sleep_seconds)) {
+            hideEmpty('sleep-stages');
+            makeChart('sleep-stages-chart', 'bar', sleepLabels, [
+                { label: 'Tief',   data: sleepSorted.map(s => secToH(s.deep_sleep_seconds)),
+                  backgroundColor: '#4f46e5', stack: 'sleep' },
+                { label: 'REM',    data: sleepSorted.map(s => secToH(s.rem_sleep_seconds)),
+                  backgroundColor: '#8b5cf6', stack: 'sleep' },
+                { label: 'Leicht', data: sleepSorted.map(s => secToH(s.light_sleep_seconds)),
+                  backgroundColor: '#a5b4fc', stack: 'sleep' },
+                { label: 'Wach',   data: sleepSorted.map(s => secToH(s.awake_seconds)),
+                  backgroundColor: '#e2e8f0', stack: 'sleep' },
+            ], { scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'Stunden' } } } });
+        } else { showEmpty('sleep-stages'); }
 
-        // HRV
+        // ── HRV Trend ─────────────────────────────────────────────────────────
+        if (hrvTrend && hrvTrend.some(h => h.hrv_weekly_avg || h.hrv_last_night)) {
+            hideEmpty('hrv-trend');
+            const datasets = [];
+            if (hrvTrend.some(h => h.hrv_last_night)) {
+                datasets.push({ label: 'HRV letzte Nacht', data: hrvTrend.map(h => h.hrv_last_night),
+                   borderColor: '#6366f1', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 });
+            }
+            if (hrvTrend.some(h => h.hrv_weekly_avg)) {
+                datasets.push({ label: 'Wochenø', data: hrvTrend.map(h => h.hrv_weekly_avg),
+                   borderColor: '#a5b4fc', backgroundColor: 'transparent', tension: 0.3,
+                   borderDash: [4, 4], pointRadius: 0 });
+            }
+            makeChart('hrv-trend-chart', 'line', hrvTrend.map(h => fmtDate(h.date)), datasets);
+        } else { showEmpty('hrv-trend'); }
+
+        // ── HRV letzter Wert ──────────────────────────────────────────────────
         const hrvEl = document.getElementById('hrv-container');
         if (!hrv) {
             hrvEl.innerHTML = '<p class="empty">Noch keine HRV-Daten.</p>';
         } else {
-            const statusClass = hrv.hrv_status === 'BALANCED' ? 'balanced'
-                : hrv.hrv_status === 'UNBALANCED' ? 'unbalanced' : 'poor';
+            const statusClass = (hrv.hrv_status || 'poor').toLowerCase();
+            const statusLabels = { balanced: 'Ausgeglichen', unbalanced: 'Unausgeglichen', poor: 'Niedrig' };
             hrvEl.innerHTML = `<div class="hrv-card">
-                <div class="hrv-row">
-                    <span class="hrv-label">Letzte Nacht</span>
-                    <span class="hrv-value">${hrv.hrv_last_night ?? '—'} ms</span>
-                </div>
                 <div class="hrv-row">
                     <span class="hrv-label">Wochenø</span>
                     <span class="hrv-value">${hrv.hrv_weekly_avg ?? '—'} ms</span>
                 </div>
                 <div class="hrv-row">
                     <span class="hrv-label">Status</span>
-                    <span class="status-badge status-${statusClass}">${hrv.hrv_status ?? '—'}</span>
+                    <span class="status-badge status-${statusClass}">
+                        ${statusLabels[statusClass] ?? hrv.hrv_status}
+                    </span>
                 </div>
+            </div>`;
+        }
+
+        // ── Trainingszustand ──────────────────────────────────────────────────
+        const tsEl = document.getElementById('training-status-container');
+        if (!trainingStatus || !trainingStatus.training_status) {
+            tsEl.innerHTML = '<p class="empty">Noch keine Daten — wird nach dem nächsten Sync befüllt.</p>';
+        } else {
+            const tsMap = {
+                PRODUCTIVE:    { label: 'Aufbauend',       cls: 'status-balanced' },
+                MAINTAINING:   { label: 'Erhalt',          cls: 'status-balanced' },
+                RECOVERY:      { label: 'Erholung',        cls: 'status-unbalanced' },
+                UNPRODUCTIVE:  { label: 'Nicht produktiv', cls: 'status-unbalanced' },
+                OVERREACHING:  { label: 'Übertraining',    cls: 'status-poor' },
+                DETRAINING:    { label: 'Abfall',          cls: 'status-poor' },
+            };
+            const key = (trainingStatus.training_status || '').toUpperCase();
+            const entry = tsMap[key] || { label: trainingStatus.training_status, cls: 'status-unbalanced' };
+            const d = trainingStatus.date ? new Date(trainingStatus.date).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' }) : '';
+            tsEl.innerHTML = `<div class="hrv-card">
+                <div class="hrv-row">
+                    <span class="hrv-label">Status</span>
+                    <span class="status-badge ${entry.cls}">${entry.label}</span>
+                </div>
+                ${d ? `<div class="hrv-row"><span class="hrv-label">Stand</span><span class="hrv-value" style="font-size:.85rem;color:#64748b">${d}</span></div>` : ''}
             </div>`;
         }
     }
 
-    load().catch(err => console.error('Dashboard Fehler:', err));
+    load(currentDays).catch(err => console.error('Dashboard Fehler:', err));
     </script>
 </body>
 </html>

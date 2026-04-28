@@ -97,10 +97,19 @@ async def get_daily_summaries(user_id: int, days: int = 30) -> list[dict]:
     pool = await get_pool()
     rows = await pool.fetch(
         """
-        SELECT date, steps, resting_hr, body_battery_high, body_battery_low
-        FROM daily_summary
-        WHERE user_id = $1 AND date >= NOW() - ($2 || ' days')::INTERVAL
-        ORDER BY date
+        SELECT ds.date, ds.steps, ds.resting_hr, ds.avg_stress, ds.calories_total,
+               ds.intensity_moderate, ds.intensity_vigorous,
+               COALESCE(ds.body_battery_high, bb.max_val) AS body_battery_high,
+               COALESCE(ds.body_battery_low,  bb.min_val) AS body_battery_low
+        FROM daily_summary ds
+        LEFT JOIN (
+            SELECT date(time) AS date, MAX(value) AS max_val, MIN(value) AS min_val
+            FROM body_battery_intraday
+            WHERE user_id = $1
+            GROUP BY date(time)
+        ) bb ON bb.date = ds.date
+        WHERE ds.user_id = $1 AND ds.date >= NOW() - ($2 || ' days')::INTERVAL
+        ORDER BY ds.date
         """,
         user_id,
         str(days),
@@ -112,7 +121,8 @@ async def get_sleep_sessions(user_id: int, limit: int = 14) -> list[dict]:
     pool = await get_pool()
     rows = await pool.fetch(
         """
-        SELECT date(start_time) AS date, sleep_score, total_sleep_seconds
+        SELECT date(start_time) AS date, sleep_score, total_sleep_seconds,
+               deep_sleep_seconds, light_sleep_seconds, rem_sleep_seconds, awake_seconds
         FROM sleep_sessions
         WHERE user_id = $1
         ORDER BY start_time DESC
@@ -122,6 +132,36 @@ async def get_sleep_sessions(user_id: int, limit: int = 14) -> list[dict]:
         limit,
     )
     return [dict(r) for r in rows]
+
+
+async def get_hrv_trend(user_id: int, days: int = 30) -> list[dict]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT date, hrv_last_night, hrv_weekly_avg, hrv_status
+        FROM hrv_daily
+        WHERE user_id = $1 AND date >= NOW() - ($2 || ' days')::INTERVAL
+        ORDER BY date
+        """,
+        user_id,
+        str(days),
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_latest_training_status(user_id: int) -> dict | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT date, training_status
+        FROM daily_summary
+        WHERE user_id = $1 AND training_status IS NOT NULL
+        ORDER BY date DESC
+        LIMIT 1
+        """,
+        user_id,
+    )
+    return dict(row) if row else None
 
 
 async def get_latest_hrv(user_id: int) -> dict | None:

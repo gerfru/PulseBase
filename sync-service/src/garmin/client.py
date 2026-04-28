@@ -55,3 +55,6 @@ class GarminClient:
 
     def get_stress(self, day: date) -> dict[str, Any]:
         return self._client.get_stress_data(day.isoformat()) or {}
+
+    def get_training_status(self, day: date) -> dict[str, Any]:
+        return self._client.get_training_status(day.isoformat()) or {}
