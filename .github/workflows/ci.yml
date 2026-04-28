@@ -41,9 +41,9 @@ jobs:
       - name: pip-audit api
         run: |
           pip install pip-audit
-          pip-audit -p api/pyproject.toml
+          pip-audit api/
       - name: pip-audit sync-service
-        run: pip-audit -p sync-service/pyproject.toml
+        run: pip-audit sync-service/
 
   test:
     name: Tests
