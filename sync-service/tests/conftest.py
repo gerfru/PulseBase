@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 # sync-service/src auf den Pfad setzen damit Imports funktionieren
-sys.path.insert(0, str(Path(__file__).parent.parent / "sync-service" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 RAW_ACTIVITY_RUNNING = {
