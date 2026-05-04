@@ -1,14 +1,18 @@
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Form, Query, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import bcrypt
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.db import (
     Settings,
+    get_pool,
     create_user,
     get_user_by_email,
     get_user_by_id,
@@ -29,6 +33,24 @@ logger = logging.getLogger(__name__)
 settings = Settings()
 
 
+def _get_real_ip(request: Request) -> str:
+    """Extract real client IP behind reverse proxy."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+
+limiter = Limiter(key_func=_get_real_ip)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await get_pool()
+    logger.info("DB pool initialized")
+    yield
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
@@ -37,9 +59,20 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-app = FastAPI(title="Garmin Dashboard API")
+async def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"error": {"code": "RATE_LIMITED", "message": "Too many requests."}},
+    )
+
+
+app = FastAPI(title="Garmin Dashboard API", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
-    SessionMiddleware, secret_key=settings.session_secret, https_only=True
+    SessionMiddleware,
+    secret_key=settings.session_secret,
+    https_only=settings.https_only,
 )
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -63,6 +96,14 @@ async def require_user(request: Request) -> dict:
     return user
 
 
+# ── Health ────────────────────────────────────────────────────────────────────
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # ── Öffentliche Routen ────────────────────────────────────────────────────────
 
 
@@ -72,6 +113,7 @@ async def login_form(request: Request):
 
 
 @app.post("/login")
+@limiter.limit("10/minute")
 async def login(
     request: Request,
     email: str = Form(),
@@ -200,19 +242,19 @@ async def dashboard(request: Request):
 
 
 @app.get("/api/activities")
-async def api_activities(request: Request, limit: int = 10):
+async def api_activities(request: Request, limit: int = Query(default=10, ge=1, le=100)):
     user = await require_user(request)
     return await get_recent_activities(user["id"], limit=limit)
 
 
 @app.get("/api/daily")
-async def api_daily(request: Request, days: int = 30):
+async def api_daily(request: Request, days: int = Query(default=30, ge=1, le=365)):
     user = await require_user(request)
     return await get_daily_summaries(user["id"], days=days)
 
 
 @app.get("/api/sleep")
-async def api_sleep(request: Request, days: int = 14):
+async def api_sleep(request: Request, days: int = Query(default=14, ge=1, le=365)):
     user = await require_user(request)
     return await get_sleep_sessions(user["id"], limit=days)
 
@@ -224,7 +266,7 @@ async def api_hrv(request: Request):
 
 
 @app.get("/api/hrv/trend")
-async def api_hrv_trend(request: Request, days: int = 30):
+async def api_hrv_trend(request: Request, days: int = Query(default=30, ge=1, le=365)):
     user = await require_user(request)
     return await get_hrv_trend(user["id"], days=days)
 

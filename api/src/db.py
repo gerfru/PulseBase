@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     db_user: str
     db_password: str
     session_secret: str
+    https_only: bool = True
 
     @property
     def db_url(self) -> str:
