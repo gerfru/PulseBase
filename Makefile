@@ -1,7 +1,13 @@
-.PHONY: up down clean reset logs logs-sync logs-all sync status migrate db gen-secrets setup add-host setup-user restart-api build-api build-sync
+.PHONY: network up up-standalone down clean reset logs logs-sync logs-all sync sync-history status migrate db gen-secrets setup add-host setup-user restart-api build-api build-sync
 
-up:
+network:
+	docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
+
+up: network
 	docker compose up -d --build
+
+up-standalone: network
+	docker compose --profile standalone up -d --build
 
 down:
 	docker compose down

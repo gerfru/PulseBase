@@ -10,8 +10,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - timescale-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d garmin"]
       interval: 10s
@@ -33,18 +33,23 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - internal
 
   traefik:
     image: traefik:v3
     container_name: garmin-traefik
     restart: unless-stopped
+    profiles:
+      - standalone
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy
 
   api:
     build: ./api
@@ -64,11 +69,21 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       SESSION_SECRET: ${SESSION_SECRET}
+      HTTPS_ONLY: ${HTTPS_ONLY:-true}
     volumes:
       - garmin-tokens:/app/tokens
     depends_on:
       flyway:
         condition: service_completed_successfully
+    networks:
+      - internal
+      - proxy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   sync-service:
     build: ./sync-service
@@ -87,7 +102,15 @@ services:
       SYNC_LOOKBACK_DAYS: ${SYNC_LOOKBACK_DAYS:-30}
     volumes:
       - garmin-tokens:/app/tokens
+    networks:
+      - internal
 
 volumes:
   timescale-data:
   garmin-tokens:
+
+networks:
+  internal:
+    driver: bridge
+  proxy:
+    external: true
