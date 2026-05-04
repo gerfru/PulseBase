@@ -242,7 +242,9 @@ async def dashboard(request: Request):
 
 
 @app.get("/api/activities")
-async def api_activities(request: Request, limit: int = Query(default=10, ge=1, le=100)):
+async def api_activities(
+    request: Request, limit: int = Query(default=10, ge=1, le=100)
+):
     user = await require_user(request)
     return await get_recent_activities(user["id"], limit=limit)
 
