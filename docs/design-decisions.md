@@ -91,13 +91,31 @@ Flyway runs automatically on container startup and exits. This means:
 
 ---
 
-## Traefik for HTTPS
+## Caddy via homelab-gateway (not bundled Traefik)
 
-Traefik handles TLS termination and HTTP → HTTPS redirect. The FastAPI app only speaks
-plain HTTP internally; Traefik adds HTTPS at the edge. Docker labels in
-`docker-compose.yml` configure routing — no separate config file needed per service.
+HTTPS termination is handled by a separate [`homelab-gateway`](https://github.com/gerfru/homelab-gateway)
+repo running Caddy on a shared `proxy` Docker network. PulseBase joins this network —
+no ports are exposed on the host.
 
-Self-signed certificate: browser will show a warning on first visit. Accept it once.
+Benefits:
+- One Caddy instance handles all self-hosted services (PulseBase, Niles, Vikunja, ...)
+- `*.home.lab` subdomains resolve via CoreDNS + Tailscale Split DNS — no hosts file edits
+- Security headers (`HSTS`, `X-Frame-Options`, `CSP`, etc.) defined once in a Caddy snippet
+
+For standalone use without homelab-gateway (e.g. Windows/WSL): `make up-standalone`
+starts Traefik alongside PulseBase. This is the fallback, not the default.
+
+---
+
+## Shared CSS design system (no inline styles, no framework)
+
+All templates share a single `api/src/static/style.css` using CSS Custom Properties.
+No Tailwind, no Bootstrap, no build step — just one file served by FastAPI's `StaticFiles`.
+
+Benefits:
+- Dark mode via `prefers-color-scheme` — zero JavaScript
+- Design tokens in `:root` make color/spacing changes a one-line edit
+- New templates start clean — no copy-pasting inline styles
 
 ---
 

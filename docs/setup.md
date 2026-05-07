@@ -3,9 +3,12 @@
 ## Requirements
 
 - Docker + Docker Compose
-- WSL2 (on Windows)
 - `make`
 - A Garmin Connect account
+- [homelab-gateway](https://github.com/gerfru/homelab-gateway) running (for `garmin.home.lab` access)
+
+> **Standalone (no homelab-gateway):** Use `make up-standalone` — starts Traefik alongside
+> PulseBase. Suitable for Windows/WSL or any machine without homelab-gateway.
 
 ---
 
@@ -25,7 +28,7 @@ DB_PASSWORD=<strong password>
 
 SESSION_SECRET=   # see step 2
 
-HOST_IP=garmin.local
+HOST_IP=garmin.home.lab
 SYNC_HOUR=6
 SYNC_LOOKBACK_DAYS=30
 ```
@@ -42,54 +45,48 @@ Copy the output value into `.env` at `SESSION_SECRET`.
 
 ---
 
-## 3. Add garmin.local to hosts file
-
-Run in an **Admin PowerShell** on Windows:
-
-```powershell
-Add-Content C:\Windows\System32\drivers\etc\hosts '127.0.0.1 garmin.local'
-```
-
----
-
-## 4. Start services
+## 3. Start services
 
 ```bash
 make up
 ```
 
 This builds the images, runs Flyway migrations, and starts all containers.
-Wait until the API is ready (check with `make status` or `make logs`).
+The API container joins the external `proxy` network shared with homelab-gateway's Caddy.
 
-> **With Niles:** If Niles AI is running on the same host, Caddy handles HTTPS
-> for PulseBase at `https://garmin.local`. No Traefik needed — `make up` is enough.
->
-> **Standalone (without Niles):** Use `make up-standalone` to start with Traefik
-> for self-signed HTTPS.
+Wait until the API is ready:
+```bash
+make status
+make logs
+```
+
+> **Standalone (without homelab-gateway):** Use `make up-standalone` instead.
+> This starts Traefik for HTTPS. Open `https://garmin.home.lab` and accept the
+> self-signed certificate warning once.
 
 ---
 
-## 5. Register your account
+## 4. Register your account
 
-Open `https://garmin.local/register` in a browser.
+Open `https://garmin.home.lab/register` in a browser.
 
-The browser will show a certificate warning (self-signed cert) — accept it once and it
-won't appear again for this domain.
+The browser will show a certificate warning (self-signed cert from Caddy) — accept it
+once and it won't appear again for this subdomain.
 
 Create your account with name, email, and password (min. 8 characters).
 
 ---
 
-## 6. Link Garmin
+## 5. Link Garmin
 
-Go to `https://garmin.local/garmin/link` (or click the link on the home page).
+Go to `https://garmin.home.lab/garmin/link` (or click the link on the dashboard).
 
 Enter your Garmin Connect email and password. The password is used once to fetch a
 session token and then deleted from memory — it is never stored anywhere.
 
 ---
 
-## 7. Trigger the first sync
+## 6. Trigger the first sync
 
 ```bash
 make sync
@@ -102,7 +99,7 @@ days for all linked users. Watch progress with:
 make logs-sync
 ```
 
-After sync completes, go to `https://garmin.local/dashboard`.
+After sync completes, go to `https://garmin.home.lab/dashboard`.
 
 ---
 
@@ -117,12 +114,12 @@ No manual action needed after initial setup.
 
 | Command | What it does |
 |---------|-------------|
-| `make up` | Build images and start all services (without Traefik) |
-| `make up-standalone` | Build and start with Traefik (standalone, no Niles) |
+| `make up` | Build images and start all services (requires homelab-gateway proxy network) |
+| `make up-standalone` | Build and start with Traefik (standalone, no homelab-gateway needed) |
 | `make down` | Stop all services |
 | `make reset` | Stop + wipe all data + re-run migrations (deletes all users!) |
 | `make migrate` | Run pending Flyway migrations |
-| `make sync` | Trigger Garmin sync immediately (don't wait for 6:00) |
+| `make sync` | Trigger Garmin sync immediately (don't wait for scheduled hour) |
 | `make build-api` | Rebuild and restart only the API container |
 | `make logs` | Live logs from the API |
 | `make logs-sync` | Live logs from the sync-service |
@@ -134,7 +131,7 @@ No manual action needed after initial setup.
 
 ## Adding a second user
 
-1. Open `https://garmin.local/register` in a browser (or incognito window)
+1. Open `https://garmin.home.lab/register` in a browser (or incognito window)
 2. Register the new account
 3. Log in and go to `/garmin/link`
 4. Link the second Garmin account
@@ -151,6 +148,12 @@ Check that the `db` container is healthy before the API starts.
 ```bash
 make status
 make logs
+```
+
+**`proxy` network not found:**
+homelab-gateway must be running before `make up`. Start it first:
+```bash
+cd ../homelab-gateway && make up
 ```
 
 **Garmin link fails:**
