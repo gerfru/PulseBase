@@ -1,0 +1,302 @@
+/* ── Design Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --bg:        #f8fafc;
+  --surface:   #ffffff;
+  --surface-2: #f1f5f9;
+  --border:    #e2e8f0;
+  --text:      #0f172a;
+  --muted:     #64748b;
+  --accent:    #6366f1;
+  --accent-dk: #4f46e5;
+  --green:     #22c55e;
+  --amber:     #f59e0b;
+  --red:       #ef4444;
+  --violet:    #8b5cf6;
+  --radius:    12px;
+  --shadow:    0 1px 4px rgba(0,0,0,.07), 0 0 0 1px rgba(0,0,0,.03);
+  --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #0f172a;
+    --surface:   #1e293b;
+    --surface-2: #0f172a;
+    --border:    #334155;
+    --text:      #f1f5f9;
+    --muted:     #94a3b8;
+  }
+}
+
+/* ── Reset & Base ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--sp-6);
+  box-shadow: var(--shadow);
+}
+.card h2 {
+  font-size: .75rem;
+  color: var(--muted);
+  margin: 0 0 var(--sp-4);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  font-weight: 600;
+}
+.empty {
+  color: var(--muted);
+  font-size: .9rem;
+  text-align: center;
+  padding: var(--sp-6) 0;
+  margin: 0;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: .95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  text-align: center;
+  transition: opacity .15s;
+}
+.btn:hover { opacity: .88; }
+.btn-primary   { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.btn-danger    { background: var(--red); color: #fff; }
+.btn-block     { display: block; width: 100%; }
+.btn-sm {
+  padding: 6px 14px;
+  font-size: .85rem;
+}
+
+/* ── Form Elements ─────────────────────────────────────────────────────── */
+label {
+  display: block;
+  font-size: .88rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+label:first-of-type { margin-top: 0; }
+input[type=text],
+input[type=email],
+input[type=password] {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+input[type=text]:focus,
+input[type=email]:focus,
+input[type=password]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+.hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+/* ── Alerts ────────────────────────────────────────────────────────────── */
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+  font-size: .9rem;
+}
+.notice {
+  background: #eff6ff;
+  color: #1e40af;
+  border-radius: 8px;
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-6);
+  font-size: .9rem;
+}
+.banner-warning {
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  color: #713f12;
+  border-radius: var(--radius);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+  font-size: .9rem;
+}
+.banner-warning a { color: #92400e; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .error   { background: rgba(239,68,68,.15);  color: #fca5a5; }
+  .notice  { background: rgba(99,102,241,.15); color: #a5b4fc; }
+  .banner-warning { background: rgba(234,179,8,.12); border-color: rgba(234,179,8,.3); color: #fde68a; }
+  .banner-warning a { color: #fcd34d; }
+}
+
+/* ── Badges ────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 99px;
+  font-size: .78rem;
+  font-weight: 600;
+}
+.badge-balanced   { background: #dcfce7; color: #166534; }
+.badge-unbalanced { background: #fef9c3; color: #854d0e; }
+.badge-poor       { background: #fee2e2; color: #991b1b; }
+@media (prefers-color-scheme: dark) {
+  .badge-balanced   { background: rgba(34,197,94,.2);  color: #86efac; }
+  .badge-unbalanced { background: rgba(234,179,8,.2);  color: #fde68a; }
+  .badge-poor       { background: rgba(239,68,68,.2);  color: #fca5a5; }
+}
+
+/* ── Auth Layout ───────────────────────────────────────────────────────── */
+.auth-wrap {
+  max-width: 420px;
+  margin: 72px auto;
+  padding: 0 var(--sp-4);
+}
+.auth-brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+.auth-sub {
+  color: var(--muted);
+  margin: 0 0 var(--sp-8);
+  font-size: .95rem;
+}
+.auth-footer {
+  text-align: center;
+  margin-top: var(--sp-6);
+  font-size: .9rem;
+  color: var(--muted);
+}
+.auth-footer a { color: var(--accent); text-decoration: none; }
+.auth-footer a:hover { text-decoration: underline; }
+
+/* ── Dashboard Header ──────────────────────────────────────────────────── */
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-4);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+.dash-header-left { display: flex; align-items: baseline; gap: var(--sp-3); }
+.dash-brand { font-size: 1.2rem; font-weight: 700; margin: 0; color: var(--text); }
+.dash-user  { font-size: .88rem; color: var(--muted); }
+.dash-header-right { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+
+/* ── Time Selector ─────────────────────────────────────────────────────── */
+.time-selector { display: flex; gap: 4px; }
+.time-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 5px 12px;
+  font-size: .82rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.time-btn:hover { background: var(--surface-2); color: var(--text); }
+.time-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── Hero Stat Row ─────────────────────────────────────────────────────── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-4);
+  padding: 0 var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+@media (min-width: 480px) {
+  .stat-row { grid-template-columns: repeat(4, 1fr); }
+}
+.stat-tile {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow);
+}
+.stat-label {
+  font-size: .72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  font-weight: 600;
+}
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-top: var(--sp-2);
+  color: var(--text);
+}
+
+/* ── Dashboard Grid ────────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-4) var(--sp-8);
+}
+@media (min-width: 640px) {
+  .grid { grid-template-columns: 1fr 1fr; gap: var(--sp-6); padding: 0 var(--sp-6) var(--sp-8); }
+}
+.card.full { grid-column: 1 / -1; }
+
+/* ── Charts ────────────────────────────────────────────────────────────── */
+.chart-wrap { position: relative; height: 200px; }
+
+/* ── Activities Table ──────────────────────────────────────────────────── */
+.table-scroll { overflow-y: auto; max-height: 400px; }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  z-index: 1;
+  text-align: left;
+}
+td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--surface-2);
+  color: var(--text);
+}
+tr:last-child td { border-bottom: none; }
+.sport { white-space: nowrap; }
+
+/* ── HRV / Training Status Cards ──────────────────────────────────────── */
+.kv-card  { display: flex; flex-direction: column; gap: var(--sp-3); }
+.kv-row   { display: flex; justify-content: space-between; align-items: center; }
+.kv-label { color: var(--muted); font-size: .9rem; }
+.kv-value { font-weight: 600; font-size: 1rem; color: var(--text); }
