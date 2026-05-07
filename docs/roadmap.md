@@ -2,6 +2,12 @@
 
 ## Current State
 
+**Phase 6 complete** (May 2026):
+- Activity detail page (`/activity/{id}`) with GPS track (Leaflet.js + OpenStreetMap),
+  HR/pace/elevation/cadence charts, stat grid, and aerobic/anaerobic training effect bars
+- Aerobic + anaerobic training effect stored and backfilled via upsert on every sync
+- Dashboard activity table rows clickable
+
 **Phase 5 complete** (May 2026):
 - Mobile-first UI redesign with shared CSS design system and auto dark mode
 - Hero stat row on dashboard (steps, sleep score, HRV, body battery)
@@ -90,10 +96,10 @@ Automated weekly summary (email or on-screen) with narrative text:
 - HRV trend direction
 - Anomalies flagged
 
-### GPS map view
+### ~~GPS map view~~ ✓ Done in Phase 6
 
-`activity_records` already stores `lat`/`lng` per second. A map view using Leaflet.js
-could render GPS tracks without any additional sync changes.
+`activity_records` stores `lat`/`lng` per second. Leaflet.js map is now live on the
+activity detail page.
 
 ### Custom sport-type mapping
 

@@ -14,6 +14,8 @@ production database — always add a new migration file.
 | `V1__initial_schema.sql` | Core tables, hypertables, compression policies |
 | `V2__user_auth.sql` | Adds `garmin_email`, `garmin_linked`, `is_active`, `authelia_username` to `users` |
 | `V3__user_password.sql` | Adds `password_hash` to `users` |
+| `V4__intensity_training_status.sql` | Adds `intensity_moderate`, `intensity_vigorous`, `training_status` to `daily_summary` |
+| `V5__activity_training_effect.sql` | Adds `aerobic_effect`, `anaerobic_effect` to `activities` |
 
 ---
 
@@ -54,6 +56,8 @@ production database — always add a new migration file.
 | `avg_power` | `SMALLINT` | Watts (cycling) |
 | `elevation_gain` | `FLOAT` | Meters |
 | `avg_speed_kmh` | `FLOAT` | |
+| `aerobic_effect` | `FLOAT` | Garmin aerobic training effect 1–5 (V5) |
+| `anaerobic_effect` | `FLOAT` | Garmin anaerobic training effect 1–5 (V5) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 Index: `(user_id, started_at DESC)`
@@ -77,6 +81,9 @@ Primary key: `(date, user_id)` — one row per user per day, upserted on sync.
 | `body_battery_high` | `SMALLINT` | 0–100 |
 | `body_battery_low` | `SMALLINT` | |
 | `resting_hr` | `SMALLINT` | bpm |
+| `intensity_moderate` | `SMALLINT` | Minutes of moderate intensity (V4) |
+| `intensity_vigorous` | `SMALLINT` | Minutes of vigorous intensity (V4) |
+| `training_status` | `TEXT` | e.g. `PRODUCTIVE`, `MAINTAINING` (V4) |
 
 ---
 

@@ -104,14 +104,14 @@ api/src/
 ├── main.py           Alle Routen (Auth + Dashboard + /api/*)
 ├── db.py             Alle DB-Funktionen (asyncpg, kein ORM)
 ├── garmin/client.py  Garmin Connect Client (Token-Login)
-└── templates/        Jinja2 Templates (login, register, index, dashboard, link_garmin)
+└── templates/        Jinja2 Templates (login, register, dashboard, activity, link_garmin)
 
 sync-service/src/
 ├── main.py           APScheduler + Sync-Loop pro User
 ├── garmin/           API-Client + Mapper (Garmin → Domain-Modelle)
 └── repositories/     TimescaleRepository (upsert, bulk_insert)
 
-db/migrations/        Flyway: V1 Schema, V2 User-Auth, V3 password_hash
+db/migrations/        Flyway: V1 Schema, V2 User-Auth, V3 password_hash, V4 intensity+training_status, V5 training_effect
 ```
 
 ## Architektur-Entscheidungen
@@ -129,7 +129,7 @@ db/migrations/        Flyway: V1 Schema, V2 User-Auth, V3 password_hash
 | Tabelle | Wichtige Spalten |
 |---------|-----------------|
 | `users` | `id`, `name`, `email`, `password_hash`, `garmin_linked`, `garmin_email`, `is_active` |
-| `activities` | `started_at` (nicht start_time!), `sport_type`, `duration_seconds`, `distance_meters`, `avg_hr` (nicht avg_heart_rate!), `calories` (nicht total_calories!) |
+| `activities` | `started_at` (nicht start_time!), `sport_type`, `duration_seconds`, `distance_meters`, `avg_hr` (nicht avg_heart_rate!), `calories` (nicht total_calories!), `aerobic_effect`, `anaerobic_effect` |
 | `daily_summary` | `date`, `steps` (nicht total_steps!), `resting_hr`, `body_battery_high`, `body_battery_low` |
 | `sleep_sessions` | `start_time`, `sleep_score`, `total_sleep_seconds` (nicht duration_seconds!) |
 | `hrv_daily` | `hrv_last_night`, `hrv_weekly_avg` (nicht weekly_avg!), `hrv_status` (nicht status!) |
@@ -137,10 +137,21 @@ db/migrations/        Flyway: V1 Schema, V2 User-Auth, V3 password_hash
 ## JSON-API Endpoints (alle session-geschützt)
 
 ```
-GET /api/activities          letzte 10 Aktivitäten
-GET /api/daily?days=30       Tagesübersichten
-GET /api/sleep?days=14       Schlaf-Sessions
-GET /api/hrv                 letzter HRV-Eintrag
+GET /api/activities              Aktivitäten (Query: days=7, limit=500)
+GET /api/activities/{id}         Aktivität Detail + activity_records
+GET /api/daily?days=30           Tagesübersichten
+GET /api/sleep?days=14           Schlaf-Sessions
+GET /api/hrv                     letzter HRV-Eintrag
+GET /api/hrv/trend?days=30       HRV-Verlauf
+GET /api/training-status         letzter Trainingszustand
+```
+
+## Seiten-Routen
+
+```
+GET /dashboard               Dashboard (Chart.js, fetch)
+GET /activity/{id}           Aktivitäts-Detail (GPS-Karte, Charts)
+GET /garmin/link             Garmin-Account verknüpfen
 ```
 
 ## .env Pflichtfelder
