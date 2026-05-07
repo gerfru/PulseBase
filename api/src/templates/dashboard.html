@@ -242,7 +242,7 @@
                     <th>Sport</th><th>Datum</th><th>Dauer</th>
                     <th>Distanz</th><th>Kalorien</th><th>Ø HR</th>
                 </tr></thead>
-                <tbody>${activities.map(a => `<tr>
+                <tbody>${activities.map(a => `<tr onclick="location.href='/activity/${a.id}'">
                     <td class="sport">${sportLabel(a.sport_type)}</td>
                     <td>${fmtDate(a.started_at)}</td>
                     <td>${fmtDuration(a.duration_seconds)}</td>
