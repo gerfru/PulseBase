@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import bcrypt
 from slowapi import Limiter
@@ -67,6 +68,11 @@ async def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded)
 
 
 app = FastAPI(title="Garmin Dashboard API", lifespan=lifespan)
+app.mount(
+    "/static",
+    StaticFiles(directory=str(Path(__file__).parent / "static")),
+    name="static",
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
@@ -243,10 +249,12 @@ async def dashboard(request: Request):
 
 @app.get("/api/activities")
 async def api_activities(
-    request: Request, limit: int = Query(default=10, ge=1, le=100)
+    request: Request,
+    days: int = Query(default=7, ge=1, le=365),
+    limit: int = Query(default=500, ge=1, le=500),
 ):
     user = await require_user(request)
-    return await get_recent_activities(user["id"], limit=limit)
+    return await get_recent_activities(user["id"], limit=limit, days=days)
 
 
 @app.get("/api/daily")

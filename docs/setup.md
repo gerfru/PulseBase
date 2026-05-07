@@ -61,14 +61,20 @@ make up
 This builds the images, runs Flyway migrations, and starts all containers.
 Wait until the API is ready (check with `make status` or `make logs`).
 
+> **With Niles:** If Niles AI is running on the same host, Caddy handles HTTPS
+> for PulseBase at `https://garmin.local`. No Traefik needed — `make up` is enough.
+>
+> **Standalone (without Niles):** Use `make up-standalone` to start with Traefik
+> for self-signed HTTPS.
+
 ---
 
 ## 5. Register your account
 
 Open `https://garmin.local/register` in a browser.
 
-The browser will show a certificate warning (self-signed cert from Traefik) — accept it
-once and it won't appear again for this domain.
+The browser will show a certificate warning (self-signed cert) — accept it once and it
+won't appear again for this domain.
 
 Create your account with name, email, and password (min. 8 characters).
 
@@ -111,7 +117,8 @@ No manual action needed after initial setup.
 
 | Command | What it does |
 |---------|-------------|
-| `make up` | Build images and start all services |
+| `make up` | Build images and start all services (without Traefik) |
+| `make up-standalone` | Build and start with Traefik (standalone, no Niles) |
 | `make down` | Stop all services |
 | `make reset` | Stop + wipe all data + re-run migrations (deletes all users!) |
 | `make migrate` | Run pending Flyway migrations |

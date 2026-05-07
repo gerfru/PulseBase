@@ -15,3 +15,6 @@ __pycache__/
 
 # Docker
 tokens/
+
+# Claude Code
+CLAUDE.md

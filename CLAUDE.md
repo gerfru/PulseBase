@@ -81,8 +81,8 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 
 ## Stack
 
-FastAPI · TimescaleDB (PostgreSQL 16) · Traefik v3 · Docker Compose · Chart.js
-Zugriff: `https://garmin.local` (Windows Hosts: `127.0.0.1 garmin.local`)
+FastAPI · TimescaleDB (PostgreSQL 16) · Docker Compose · Chart.js
+Zugriff: `https://garmin.home.lab` (via homelab-gateway) oder `make up-standalone` mit Traefik
 
 ## Entwicklungs-Workflow
 
@@ -149,7 +149,7 @@ GET /api/hrv                 letzter HRV-Eintrag
 DB_USER=garmin
 DB_PASSWORD=
 SESSION_SECRET=     # make gen-secrets
-HOST_IP=garmin.local
+HOST_IP=garmin.home.lab
 SYNC_HOUR=6
 SYNC_LOOKBACK_DAYS=30
 ```

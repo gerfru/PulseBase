@@ -77,7 +77,9 @@ async def set_garmin_unlinked(user_id: int) -> None:
     )
 
 
-async def get_recent_activities(user_id: int, limit: int = 10) -> list[dict]:
+async def get_recent_activities(
+    user_id: int, limit: int = 500, days: int = 7
+) -> list[dict]:
     pool = await get_pool()
     rows = await pool.fetch(
         """
@@ -85,10 +87,12 @@ async def get_recent_activities(user_id: int, limit: int = 10) -> list[dict]:
                avg_hr, calories
         FROM activities
         WHERE user_id = $1
+          AND started_at >= NOW() - ($2 * INTERVAL '1 day')
         ORDER BY started_at DESC
-        LIMIT $2
+        LIMIT $3
         """,
         user_id,
+        days,
         limit,
     )
     return [dict(r) for r in rows]
