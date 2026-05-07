@@ -13,4 +13,5 @@ dependencies = [
     "garminconnect>=0.3.3",
     "bcrypt>=5.0.0",
     "itsdangerous>=2.2.0",
+    "slowapi>=0.1.9",
 ]

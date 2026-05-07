@@ -38,6 +38,7 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 | Command | Description |
 |---------|-------------|
 | `make up` | Build images and start all services |
+| `make up-standalone` | Start with Traefik (standalone, no Niles) |
 | `make down` | Stop services |
 | `make reset` | Wipe everything + fresh DB (deletes all users!) |
 | `make sync` | Trigger Garmin sync immediately |
@@ -50,7 +51,10 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 
 ## Security
 
-- HTTPS via Traefik (self-signed cert — confirm browser warning once)
+- HTTPS via Caddy (with Niles) or Traefik (standalone) — self-signed cert, confirm browser warning once
+- Rate limiting on login (10 requests/minute)
+- Query parameter validation on all API endpoints
 - Passwords stored as bcrypt hashes
 - Session via signed cookie (httpOnly, secure)
 - Garmin password wiped from memory immediately after token retrieval
+- Database not exposed on host network
