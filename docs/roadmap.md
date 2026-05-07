@@ -2,8 +2,14 @@
 
 ## Current State
 
-Phase 4 is complete:
-- Self-hosted HTTPS dashboard (Traefik + FastAPI)
+**Phase 5 complete** (May 2026):
+- Mobile-first UI redesign with shared CSS design system and auto dark mode
+- Hero stat row on dashboard (steps, sleep score, HRV, body battery)
+- Responsive charts that zoom out on large time ranges
+- Activity filter by actual date range (not just row count)
+
+**Phase 4 complete:**
+- Self-hosted HTTPS dashboard (Caddy via homelab-gateway + FastAPI)
 - Multi-user registration and login
 - Garmin Connect sync (activities, sleep, HRV, body battery, stress, SpO2)
 - JSON API + Chart.js dashboard (no Grafana dependency)

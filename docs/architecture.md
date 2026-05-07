@@ -6,11 +6,16 @@ PulseBase is a self-hosted fitness dashboard that syncs Garmin data to a local T
 and serves it via a FastAPI web app. All processing happens on-premises — no cloud, no
 third-party analytics.
 
+### With homelab-gateway (default)
+
 ```
-Browser
+Browser (Tailnet device)
   │
   ▼
-Traefik v3  (HTTPS reverse proxy, auto-redirect HTTP → HTTPS)
+CoreDNS  (garmin.home.lab → Tailscale IP, via homelab-gateway repo)
+  │
+  ▼
+Caddy  (HTTPS termination, shared proxy network, homelab-gateway repo)
   │
   ▼
 FastAPI  (Auth + Dashboard HTML + JSON API)
@@ -25,15 +30,36 @@ Sync-Service  (APScheduler, daily Garmin Connect pull)
 Garmin Connect API  (external)
 ```
 
+### Standalone (make up-standalone)
+
+Traefik replaces Caddy for local use without homelab-gateway (e.g. Windows/WSL, no Tailscale).
+
+```
+Browser
+  │
+  ▼
+Traefik v3  (HTTPS, self-signed cert, HTTP → HTTPS redirect)
+  │
+  ▼
+FastAPI  ...
+```
+
+---
+
 ## Services
 
 | Container | Image / Build | Role |
 |-----------|--------------|------|
 | `garmin-db` | `timescale/timescaledb:latest-pg16` | Time-series database |
-| `garmin-flyway` | `flyway/flyway:latest` | Runs DB migrations on startup |
-| `garmin-traefik` | `traefik:v3` | HTTPS termination, HTTP→HTTPS redirect |
+| `garmin-flyway` | `flyway/flyway:latest` | Runs DB migrations on startup, then exits |
 | `garmin-api` | `./api` (FastAPI) | Web app: auth, HTML pages, JSON API |
 | `garmin-sync` | `./sync-service` (Python) | Daily Garmin data pull |
+
+HTTPS is handled externally:
+- **homelab-gateway** (default): Caddy on the shared `proxy` Docker network
+- **Standalone**: Traefik (`make up-standalone`) included in PulseBase compose
+
+---
 
 ## Startup Order
 
@@ -46,6 +72,8 @@ db (healthy)
 
 Flyway runs migrations on every start and exits. The API and sync-service only start
 after migrations have completed successfully.
+
+---
 
 ## Data Flow
 
@@ -73,12 +101,37 @@ Data synced per user per day:
 
 ```
 Browser GET /dashboard
-  → Traefik (TLS termination)
+  → Caddy (TLS termination, homelab-gateway)
   → FastAPI (session check → render dashboard.html)
   → Browser executes fetch() calls to /api/*
   → FastAPI JSON endpoints (session check → asyncpg query → JSON)
   → Chart.js renders charts
 ```
+
+---
+
+## Network
+
+PulseBase services communicate on the internal `internal` Docker network by service name
+(`db`, `api`, etc.). The `garmin-api` container also joins the external `proxy` network,
+which is shared with homelab-gateway's Caddy container.
+
+```
+proxy (external Docker network)
+  ├── gateway-caddy  (homelab-gateway)
+  └── garmin-api     (PulseBase)
+
+internal (PulseBase-only)
+  ├── garmin-api
+  ├── garmin-db
+  ├── garmin-flyway
+  └── garmin-sync
+```
+
+No ports are exposed to the host in the default setup — all traffic enters via Caddy
+on the `proxy` network.
+
+---
 
 ## Volumes
 
@@ -88,9 +141,3 @@ Browser GET /dashboard
 | `garmin-tokens` | Garmin session tokens per user (`/app/tokens/{user_id}/`) |
 
 Tokens are shared between `api` and `sync-service` via the same named volume.
-
-## Network
-
-All inter-service communication is on the internal Docker network by service name
-(`db`, `api`, etc.). Only Traefik exposes ports 80 and 443 to the host.
-Port 8080 (Traefik dashboard) is also exposed for local debugging.
