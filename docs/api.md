@@ -1,8 +1,8 @@
 # API Reference
 
-All endpoints are served by the FastAPI container (`garmin-api`) behind Traefik HTTPS.
+All endpoints are served by the FastAPI container (`garmin-api`) behind Caddy (homelab-gateway).
 
-Base URL: `https://garmin.local`
+Base URL: `https://garmin.home.lab`
 
 ---
 
@@ -24,6 +24,8 @@ to `/login` if called without one (not a 401 JSON response).
 Renders the login form.
 
 ### `POST /login`
+
+Rate-limited to 10 requests/minute per IP.
 
 | Field | Type | Required |
 |-------|------|----------|
@@ -55,7 +57,7 @@ On failure: re-renders form with error message (HTTP 400).
 
 ### `GET /`
 
-Home page. Shows Garmin link status for the logged-in user.
+Redirects to `/dashboard`.
 
 ### `POST /logout`
 
@@ -99,9 +101,16 @@ authenticated user — cross-user access is not possible.
 
 ### `GET /api/activities`
 
-Returns the 10 most recent activities.
+Returns activities within the requested time range.
 
-**Response** — array of objects:
+**Query parameters:**
+
+| Parameter | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| `days` | `7` | 1–365 | How many days back to query |
+| `limit` | `500` | 1–500 | Maximum number of results |
+
+**Response** — array of objects ordered by `started_at DESC`:
 
 ```json
 [
@@ -118,7 +127,7 @@ Returns the 10 most recent activities.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `sport_type` | string | e.g. `running`, `cycling`, `swimming`, `other` |
+| `sport_type` | string | e.g. `running`, `cycling`, `swimming`, `strength_training` |
 | `started_at` | ISO 8601 datetime | UTC |
 | `duration_seconds` | integer | null if unknown |
 | `distance_meters` | float | null if unknown |
@@ -133,9 +142,9 @@ Returns daily summaries.
 
 **Query parameters:**
 
-| Parameter | Default | Notes |
-|-----------|---------|-------|
-| `days` | `30` | How many days back to return |
+| Parameter | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| `days` | `30` | 1–365 | How many days back to return |
 
 **Response** — array of objects ordered by date ascending:
 
@@ -145,6 +154,10 @@ Returns daily summaries.
     "date": "2026-04-27",
     "steps": 8423,
     "resting_hr": 52,
+    "avg_stress": 28,
+    "calories_total": 2180,
+    "intensity_moderate": 22,
+    "intensity_vigorous": 8,
     "body_battery_high": 87,
     "body_battery_low": 14
   }
@@ -159,9 +172,9 @@ Returns recent sleep sessions.
 
 **Query parameters:**
 
-| Parameter | Default | Notes |
-|-----------|---------|-------|
-| `days` | `14` | Number of sessions to return (used as LIMIT) |
+| Parameter | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| `days` | `14` | 1–365 | Number of sessions to return (LIMIT) |
 
 **Response** — array ordered by `start_time DESC`:
 
@@ -170,7 +183,11 @@ Returns recent sleep sessions.
   {
     "date": "2026-04-27",
     "sleep_score": 78,
-    "total_sleep_seconds": 27540
+    "total_sleep_seconds": 27540,
+    "deep_sleep_seconds": 5400,
+    "light_sleep_seconds": 14400,
+    "rem_sleep_seconds": 6300,
+    "awake_seconds": 1440
   }
 ]
 ```
@@ -196,3 +213,60 @@ Returns the most recent HRV entry.
 | `hrv_last_night` | ms, last night measurement |
 | `hrv_weekly_avg` | ms, 7-day rolling average |
 | `hrv_status` | `balanced` / `unbalanced` / `poor` |
+
+---
+
+### `GET /api/hrv/trend`
+
+Returns HRV data points for a date range.
+
+**Query parameters:**
+
+| Parameter | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| `days` | `30` | 1–365 | How many days back |
+
+**Response** — array ordered by date ascending:
+
+```json
+[
+  {
+    "date": "2026-04-27",
+    "hrv_last_night": 48,
+    "hrv_weekly_avg": 52,
+    "hrv_status": "balanced"
+  }
+]
+```
+
+---
+
+### `GET /api/training-status`
+
+Returns the most recent training status entry.
+
+**Response** — single object or `null` if no data:
+
+```json
+{
+  "date": "2026-04-27",
+  "training_status": "PRODUCTIVE"
+}
+```
+
+| `training_status` value | Meaning |
+|-------------------------|---------|
+| `PRODUCTIVE` | Load is building fitness |
+| `MAINTAINING` | Fitness is being maintained |
+| `RECOVERY` | Body is recovering |
+| `UNPRODUCTIVE` | Load not resulting in adaptation |
+| `OVERREACHING` | Training load too high |
+| `DETRAINING` | Fitness declining |
+
+---
+
+## Health
+
+### `GET /health`
+
+Returns `{"status": "ok"}`. Not session-protected. Used by Docker healthcheck.
