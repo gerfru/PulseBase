@@ -90,6 +90,13 @@ Tokens on disk are not deleted automatically.
 Renders `dashboard.html`. The page loads data asynchronously via the `/api/*` endpoints
 below using `fetch()`.
 
+### `GET /activity/{activity_id}`
+
+Renders the activity detail page (`activity.html`) for a single activity.
+Includes GPS track (Leaflet.js), HR/pace/elevation/cadence charts, stat grid, and
+training effect bars. Redirects to `/dashboard` if the activity does not exist or
+belongs to a different user.
+
 ---
 
 ## JSON API (session required)
@@ -115,6 +122,7 @@ Returns activities within the requested time range.
 ```json
 [
   {
+    "id": 42,
     "sport_type": "running",
     "started_at": "2026-04-27T06:32:00+00:00",
     "duration_seconds": 3420,
@@ -127,12 +135,65 @@ Returns activities within the requested time range.
 
 | Field | Type | Notes |
 |-------|------|-------|
+| `id` | integer | DB primary key — use for `/api/activities/{id}` |
 | `sport_type` | string | e.g. `running`, `cycling`, `swimming`, `strength_training` |
 | `started_at` | ISO 8601 datetime | UTC |
 | `duration_seconds` | integer | null if unknown |
 | `distance_meters` | float | null if unknown |
 | `avg_hr` | integer | null if no HR data |
 | `calories` | integer | null if unknown |
+
+---
+
+### `GET /api/activities/{activity_id}`
+
+Returns full detail for a single activity including per-second records.
+
+**Response:**
+
+```json
+{
+  "id": 42,
+  "sport_type": "running",
+  "started_at": "2026-04-27T06:32:00+00:00",
+  "duration_seconds": 3420,
+  "distance_meters": 10250.5,
+  "calories": 512,
+  "avg_hr": 148,
+  "max_hr": 178,
+  "avg_pace_sec_per_km": 334.5,
+  "avg_speed_kmh": null,
+  "avg_cadence": 172,
+  "avg_power": null,
+  "elevation_gain": 42.0,
+  "aerobic_effect": 3.8,
+  "anaerobic_effect": 1.2,
+  "training_status": "PRODUCTIVE",
+  "records": [
+    {
+      "time": "2026-04-27T06:32:01+00:00",
+      "heart_rate": 142,
+      "pace_sec_per_km": 340.0,
+      "cadence": 170,
+      "power": null,
+      "elevation": 245.2,
+      "distance": 5.1,
+      "lat": 47.0707,
+      "lng": 15.4395
+    }
+  ]
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `aerobic_effect` | Garmin aerobic training effect 1.0–5.0, null if not available |
+| `anaerobic_effect` | Garmin anaerobic training effect 1.0–5.0, null if not available |
+| `training_status` | From `daily_summary` for the activity date (LEFT JOIN) |
+| `records` | Per-second data points, empty array if no GPS/HR data stored |
+
+Returns HTTP 404 with `{"error": {"code": "NOT_FOUND", ...}}` if activity does not exist
+or belongs to a different user.
 
 ---
 
