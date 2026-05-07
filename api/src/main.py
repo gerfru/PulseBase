@@ -20,6 +20,7 @@ from src.db import (
     set_garmin_linked,
     set_garmin_unlinked,
     get_recent_activities,
+    get_activity_detail,
     get_daily_summaries,
     get_sleep_sessions,
     get_latest_hrv,
@@ -245,6 +246,29 @@ async def dashboard(request: Request):
 
 
 # ── JSON API ──────────────────────────────────────────────────────────────────
+
+
+@app.get("/activity/{activity_id}")
+async def activity_detail_page(request: Request, activity_id: int):
+    user = await require_user(request)
+    activity = await get_activity_detail(user["id"], activity_id)
+    if not activity:
+        return RedirectResponse("/dashboard", status_code=303)
+    return templates.TemplateResponse(
+        request, "activity.html", {"user": user, "activity": activity}
+    )
+
+
+@app.get("/api/activities/{activity_id}")
+async def api_activity_detail(request: Request, activity_id: int):
+    user = await require_user(request)
+    detail = await get_activity_detail(user["id"], activity_id)
+    if not detail:
+        return JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": "Activity not found"}},
+        )
+    return detail
 
 
 @app.get("/api/activities")

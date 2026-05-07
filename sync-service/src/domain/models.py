@@ -40,6 +40,8 @@ class Activity(BaseModel):
     avg_power: Optional[int] = None
     elevation_gain: Optional[float] = None
     avg_speed_kmh: Optional[float] = None
+    aerobic_effect: Optional[float] = None
+    anaerobic_effect: Optional[float] = None
     records: list[ActivityRecord] = []
 
 

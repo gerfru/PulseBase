@@ -83,7 +83,7 @@ async def get_recent_activities(
     pool = await get_pool()
     rows = await pool.fetch(
         """
-        SELECT sport_type, started_at, duration_seconds, distance_meters,
+        SELECT id, sport_type, started_at, duration_seconds, distance_meters,
                avg_hr, calories
         FROM activities
         WHERE user_id = $1
@@ -96,6 +96,41 @@ async def get_recent_activities(
         limit,
     )
     return [dict(r) for r in rows]
+
+
+async def get_activity_detail(user_id: int, activity_id: int) -> dict | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT a.id, a.sport_type, a.started_at, a.duration_seconds,
+               a.distance_meters, a.calories, a.avg_hr, a.max_hr,
+               a.avg_pace_sec_per_km, a.avg_speed_kmh, a.avg_cadence,
+               a.avg_power, a.elevation_gain, a.aerobic_effect, a.anaerobic_effect,
+               ds.training_status
+        FROM activities a
+        LEFT JOIN daily_summary ds
+               ON ds.user_id = a.user_id
+              AND ds.date = date(a.started_at AT TIME ZONE 'UTC')
+        WHERE a.id = $1 AND a.user_id = $2
+        """,
+        activity_id,
+        user_id,
+    )
+    if not row:
+        return None
+    detail = dict(row)
+    records = await pool.fetch(
+        """
+        SELECT time, heart_rate, pace_sec_per_km, cadence, power,
+               elevation, distance, lat, lng
+        FROM activity_records
+        WHERE activity_id = $1
+        ORDER BY time ASC
+        """,
+        activity_id,
+    )
+    detail["records"] = [dict(r) for r in records]
+    return detail
 
 
 async def get_daily_summaries(user_id: int, days: int = 30) -> list[dict]:
