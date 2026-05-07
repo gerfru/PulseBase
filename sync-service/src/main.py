@@ -39,14 +39,15 @@ async def sync_user(user: dict, repo: TimescaleRepository, days: int = 1) -> Non
     raw_activities = client.get_activities(start, end)
     for raw in raw_activities:
         garmin_id = raw.get("activityId")
-        if not garmin_id or await repo.activity_exists(garmin_id):
+        if not garmin_id:
             continue
         activity = map_activity(raw, user["id"])
-        details = client.get_activity_details(garmin_id)
-        activity.records = map_records(details)
         activity_db_id = await repo.save_activity(activity)
-        if activity_db_id and activity.records:
-            await repo.bulk_insert_records(activity_db_id, activity.records)
+        if activity_db_id and not await repo.records_exist(activity_db_id):
+            details = client.get_activity_details(garmin_id)
+            activity.records = map_records(details)
+            if activity.records:
+                await repo.bulk_insert_records(activity_db_id, activity.records)
 
     current = start
     while current <= end:

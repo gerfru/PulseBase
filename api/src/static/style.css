@@ -295,6 +295,21 @@ td {
 tr:last-child td { border-bottom: none; }
 .sport { white-space: nowrap; }
 
+/* ── Clickable Table Rows ──────────────────────────────────────────────── */
+tbody tr { cursor: pointer; transition: background .1s; }
+tbody tr:hover { background: var(--surface-2); }
+
+/* ── GPS Map ───────────────────────────────────────────────────────────── */
+.map-container { height: 300px; border-radius: var(--radius); overflow: hidden; margin-bottom: var(--sp-4); }
+@media (min-width: 640px) { .map-container { height: 400px; } }
+
+/* ── Training Effect Bar ───────────────────────────────────────────────── */
+.effect-row  { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.effect-name { font-size: .85rem; color: var(--muted); min-width: 130px; }
+.effect-bar  { flex: 1; height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.effect-fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width .4s ease; }
+.effect-val  { font-size: .85rem; font-weight: 600; min-width: 32px; text-align: right; color: var(--text); }
+
 /* ── HRV / Training Status Cards ──────────────────────────────────────── */
 .kv-card  { display: flex; flex-direction: column; gap: var(--sp-3); }
 .kv-row   { display: flex; justify-content: space-between; align-items: center; }

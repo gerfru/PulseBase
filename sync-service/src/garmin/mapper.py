@@ -41,6 +41,8 @@ def map_activity(raw: dict[str, Any], user_id: int) -> Activity:
         avg_power=_int_or_none(raw.get("avgPower")),
         elevation_gain=raw.get("elevationGain"),
         avg_speed_kmh=avg_speed_kmh,
+        aerobic_effect=raw.get("aerobicTrainingEffect"),
+        anaerobic_effect=raw.get("anaerobicTrainingEffect"),
     )
 
 
