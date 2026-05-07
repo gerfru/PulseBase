@@ -2,6 +2,11 @@
 
 ## Current State
 
+**Phase 7 complete** (May 2026):
+- Extended sport type support: 13 types now correctly stored and displayed (walking, strength training, yoga, indoor cycling, trail running, open water swimming, cardio, elliptical, fitness equipment)
+- Weekly overview card on dashboard: stacked bar chart of run/ride km per week
+- Readiness score: rule-based 0–100 from HRV, sleep, body battery, and stress — no new DB schema
+
 **Phase 6 complete** (May 2026):
 - Activity detail page (`/activity/{id}`) with GPS track (Leaflet.js + OpenStreetMap),
   HR/pace/elevation/cadence charts, stat grid, and aerobic/anaerobic training effect bars

@@ -144,6 +144,8 @@ GET /api/sleep?days=14           Schlaf-Sessions
 GET /api/hrv                     letzter HRV-Eintrag
 GET /api/hrv/trend?days=30       HRV-Verlauf
 GET /api/training-status         letzter Trainingszustand
+GET /api/weekly?weeks=12         Wöchentliche Volumen-Aggregation (run_km, ride_km)
+GET /api/readiness               Readiness-Score 0-100 (regelbasiert, kein ML)
 ```
 
 ## Seiten-Routen
