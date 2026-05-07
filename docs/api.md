@@ -302,6 +302,77 @@ Returns HRV data points for a date range.
 
 ---
 
+### `GET /api/weekly`
+
+Returns weekly training volume aggregates.
+
+**Query parameters:**
+
+| Parameter | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| `weeks` | `12` | 1–52 | How many weeks back |
+
+**Response** — array ordered by week ascending:
+
+```json
+[
+  {
+    "week": "2026-04-27",
+    "activity_count": 4,
+    "total_km": 42.3,
+    "total_hours": 4.2,
+    "run_km": 35.1,
+    "ride_km": 7.2,
+    "other_hours": 1.0
+  }
+]
+```
+
+| Field | Notes |
+|-------|-------|
+| `week` | Monday of the week (ISO date) |
+| `run_km` | Distance for `running`, `trail_running`, `hiking`, `walking` |
+| `ride_km` | Distance for `cycling`, `indoor_cycling` |
+| `other_hours` | Duration for all other sport types (strength, yoga, …) |
+
+---
+
+### `GET /api/readiness`
+
+Returns a rule-based readiness score for the most recent day with data (within last 2 days).
+
+**Response:**
+
+```json
+{
+  "score": 74,
+  "label": "In Ordnung",
+  "cls": "badge-unbalanced",
+  "hrv_status": "BALANCED",
+  "sleep_score": 78,
+  "body_battery": 82,
+  "avg_stress": 34
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `score` | 0–100, weighted average of available inputs |
+| `label` | `Bereit` / `In Ordnung` / `Erholen` / `Pause` |
+| `cls` | CSS badge class for color coding |
+| `score: null` | Returned when no data is available within 2 days |
+
+**Score formula** (missing inputs are excluded and weights renormalized):
+
+| Input | Weight | Mapping |
+|-------|--------|---------|
+| HRV status | 30% | BALANCED=100, UNBALANCED=50, LOW=25, POOR=0 |
+| Sleep score | 30% | Garmin 0–100 directly |
+| Body battery high | 20% | 0–100 directly |
+| Avg stress (inverted) | 20% | `max(0, 100 − avg_stress)` |
+
+---
+
 ### `GET /api/training-status`
 
 Returns the most recent training status entry.

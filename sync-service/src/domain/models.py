@@ -10,6 +10,15 @@ class SportType(str, Enum):
     CYCLING = "cycling"
     SWIMMING = "swimming"
     HIKING = "hiking"
+    WALKING = "walking"
+    STRENGTH_TRAINING = "strength_training"
+    YOGA = "yoga"
+    INDOOR_CYCLING = "indoor_cycling"
+    TRAIL_RUNNING = "trail_running"
+    OPEN_WATER_SWIMMING = "open_water_swimming"
+    CARDIO = "cardio"
+    ELLIPTICAL = "elliptical"
+    FITNESS_EQUIPMENT = "fitness_equipment"
     OTHER = "other"
 
 

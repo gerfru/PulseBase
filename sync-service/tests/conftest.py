@@ -22,7 +22,7 @@ RAW_ACTIVITY_RUNNING = {
 RAW_ACTIVITY_UNKNOWN_SPORT = {
     "activityId": 99999,
     "startTimeLocal": "2026-04-27T09:00:00",
-    "activityType": {"typeKey": "yoga"},
+    "activityType": {"typeKey": "lacrosse"},
 }
 
 RAW_ACTIVITY_MINIMAL = {

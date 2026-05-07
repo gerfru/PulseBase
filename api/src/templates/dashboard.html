@@ -65,6 +65,13 @@
             <div id="activities-container"><p class="empty">Lade…</p></div>
         </div>
 
+        <!-- Wochenübersicht -->
+        <div class="card full" id="weekly-card">
+            <h2>Wochenübersicht</h2>
+            <div class="chart-wrap"><canvas id="weekly-chart"></canvas></div>
+            <p class="empty" id="weekly-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
         <!-- Schritte & Body Battery -->
         <div class="card">
             <h2>Schritte</h2>
@@ -134,6 +141,12 @@
             <div id="training-status-container"><p class="empty">Lade…</p></div>
         </div>
 
+        <!-- Readiness -->
+        <div class="card">
+            <h2>Readiness</h2>
+            <div id="readiness-container"><p class="empty">Lade…</p></div>
+        </div>
+
     </div>
 
     <script>
@@ -144,7 +157,9 @@
 
     const SPORT_EMOJI = {
         running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
-        hiking: '🥾', strength_training: '🏋️', yoga: '🧘', default: '⚡'
+        hiking: '🥾', strength_training: '🏋️', yoga: '🧘',
+        indoor_cycling: '🚴', trail_running: '🏔️', open_water_swimming: '🌊',
+        cardio: '💪', elliptical: '🔄', fitness_equipment: '🏋️', default: '⚡'
     };
 
     function sportLabel(type) {
@@ -401,7 +416,44 @@
         }
     }
 
+    async function loadWeekly() {
+        const data = await fetch('/api/weekly?weeks=12').then(r => r.json());
+        if (!data.length || !data.some(w => w.run_km || w.ride_km)) {
+            showEmpty('weekly'); return;
+        }
+        hideEmpty('weekly');
+        const labels = data.map(w =>
+            new Date(w.week).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' })
+        );
+        makeChart('weekly-chart', 'bar', labels, [
+            { label: 'Laufen',    data: data.map(w => w.run_km  || 0), backgroundColor: 'rgba(99,102,241,.75)',  stack: 'km', borderRadius: 3 },
+            { label: 'Radfahren', data: data.map(w => w.ride_km || 0), backgroundColor: 'rgba(245,158,11,.75)', stack: 'km', borderRadius: 3 },
+        ], { scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } } });
+    }
+
+    async function loadReadiness() {
+        const r = await fetch('/api/readiness').then(res => res.json());
+        const el = document.getElementById('readiness-container');
+        if (!r || r.score === null) {
+            el.innerHTML = '<p class="empty">Noch keine Daten</p>'; return;
+        }
+        const hrvLabels = { balanced: 'Ausgeglichen', unbalanced: 'Unausgeglichen', low: 'Niedrig', poor: 'Niedrig' };
+        const hrvLabel = r.hrv_status ? (hrvLabels[(r.hrv_status || '').toLowerCase()] ?? r.hrv_status) : null;
+        el.innerHTML = `<div style="text-align:center; margin-bottom: var(--sp-4);">
+            <div style="font-size:2.5rem; font-weight:700; line-height:1; color:var(--text)">${r.score}</div>
+            <span class="badge ${r.cls}" style="margin-top:var(--sp-2)">${r.label}</span>
+        </div>
+        <div class="kv-card">
+            ${hrvLabel ? `<div class="kv-row"><span class="kv-label">HRV</span><span class="kv-value">${hrvLabel}</span></div>` : ''}
+            ${r.sleep_score != null ? `<div class="kv-row"><span class="kv-label">Schlaf</span><span class="kv-value">${r.sleep_score} / 100</span></div>` : ''}
+            ${r.body_battery != null ? `<div class="kv-row"><span class="kv-label">Body Battery</span><span class="kv-value">${r.body_battery}</span></div>` : ''}
+            ${r.avg_stress != null ? `<div class="kv-row"><span class="kv-label">Stress</span><span class="kv-value">${r.avg_stress}</span></div>` : ''}
+        </div>`;
+    }
+
     load(currentDays).catch(err => console.error('Dashboard Fehler:', err));
+    loadWeekly().catch(err => console.error('Weekly Fehler:', err));
+    loadReadiness().catch(err => console.error('Readiness Fehler:', err));
     </script>
 </body>
 </html>
