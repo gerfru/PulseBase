@@ -26,6 +26,8 @@ from src.db import (
     get_latest_hrv,
     get_hrv_trend,
     get_latest_training_status,
+    get_weekly_stats,
+    get_readiness,
 )
 from src.garmin.client import GarminClient
 
@@ -309,3 +311,18 @@ async def api_hrv_trend(request: Request, days: int = Query(default=30, ge=1, le
 async def api_training_status(request: Request):
     user = await require_user(request)
     return await get_latest_training_status(user["id"])
+
+
+@app.get("/api/weekly")
+async def api_weekly(
+    request: Request,
+    weeks: int = Query(default=12, ge=1, le=52),
+):
+    user = await require_user(request)
+    return await get_weekly_stats(user["id"], weeks=weeks)
+
+
+@app.get("/api/readiness")
+async def api_readiness(request: Request):
+    user = await require_user(request)
+    return await get_readiness(user["id"])

@@ -204,6 +204,96 @@ async def get_latest_training_status(user_id: int) -> dict | None:
     return dict(row) if row else None
 
 
+async def get_weekly_stats(user_id: int, weeks: int = 12) -> list[dict]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT
+            date_trunc('week', started_at AT TIME ZONE 'UTC')::date AS week,
+            COUNT(*)::int                                            AS activity_count,
+            ROUND(SUM(distance_meters) / 1000.0, 1)                 AS total_km,
+            ROUND(SUM(duration_seconds) / 3600.0, 1)                AS total_hours,
+            ROUND(SUM(CASE WHEN sport_type IN
+                               ('running','trail_running','hiking','walking')
+                           THEN distance_meters ELSE 0 END) / 1000.0, 1) AS run_km,
+            ROUND(SUM(CASE WHEN sport_type IN ('cycling','indoor_cycling')
+                           THEN distance_meters ELSE 0 END) / 1000.0, 1) AS ride_km,
+            ROUND(SUM(CASE WHEN sport_type NOT IN
+                               ('running','trail_running','hiking','walking',
+                                'cycling','indoor_cycling')
+                           THEN duration_seconds ELSE 0 END) / 3600.0, 1) AS other_hours
+        FROM activities
+        WHERE user_id = $1
+          AND started_at >= NOW() - ($2 * INTERVAL '1 week')
+        GROUP BY 1
+        ORDER BY 1 ASC
+        """,
+        user_id,
+        weeks,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_readiness(user_id: int) -> dict:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT h.hrv_status, h.hrv_last_night, h.hrv_weekly_avg,
+               d.resting_hr, d.body_battery_high, d.avg_stress,
+               s.sleep_score
+        FROM daily_summary d
+        LEFT JOIN hrv_daily h
+               ON h.date = d.date AND h.user_id = d.user_id
+        LEFT JOIN sleep_sessions s
+               ON DATE(s.start_time AT TIME ZONE 'UTC') = d.date
+              AND s.user_id = d.user_id
+        WHERE d.user_id = $1
+          AND d.date >= CURRENT_DATE - 2
+        ORDER BY d.date DESC
+        LIMIT 1
+        """,
+        user_id,
+    )
+    if not row:
+        return {"score": None}
+
+    hrv_map = {"BALANCED": 100, "UNBALANCED": 50, "LOW": 25, "POOR": 0}
+    components = []
+    if row["hrv_status"]:
+        components.append((hrv_map.get(row["hrv_status"].upper(), 60), 0.30))
+    if row["sleep_score"] is not None:
+        components.append((row["sleep_score"], 0.30))
+    if row["body_battery_high"] is not None:
+        components.append((row["body_battery_high"], 0.20))
+    if row["avg_stress"] is not None:
+        components.append((max(0, 100 - row["avg_stress"]), 0.20))
+
+    if not components:
+        return {"score": None}
+
+    total_w = sum(w for _, w in components)
+    score = round(sum(v * w for v, w in components) / total_w)
+
+    if score >= 80:
+        label, cls = "Bereit", "badge-balanced"
+    elif score >= 60:
+        label, cls = "In Ordnung", "badge-unbalanced"
+    elif score >= 40:
+        label, cls = "Erholen", "badge-unbalanced"
+    else:
+        label, cls = "Pause", "badge-poor"
+
+    return {
+        "score": score,
+        "label": label,
+        "cls": cls,
+        "hrv_status": row["hrv_status"],
+        "sleep_score": row["sleep_score"],
+        "body_battery": row["body_battery_high"],
+        "avg_stress": row["avg_stress"],
+    }
+
+
 async def get_latest_hrv(user_id: int) -> dict | None:
     pool = await get_pool()
     row = await pool.fetchrow(
