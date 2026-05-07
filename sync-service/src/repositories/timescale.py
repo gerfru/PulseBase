@@ -46,9 +46,12 @@ class TimescaleRepository(
                 INSERT INTO activities (
                     user_id, garmin_activity_id, started_at, duration_seconds,
                     sport_type, distance_meters, calories, avg_hr, max_hr,
-                    avg_pace_sec_per_km, avg_cadence, avg_power, elevation_gain, avg_speed_kmh
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-                ON CONFLICT (garmin_activity_id) DO NOTHING
+                    avg_pace_sec_per_km, avg_cadence, avg_power, elevation_gain,
+                    avg_speed_kmh, aerobic_effect, anaerobic_effect
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                ON CONFLICT (garmin_activity_id) DO UPDATE SET
+                    aerobic_effect   = EXCLUDED.aerobic_effect,
+                    anaerobic_effect = EXCLUDED.anaerobic_effect
                 RETURNING id
                 """,
                 activity.user_id,
@@ -65,14 +68,16 @@ class TimescaleRepository(
                 activity.avg_power,
                 activity.elevation_gain,
                 activity.avg_speed_kmh,
+                activity.aerobic_effect,
+                activity.anaerobic_effect,
             )
             return row["id"] if row else None
 
-    async def activity_exists(self, garmin_activity_id: int) -> bool:
+    async def records_exist(self, activity_id: int) -> bool:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT id FROM activities WHERE garmin_activity_id = $1",
-                garmin_activity_id,
+                "SELECT 1 FROM activity_records WHERE activity_id = $1 LIMIT 1",
+                activity_id,
             )
             return row is not None
 
