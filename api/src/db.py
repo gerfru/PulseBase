@@ -8,12 +8,14 @@ class Settings(BaseSettings):
     db_name: str = "garmin"
     db_user: str
     db_password: str
+    db_app_user: str
+    db_app_password: str
     session_secret: str
     https_only: bool = True
 
     @property
     def db_url(self) -> str:
-        return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return f"postgresql://{self.db_app_user}:{self.db_app_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
 _pool: asyncpg.Pool | None = None

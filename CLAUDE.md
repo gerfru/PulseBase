@@ -1,7 +1,7 @@
 # Essential Rules
 
 Die wichtigsten Regeln fuer jedes Projekt -- kompakt genug fuer CLAUDE.md.
-Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.md`
+Ausfuehrlichere Regeln: `./claude/app-rules.md` (importiert unten)
 
 ---
 
@@ -14,8 +14,10 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 - Sessions: httpOnly, secure, sameSite=Lax
 - Input validieren an System-Grenze: TS → Zod, Python → Pydantic
 - SQL: Immer Prepared Statements. Shell: Nie User-Input in Commands
+- DOM XSS: Kein `innerHTML` mit User-Daten. Trusted Types + DOMPurify bei dynamischem HTML
 - Keine Secrets in Error-Responses. Keine Secrets loggen
 - `.env` nie committen, `.env.example` committen. Env-Validierung beim App-Start (crasht sofort wenn Variable fehlt)
+- Security Assessment: `bandit`+`semgrep` (SAST), `pip-audit` (SCA), ASVS 5.0 als Pruefrahmen
 
 ## API & Datenbank
 
@@ -38,7 +40,7 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 
 ## GitHub & CI/CD
 
-- Pre-commit Hooks Pflicht: gitleaks → Lint+Fix → Format → Type Check
+- Pre-commit Hooks Pflicht: gitleaks → bandit → Lint+Fix → Format → Type Check
 - TS: ESLint Flat Config + Prettier + Husky. Python: Ruff + mypy + pre-commit
 - TS Package Manager: pnpm. Python: uv. Lockfiles immer committen
 - CI: Jeder PR durch Pipeline (Install → Lint → Type Check → Build/Test → gitleaks)
@@ -74,6 +76,10 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 - Gesetzlich Pflicht (EU Accessibility Act, BFSG)
 - Semantisches HTML, Heading-Hierarchie, alt auf Bildern, Fokus-Styles nicht entfernen
 - Testen: axe-core + Lighthouse (automatisch), Tastatur + Screen Reader (manuell)
+
+---
+
+@./claude/app-rules.md
 
 ---
 
