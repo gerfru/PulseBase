@@ -44,6 +44,51 @@ jobs:
           pip-audit api/
       - name: pip-audit sync-service
         run: pip-audit sync-service/
+      - name: bandit
+        run: |
+          pip install bandit
+          bandit -r api/src/ sync-service/src/ -q
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install api + mypy
+        run: pip install -e api/ mypy --quiet
+      - name: mypy api
+        working-directory: api
+        run: mypy src/ --ignore-missing-imports
+      - name: Install sync + mypy
+        run: pip install -e sync-service/ mypy --quiet
+      - name: mypy sync-service
+        working-directory: sync-service
+        run: mypy src/ --ignore-missing-imports
+
+  trivy:
+    name: Trivy Image Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build api image
+        run: docker build -t garmin-api:ci api/
+      - name: Scan api
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: garmin-api:ci
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+      - name: Build sync image
+        run: docker build -t garmin-sync:ci sync-service/
+      - name: Scan sync
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: garmin-sync:ci
+          exit-code: '1'
+          severity: CRITICAL,HIGH
 
   test:
     name: Tests

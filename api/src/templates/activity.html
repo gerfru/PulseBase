@@ -8,28 +8,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        .act-header { padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
-        .act-back { font-size: .85rem; color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-        .act-back:hover { color: var(--text); }
-        .act-title { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
-        .act-meta  { font-size: .9rem; color: var(--muted); }
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: var(--sp-3);
-            padding: 0 var(--sp-4) var(--sp-4);
-        }
-        @media (min-width: 640px) { .stat-grid { grid-template-columns: repeat(6, 1fr); } }
-        .content { padding: 0 var(--sp-4) var(--sp-8); display: flex; flex-direction: column; gap: var(--sp-4); }
-        @media (min-width: 640px) {
-            .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
-        }
-    </style>
 </head>
 <body>
 
-    <div class="act-header">
+    <div class="act-header card">
         <a class="act-back" href="/dashboard">← Dashboard</a>
         <h1 class="act-title" id="act-title">—</h1>
         <div class="act-meta" id="act-meta">—</div>
