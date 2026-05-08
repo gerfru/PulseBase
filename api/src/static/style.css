@@ -611,3 +611,67 @@ tbody tr:hover { background: var(--surface-2); }
 @media (min-width: 640px) {
   .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
 }
+
+/* ── Settings ───────────────────────────────────────────────────────────── */
+.settings-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-4) var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.settings-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+.settings-section h2 {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin: 0 0 var(--sp-4);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.settings-label {
+  font-size: .85rem;
+  color: var(--muted);
+  min-width: 80px;
+}
+.settings-value {
+  font-size: .95rem;
+}
+.settings-value.muted { color: var(--muted); }
+.settings-connected-label {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--green);
+}
+.settings-connected-sub {
+  font-size: .82rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.settings-hint {
+  font-size: .8rem;
+  color: var(--muted);
+  margin: var(--sp-3) 0 0;
+}
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+  border: none;
+}
+.btn-danger:hover { background: #dc2626; }

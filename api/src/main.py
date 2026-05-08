@@ -232,6 +232,12 @@ async def index(request: Request):
     return RedirectResponse("/dashboard", status_code=303)
 
 
+@app.get("/settings")
+async def settings_page(request: Request):
+    user = await require_user(request)
+    return templates.TemplateResponse(request, "settings.html", {"user": user})
+
+
 @app.get("/garmin/link")
 async def garmin_link_form(request: Request):
     user = await require_user(request)

@@ -61,7 +61,7 @@ async def get_user_by_email(email: str) -> dict | None:
 async def get_user_by_id(user_id: int) -> dict | None:
     pool = await get_pool()
     row = await pool.fetchrow(
-        "SELECT id, name, email, garmin_linked, garmin_email FROM users WHERE id = $1",
+        "SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email FROM users WHERE id = $1",
         user_id,
     )
     return dict(row) if row else None
