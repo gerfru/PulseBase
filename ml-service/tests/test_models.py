@@ -6,7 +6,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from datetime import datetime, timezone
+
 from models.anomaly import detect_resting_hr_anomaly
+from models.battery_pattern import extract_features
 from models.correlation import compute_sleep_hrv_correlation
 from models.readiness import prepare_training_data
 
@@ -132,3 +135,42 @@ def test_prepare_training_data_imputes_missing():
     X, y = result
     assert len(X) >= 50  # ~59 pairs, most retained via imputation
     assert X.shape[1] == 3
+
+
+# ── Battery Pattern ────────────────────────────────────────────────────────
+
+
+def _make_bb_records(n: int, base_hour: int = 0) -> list[dict]:
+    records = []
+    for i in range(n):
+        hour = (base_hour + i * (24 // max(n, 1))) % 24
+        records.append(
+            {
+                "time": datetime(2026, 5, 8, hour, 0, tzinfo=timezone.utc),
+                "value": 60 + (i % 10),
+            }
+        )
+    return records
+
+
+def test_extract_features_empty():
+    assert extract_features([]) is None
+
+
+def test_extract_features_few_points():
+    assert extract_features(_make_bb_records(3)) is None
+
+
+def test_extract_features_ok():
+    records = _make_bb_records(50, base_hour=0)
+    feat = extract_features(records)
+    assert feat is not None
+    assert set(feat.keys()) == {
+        "morning_avg",
+        "evening_avg",
+        "daily_range",
+        "auc",
+        "n_dips",
+    }
+    assert feat["daily_range"] >= 0
+    assert 0 <= feat["auc"] <= 100

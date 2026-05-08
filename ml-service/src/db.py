@@ -155,6 +155,41 @@ async def get_bb_resting_hr_pairs(
     return [(float(r["body_battery_high"]), float(r["resting_hr"])) for r in rows]
 
 
+async def get_body_battery_today(user_id: int) -> list[dict[str, Any]]:
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT time, value FROM body_battery_intraday
+        WHERE user_id = $1
+          AND date(time AT TIME ZONE 'UTC') = CURRENT_DATE
+        ORDER BY time
+        """,
+        user_id,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_body_battery_history(
+    user_id: int, days: int = 90
+) -> dict[str, list[dict[str, Any]]]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT time, value FROM body_battery_intraday
+        WHERE user_id = $1
+          AND date(time AT TIME ZONE 'UTC') >= $2
+          AND date(time AT TIME ZONE 'UTC') < CURRENT_DATE
+        ORDER BY time
+        """,
+        user_id,
+        cutoff,
+    )
+    history: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        day = str(r["time"].date())
+        history.setdefault(day, []).append({"time": r["time"], "value": r["value"]})
+    return history
+
+
 async def get_latest_features(user_id: int) -> dict[str, Any]:
     row = await _pool_or_raise().fetchrow(
         """
