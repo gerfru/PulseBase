@@ -97,6 +97,59 @@ Includes GPS track (Leaflet.js), HR/pace/elevation/cadence charts, stat grid, an
 training effect bars. Redirects to `/dashboard` if the activity does not exist or
 belongs to a different user.
 
+### `GET /settings`
+
+Renders the settings page. Shows account info (name, email), Garmin Connect
+connection status, and LibreLinkUp connection status — each with inline
+connect/disconnect buttons.
+
+### `GET /libre/link`
+
+Renders the LibreLinkUp linking form. When already linked, shows the connected
+email and a disconnect button instead of the form.
+
+### `POST /libre/link`
+
+| Field            | Type   | Notes                                                |
+|------------------|--------|------------------------------------------------------|
+| `libre_email`    | string | LibreLinkUp account email                            |
+| `libre_password` | string | Used once for initial auth, then deleted from memory |
+
+Authenticates against the LibreLinkUp EU endpoint, stores the session token
+in `/app/tokens/{user_id}/libre/libre_token.json`, marks user as `libre_linked = true`.
+
+Prerequisite: the sensor owner must have accepted the user as a follower in
+their LibreLink app before linking will succeed.
+
+On success: redirects to `/dashboard`.
+On failure: re-renders form with error message (HTTP 400).
+
+### `POST /libre/unlink`
+
+Disconnects LibreLinkUp: sets `libre_linked = false`, clears `libre_email`,
+deletes **all** `glucose_readings` rows for this user (irreversible), and
+removes the token file. Redirects to `/libre/link`.
+
+### `GET /ml/anomaly`
+
+Renders the anomaly detection detail page. Shows z-score history (30 days),
+stat tiles, and an explanation of z-score interpretation.
+
+### `GET /ml/readiness`
+
+Renders the readiness prediction detail page. Shows predicted score,
+30-day history chart, feature importance bar chart, and model metadata.
+
+### `GET /ml/correlations`
+
+Renders the correlations detail page. Shows all three Pearson correlations
+(sleep→HRV, sleep→resting HR, body battery→resting HR) with bar visualization.
+
+### `GET /ml/battery`
+
+Renders the body battery pattern detail page. Shows today's cluster assignment
+with feature breakdown table.
+
 ---
 
 ## JSON API (session required)
@@ -394,6 +447,99 @@ Returns the most recent training status entry.
 | `UNPRODUCTIVE` | Load not resulting in adaptation |
 | `OVERREACHING` | Training load too high |
 | `DETRAINING` | Fitness declining |
+
+---
+
+### `GET /api/glucose`
+
+Returns recent glucose readings from LibreLinkUp. Only available when `libre_linked = true`.
+
+**Query parameters:**
+
+| Parameter | Default | Notes                         |
+|-----------|---------|-------------------------------|
+| `hours`   | `24`    | How many hours back to return |
+
+**Response** — array ordered by `time DESC`:
+
+```json
+[
+  {
+    "time": "2026-05-08T14:32:00+00:00",
+    "value_mgdl": 98.0,
+    "trend": 3,
+    "is_high": false,
+    "is_low": false
+  }
+]
+```
+
+| `trend` value | Meaning       |
+|---------------|---------------|
+| `1`           | Falling quickly (↓↓) |
+| `2`           | Falling (↓)   |
+| `3`           | Stable (→)    |
+| `4`           | Rising (↑)    |
+| `5`           | Rising quickly (↑↑) |
+
+---
+
+### `GET /api/glucose/stats`
+
+Returns aggregated glucose statistics. Only available when `libre_linked = true`.
+
+**Query parameters:**
+
+| Parameter | Default | Notes                    |
+|-----------|---------|--------------------------|
+| `days`    | `14`    | How many days to include |
+
+**Response:**
+
+```json
+{
+  "avg_mgdl": 103.4,
+  "min_mgdl": 72.0,
+  "max_mgdl": 168.0,
+  "tir_pct": 87.2,
+  "count_high": 12,
+  "count_low": 1
+}
+```
+
+| Field       | Notes                                              |
+|-------------|-----------------------------------------------------|
+| `tir_pct`   | Time-in-Range percentage (70–180 mg/dL)            |
+| `count_high`| Readings flagged as high by the sensor             |
+| `count_low` | Readings flagged as low (hypoglycemia) by the sensor |
+
+---
+
+### `GET /api/ml-history`
+
+Returns historical ML prediction values grouped by model.
+
+**Query parameters:**
+
+| Parameter | Default | Notes                    |
+|-----------|---------|--------------------------|
+| `days`    | `30`    | How many days back       |
+
+**Response** — object with one array per model:
+
+```json
+{
+  "anomaly_hr": [
+    { "date": "2026-05-08", "value": 1.29, "is_anomaly": false, "z_score": 1.29 }
+  ],
+  "readiness_rf": [
+    { "date": "2026-05-08", "value": 74.0 }
+  ],
+  "correlation_sleep_hrv": [
+    { "date": "2026-05-08", "value": 0.61, "r": 0.61, "n": 42 }
+  ]
+}
+```
 
 ---
 

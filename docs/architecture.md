@@ -99,6 +99,21 @@ Data synced per user per day:
 - Body battery intraday (every ~5 min)
 - Stress intraday (every ~5 min)
 
+### Libre Sync (every 5 minutes, if `libre_linked = true`)
+
+```
+LibreLinkUp API (EU endpoint)
+  → pylibrelinkup (token auth, /app/tokens/{user_id}/libre/libre_token.json)
+  → libre/client.py  get_recent_glucose(hours=2)
+  → libre/mapper.py  map_reading → {time, user_id, value_mgdl, trend, is_high, is_low}
+  → TimescaleRepository.bulk_insert_glucose()
+  → ON CONFLICT (user_id, time) DO NOTHING
+  → glucose_readings hypertable
+```
+
+Libre tokens are stored separately from Garmin tokens under the same `garmin-tokens` volume
+at `/app/tokens/{user_id}/libre/libre_token.json`.
+
 ### ML Inference (daily at configured hour, default 7:00)
 
 ```
