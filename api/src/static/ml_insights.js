@@ -1,6 +1,20 @@
 const SECTION = document.body.dataset.section;
 const GRID    = { color: 'rgba(255,255,255,.06)' };
 
+function infoBox(title, html) {
+    return `<div class="ml-info">
+        <div class="ml-info-title">💡 ${title}</div>
+        ${html}
+    </div>`;
+}
+
+function scaleRow(key, desc) {
+    return `<div class="ml-info-scale-row">
+        <span class="ml-info-scale-key">${key}</span>
+        <span>${desc}</span>
+    </div>`;
+}
+
 function fmtDate(s) {
     return new Date(s).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' });
 }
@@ -55,6 +69,21 @@ function renderAnomaly(today, history) {
             },
         },
     });
+
+    document.getElementById('anomaly-card').insertAdjacentHTML('beforeend', infoBox(
+        'Was bedeuten diese Zahlen?',
+        `<p>Dein Ruhepuls schwankt jeden Tag ein bisschen — das ist normal.
+        Der <strong>z-Score</strong> misst, wie ungewöhnlich der heutige Wert im Vergleich
+        zu deinen letzten 30 Tagen ist. Null bedeutet: genau wie immer.</p>
+        <div class="ml-info-scale">
+            ${scaleRow('0', 'Perfekt normal — genau dein Durchschnitt')}
+            ${scaleRow('±1', 'Leicht abweichend — völlig okay, passiert oft')}
+            ${scaleRow('±2', 'Deutlich abweichend — passiert nur ~5× pro 100 Tagen')}
+            ${scaleRow('±3', 'Stark abweichend — selten, möglicher Hinweis auf Stress, Krankheit oder Überbelastung')}
+        </div>
+        <p><strong>Baseline Ø</strong> ist dein persönlicher Normalwert (Durchschnitt der letzten 30 Tage).
+        <strong>Baseline σ</strong> zeigt deine typische Schwankungsbreite — je kleiner, desto stabiler bist du normalerweise.</p>`
+    ));
 }
 
 // ── Readiness ─────────────────────────────────────────────────────────────
@@ -146,6 +175,21 @@ function renderReadiness(today, history) {
             + `RandomForestRegressor, 100 Bäume · `
             + `${mmeta.n_rows} Trainings-Rows</div>`;
     }
+
+    document.getElementById('rf-card').insertAdjacentHTML('beforeend', infoBox(
+        'Wie funktioniert die Prognose?',
+        `<p>Das Modell schaut sich deine vergangenen Schlaf- und Pulswerte an und lernt,
+        wie sich diese auf deine Erholung auswirken. Aus diesem Muster schätzt es,
+        wie fit du <strong>morgen</strong> sein wirst — auf einer Skala von 0 bis 100.</p>
+        <div class="ml-info-scale">
+            ${scaleRow('80 – 100', 'Top-Form — intensive Einheiten sind kein Problem')}
+            ${scaleRow('50 – 79', 'Gut erholt — moderates Training passt')}
+            ${scaleRow('0 – 49', 'Erholung empfohlen — lieber ruhig angehen')}
+        </div>
+        <p><strong>Feature Importance</strong> zeigt, welche Werte den größten Einfluss
+        auf die Prognose haben — zum Beispiel: „Schlaf zählt 60 %, Ruhepuls 40 %."
+        Das Modell lernt diese Gewichtung selbst aus deinen echten Daten.</p>`
+    ));
 }
 
 // ── Korrelationen ─────────────────────────────────────────────────────────
@@ -194,6 +238,27 @@ function renderCorrelations(today) {
     if (!items.length) return;
     document.getElementById('corr-card').style.display = '';
     document.getElementById('corr-items').innerHTML = items.join('');
+
+    document.getElementById('corr-card').insertAdjacentHTML('beforeend', infoBox(
+        'Was ist r und was bedeutet der Balken?',
+        `<p>Der <strong>r-Wert</strong> misst, ob zwei Dinge zusammenhängen —
+        auf einer Skala von −1 bis +1.</p>
+        <div class="ml-info-scale">
+            ${scaleRow('+1', 'Perfekter Zusammenhang: steigt A, steigt auch B immer')}
+            ${scaleRow('0', 'Kein Zusammenhang: A und B haben nichts miteinander zu tun')}
+            ${scaleRow('−1', 'Gegenteiliger Zusammenhang: steigt A, fällt B immer')}
+        </div>
+        <p>Der <strong>Balken</strong> zeigt die Stärke (je länger, desto stärker).
+        Die Farbe zeigt die Richtung: lila = positiv, orange = negativ.</p>
+        <div class="ml-info-scale">
+            ${scaleRow('|r| > 0,6', 'Starker Zusammenhang — gut erkennbares Muster')}
+            ${scaleRow('|r| 0,3–0,6', 'Moderater Zusammenhang — Tendenz vorhanden')}
+            ${scaleRow('|r| < 0,3', 'Schwacher oder kein Zusammenhang')}
+        </div>
+        <p>Wichtig: Zusammenhang bedeutet nicht Ursache. Schlechter Schlaf
+        <em>geht einher</em> mit höherem Puls — ob einer den anderen verursacht,
+        sagt r nicht.</p>`
+    ));
 }
 
 // ── Body Battery Muster ───────────────────────────────────────────────────
@@ -239,7 +304,20 @@ function renderBatteryPattern(today) {
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
-        </table>`;
+        </table>
+        ${infoBox('Wie wird das Muster erkannt?',
+            `<p>Deine Body Battery zeigt über den Tag, wie viel Energie du hast — von 100 (voll geladen) bis 5 (leer).
+            Das System schaut sich 5 Kennzahlen deiner heutigen Kurve an und vergleicht sie
+            mit all deinen bisherigen Tagen. Dann ordnet es den Tag einem von 3 Mustern zu:</p>
+            <div class="ml-info-scale">
+                ${scaleRow('⚡ Hohe & stabile Energie', 'Morgens hoch gestartet, abends noch viel übrig — guter Erholungstag')}
+                ${scaleRow('🔄 Erholung', 'Mittleres Niveau, Körper lädt sich auf — normaler Alltag')}
+                ${scaleRow('📉 Erschöpft', 'Stark abgefallen, viele Einbrüche — Belastung oder zu wenig Schlaf')}
+            </div>
+            <p><strong>Tagesreichweite</strong> = höchster minus niedrigster Wert des Tages.
+            Große Reichweite = viele Belastungsspitzen. <strong>AUC</strong> (Area under curve) =
+            vereinfacht das durchschnittliche Energieniveau über den ganzen Tag.</p>`
+        )}`;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
