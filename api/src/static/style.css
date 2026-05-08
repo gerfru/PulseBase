@@ -315,3 +315,29 @@ tbody tr:hover { background: var(--surface-2); }
 .kv-row   { display: flex; justify-content: space-between; align-items: center; }
 .kv-label { color: var(--muted); font-size: .9rem; }
 .kv-value { font-weight: 600; font-size: 1rem; color: var(--text); }
+
+/* ── Sync Status ────────────────────────────────────────────────────────── */
+.sync-status { display: flex; align-items: center; gap: var(--sp-2); }
+.sync-last   { font-size: .78rem; color: var(--muted); }
+.sync-loading { opacity: .5; pointer-events: none; }
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: var(--sp-6);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  font-size: .9rem;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 100;
+}
+.toast.show  { opacity: 1; }
+.toast.error { border-color: var(--red); color: var(--red); }
