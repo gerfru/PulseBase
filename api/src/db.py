@@ -1,4 +1,5 @@
 import json
+from datetime import date, timedelta
 
 import asyncpg
 from pydantic_settings import BaseSettings
@@ -319,11 +320,14 @@ async def get_ml_insights(user_id: int) -> dict:
     pool = await get_pool()
     rows = await pool.fetch(
         """
-        SELECT model, value, metadata
+        SELECT DISTINCT ON (model) model, value, metadata
         FROM ml_predictions
         WHERE user_id = $1
-          AND date >= CURRENT_DATE - 1
-        ORDER BY date DESC
+          AND (
+              (model != 'model_meta_rf' AND date >= CURRENT_DATE - 1)
+              OR model = 'model_meta_rf'
+          )
+        ORDER BY model, date DESC
         """,
         user_id,
     )
@@ -331,6 +335,27 @@ async def get_ml_insights(user_id: int) -> dict:
     for row in rows:
         meta = json.loads(row["metadata"]) if row["metadata"] else {}
         result[row["model"]] = {"value": row["value"], **meta}
+    return result
+
+
+async def get_ml_history(user_id: int, days: int = 30) -> dict:
+    pool = await get_pool()
+    cutoff = date.today() - timedelta(days=days)
+    rows = await pool.fetch(
+        """
+        SELECT date, model, value, metadata
+        FROM ml_predictions
+        WHERE user_id = $1 AND date >= $2
+        ORDER BY date ASC
+        """,
+        user_id,
+        cutoff,
+    )
+    result: dict = {}
+    for row in rows:
+        meta = json.loads(row["metadata"]) if row["metadata"] else {}
+        entry = {"date": str(row["date"]), "value": row["value"], **meta}
+        result.setdefault(row["model"], []).append(entry)
     return result
 
 
