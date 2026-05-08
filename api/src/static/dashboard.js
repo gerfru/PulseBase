@@ -384,6 +384,46 @@ function showToast(msg, type = '') {
     _toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
+// ── ML Status ──────────────────────────────────────────────────────────────
+
+let _mlPollTimer = null;
+
+function setMlStatus(text, visible) {
+    const el = document.getElementById('ml-status');
+    el.textContent = text;
+    el.style.display = visible ? '' : 'none';
+}
+
+async function pollMlStatus() {
+    try {
+        const s = await fetch('/api/ml-status').then(r => r.json());
+        if (s.pending) {
+            setMlStatus('🤖 ML läuft…', true);
+            _mlPollTimer = setTimeout(pollMlStatus, 8000);
+        } else {
+            const age = s.last_ml_at ? fmtSyncAge(s.last_ml_at) : null;
+            setMlStatus(age ? `🤖 ML · ${age}` : '', !!age);
+            if (_mlPollTimer) {
+                showToast('ML Einblicke aktualisiert');
+                loadMlInsights();
+            }
+            _mlPollTimer = null;
+        }
+    } catch { /* ignorieren */ }
+}
+
+async function loadMlStatus() {
+    try {
+        const s = await fetch('/api/ml-status').then(r => r.json());
+        if (s.pending) {
+            setMlStatus('🤖 ML läuft…', true);
+            _mlPollTimer = setTimeout(pollMlStatus, 8000);
+        } else if (s.last_ml_at) {
+            setMlStatus(`🤖 ML · ${fmtSyncAge(s.last_ml_at)}`, true);
+        }
+    } catch { /* ignorieren */ }
+}
+
 // ── Sync Status ────────────────────────────────────────────────────────────
 function fmtSyncAge(iso) {
     const mins = Math.round((Date.now() - new Date(iso)) / 60000);
@@ -415,6 +455,7 @@ async function pollSyncStatus() {
                 load(currentDays);
                 loadWeekly();
                 loadReadiness();
+                _mlPollTimer = setTimeout(pollMlStatus, 5000);
             }
             _syncPollTimer = null;
         }
@@ -489,3 +530,4 @@ loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werd
 loadMlInsights().catch(() => {});
 loadGlucose().catch(() => {});
 loadSyncStatus();
+loadMlStatus();

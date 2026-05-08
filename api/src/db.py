@@ -452,3 +452,17 @@ async def get_sync_status(user_id: int) -> dict:
         if row and row["last_sync_at"]
         else None,
     }
+
+
+async def get_ml_status(user_id: int) -> dict:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT ml_requested, last_ml_at FROM users WHERE id = $1",
+        user_id,
+    )
+    return {
+        "pending": row["ml_requested"] if row else False,
+        "last_ml_at": row["last_ml_at"].isoformat()
+        if row and row["last_ml_at"]
+        else None,
+    }
