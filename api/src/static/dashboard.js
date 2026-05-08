@@ -264,6 +264,67 @@ async function load(days) {
     }
 }
 
+async function loadMlInsights() {
+    const d = await fetch('/api/ml-insights').then(r => r.json());
+    const anomaly = d['anomaly_hr'];
+    const corr    = d['correlation_sleep_hrv'];
+    const rf      = d['readiness_rf'];
+
+    const items = [];
+
+    if (anomaly && anomaly.z_score !== null) {
+        if (anomaly.is_anomaly) {
+            items.push(`
+                <div class="ml-item ml-item-warn">
+                    <span class="ml-item-icon">⚠</span>
+                    <div>
+                        <div class="ml-item-title">Ruhepuls erhöht</div>
+                        <div class="ml-item-desc">Heute ${anomaly.z_score.toFixed(1)} Std.-Abw. über deiner ${Math.round(anomaly.baseline_mean)} bpm Baseline — möglicher Hinweis auf Überbelastung oder Erkältung.</div>
+                    </div>
+                </div>`);
+        } else {
+            items.push(`
+                <div class="ml-item">
+                    <span class="ml-item-icon">✓</span>
+                    <div>
+                        <div class="ml-item-title">Ruhepuls normal</div>
+                        <div class="ml-item-desc">z = ${anomaly.z_score.toFixed(2)} — im Rahmen deiner Baseline (Ø ${anomaly.baseline_mean} bpm).</div>
+                    </div>
+                </div>`);
+        }
+    }
+
+    if (corr && corr.r !== null) {
+        const dir = corr.r >= 0 ? 'positiv' : 'negativ';
+        items.push(`
+            <div class="ml-item">
+                <span class="ml-item-icon">≈</span>
+                <div>
+                    <div class="ml-item-title">Schlaf → HRV nächster Tag</div>
+                    <div class="ml-item-desc">${corr.interpretation} ${dir}er Zusammenhang (r = ${corr.r.toFixed(2)}, n = ${corr.n} Nächte) — besserer Schlaf geht bei dir mit höherem HRV am nächsten Tag einher.</div>
+                </div>
+            </div>`);
+    }
+
+    if (rf && rf.value !== null) {
+        const score = Math.round(rf.value);
+        const cls = score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor';
+        items.push(`
+            <div class="ml-item">
+                <span class="ml-item-icon">→</span>
+                <div>
+                    <div class="ml-item-title">Prognose morgen</div>
+                    <div class="ml-item-desc">Geschätzte Readiness: <span class="badge ${cls}" style="font-size:.75rem">${score}</span> (Random Forest, basierend auf heutigen HRV / Schlaf / Ruhepuls-Daten).</div>
+                </div>
+            </div>`);
+    }
+
+    if (!items.length) return;
+
+    document.getElementById('ml-container').innerHTML = `<div class="ml-list">${items.join('')}</div>`;
+    document.getElementById('ml-card').style.display = '';
+}
+
 async function loadWeekly() {
     const data = await fetch('/api/weekly?weeks=12').then(r => r.json());
     if (!data.length || !data.some(w => w.run_km || w.ride_km)) {
@@ -433,4 +494,5 @@ document.addEventListener('click', () => {
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadWeekly().catch(() => showToast('Wochendaten konnten nicht geladen werden', 'error'));
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
+loadMlInsights().catch(() => {});
 loadSyncStatus();
