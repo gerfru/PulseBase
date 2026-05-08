@@ -281,22 +281,36 @@ async function loadWeekly() {
 
 async function loadReadiness() {
     const r = await fetch('/api/readiness').then(res => res.json());
-    const el = document.getElementById('readiness-container');
+    const el = document.getElementById('readiness-hero');
     if (!r || r.score === null) {
-        el.innerHTML = '<p class="empty">Noch keine Daten</p>'; return;
+        el.innerHTML = '<p class="empty" style="padding:var(--sp-8) 0">Noch keine Readiness-Daten — Sync läuft täglich um 6 Uhr.</p>';
+        return;
     }
+    const scoreColors = {
+        'badge-balanced':   { color: '#22c55e', glow: 'rgba(34,197,94,.3)'   },
+        'badge-unbalanced': { color: '#f59e0b', glow: 'rgba(245,158,11,.25)' },
+        'badge-poor':       { color: '#ef4444', glow: 'rgba(239,68,68,.25)'  },
+    };
+    const { color, glow } = scoreColors[r.cls] || scoreColors['badge-poor'];
+    el.style.boxShadow = `0 0 80px ${glow}, 0 4px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.06)`;
+
     const hrvLabels = { balanced: 'Ausgeglichen', unbalanced: 'Unausgeglichen', low: 'Niedrig', poor: 'Niedrig' };
-    const hrvLabel = r.hrv_status ? (hrvLabels[(r.hrv_status || '').toLowerCase()] ?? r.hrv_status) : null;
-    el.innerHTML = `<div style="text-align:center; margin-bottom: var(--sp-4);">
-        <div style="font-size:2.5rem; font-weight:700; line-height:1; color:var(--text)">${r.score}</div>
-        <span class="badge ${r.cls}" style="margin-top:var(--sp-2)">${r.label}</span>
-    </div>
-    <div class="kv-card">
-        ${hrvLabel ? `<div class="kv-row"><span class="kv-label">HRV</span><span class="kv-value">${hrvLabel}</span></div>` : ''}
-        ${r.sleep_score != null ? `<div class="kv-row"><span class="kv-label">Schlaf</span><span class="kv-value">${r.sleep_score} / 100</span></div>` : ''}
-        ${r.body_battery != null ? `<div class="kv-row"><span class="kv-label">Body Battery</span><span class="kv-value">${r.body_battery}</span></div>` : ''}
-        ${r.avg_stress != null ? `<div class="kv-row"><span class="kv-label">Stress</span><span class="kv-value">${r.avg_stress}</span></div>` : ''}
-    </div>`;
+    const factors = [
+        r.hrv_status     ? { label: 'HRV',          val: hrvLabels[(r.hrv_status||'').toLowerCase()] ?? r.hrv_status } : null,
+        r.sleep_score   != null ? { label: 'Schlaf',       val: r.sleep_score + ' / 100' } : null,
+        r.body_battery  != null ? { label: 'Body Battery', val: r.body_battery }             : null,
+        r.avg_stress    != null ? { label: 'Stress',       val: r.avg_stress }               : null,
+    ].filter(Boolean);
+
+    el.innerHTML = `
+        <h2>Readiness</h2>
+        <div style="display:flex;align-items:baseline;gap:var(--sp-4);flex-wrap:wrap">
+            <div class="readiness-score" style="color:${color}">${r.score}</div>
+            <span class="badge ${r.cls}" style="margin-bottom:var(--sp-2)">${r.label}</span>
+        </div>
+        <div class="readiness-factors">
+            ${factors.map(f => `<span class="readiness-factor">${f.label}<strong>${f.val}</strong></span>`).join('')}
+        </div>`;
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
