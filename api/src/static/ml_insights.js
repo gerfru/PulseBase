@@ -101,28 +101,53 @@ function renderReadiness(today, history) {
     const cls    = score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor';
     const avg    = hist.length ? Math.round(hist.reduce((s, h) => s + h.value, 0) / hist.length) : null;
     const avgCls = avg >= 80 ? 'badge-balanced' : avg >= 50 ? 'badge-unbalanced' : 'badge-poor';
+    const ciLow  = rf?.confidence_low  != null ? Math.round(rf.confidence_low)  : null;
+    const ciHigh = rf?.confidence_high != null ? Math.round(rf.confidence_high) : null;
+    const ciSub  = ciLow != null && ciHigh != null ? `Konfidenzbereich: ${ciLow} – ${ciHigh}` : '';
 
     document.getElementById('rf-stats').innerHTML = [
-        statTile('Prognose morgen', score != null ? `<span class="badge ${cls}" style="font-size:1.2rem">${Math.round(score)}</span>` : '—'),
+        statTile('Prognose morgen', score != null ? `<span class="badge ${cls}" style="font-size:1.2rem">${Math.round(score)}</span>` : '—', ciSub),
         statTile('Ø letzte 30T',    avg   != null ? `<span class="badge ${avgCls}" style="font-size:1.2rem">${avg}</span>` : '—', 'Readiness 0–100'),
         statTile('Trainings-Rows',  mmeta?.n_rows ?? '—', 'für RF-Modell genutzt'),
         statTile('Features',        mmeta?.features?.length ?? '—', mmeta?.features?.join(', ') ?? ''),
     ].join('');
 
     if (hist.length >= 2) {
+        const hasCi = hist.some(h => h.confidence_low != null);
+        const ciDatasets = hasCi ? [
+            {
+                fill: '+1',
+                borderColor: 'transparent',
+                backgroundColor: 'rgba(99,102,241,.10)',
+                pointRadius: 0,
+                tension: 0.35,
+                data: hist.map(h => h.confidence_low ?? null),
+            },
+            {
+                fill: false,
+                borderColor: 'transparent',
+                pointRadius: 0,
+                tension: 0.35,
+                data: hist.map(h => h.confidence_high ?? null),
+            },
+        ] : [];
+
         new Chart(document.getElementById('rf-chart'), {
             type: 'line',
             data: {
                 labels: hist.map(h => fmtDate(h.date)),
-                datasets: [{
-                    label: 'Readiness',
-                    data: hist.map(h => h.value),
-                    borderColor: 'rgba(99,102,241,1)',
-                    backgroundColor: 'rgba(99,102,241,.12)',
-                    fill: true,
-                    tension: 0.35,
-                    pointRadius: 3,
-                }],
+                datasets: [
+                    ...ciDatasets,
+                    {
+                        label: 'Readiness',
+                        data: hist.map(h => h.value),
+                        borderColor: 'rgba(99,102,241,1)',
+                        backgroundColor: 'rgba(99,102,241,.12)',
+                        fill: !hasCi,
+                        tension: 0.35,
+                        pointRadius: 3,
+                    },
+                ],
             },
             options: {
                 responsive: true,
