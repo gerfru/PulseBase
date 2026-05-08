@@ -91,7 +91,9 @@ def train_and_save(
     return {"features": feature_names, "importances": importances, "n_rows": len(X)}
 
 
-def predict_tomorrow(features: dict[str, Any], model_path: Path) -> float | None:
+def predict_tomorrow(
+    features: dict[str, Any], model_path: Path
+) -> dict[str, Any] | None:
     if not model_path.exists():
         return None
     saved = joblib.load(model_path)
@@ -107,5 +109,14 @@ def predict_tomorrow(features: dict[str, Any], model_path: Path) -> float | None
         if v is None:
             return None
         vals.append(float(v))
-    score = float(model.predict(np.array([vals]))[0])
-    return round(min(100.0, max(0.0, score)), 1)
+    X = np.array([vals])
+    tree_preds = np.array([t.predict(X)[0] for t in model.estimators_])
+
+    def _clamp(v: float) -> float:
+        return round(min(100.0, max(0.0, v)), 1)
+
+    return {
+        "score": _clamp(float(np.mean(tree_preds))),
+        "confidence_low": _clamp(float(np.percentile(tree_preds, 10))),
+        "confidence_high": _clamp(float(np.percentile(tree_preds, 90))),
+    }
