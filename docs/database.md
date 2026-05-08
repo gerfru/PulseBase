@@ -16,6 +16,9 @@ production database — always add a new migration file.
 | `V3__user_password.sql` | Adds `password_hash` to `users` |
 | `V4__intensity_training_status.sql` | Adds `intensity_moderate`, `intensity_vigorous`, `training_status` to `daily_summary` |
 | `V5__activity_training_effect.sql` | Adds `aerobic_effect`, `anaerobic_effect` to `activities` |
+| `V6__sync_trigger.sql` | Adds `sync_requested`, `last_sync_at` to `users` |
+| `V7__app_user.sql` | Creates least-privilege `garmin_app` DB user |
+| `V8__ml_predictions.sql` | Creates `ml_predictions` table for ML model outputs |
 
 ---
 
@@ -118,6 +121,23 @@ Primary key: `(date, user_id)` — upserted on sync.
 | `hrv_last_night` | `SMALLINT` | ms (not `hrv_last_night_avg`!) |
 | `hrv_weekly_avg` | `SMALLINT` | ms (not `weekly_avg`!) |
 | `hrv_status` | `TEXT` | `balanced` / `unbalanced` / `poor` (not `status`!) |
+
+---
+
+### `ml_predictions`
+
+Primary key: `(date, user_id, model)` — one row per user per day per model, upserted on inference.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `date` | `DATE NOT NULL` | Inference date |
+| `user_id` | `INTEGER → users(id)` | |
+| `model` | `TEXT NOT NULL` | `anomaly_hr` / `readiness_rf` / `correlation_sleep_hrv` |
+| `value` | `FLOAT` | Primary output (z-score, predicted score, or Pearson r) |
+| `metadata` | `JSONB` | Additional fields (e.g. `is_anomaly`, `p_value`, `n_samples`) |
+| `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
+
+Index: `(user_id, date DESC)`
 
 ---
 

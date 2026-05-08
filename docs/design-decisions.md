@@ -131,6 +131,42 @@ The dashboard uses a glassmorphism aesthetic:
 
 ---
 
+## ML as a separate container
+
+The ML inference and training logic runs in a dedicated `ml-service` container rather than
+inside the API or sync-service. Reasons:
+
+- **Dependency isolation**: scikit-learn, scipy, numpy, and joblib don't belong in the
+  API image — they'd triple its size and have no business there
+- **Independent schedule**: inference runs daily at 7:00, training weekly on Sundays —
+  completely decoupled from the Garmin sync schedule (6:00) and the API
+- **Failure isolation**: a broken model or training run doesn't affect the API or sync
+
+The ML service writes results to `ml_predictions` in the shared TimescaleDB. The API reads
+from that table via `/api/ml-insights` — the ML service and the API never talk directly.
+
+### Rule-based score as Random Forest target
+
+The RF readiness model is trained against the **rule-based readiness score** (the weighted
+HRV/sleep/body-battery/stress formula), not a user-provided label. This means:
+
+- Training data is always available — no labeling effort required
+- The model learns to predict what the rule-based formula would output given tomorrow's inputs
+- As more data accumulates, the RF can generalize across partial inputs better than the
+  hard-coded formula does (which excludes missing components entirely)
+
+### Z-score for anomaly detection (not IQR or isolation forest)
+
+Z-score was chosen over more complex methods because:
+
+- Resting HR is approximately normally distributed for a single individual over time
+- The 30-day rolling baseline is short enough to track fitness changes, long enough to
+  be stable
+- Threshold of 1.5 σ is intentionally sensitive (early warning), not a strict outlier test
+- Interpretable: the dashboard can show "1.3 σ above baseline" without further explanation
+
+---
+
 ## TimescaleDB for intraday data
 
 Regular PostgreSQL tables would work for daily summaries and activities. Intraday data
