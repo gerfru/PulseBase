@@ -109,6 +109,52 @@ async def get_sleep_hrv_pairs(
     return [(float(r["sleep_score"]), float(r["hrv_last_night"])) for r in rows]
 
 
+async def get_sleep_resting_hr_pairs(
+    user_id: int, days: int = 90
+) -> list[tuple[float, float]]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT s.sleep_score, d2.resting_hr
+        FROM sleep_sessions s
+        JOIN daily_summary d2
+          ON d2.date    = DATE(s.start_time AT TIME ZONE 'UTC') + 1
+         AND d2.user_id = s.user_id
+        WHERE s.user_id = $1
+          AND DATE(s.start_time AT TIME ZONE 'UTC') >= $2
+          AND s.sleep_score IS NOT NULL
+          AND d2.resting_hr IS NOT NULL
+        ORDER BY s.start_time
+        """,
+        user_id,
+        cutoff,
+    )
+    return [(float(r["sleep_score"]), float(r["resting_hr"])) for r in rows]
+
+
+async def get_bb_resting_hr_pairs(
+    user_id: int, days: int = 90
+) -> list[tuple[float, float]]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT d1.body_battery_high, d2.resting_hr
+        FROM daily_summary d1
+        JOIN daily_summary d2
+          ON d2.date    = d1.date + 1
+         AND d2.user_id = d1.user_id
+        WHERE d1.user_id = $1
+          AND d1.date >= $2
+          AND d1.body_battery_high IS NOT NULL
+          AND d2.resting_hr IS NOT NULL
+        ORDER BY d1.date
+        """,
+        user_id,
+        cutoff,
+    )
+    return [(float(r["body_battery_high"]), float(r["resting_hr"])) for r in rows]
+
+
 async def get_latest_features(user_id: int) -> dict[str, Any]:
     row = await _pool_or_raise().fetchrow(
         """
