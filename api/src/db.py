@@ -41,7 +41,8 @@ async def create_user(name: str, email: str, password_hash: str) -> dict:
         email,
         password_hash,
     )
-    assert row is not None
+    if row is None:
+        raise RuntimeError("create_user: INSERT RETURNING returned no row")
     return dict(row)
 
 

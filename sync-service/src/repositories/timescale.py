@@ -31,7 +31,8 @@ class TimescaleRepository(
 
     @property
     def _db(self) -> asyncpg.Pool:
-        assert self._pool is not None
+        if self._pool is None:
+            raise RuntimeError("Pool not initialized — call init() first")
         return self._pool
 
     async def init(self) -> None:
