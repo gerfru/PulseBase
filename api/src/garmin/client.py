@@ -13,7 +13,7 @@ class GarminClient:
         self.email = email
         self.password = password
         self.token_dir = token_dir
-        self._client: garminconnect.Garmin | None = None
+        self._client: Any = None
 
     def connect(self) -> None:
         Path(self.token_dir).mkdir(parents=True, exist_ok=True)
