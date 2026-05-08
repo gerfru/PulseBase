@@ -109,16 +109,30 @@ make db             # psql-Shell (Achtung: DB_USER muss als Shell-Var gesetzt se
 api/src/
 ├── main.py           Alle Routen (Auth + Dashboard + /api/*)
 ├── db.py             Alle DB-Funktionen (asyncpg, kein ORM)
-├── garmin/client.py  Garmin Connect Client (Token-Login)
+├── garmin/
+│   ├── __init__.py
+│   └── client.py     Garmin Connect Client (Token-Login)
 └── templates/        Jinja2 Templates (login, register, dashboard, activity, link_garmin)
 
 sync-service/src/
 ├── main.py           APScheduler + Sync-Loop pro User
-├── garmin/           API-Client + Mapper (Garmin → Domain-Modelle)
-└── repositories/     TimescaleRepository (upsert, bulk_insert)
+├── domain/
+│   ├── __init__.py
+│   └── models.py
+├── garmin/
+│   ├── __init__.py
+│   ├── client.py
+│   └── mapper.py
+└── repositories/
+    ├── __init__.py
+    ├── base.py
+    └── timescale.py  TimescaleRepository (upsert, bulk_insert)
 
 db/migrations/        Flyway: V1 Schema, V2 User-Auth, V3 password_hash, V4 intensity+training_status, V5 training_effect
 ```
+
+Die `__init__.py`-Dateien in den sync-service-Sub-Paketen sind Pflicht — ohne sie erkennt mypy die
+Namespace-Pakete nicht eindeutig und meldet Duplikat-Modul-Fehler (`domain.models` vs. `models`).
 
 ## Architektur-Entscheidungen
 
@@ -129,6 +143,41 @@ db/migrations/        Flyway: V1 Schema, V2 User-Auth, V3 password_hash, V4 inte
 - **Starlette 1.0 TemplateResponse-API** — `TemplateResponse(request, "name.html", ctx)` nicht die alte Form mit `{"request": request}` im Context
 - **Garmin-Passwörter nie speichern** — nur Login-Token in `/app/tokens/{user_id}/`
 - **asyncpg direkt** (kein ORM) — alle Queries als Prepared Statements in `db.py`
+
+## mypy-Quirks
+
+- **garminconnect hat keine Type-Stubs** → Client-Attribute als `Any` annotieren (nicht `garminconnect.Garmin | None`), sonst union-attr-Fehler auf allen Method-Calls
+- **asyncpg Pool optional** → `_db`-Property in `TimescaleRepository` mit `if self._pool is None: raise RuntimeError(...)` → gibt `asyncpg.Pool` zurück (nicht `Pool | None`) — verhindert union-attr-Fehler
+- **Pydantic BaseSettings()** liest Env-Vars → mypy sieht keine Argumente → `Settings()  # type: ignore[call-arg]`
+- **slowapi RateLimitExceeded handler** → `app.add_exception_handler(...)` erwartet anderen Typ → `# type: ignore[arg-type]`
+- **CI mypy** läuft mit `--explicit-package-bases` (working-directory: api/ oder sync-service/) — lokal läuft mypy vom Projekt-Root aus ohne dieses Flag
+
+## CI/CD Pipeline
+
+Jobs in `.github/workflows/ci.yml`:
+
+| Job | Tool | Was |
+| --- | ---- | --- |
+| `lint` | ruff | Check + Format-Check |
+| `security` | gitleaks + pip-audit + bandit | Secret-Scan, SCA, SAST |
+| `typecheck` | mypy | api/ + sync-service/ mit `--explicit-package-bases` |
+| `test` | pytest | sync-service/tests/ |
+| `trivy` | trivy | Docker-Image-Scan CRITICAL+HIGH (`ignore-unfixed: true`) |
+
+## Pre-commit Hooks
+
+Reihenfolge in `.pre-commit-config.yaml`:
+
+1. **gitleaks** — Secret-Scan (läuft als Erstes)
+2. **pre-commit-hooks** — trailing-whitespace, end-of-file-fixer, check-yaml/json/toml, no-commit-to-branch
+3. **ruff** — Lint + Fix
+4. **ruff-format** — Format
+5. **bandit** — SAST (`-r api/src/ sync-service/src/`, `pass_filenames: false`)
+6. **detect-secrets** — Baseline `.secrets.baseline`
+7. **mypy-api** (local) — `mypy api/src/ --ignore-missing-imports`
+8. **mypy-sync** (local) — `mypy sync-service/src/ --ignore-missing-imports`
+
+Wichtig: bandit und mypy als `pass_filenames: false` mit absoluten Pfaden vom Projekt-Root — sonst scannt bandit `src/` relativ und findet nichts.
 
 ## Datenbankschema — echte Spaltennamen
 

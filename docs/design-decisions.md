@@ -117,6 +117,18 @@ Benefits:
 - Design tokens in `:root` make color/spacing changes a one-line edit
 - New templates start clean — no copy-pasting inline styles
 
+Inline `<style>` blocks in templates are prohibited: CSP uses `'unsafe-inline'` only for
+`style-src`, but keeping styles in `style.css` is enforced by convention so that a future
+nonce-based CSP upgrade requires no template changes.
+
+### Glassmorphism
+
+The dashboard uses a glassmorphism aesthetic:
+- `body::before` mesh gradient (3 radial blobs: indigo / violet / emerald)
+- Cards: `background: rgba(30,41,59,.55)` + `backdrop-filter: blur(16px)` — requires a
+  non-white body background in light mode (`#eef2f7`) for the blur to be visible
+- Light mode: blobs at higher opacity (`.20/.15/.12`), card borders `rgba(148,163,184,.25)`
+
 ---
 
 ## TimescaleDB for intraday data

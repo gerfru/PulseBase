@@ -7,7 +7,11 @@ PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, priv
 ## Features
 
 - Automatic daily sync from Garmin Connect (activities, sleep, HRV, body battery, stress)
-- Mobile-first dashboard with charts and hero stat row — auto dark mode
+- Glassmorphism dashboard — mesh gradient background, frosted glass cards, dark + light mode
+- Readiness score (rule-based 0–100) as hero card with HRV, sleep, body battery, stress factors
+- Activity detail page with GPS map (Leaflet.js), HR/pace/elevation/cadence charts
+- Training status tracking (PRODUCTIVE, MAINTAINING, RECOVERY, …)
+- Weekly training volume overview (run km / ride km stacked bar)
 - Self-service registration — no admin needed
 - Garmin passwords are **never stored** — token-only
 
@@ -18,7 +22,7 @@ PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, priv
 - [Database](docs/database.md) — Schema, hypertables, column names, useful queries
 - [API Reference](docs/api.md) — All endpoints with request/response format
 - [Setup Guide](docs/setup.md) — Full installation walkthrough
-- [Roadmap](docs/roadmap.md) — Historical import, ML/analytics, planned features
+- [Roadmap](docs/roadmap.md) — ML/analytics, planned features
 
 ## Quickstart
 
