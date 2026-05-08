@@ -22,6 +22,10 @@
                 <button class="time-btn" data-days="90"  onclick="setDays(90)">90T</button>
                 <button class="time-btn" data-days="365" onclick="setDays(365)">365T</button>
             </div>
+            <div class="sync-status">
+                <span id="sync-last" class="sync-last"></span>
+                <button id="sync-btn" class="btn btn-secondary btn-sm" onclick="triggerSync()" aria-label="Sync jetzt starten">↻ Sync</button>
+            </div>
             <form method="post" action="/logout">
                 <button class="btn btn-secondary btn-sm" type="submit">Abmelden</button>
             </form>
@@ -451,9 +455,88 @@
         </div>`;
     }
 
-    load(currentDays).catch(err => console.error('Dashboard Fehler:', err));
-    loadWeekly().catch(err => console.error('Weekly Fehler:', err));
-    loadReadiness().catch(err => console.error('Readiness Fehler:', err));
+    // ── Toast ──────────────────────────────────────────────────────────────────
+    let _toastTimer = null;
+    function showToast(msg, type = '') {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = 'toast show' + (type ? ' ' + type : '');
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    // ── Sync Status ────────────────────────────────────────────────────────────
+    function fmtSyncAge(iso) {
+        const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+        if (mins < 2)  return 'Gerade eben';
+        if (mins < 60) return `vor ${mins}m`;
+        return `vor ${Math.round(mins / 60)}h`;
+    }
+
+    function setSyncLoading(loading) {
+        const btn = document.getElementById('sync-btn');
+        btn.textContent = loading ? '↻ Läuft…' : '↻ Sync';
+        btn.classList.toggle('sync-loading', loading);
+    }
+
+    let _syncPollTimer = null;
+
+    async function pollSyncStatus() {
+        try {
+            const s = await fetch('/api/sync-status').then(r => r.json());
+            if (s.last_sync_at) {
+                document.getElementById('sync-last').textContent = fmtSyncAge(s.last_sync_at);
+            }
+            if (s.pending) {
+                _syncPollTimer = setTimeout(pollSyncStatus, 5000);
+            } else {
+                setSyncLoading(false);
+                if (_syncPollTimer) {
+                    showToast('Sync abgeschlossen');
+                    load(currentDays);
+                    loadWeekly();
+                    loadReadiness();
+                }
+                _syncPollTimer = null;
+            }
+        } catch { /* Netzwerkfehler ignorieren */ }
+    }
+
+    async function loadSyncStatus() {
+        try {
+            const s = await fetch('/api/sync-status').then(r => r.json());
+            if (s.last_sync_at) {
+                document.getElementById('sync-last').textContent = fmtSyncAge(s.last_sync_at);
+            }
+            if (s.pending) {
+                setSyncLoading(true);
+                _syncPollTimer = setTimeout(pollSyncStatus, 5000);
+            }
+        } catch { /* ignorieren */ }
+    }
+
+    async function triggerSync() {
+        if (document.getElementById('sync-btn').classList.contains('sync-loading')) return;
+        try {
+            const res = await fetch('/api/sync', { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                showToast(err?.error?.message || 'Sync fehlgeschlagen', 'error');
+                return;
+            }
+            setSyncLoading(true);
+            _syncPollTimer = setTimeout(pollSyncStatus, 5000);
+        } catch {
+            showToast('Verbindungsfehler', 'error');
+        }
+    }
+
+    load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
+    loadWeekly().catch(() => showToast('Wochendaten konnten nicht geladen werden', 'error'));
+    loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
+    loadSyncStatus();
     </script>
+
+    <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 </body>
 </html>
