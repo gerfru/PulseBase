@@ -9,10 +9,12 @@ from config import Settings
 from db import (
     close_pool,
     get_active_users,
+    get_bb_resting_hr_pairs,
     get_latest_features,
     get_readiness_training_rows,
     get_resting_hr_history,
     get_sleep_hrv_pairs,
+    get_sleep_resting_hr_pairs,
     get_today_resting_hr,
     init_pool,
     save_prediction,
@@ -37,7 +39,7 @@ async def run_inference(user_id: int, settings: Settings) -> None:
         f"user={user_id} anomaly z={anomaly.get('z_score')} is_anomaly={anomaly.get('is_anomaly')}"
     )
 
-    # Sleep→HRV correlation
+    # Sleep → HRV correlation
     pairs = await get_sleep_hrv_pairs(user_id)
     if pairs:
         sleep_scores, hrv_vals = zip(*pairs)
@@ -45,7 +47,33 @@ async def run_inference(user_id: int, settings: Settings) -> None:
         await save_prediction(
             user_id, date.today(), "correlation_sleep_hrv", corr.get("r"), corr
         )
-        logger.info(f"user={user_id} correlation r={corr.get('r')} n={corr.get('n')}")
+        logger.info(
+            f"user={user_id} correlation_sleep_hrv r={corr.get('r')} n={corr.get('n')}"
+        )
+
+    # Sleep → Resting HR correlation
+    pairs_srhr = await get_sleep_resting_hr_pairs(user_id)
+    if pairs_srhr:
+        xs, ys = zip(*pairs_srhr)
+        corr = compute_sleep_hrv_correlation(list(xs), list(ys))
+        await save_prediction(
+            user_id, date.today(), "correlation_sleep_rhr", corr.get("r"), corr
+        )
+        logger.info(
+            f"user={user_id} correlation_sleep_rhr r={corr.get('r')} n={corr.get('n')}"
+        )
+
+    # Body Battery → Resting HR correlation
+    pairs_bbrhr = await get_bb_resting_hr_pairs(user_id)
+    if pairs_bbrhr:
+        xs, ys = zip(*pairs_bbrhr)
+        corr = compute_sleep_hrv_correlation(list(xs), list(ys))
+        await save_prediction(
+            user_id, date.today(), "correlation_bb_rhr", corr.get("r"), corr
+        )
+        logger.info(
+            f"user={user_id} correlation_bb_rhr r={corr.get('r')} n={corr.get('n')}"
+        )
 
     # Readiness prediction (uses pre-trained model if available)
     model_path = settings.model_dir / f"readiness_rf_{user_id}.joblib"
