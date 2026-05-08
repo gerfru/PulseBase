@@ -474,7 +474,7 @@ tbody tr:hover { background: var(--surface-2); }
   display: none;
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  left: 0;
   width: min(280px, 80vw);
   z-index: 100;
   background: rgba(15,23,42,.92);
