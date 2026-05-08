@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import asyncpg
@@ -35,16 +35,17 @@ async def get_active_users() -> list[dict[str, Any]]:
 
 
 async def get_resting_hr_history(user_id: int, days: int = 31) -> list[float | None]:
+    cutoff = date.today() - timedelta(days=days)
     rows = await _pool_or_raise().fetch(
         """
         SELECT resting_hr FROM daily_summary
         WHERE user_id = $1
-          AND date >= CURRENT_DATE - $2
+          AND date >= $2
           AND date < CURRENT_DATE
         ORDER BY date
         """,
         user_id,
-        days,
+        cutoff,
     )
     return [r["resting_hr"] for r in rows]
 
@@ -60,6 +61,7 @@ async def get_today_resting_hr(user_id: int) -> float | None:
 async def get_readiness_training_rows(
     user_id: int, days: int = 365
 ) -> list[dict[str, Any]]:
+    cutoff = date.today() - timedelta(days=days)
     rows = await _pool_or_raise().fetch(
         """
         SELECT d.date,
@@ -75,11 +77,11 @@ async def get_readiness_training_rows(
                ON DATE(s.start_time AT TIME ZONE 'UTC') = d.date
               AND s.user_id = d.user_id
         WHERE d.user_id = $1
-          AND d.date >= CURRENT_DATE - $2
+          AND d.date >= $2
         ORDER BY d.date
         """,
         user_id,
-        days,
+        cutoff,
     )
     return [dict(r) for r in rows]
 
@@ -87,6 +89,7 @@ async def get_readiness_training_rows(
 async def get_sleep_hrv_pairs(
     user_id: int, days: int = 90
 ) -> list[tuple[float, float]]:
+    cutoff = date.today() - timedelta(days=days)
     rows = await _pool_or_raise().fetch(
         """
         SELECT s.sleep_score, h_next.hrv_last_night
@@ -95,13 +98,13 @@ async def get_sleep_hrv_pairs(
           ON h_next.date = DATE(s.start_time AT TIME ZONE 'UTC') + 1
          AND h_next.user_id = s.user_id
         WHERE s.user_id = $1
-          AND DATE(s.start_time AT TIME ZONE 'UTC') >= CURRENT_DATE - $2
+          AND DATE(s.start_time AT TIME ZONE 'UTC') >= $2
           AND s.sleep_score IS NOT NULL
           AND h_next.hrv_last_night IS NOT NULL
         ORDER BY s.start_time
         """,
         user_id,
-        days,
+        cutoff,
     )
     return [(float(r["sleep_score"]), float(r["hrv_last_night"])) for r in rows]
 
