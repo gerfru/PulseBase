@@ -1,4 +1,9 @@
 repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.27.2
+    hooks:
+      - id: gitleaks
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -24,7 +29,8 @@ repos:
     rev: 1.8.3
     hooks:
       - id: bandit
-        args: [-r, src/]
+        args: [-r, api/src/, sync-service/src/]
+        pass_filenames: false
         files: ^(api|sync-service)/src/
 
   - repo: https://github.com/Yelp/detect-secrets
@@ -32,3 +38,22 @@ repos:
     hooks:
       - id: detect-secrets
         args: [--baseline, .secrets.baseline]
+
+  - repo: local
+    hooks:
+      - id: mypy-api
+        name: mypy api
+        entry: mypy
+        language: python
+        additional_dependencies: [mypy, asyncpg-stubs, types-python-dateutil]
+        args: [api/src/, --ignore-missing-imports]
+        pass_filenames: false
+        files: ^api/src/
+      - id: mypy-sync
+        name: mypy sync-service
+        entry: mypy
+        language: python
+        additional_dependencies: [mypy, asyncpg-stubs, types-python-dateutil]
+        args: [sync-service/src/, --ignore-missing-imports]
+        pass_filenames: false
+        files: ^sync-service/src/

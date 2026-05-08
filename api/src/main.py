@@ -37,7 +37,7 @@ from src.garmin.client import GarminClient
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]
 
 
 def _get_real_ip(request: Request) -> str:
@@ -104,7 +104,7 @@ app.mount(
     name="static",
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     SessionMiddleware,
