@@ -2,6 +2,15 @@
 
 ## Current State
 
+**Phase 8 complete** (May 2026):
+- Glassmorphism UI redesign: mesh gradient background (`body::before`), frosted glass cards (`backdrop-filter: blur(16px)`), dark + light mode
+- Readiness score as hero card with score, badge, and factor pills (HRV, sleep, body battery, stress)
+- HRV + Training status in sidebar beside Readiness hero
+- Training status sync fix: mapper bug (numeric Garmin code → string mapping) + UPSERT fix
+- Activity page: inline styles moved to `style.css`, header as glass card
+- CI pipeline hardened: `mypy` (typecheck), `bandit` (SAST), `trivy` (image scan CRITICAL+HIGH)
+- Pre-commit: `gitleaks` + `mypy` hooks added, `bandit` path fixed
+
 **Phase 7 complete** (May 2026):
 - Extended sport type support: 13 types now correctly stored and displayed (walking, strength training, yoga, indoor cycling, trail running, open water swimming, cardio, elliptical, fitness equipment)
 - Weekly overview card on dashboard: stacked bar chart of run/ride km per week
@@ -24,28 +33,6 @@
 - Multi-user registration and login
 - Garmin Connect sync (activities, sleep, HRV, body battery, stress, SpO2)
 - JSON API + Chart.js dashboard (no Grafana dependency)
-
----
-
-## Historical Data Import
-
-The sync-service pulls data from `SYNC_LOOKBACK_DAYS` back. For historical data
-(e.g. 5 years of existing Garmin history) there are two approaches:
-
-### Option A — Garmin Data Export (recommended)
-
-Garmin allows a full account export from connect.garmin.com → Account → Data Export.
-The ZIP contains CSV/JSON files for all activity types.
-
-A one-time import script would parse these files and insert them via the same
-`TimescaleRepository` used by the sync-service.
-
-### Option B — Extended sync lookback
-
-Set `SYNC_LOOKBACK_DAYS=1800` in `.env` and run `make sync`. This will make ~1800
-individual API calls — slow and may hit Garmin's rate limits.
-
-Option A is faster and more reliable for bulk historical import.
 
 ---
 
