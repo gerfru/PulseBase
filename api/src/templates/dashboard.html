@@ -26,6 +26,7 @@
                 <span id="sync-last" class="sync-last"></span>
                 <button id="sync-btn" class="btn btn-secondary btn-sm" aria-label="Sync jetzt starten">↻ Sync</button>
             </div>
+            <a href="/settings" class="btn btn-secondary btn-sm" aria-label="Einstellungen">⚙ Einstellungen</a>
             <form method="post" action="/logout">
                 <button class="btn btn-secondary btn-sm" type="submit">Abmelden</button>
             </form>
@@ -84,6 +85,13 @@
                 <div class="stat-label">Body Battery</div>
                 <div class="stat-value" id="stat-battery">—</div>
             </div>
+            {% if user.libre_linked %}
+            <div class="stat-tile" id="glucose-tile">
+                <div class="stat-label">Glukose</div>
+                <div class="stat-value" id="glucose-val">—</div>
+                <div style="font-size:.78rem;color:var(--muted);margin-top:2px" id="glucose-sub"></div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- ── Training ──────────────────────────────────────────────── -->
