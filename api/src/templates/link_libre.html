@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseBase — LibreLinkUp verknüpfen</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="auth-wrap" style="max-width: 480px;">
+        <h1 class="auth-brand">LibreLinkUp verknüpfen</h1>
+        <p class="auth-sub">Für {{ user.name }}</p>
+
+        <div class="card">
+            {% if user.libre_linked %}
+            <div class="notice">
+                Aktuell verknüpft als <strong>{{ user.libre_email }}</strong>.
+            </div>
+            <form method="post" action="/libre/unlink" style="margin-top: var(--sp-4)">
+                <button class="btn btn-secondary btn-block" type="submit">
+                    Verbindung trennen &amp; Daten löschen
+                </button>
+            </form>
+            <a class="btn btn-secondary btn-block" href="/dashboard" style="margin-top: var(--sp-3)">← Dashboard</a>
+            {% else %}
+            <div class="notice">
+                Dein Passwort wird <strong>nicht gespeichert</strong>. Es wird einmalig für den
+                Login verwendet, danach nur noch ein Token gespeichert.<br><br>
+                Stelle sicher, dass du in der LibreLink-App der Person, deren Werte du siehst,
+                als <strong>Follower akzeptiert</strong> wurdest.
+            </div>
+
+            {% if error %}
+            <div class="error">{{ error }}</div>
+            {% endif %}
+
+            <form method="post" action="/libre/link">
+                <label for="libre_email">LibreLinkUp E-Mail</label>
+                <input type="email" id="libre_email" name="libre_email" required autocomplete="email" placeholder="deine@email.com">
+
+                <label for="libre_password">LibreLinkUp Passwort</label>
+                <input type="password" id="libre_password" name="libre_password" required autocomplete="current-password">
+
+                <button class="btn btn-primary btn-block" type="submit" style="margin-top: var(--sp-6)">Verknüpfen</button>
+            </form>
+
+            <a class="btn btn-secondary btn-block" href="/dashboard" style="margin-top: var(--sp-3)">Abbrechen</a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
