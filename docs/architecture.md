@@ -54,6 +54,7 @@ FastAPI  ...
 | `garmin-flyway` | `flyway/flyway:latest` | Runs DB migrations on startup, then exits |
 | `garmin-api` | `./api` (FastAPI) | Web app: auth, HTML pages, JSON API |
 | `garmin-sync` | `./sync-service` (Python) | Daily Garmin data pull |
+| `garmin-ml` | `./ml-service` (Python) | ML inference daily + training weekly |
 
 HTTPS is handled externally:
 - **homelab-gateway** (default): Caddy on the shared `proxy` Docker network
@@ -67,7 +68,8 @@ HTTPS is handled externally:
 db (healthy)
   └─ flyway (migrate, then exits)
        ├─ api (starts after flyway completes)
-       └─ sync-service (starts after flyway completes)
+       ├─ sync-service (starts after flyway completes)
+       └─ ml-service (starts after flyway completes)
 ```
 
 Flyway runs migrations on every start and exits. The API and sync-service only start
@@ -96,6 +98,21 @@ Data synced per user per day:
 - HRV (last night, weekly avg, status)
 - Body battery intraday (every ~5 min)
 - Stress intraday (every ~5 min)
+
+### ML Inference (daily at configured hour, default 7:00)
+
+```
+TimescaleDB
+  → ml-service reads history (resting HR, sleep, HRV)
+  → anomaly.py    Z-score on resting HR
+  → correlation.py  Pearson r: sleep score → next-day HRV
+  → readiness.py  RandomForestRegressor: [hrv, sleep, resting_hr] → predicted score
+  → ml_predictions table (upsert)
+  → /api/ml-insights exposes results to dashboard
+```
+
+ML model training runs once per week (Sunday 3:00). Models are serialized with `joblib`
+to a Docker volume (`ml-models`). Inference runs daily and writes to `ml_predictions`.
 
 ### Web Request (dashboard)
 
@@ -139,5 +156,7 @@ on the `proxy` network.
 |--------|---------|
 | `timescale-data` | PostgreSQL data directory (persisted) |
 | `garmin-tokens` | Garmin session tokens per user (`/app/tokens/{user_id}/`) |
+| `ml-models` | Serialized scikit-learn models (`joblib`) for ML inference |
 
 Tokens are shared between `api` and `sync-service` via the same named volume.
+ML models are written by `ml-service` and read back on the next inference run.

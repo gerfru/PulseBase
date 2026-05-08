@@ -25,12 +25,15 @@ Edit `.env`:
 ```bash
 DB_USER=garmin
 DB_PASSWORD=<strong password>
+DB_APP_USER=garmin_app
+DB_APP_PASSWORD=<strong password>
 
 SESSION_SECRET=   # see step 2
 
 HOST_IP=garmin.home.lab
 SYNC_HOUR=6
 SYNC_LOOKBACK_DAYS=30
+ML_INFER_HOUR=7   # hour (UTC) for daily ML inference; training runs Sunday 3:00
 ```
 
 ---
@@ -121,8 +124,10 @@ No manual action needed after initial setup.
 | `make migrate` | Run pending Flyway migrations |
 | `make sync` | Trigger Garmin sync immediately (don't wait for scheduled hour) |
 | `make build-api` | Rebuild and restart only the API container |
+| `make build-ml` | Rebuild and restart only the ML service |
 | `make logs` | Live logs from the API |
 | `make logs-sync` | Live logs from the sync-service |
+| `make logs-ml` | Live logs from the ML service |
 | `make status` | Show container status |
 | `make db` | Open a psql shell on the database |
 | `make gen-secrets` | Generate a random SESSION_SECRET value |
