@@ -57,3 +57,11 @@ repos:
         args: [sync-service/src/, --ignore-missing-imports]
         pass_filenames: false
         files: ^sync-service/src/
+      - id: mypy-ml
+        name: mypy ml-service
+        entry: mypy
+        language: python
+        additional_dependencies: [mypy, asyncpg-stubs, scikit-learn, scipy, numpy, joblib]
+        args: [ml-service/src/, --ignore-missing-imports]
+        pass_filenames: false
+        files: ^ml-service/src/

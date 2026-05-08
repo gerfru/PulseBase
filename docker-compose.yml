@@ -111,9 +111,27 @@ services:
     networks:
       - internal
 
+  ml-service:
+    build: ./ml-service
+    container_name: garmin-ml
+    restart: unless-stopped
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    environment:
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      MODEL_DIR: /app/models
+      ML_INFER_HOUR: ${ML_INFER_HOUR:-7}
+    volumes:
+      - ml-models:/app/models
+    networks:
+      - internal
+
 volumes:
   timescale-data:
   garmin-tokens:
+  ml-models:
 
 networks:
   internal:
