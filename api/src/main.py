@@ -30,6 +30,7 @@ from src.db import (
     get_weekly_stats,
     get_readiness,
     get_ml_insights,
+    get_ml_history,
     request_sync,
     get_sync_status,
 )
@@ -361,10 +362,56 @@ async def api_readiness(request: Request):
     return await get_readiness(user["id"])
 
 
+@app.get("/ml/anomaly")
+async def ml_anomaly_page(request: Request):
+    user = await require_user(request)
+    return templates.TemplateResponse(
+        request,
+        "ml_insights.html",
+        {"user": user, "section": "anomaly", "title": "Ruhepuls-Anomalie"},
+    )
+
+
+@app.get("/ml/readiness")
+async def ml_readiness_page(request: Request):
+    user = await require_user(request)
+    return templates.TemplateResponse(
+        request,
+        "ml_insights.html",
+        {"user": user, "section": "readiness", "title": "Readiness-Prognose"},
+    )
+
+
+@app.get("/ml/correlations")
+async def ml_correlations_page(request: Request):
+    user = await require_user(request)
+    return templates.TemplateResponse(
+        request,
+        "ml_insights.html",
+        {"user": user, "section": "correlations", "title": "Korrelationen"},
+    )
+
+
+@app.get("/ml/battery")
+async def ml_battery_page(request: Request):
+    user = await require_user(request)
+    return templates.TemplateResponse(
+        request,
+        "ml_insights.html",
+        {"user": user, "section": "battery", "title": "Body Battery Muster"},
+    )
+
+
 @app.get("/api/ml-insights")
 async def api_ml_insights(request: Request):
     user = await require_user(request)
     return await get_ml_insights(user["id"])
+
+
+@app.get("/api/ml-history")
+async def api_ml_history(request: Request, days: int = Query(default=30, ge=1, le=365)):
+    user = await require_user(request)
+    return await get_ml_history(user["id"], days)
 
 
 @app.post("/api/sync")

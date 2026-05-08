@@ -74,16 +74,21 @@ def prepare_training_data(
     return np.array(X_rows), np.array(y_vals), active
 
 
-def train_and_save(rows: list[dict[str, Any]], model_path: Path) -> bool:
+def train_and_save(
+    rows: list[dict[str, Any]], model_path: Path
+) -> dict[str, Any] | None:
     result = prepare_training_data(rows)
     if result is None:
-        return False
+        return None
     X, y, feature_names = result
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"model": model, "features": feature_names}, model_path)
-    return True
+    importances = {
+        f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
+    }
+    return {"features": feature_names, "importances": importances, "n_rows": len(X)}
 
 
 def predict_tomorrow(features: dict[str, Any], model_path: Path) -> float | None:
