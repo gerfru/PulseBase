@@ -467,9 +467,25 @@ document.addEventListener('click', () => {
     if (btn) btn.setAttribute('aria-expanded', 'false');
 });
 
+// ── Glukose ────────────────────────────────────────────────────────────────
+
+async function loadGlucose() {
+    if (!document.getElementById('glucose-val')) return;
+    const data = await fetch('/api/glucose?hours=1').then(r => r.json());
+    if (!data.length) return;
+    const latest = data[0];
+    const TREND  = { 1: '↓↓', 2: '↓', 3: '→', 4: '↑', 5: '↑↑' };
+    document.getElementById('glucose-val').textContent =
+        `${Math.round(latest.value_mgdl)} mg/dL`;
+    const trend = TREND[latest.trend] ?? '';
+    const flag  = latest.is_low ? ' · Hypo ⚠' : latest.is_high ? ' · Hoch' : '';
+    document.getElementById('glucose-sub').textContent = `${trend}${flag}`;
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadWeekly().catch(() => showToast('Wochendaten konnten nicht geladen werden', 'error'));
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
 loadMlInsights().catch(() => {});
+loadGlucose().catch(() => {});
 loadSyncStatus();
