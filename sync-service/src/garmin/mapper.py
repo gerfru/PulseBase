@@ -110,10 +110,27 @@ def map_summary(raw: dict[str, Any], user_id: int, day: date) -> DailySummary:
     )
 
 
+_TRAINING_STATUS_MAP = {
+    2: "DETRAINING",
+    3: "OVERREACHING",
+    4: "UNPRODUCTIVE",
+    5: "RECOVERY",
+    6: "MAINTAINING",
+    7: "PRODUCTIVE",
+}
+
+
 def map_training_status(raw: dict[str, Any]) -> str | None:
-    dto = raw.get("trainingStatusDTO") or {}
-    status = dto.get("trainingStatus") or raw.get("trainingStatus")
-    return str(status) if status else None
+    latest = (raw.get("mostRecentTrainingStatus") or {}).get(
+        "latestTrainingStatusData"
+    ) or {}
+    device = next(
+        (v for v in latest.values() if v.get("primaryTrainingDevice")),
+        next(iter(latest.values()), None),
+    )
+    if not device:
+        return None
+    return _TRAINING_STATUS_MAP.get(device.get("trainingStatus"))
 
 
 def map_sleep(raw: dict[str, Any], user_id: int) -> SleepSession | None:

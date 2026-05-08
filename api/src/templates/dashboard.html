@@ -41,42 +41,62 @@
     </div>
     {% endif %}
 
-    <!-- Hero Stats -->
-    <div class="stat-row">
-        <div class="stat-tile">
-            <div class="stat-label">Schritte</div>
-            <div class="stat-value" id="stat-steps">—</div>
-        </div>
-        <div class="stat-tile">
-            <div class="stat-label">Schlaf Score</div>
-            <div class="stat-value" id="stat-sleep">—</div>
-        </div>
-        <div class="stat-tile">
-            <div class="stat-label">HRV Ø</div>
-            <div class="stat-value" id="stat-hrv">—</div>
-        </div>
-        <div class="stat-tile">
-            <div class="stat-label">Body Battery</div>
-            <div class="stat-value" id="stat-battery">—</div>
-        </div>
-    </div>
-
     <div class="grid">
 
-        <!-- Aktivitäten -->
-        <div class="card full">
-            <h2>Letzte Aktivitäten</h2>
-            <div id="activities-container"><p class="empty">Lade…</p></div>
+        <!-- Readiness Hero + Aside -->
+        <div class="hero-aside">
+            <div class="card card-hero" id="readiness-hero">
+                <p class="empty" style="padding:var(--sp-8) 0">Lade…</p>
+            </div>
+            <div class="hero-aside-stack">
+                <div class="card">
+                    <h2>HRV — letzter Messwert</h2>
+                    <div id="hrv-container"><p class="empty">Lade…</p></div>
+                </div>
+                <div class="card">
+                    <h2>Trainingszustand</h2>
+                    <div id="training-status-container"><p class="empty">Lade…</p></div>
+                </div>
+            </div>
         </div>
 
-        <!-- Wochenübersicht -->
+        <!-- Stat Tiles -->
+        <div class="stat-row full">
+            <div class="stat-tile">
+                <div class="stat-label">Schritte</div>
+                <div class="stat-value" id="stat-steps">—</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-label">Schlaf Score</div>
+                <div class="stat-value" id="stat-sleep">—</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-label">HRV Ø</div>
+                <div class="stat-value" id="stat-hrv">—</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-label">Body Battery</div>
+                <div class="stat-value" id="stat-battery">—</div>
+            </div>
+        </div>
+
+        <!-- ── Training ──────────────────────────────────────────────── -->
+        <div class="section-label">Training</div>
+
         <div class="card full" id="weekly-card">
             <h2>Wochenübersicht</h2>
             <div class="chart-wrap"><canvas id="weekly-chart"></canvas></div>
             <p class="empty" id="weekly-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- Schritte & Body Battery -->
+        <div class="card full">
+            <h2>Letzte Aktivitäten</h2>
+            <div id="activities-container"><p class="empty">Lade…</p></div>
+        </div>
+
+        <!-- ── Verlauf ───────────────────────────────────────────────── -->
+        <div class="section-label">Verlauf</div>
+
         <div class="card">
             <h2>Schritte</h2>
             <div class="chart-wrap"><canvas id="steps-chart"></canvas></div>
@@ -89,7 +109,6 @@
             <p class="empty" id="battery-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- Ruhepuls & Stress -->
         <div class="card">
             <h2>Ruhepuls</h2>
             <div class="chart-wrap"><canvas id="hr-chart"></canvas></div>
@@ -102,32 +121,6 @@
             <p class="empty" id="stress-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- HRV -->
-        <div class="card">
-            <h2>HRV-Verlauf</h2>
-            <div class="chart-wrap"><canvas id="hrv-trend-chart"></canvas></div>
-            <p class="empty" id="hrv-trend-empty" style="display:none">Noch keine Daten</p>
-        </div>
-
-        <div class="card">
-            <h2>HRV — letzter Messwert</h2>
-            <div id="hrv-container"><p class="empty">Lade…</p></div>
-        </div>
-
-        <!-- Schlaf -->
-        <div class="card">
-            <h2>Schlaf-Score</h2>
-            <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
-            <p class="empty" id="sleep-empty" style="display:none">Noch keine Daten</p>
-        </div>
-
-        <div class="card">
-            <h2>Schlafphasen</h2>
-            <div class="chart-wrap"><canvas id="sleep-stages-chart"></canvas></div>
-            <p class="empty" id="sleep-stages-empty" style="display:none">Noch keine Daten</p>
-        </div>
-
-        <!-- Wellness -->
         <div class="card">
             <h2>Intensitätsminuten</h2>
             <div class="chart-wrap"><canvas id="intensity-chart"></canvas></div>
@@ -140,16 +133,27 @@
             <p class="empty" id="calories-empty" style="display:none">Noch keine Daten</p>
         </div>
 
+        <!-- ── Erholung ──────────────────────────────────────────────── -->
+        <div class="section-label">Erholung</div>
+
         <div class="card">
-            <h2>Trainingszustand</h2>
-            <div id="training-status-container"><p class="empty">Lade…</p></div>
+            <h2>Schlaf-Score</h2>
+            <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
+            <p class="empty" id="sleep-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- Readiness -->
         <div class="card">
-            <h2>Readiness</h2>
-            <div id="readiness-container"><p class="empty">Lade…</p></div>
+            <h2>Schlafphasen</h2>
+            <div class="chart-wrap"><canvas id="sleep-stages-chart"></canvas></div>
+            <p class="empty" id="sleep-stages-empty" style="display:none">Noch keine Daten</p>
         </div>
+
+        <div class="card">
+            <h2>HRV-Verlauf</h2>
+            <div class="chart-wrap"><canvas id="hrv-trend-chart"></canvas></div>
+            <p class="empty" id="hrv-trend-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
 
     </div>
 
