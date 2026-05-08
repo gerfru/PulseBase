@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from models.anomaly import detect_resting_hr_anomaly
 from models.battery_pattern import extract_features
 from models.correlation import compute_sleep_hrv_correlation
-from models.readiness import prepare_training_data
+from models.readiness import predict_tomorrow, prepare_training_data, train_and_save
 
 
 # ── Anomaly Detection ──────────────────────────────────────────────────────
@@ -149,6 +149,46 @@ def test_prepare_training_data_dynamic_features():
     assert feat_names == ["sleep_score", "resting_hr"]
     assert X.shape[1] == 2
     assert len(X) >= 50
+
+
+# ── predict_tomorrow (confidence interval) ────────────────────────────────────
+
+
+def test_predict_tomorrow_returns_confidence_interval(tmp_path):
+    model_path = tmp_path / "readiness_rf_1.joblib"
+    rows = _make_rows(60)
+    train_and_save(rows, model_path)
+
+    features = {
+        "hrv_last_night": 55.0,
+        "sleep_score": 72.0,
+        "resting_hr": 52.0,
+    }
+    result = predict_tomorrow(features, model_path)
+
+    assert result is not None
+    assert "score" in result
+    assert "confidence_low" in result
+    assert "confidence_high" in result
+    assert (
+        0.0
+        <= result["confidence_low"]
+        <= result["score"]
+        <= result["confidence_high"]
+        <= 100.0
+    )
+
+
+def test_predict_tomorrow_no_model(tmp_path):
+    result = predict_tomorrow({"hrv_last_night": 55.0}, tmp_path / "missing.joblib")
+    assert result is None
+
+
+def test_predict_tomorrow_missing_feature(tmp_path):
+    model_path = tmp_path / "readiness_rf_1.joblib"
+    train_and_save(_make_rows(60), model_path)
+    result = predict_tomorrow({}, model_path)
+    assert result is None
 
 
 # ── Battery Pattern ────────────────────────────────────────────────────────

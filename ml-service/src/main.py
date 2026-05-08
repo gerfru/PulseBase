@@ -85,8 +85,20 @@ async def run_inference(user_id: int, settings: Settings) -> None:
     predicted = predict_tomorrow(features, model_path)
     if predicted is not None:
         tomorrow = date.today() + timedelta(days=1)
-        await save_prediction(user_id, tomorrow, "readiness_rf", predicted, {})
-        logger.info(f"user={user_id} predicted tomorrow readiness={predicted}")
+        await save_prediction(
+            user_id,
+            tomorrow,
+            "readiness_rf",
+            predicted["score"],
+            {
+                "confidence_low": predicted["confidence_low"],
+                "confidence_high": predicted["confidence_high"],
+            },
+        )
+        logger.info(
+            f"user={user_id} predicted tomorrow readiness={predicted['score']} "
+            f"CI=[{predicted['confidence_low']}, {predicted['confidence_high']}]"
+        )
 
     # Body battery pattern classification
     today_bb = await get_body_battery_today(user_id)
