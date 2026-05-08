@@ -29,6 +29,11 @@ class TimescaleRepository(
         self._db_url = db_url
         self._pool: asyncpg.Pool | None = None
 
+    @property
+    def _db(self) -> asyncpg.Pool:
+        assert self._pool is not None
+        return self._pool
+
     async def init(self) -> None:
         self._pool = await asyncpg.create_pool(self._db_url, min_size=2, max_size=5)
         logger.info("Database connection pool initialized")
@@ -40,7 +45,7 @@ class TimescaleRepository(
     # ── Activities ────────────────────────────────────────────────────────────
 
     async def save_activity(self, activity: Activity) -> int | None:
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO activities (
@@ -74,7 +79,7 @@ class TimescaleRepository(
             return row["id"] if row else None
 
     async def records_exist(self, activity_id: int) -> bool:
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT 1 FROM activity_records WHERE activity_id = $1 LIMIT 1",
                 activity_id,
@@ -101,7 +106,7 @@ class TimescaleRepository(
             )
             for r in records
         ]
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             await conn.executemany(
                 """
                 INSERT INTO activity_records
@@ -118,7 +123,7 @@ class TimescaleRepository(
     # ── Daily Summary ─────────────────────────────────────────────────────────
 
     async def upsert_daily(self, summary: DailySummary) -> None:
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO daily_summary (
@@ -157,7 +162,7 @@ class TimescaleRepository(
     async def upsert_training_status(
         self, user_id: int, day: date, status: str
     ) -> None:
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO daily_summary (user_id, date, training_status)
@@ -173,7 +178,7 @@ class TimescaleRepository(
     # ── Sleep ─────────────────────────────────────────────────────────────────
 
     async def save_sleep(self, session: SleepSession) -> int | None:
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO sleep_sessions (
@@ -198,7 +203,7 @@ class TimescaleRepository(
             return row["id"] if row else None
 
     async def sleep_exists(self, garmin_sleep_id: int) -> bool:
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT id FROM sleep_sessions WHERE garmin_sleep_id = $1",
                 garmin_sleep_id,
@@ -208,7 +213,7 @@ class TimescaleRepository(
     # ── HRV ──────────────────────────────────────────────────────────────────
 
     async def upsert_hrv(self, hrv: HRVDaily) -> None:
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO hrv_daily (date, user_id, hrv_last_night, hrv_weekly_avg, hrv_status)
@@ -235,7 +240,7 @@ class TimescaleRepository(
         allowed = {"body_battery_intraday", "stress_intraday", "spo2_readings"}
         if table not in allowed:
             raise ValueError(f"Unknown intraday table: {table}")
-        async with self._pool.acquire() as conn:
+        async with self._db.acquire() as conn:
             await conn.executemany(
                 f"INSERT INTO {table} (time, user_id, value) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING",  # nosec B608 — table validated against allowlist above
                 [(ts, user_id, val) for ts, val in readings],

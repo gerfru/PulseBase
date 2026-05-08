@@ -41,6 +41,7 @@ async def create_user(name: str, email: str, password_hash: str) -> dict:
         email,
         password_hash,
     )
+    assert row is not None
     return dict(row)
 
 
