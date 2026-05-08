@@ -10,6 +10,8 @@ from db import (
     close_pool,
     get_active_users,
     get_bb_resting_hr_pairs,
+    get_body_battery_history,
+    get_body_battery_today,
     get_latest_features,
     get_readiness_training_rows,
     get_resting_hr_history,
@@ -20,6 +22,8 @@ from db import (
     save_prediction,
 )
 from models.anomaly import detect_resting_hr_anomaly
+from models.battery_pattern import fit_and_save as battery_fit_and_save
+from models.battery_pattern import predict_today as battery_predict_today
 from models.correlation import compute_sleep_hrv_correlation
 from models.readiness import predict_tomorrow, train_and_save
 
@@ -84,18 +88,45 @@ async def run_inference(user_id: int, settings: Settings) -> None:
         await save_prediction(user_id, tomorrow, "readiness_rf", predicted, {})
         logger.info(f"user={user_id} predicted tomorrow readiness={predicted}")
 
+    # Body battery pattern classification
+    today_bb = await get_body_battery_today(user_id)
+    bp = battery_predict_today(today_bb, str(settings.model_dir), user_id)
+    if bp is not None:
+        await save_prediction(
+            user_id, date.today(), "battery_pattern", float(bp["cluster"]), bp
+        )
+        logger.info(
+            f"user={user_id} battery_pattern={bp['pattern']} cluster={bp['cluster']}"
+        )
+
 
 async def run_training(user_id: int, settings: Settings) -> None:
     model_path = settings.model_dir / f"readiness_rf_{user_id}.joblib"
     rows = await get_readiness_training_rows(user_id)
-    trained = train_and_save(rows, model_path)
-    if trained:
+    meta = train_and_save(rows, model_path)
+    if meta:
+        await save_prediction(
+            user_id, date.today(), "model_meta_rf", float(meta["n_rows"]), meta
+        )
         logger.info(
-            f"user={user_id} RF model trained on {len(rows)} rows → {model_path}"
+            f"user={user_id} RF model trained on {meta['n_rows']} rows → {model_path}, "
+            f"importances={meta['importances']}"
         )
     else:
         logger.info(
             f"user={user_id} insufficient data for RF training ({len(rows)} rows)"
+        )
+
+    # Battery pattern k-means training
+    history = await get_body_battery_history(user_id)
+    bp_trained = battery_fit_and_save(history, str(settings.model_dir), user_id)
+    if bp_trained:
+        logger.info(
+            f"user={user_id} battery_pattern k-means trained on {len(history)} days"
+        )
+    else:
+        logger.info(
+            f"user={user_id} insufficient data for battery_pattern training ({len(history)} days)"
         )
 
 

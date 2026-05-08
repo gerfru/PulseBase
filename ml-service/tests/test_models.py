@@ -6,7 +6,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from datetime import datetime, timezone
+
 from models.anomaly import detect_resting_hr_anomaly
+from models.battery_pattern import extract_features
 from models.correlation import compute_sleep_hrv_correlation
 from models.readiness import prepare_training_data
 
@@ -107,8 +110,9 @@ def test_prepare_training_data_ok():
     rows = _make_rows(60)
     result = prepare_training_data(rows)
     assert result is not None
-    X, y = result
+    X, y, feat_names = result
     assert X.shape[1] == 3
+    assert feat_names == ["hrv_last_night", "sleep_score", "resting_hr"]
     assert len(X) == len(y)
     assert len(X) < 60  # last row has no next-day target
 
@@ -118,7 +122,7 @@ def test_prepare_training_data_skips_missing():
     rows[5]["hrv_last_night"] = None  # imputed from median, not skipped
     result = prepare_training_data(rows)
     assert result is not None
-    X, y = result
+    X, y, _ = result
     assert len(X) > 0
 
 
@@ -129,6 +133,58 @@ def test_prepare_training_data_imputes_missing():
         rows[i]["hrv_last_night"] = None
     result = prepare_training_data(rows)
     assert result is not None  # imputation keeps enough rows to train
-    X, y = result
+    X, y, feat_names = result
     assert len(X) >= 50  # ~59 pairs, most retained via imputation
-    assert X.shape[1] == 3
+    assert X.shape[1] == 3  # hrv median still non-None → all 3 active
+
+
+def test_prepare_training_data_dynamic_features():
+    rows = _make_rows(60)
+    # Simulate hrv_last_night always NULL (like real DB where hrv_last_night never synced)
+    for r in rows:
+        r["hrv_last_night"] = None
+    result = prepare_training_data(rows)
+    assert result is not None  # should train with [sleep_score, resting_hr] only
+    X, y, feat_names = result
+    assert feat_names == ["sleep_score", "resting_hr"]
+    assert X.shape[1] == 2
+    assert len(X) >= 50
+
+
+# ── Battery Pattern ────────────────────────────────────────────────────────
+
+
+def _make_bb_records(n: int, base_hour: int = 0) -> list[dict]:
+    records = []
+    for i in range(n):
+        hour = (base_hour + i * (24 // max(n, 1))) % 24
+        records.append(
+            {
+                "time": datetime(2026, 5, 8, hour, 0, tzinfo=timezone.utc),
+                "value": 60 + (i % 10),
+            }
+        )
+    return records
+
+
+def test_extract_features_empty():
+    assert extract_features([]) is None
+
+
+def test_extract_features_few_points():
+    assert extract_features(_make_bb_records(3)) is None
+
+
+def test_extract_features_ok():
+    records = _make_bb_records(50, base_hour=0)
+    feat = extract_features(records)
+    assert feat is not None
+    assert set(feat.keys()) == {
+        "morning_avg",
+        "evening_avg",
+        "daily_range",
+        "auc",
+        "n_dips",
+    }
+    assert feat["daily_range"] >= 0
+    assert 0 <= feat["auc"] <= 100

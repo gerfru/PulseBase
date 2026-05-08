@@ -7,6 +7,7 @@ from sklearn.ensemble import RandomForestRegressor  # type: ignore[import-untype
 
 _MIN_TRAINING_ROWS = 30
 _HRV_MAP = {"BALANCED": 100, "UNBALANCED": 50, "LOW": 25, "POOR": 0}
+_CANDIDATE_FEATURES = ["hrv_last_night", "sleep_score", "resting_hr"]
 
 
 def _rule_based_score(row: dict[str, Any]) -> float | None:
@@ -36,62 +37,75 @@ def _median(vals: Any) -> float | None:
 
 def prepare_training_data(
     rows: list[dict[str, Any]],
-) -> tuple[np.ndarray, np.ndarray] | None:
-    """Build (X, y) where X=features on day N, y=readiness on day N+1.
+) -> tuple[np.ndarray, np.ndarray, list[str]] | None:
+    """Build (X, y, feature_names) where X=features on day N, y=readiness on day N+1.
 
-    Missing feature values are imputed with the per-feature median so that rows
-    where only HRV (or only sleep) is missing still contribute training signal.
+    Features with no data at all (median=None) are excluded so the model can train
+    with whatever subset is actually available (e.g. sleep+resting_hr without HRV).
+    Remaining missing values are imputed with the per-feature median.
     """
-    hrv_med = _median(r.get("hrv_last_night") for r in rows)
-    sleep_med = _median(r.get("sleep_score") for r in rows)
-    hr_med = _median(r.get("resting_hr") for r in rows)
+    medians = {f: _median(r.get(f) for r in rows) for f in _CANDIDATE_FEATURES}
+    active = [f for f in _CANDIDATE_FEATURES if medians[f] is not None]
+    if not active:
+        return None
 
     X_rows, y_vals = [], []
     for i in range(len(rows) - 1):
         cur, nxt = rows[i], rows[i + 1]
-        hrv = (
-            cur.get("hrv_last_night")
-            if cur.get("hrv_last_night") is not None
-            else hrv_med
-        )
-        sleep = (
-            cur.get("sleep_score") if cur.get("sleep_score") is not None else sleep_med
-        )
-        hr = cur.get("resting_hr") if cur.get("resting_hr") is not None else hr_med
-        if hrv is None or sleep is None or hr is None:
+        feat_vals = []
+        skip = False
+        for f in active:
+            v = cur.get(f)
+            v = v if v is not None else medians[f]
+            if v is None:
+                skip = True
+                break
+            feat_vals.append(float(v))
+        if skip:
             continue
         target = _rule_based_score(nxt)
         if target is None:
             continue
-        X_rows.append([float(hrv), float(sleep), float(hr)])
+        X_rows.append(feat_vals)
         y_vals.append(float(target))
 
     if len(X_rows) < _MIN_TRAINING_ROWS:
         return None
-    return np.array(X_rows), np.array(y_vals)
+    return np.array(X_rows), np.array(y_vals), active
 
 
-def train_and_save(rows: list[dict[str, Any]], model_path: Path) -> bool:
+def train_and_save(
+    rows: list[dict[str, Any]], model_path: Path
+) -> dict[str, Any] | None:
     result = prepare_training_data(rows)
     if result is None:
-        return False
-    X, y = result
+        return None
+    X, y, feature_names = result
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
     model_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, model_path)
-    return True
+    joblib.dump({"model": model, "features": feature_names}, model_path)
+    importances = {
+        f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
+    }
+    return {"features": feature_names, "importances": importances, "n_rows": len(X)}
 
 
 def predict_tomorrow(features: dict[str, Any], model_path: Path) -> float | None:
     if not model_path.exists():
         return None
-    hrv = features.get("hrv_last_night")
-    sleep = features.get("sleep_score")
-    hr = features.get("resting_hr")
-    if hrv is None or sleep is None or hr is None:
-        return None
-    model = joblib.load(model_path)
-    X = np.array([[float(hrv), float(sleep), float(hr)]])
-    score = float(model.predict(X)[0])
+    saved = joblib.load(model_path)
+    if isinstance(saved, dict):
+        model = saved["model"]
+        feature_names: list[str] = saved["features"]
+    else:
+        model = saved
+        feature_names = list(_CANDIDATE_FEATURES)
+    vals = []
+    for f in feature_names:
+        v = features.get(f)
+        if v is None:
+            return None
+        vals.append(float(v))
+    score = float(model.predict(np.array([vals]))[0])
     return round(min(100.0, max(0.0, score)), 1)

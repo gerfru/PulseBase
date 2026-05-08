@@ -269,67 +269,36 @@ async function loadMlInsights() {
     const anomaly = d['anomaly_hr'];
     const rf      = d['readiness_rf'];
 
-    const CORR_LABELS = {
-        'correlation_sleep_hrv': 'Schlaf → HRV (nächster Tag)',
-        'correlation_sleep_rhr': 'Schlaf → Ruhepuls (nächster Tag)',
-        'correlation_bb_rhr':    'Body Battery → Ruhepuls (nächster Tag)',
-    };
-
-    const items = [];
+    const tiles = [];
 
     if (anomaly && anomaly.z_score !== null) {
-        if (anomaly.is_anomaly) {
-            items.push(`
-                <div class="ml-item ml-item-warn">
-                    <span class="ml-item-icon">⚠</span>
-                    <div>
-                        <div class="ml-item-title">Ruhepuls erhöht</div>
-                        <div class="ml-item-desc">Heute ${anomaly.z_score.toFixed(1)} Std.-Abw. über deiner ${Math.round(anomaly.baseline_mean)} bpm Baseline — möglicher Hinweis auf Überbelastung oder Erkältung.</div>
-                    </div>
-                </div>`);
-        } else {
-            items.push(`
-                <div class="ml-item">
-                    <span class="ml-item-icon">✓</span>
-                    <div>
-                        <div class="ml-item-title">Ruhepuls normal</div>
-                        <div class="ml-item-desc">z = ${anomaly.z_score.toFixed(2)} — im Rahmen deiner Baseline (Ø ${anomaly.baseline_mean} bpm).</div>
-                    </div>
-                </div>`);
-        }
-    }
-
-    for (const [key, label] of Object.entries(CORR_LABELS)) {
-        const corr = d[key];
-        if (corr && corr.r !== null) {
-            const dir = corr.r >= 0 ? 'positiv' : 'negativ';
-            items.push(`
-                <div class="ml-item">
-                    <span class="ml-item-icon">≈</span>
-                    <div>
-                        <div class="ml-item-title">${label}</div>
-                        <div class="ml-item-desc">${corr.interpretation} ${dir}er Zusammenhang (r = ${corr.r.toFixed(2)}, n = ${corr.n} Nächte).</div>
-                    </div>
-                </div>`);
-        }
+        const z   = anomaly.z_score.toFixed(2);
+        const warn = anomaly.is_anomaly;
+        const sub  = `Baseline Ø ${Math.round(anomaly.baseline_mean)} bpm`;
+        tiles.push(`
+            <a class="ml-kpi-tile${warn ? ' ml-kpi-tile-warn' : ''}" href="/ml/anomaly">
+                <div class="stat-label">Ruhepuls z-Score</div>
+                <div class="ml-kpi-val">${z}</div>
+                <div class="ml-kpi-status">${warn ? '⚠ Anomalie' : '✓ Normal'}</div>
+                <div class="ml-kpi-status" style="margin-top:3px;font-size:.74rem">${sub}</div>
+            </a>`);
     }
 
     if (rf && rf.value !== null) {
         const score = Math.round(rf.value);
-        const cls = score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor';
-        items.push(`
-            <div class="ml-item">
-                <span class="ml-item-icon">→</span>
-                <div>
-                    <div class="ml-item-title">Prognose morgen</div>
-                    <div class="ml-item-desc">Geschätzte Readiness: <span class="badge ${cls}" style="font-size:.75rem">${score}</span> (Random Forest, basierend auf heutigen HRV / Schlaf / Ruhepuls-Daten).</div>
-                </div>
-            </div>`);
+        const cls   = score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor';
+        const label = score >= 80 ? 'Gut' : score >= 50 ? 'Moderat' : 'Niedrig';
+        tiles.push(`
+            <a class="ml-kpi-tile" href="/ml/readiness">
+                <div class="stat-label">Prognose morgen</div>
+                <div class="ml-kpi-val"><span class="badge ${cls}" style="font-size:1.8rem;padding:.15rem .55rem;vertical-align:middle">${score}</span></div>
+                <div class="ml-kpi-status" style="margin-top:var(--sp-2)">${label} · Readiness (0–100)</div>
+            </a>`);
     }
 
-    if (!items.length) return;
+    if (!tiles.length) return;
 
-    document.getElementById('ml-container').innerHTML = `<div class="ml-list">${items.join('')}</div>`;
+    document.getElementById('ml-container').innerHTML = `<div class="ml-kpi-row">${tiles.join('')}</div>`;
     document.getElementById('ml-card').style.display = '';
 }
 
