@@ -115,8 +115,20 @@ def test_prepare_training_data_ok():
 
 def test_prepare_training_data_skips_missing():
     rows = _make_rows(60)
-    rows[5]["hrv_last_night"] = None  # this pair should be skipped
+    rows[5]["hrv_last_night"] = None  # imputed from median, not skipped
     result = prepare_training_data(rows)
     assert result is not None
     X, y = result
     assert len(X) > 0
+
+
+def test_prepare_training_data_imputes_missing():
+    rows = _make_rows(60)
+    # Every 3rd row has no HRV — without imputation this would drop below 30 valid pairs
+    for i in range(0, 60, 3):
+        rows[i]["hrv_last_night"] = None
+    result = prepare_training_data(rows)
+    assert result is not None  # imputation keeps enough rows to train
+    X, y = result
+    assert len(X) >= 50  # ~59 pairs, most retained via imputation
+    assert X.shape[1] == 3
