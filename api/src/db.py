@@ -24,7 +24,7 @@ _pool: asyncpg.Pool | None = None
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        settings = Settings()
+        settings = Settings()  # type: ignore[call-arg]
         _pool = await asyncpg.create_pool(settings.db_url, min_size=1, max_size=5)
     return _pool
 
