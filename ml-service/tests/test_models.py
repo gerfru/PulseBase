@@ -191,6 +191,28 @@ def test_predict_tomorrow_missing_feature(tmp_path):
     assert result is None
 
 
+def test_training_effects_used_when_present():
+    rows = _make_rows(60)
+    for r in rows:
+        r["aerobic_effect_daily"] = float(np.random.uniform(0, 4))
+        r["anaerobic_effect_daily"] = float(np.random.uniform(0, 2))
+    result = prepare_training_data(rows)
+    assert result is not None
+    X, y, feat_names = result
+    assert "aerobic_effect_daily" in feat_names
+    assert "anaerobic_effect_daily" in feat_names
+    assert X.shape[1] == 5  # all 5 candidate features active
+
+
+def test_training_effects_absent_falls_back_to_core_features():
+    rows = _make_rows(60)
+    result = prepare_training_data(rows)
+    assert result is not None
+    X, y, feat_names = result
+    assert feat_names == ["hrv_last_night", "sleep_score", "resting_hr"]
+    assert X.shape[1] == 3
+
+
 # ── Battery Pattern ────────────────────────────────────────────────────────
 
 

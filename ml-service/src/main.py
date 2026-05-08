@@ -13,12 +13,14 @@ from db import (
     get_body_battery_history,
     get_body_battery_today,
     get_latest_features,
+    get_ml_requested_users,
     get_readiness_training_rows,
     get_resting_hr_history,
     get_sleep_hrv_pairs,
     get_sleep_resting_hr_pairs,
     get_today_resting_hr,
     init_pool,
+    mark_ml_done,
     save_prediction,
 )
 from models.anomaly import detect_resting_hr_anomaly
@@ -142,6 +144,20 @@ async def run_training(user_id: int, settings: Settings) -> None:
         )
 
 
+async def run_on_request(settings: Settings) -> None:
+    users = await get_ml_requested_users()
+    for user in users:
+        uid = user["id"]
+        try:
+            await run_training(uid, settings)
+            await run_inference(uid, settings)
+            logger.info(f"On-request ML completed for user={uid}")
+        except Exception as e:
+            logger.error(f"On-request ML failed for user={uid}: {e}", exc_info=True)
+        finally:
+            await mark_ml_done(uid)
+
+
 async def run_all_users(settings: Settings, include_training: bool = False) -> None:
     users = await get_active_users()
     if not users:
@@ -176,6 +192,13 @@ async def main() -> None:
         CronTrigger(day_of_week=settings.ml_train_weekday, hour=3, minute=0),
         args=[settings, True],
         id="weekly_training",
+    )
+    scheduler.add_job(
+        run_on_request,
+        "interval",
+        minutes=2,
+        args=[settings],
+        id="on_request",
     )
     scheduler.start()
     logger.info(
