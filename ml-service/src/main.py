@@ -103,10 +103,14 @@ async def run_inference(user_id: int, settings: Settings) -> None:
 async def run_training(user_id: int, settings: Settings) -> None:
     model_path = settings.model_dir / f"readiness_rf_{user_id}.joblib"
     rows = await get_readiness_training_rows(user_id)
-    trained = train_and_save(rows, model_path)
-    if trained:
+    meta = train_and_save(rows, model_path)
+    if meta:
+        await save_prediction(
+            user_id, date.today(), "model_meta_rf", float(meta["n_rows"]), meta
+        )
         logger.info(
-            f"user={user_id} RF model trained on {len(rows)} rows → {model_path}"
+            f"user={user_id} RF model trained on {meta['n_rows']} rows → {model_path}, "
+            f"importances={meta['importances']}"
         )
     else:
         logger.info(
