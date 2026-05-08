@@ -327,6 +327,24 @@ async function loadMlInsights() {
             </div>`);
     }
 
+    const bp = d['battery_pattern'];
+    if (bp && bp.pattern) {
+        const BP_ICONS  = { stabil_hoch: '⚡', erholung: '🔄', erschoepft: '📉' };
+        const BP_LABELS = {
+            stabil_hoch: 'Hohe & stabile Energie',
+            erholung:    'Erholung',
+            erschoepft:  'Erschöpft / hohe Belastung',
+        };
+        items.push(`
+            <div class="ml-item">
+                <span class="ml-item-icon">${BP_ICONS[bp.pattern] ?? '•'}</span>
+                <div>
+                    <div class="ml-item-title">Body Battery Tagesmuster</div>
+                    <div class="ml-item-desc">${BP_LABELS[bp.pattern] ?? bp.pattern}</div>
+                </div>
+            </div>`);
+    }
+
     if (!items.length) return;
 
     document.getElementById('ml-container').innerHTML = `<div class="ml-list">${items.join('')}</div>`;
