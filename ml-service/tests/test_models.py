@@ -110,8 +110,9 @@ def test_prepare_training_data_ok():
     rows = _make_rows(60)
     result = prepare_training_data(rows)
     assert result is not None
-    X, y = result
+    X, y, feat_names = result
     assert X.shape[1] == 3
+    assert feat_names == ["hrv_last_night", "sleep_score", "resting_hr"]
     assert len(X) == len(y)
     assert len(X) < 60  # last row has no next-day target
 
@@ -121,7 +122,7 @@ def test_prepare_training_data_skips_missing():
     rows[5]["hrv_last_night"] = None  # imputed from median, not skipped
     result = prepare_training_data(rows)
     assert result is not None
-    X, y = result
+    X, y, _ = result
     assert len(X) > 0
 
 
@@ -132,9 +133,22 @@ def test_prepare_training_data_imputes_missing():
         rows[i]["hrv_last_night"] = None
     result = prepare_training_data(rows)
     assert result is not None  # imputation keeps enough rows to train
-    X, y = result
+    X, y, feat_names = result
     assert len(X) >= 50  # ~59 pairs, most retained via imputation
-    assert X.shape[1] == 3
+    assert X.shape[1] == 3  # hrv median still non-None → all 3 active
+
+
+def test_prepare_training_data_dynamic_features():
+    rows = _make_rows(60)
+    # Simulate hrv_last_night always NULL (like real DB where hrv_last_night never synced)
+    for r in rows:
+        r["hrv_last_night"] = None
+    result = prepare_training_data(rows)
+    assert result is not None  # should train with [sleep_score, resting_hr] only
+    X, y, feat_names = result
+    assert feat_names == ["sleep_score", "resting_hr"]
+    assert X.shape[1] == 2
+    assert len(X) >= 50
 
 
 # ── Battery Pattern ────────────────────────────────────────────────────────
