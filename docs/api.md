@@ -397,6 +397,45 @@ Returns the most recent training status entry.
 
 ---
 
+### `GET /api/ml-insights`
+
+Returns the latest ML model outputs for the authenticated user. All models write daily
+to `ml_predictions`; this endpoint returns the most recent row per model (within 1 day).
+
+**Response** — object with one key per available model (absent if no data):
+
+```json
+{
+  "anomaly_hr": {
+    "value": 1.29,
+    "is_anomaly": false,
+    "baseline_mean": 43.5,
+    "baseline_std": 3.2,
+    "threshold": 1.5
+  },
+  "readiness_rf": {
+    "value": 71.0
+  },
+  "correlation_sleep_hrv": {
+    "value": 0.61,
+    "r": 0.61,
+    "p_value": 0.003,
+    "n_samples": 42,
+    "interpretation": "mittel"
+  }
+}
+```
+
+| Model key | `value` | Notes |
+|-----------|---------|-------|
+| `anomaly_hr` | Z-score of today's resting HR | `is_anomaly: true` when z > 1.5 |
+| `readiness_rf` | Predicted readiness score 0–100 | null when < 30 valid training rows |
+| `correlation_sleep_hrv` | Pearson r (−1 to 1) | Requires ≥ 10 sleep→HRV pairs |
+
+Returns `{}` if no ML data has been computed yet.
+
+---
+
 ## Health
 
 ### `GET /health`

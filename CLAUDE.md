@@ -87,20 +87,22 @@ Ausfuehrlichere Regeln: `./claude/app-rules.md` (importiert unten)
 
 ## Stack
 
-FastAPI · TimescaleDB (PostgreSQL 16) · Docker Compose · Chart.js
+FastAPI · TimescaleDB (PostgreSQL 16) · Docker Compose · Chart.js · scikit-learn
 Zugriff: `https://garmin.home.lab` (via homelab-gateway) oder `make up-standalone` mit Traefik
 
 ## Entwicklungs-Workflow
 
 ```bash
 make build-api      # API neu bauen + starten (nach Code-Änderungen in api/)
+make build-ml       # ML-Service neu bauen + starten (nach Code-Änderungen in ml-service/)
 make up             # Alle Services starten
 make reset          # Alles löschen + DB neu aufsetzen (löscht alle User!)
 make sync           # Garmin-Sync sofort auslösen (nicht auf 6 Uhr warten)
 make logs           # API-Logs live
 make logs-sync      # Sync-Service-Logs live
+make logs-ml        # ML-Service-Logs live
 make migrate        # DB-Migrationen ausführen
-make db             # psql-Shell (Achtung: DB_USER muss als Shell-Var gesetzt sein)
+make db             # psql-Shell (liest DB_APP_USER aus .env)
 ```
 
 ## Verzeichnisstruktur
@@ -128,7 +130,16 @@ sync-service/src/
     ├── base.py
     └── timescale.py  TimescaleRepository (upsert, bulk_insert)
 
-db/migrations/        Flyway: V1 Schema, V2 User-Auth, V3 password_hash, V4 intensity+training_status, V5 training_effect
+ml-service/src/
+├── main.py           APScheduler: Inference täglich (ML_INFER_HOUR), Training Sonntag 3h
+├── config.py         Settings (DB_APP_USER/PASSWORD, MODEL_DIR, ML_INFER_HOUR)
+├── db.py             asyncpg: Trainingsdaten laden + Predictions speichern
+└── models/
+    ├── anomaly.py    Z-Score auf Resting-HR (30-Tage-Rolling-Baseline, min. 7 Punkte)
+    ├── correlation.py Pearson r: sleep_score(N) → hrv_last_night(N+1) (min. 10 Paare)
+    └── readiness.py  RandomForestRegressor: [hrv, sleep, resting_hr] → Score (min. 30 Paare)
+
+db/migrations/        Flyway: V1-V5 Schema, V6 sync_trigger, V7 app_user, V8 ml_predictions
 ```
 
 Die `__init__.py`-Dateien in den sync-service-Sub-Paketen sind Pflicht — ohne sie erkennt mypy die
@@ -160,9 +171,9 @@ Jobs in `.github/workflows/ci.yml`:
 | --- | ---- | --- |
 | `lint` | ruff | Check + Format-Check |
 | `security` | gitleaks + pip-audit + bandit | Secret-Scan, SCA, SAST |
-| `typecheck` | mypy | api/ + sync-service/ mit `--explicit-package-bases` |
-| `test` | pytest | sync-service/tests/ |
-| `trivy` | trivy | Docker-Image-Scan CRITICAL+HIGH (`ignore-unfixed: true`) |
+| `typecheck` | mypy | api/ + sync-service/ + ml-service/ mit `--explicit-package-bases` |
+| `test` | pytest | sync-service/tests/ + ml-service/tests/ |
+| `trivy` | trivy | Docker-Image-Scan für api + sync + ml, CRITICAL+HIGH (`ignore-unfixed: true`) |
 
 ## Pre-commit Hooks
 
@@ -176,6 +187,7 @@ Reihenfolge in `.pre-commit-config.yaml`:
 6. **detect-secrets** — Baseline `.secrets.baseline`
 7. **mypy-api** (local) — `mypy api/src/ --ignore-missing-imports`
 8. **mypy-sync** (local) — `mypy sync-service/src/ --ignore-missing-imports`
+9. **mypy-ml** (local) — `mypy ml-service/src/ --ignore-missing-imports`
 
 Wichtig: bandit und mypy als `pass_filenames: false` mit absoluten Pfaden vom Projekt-Root — sonst scannt bandit `src/` relativ und findet nichts.
 
@@ -201,6 +213,7 @@ GET /api/hrv/trend?days=30       HRV-Verlauf
 GET /api/training-status         letzter Trainingszustand
 GET /api/weekly?weeks=12         Wöchentliche Volumen-Aggregation (run_km, ride_km)
 GET /api/readiness               Readiness-Score 0-100 (regelbasiert, kein ML)
+GET /api/ml-insights             ML-Ergebnisse (Anomalie, Korrelation, RF-Prognose)
 ```
 
 ## Seiten-Routen
@@ -216,8 +229,11 @@ GET /garmin/link             Garmin-Account verknüpfen
 ```
 DB_USER=garmin
 DB_PASSWORD=
+DB_APP_USER=garmin_app
+DB_APP_PASSWORD=
 SESSION_SECRET=     # make gen-secrets
 HOST_IP=garmin.home.lab
 SYNC_HOUR=6
 SYNC_LOOKBACK_DAYS=30
+ML_INFER_HOUR=7
 ```
