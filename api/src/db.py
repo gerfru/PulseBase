@@ -213,17 +213,17 @@ async def get_weekly_stats(user_id: int, weeks: int = 12) -> list[dict]:
         SELECT
             date_trunc('week', started_at AT TIME ZONE 'UTC')::date AS week,
             COUNT(*)::int                                            AS activity_count,
-            ROUND(SUM(distance_meters) / 1000.0, 1)                 AS total_km,
-            ROUND(SUM(duration_seconds) / 3600.0, 1)                AS total_hours,
-            ROUND(SUM(CASE WHEN sport_type IN
+            ROUND((SUM(distance_meters) / 1000.0)::numeric, 1)                 AS total_km,
+            ROUND((SUM(duration_seconds) / 3600.0)::numeric, 1)                AS total_hours,
+            ROUND((SUM(CASE WHEN sport_type IN
                                ('running','trail_running','hiking','walking')
-                           THEN distance_meters ELSE 0 END) / 1000.0, 1) AS run_km,
-            ROUND(SUM(CASE WHEN sport_type IN ('cycling','indoor_cycling')
-                           THEN distance_meters ELSE 0 END) / 1000.0, 1) AS ride_km,
-            ROUND(SUM(CASE WHEN sport_type NOT IN
+                           THEN distance_meters ELSE 0 END) / 1000.0)::numeric, 1) AS run_km,
+            ROUND((SUM(CASE WHEN sport_type IN ('cycling','indoor_cycling')
+                           THEN distance_meters ELSE 0 END) / 1000.0)::numeric, 1) AS ride_km,
+            ROUND((SUM(CASE WHEN sport_type NOT IN
                                ('running','trail_running','hiking','walking',
                                 'cycling','indoor_cycling')
-                           THEN duration_seconds ELSE 0 END) / 3600.0, 1) AS other_hours
+                           THEN duration_seconds ELSE 0 END) / 3600.0)::numeric, 1) AS other_hours
         FROM activities
         WHERE user_id = $1
           AND started_at >= NOW() - ($2 * INTERVAL '1 week')
