@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 import bcrypt
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.db import (
@@ -50,6 +51,30 @@ def _get_real_ip(request: Request) -> str:
 limiter = Limiter(key_func=_get_real_ip)
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=()"
+        )
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+            "img-src 'self' data: https:; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await get_pool()
@@ -80,10 +105,12 @@ app.mount(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.session_secret,
     https_only=settings.https_only,
+    same_site="lax",
 )
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -148,6 +175,7 @@ async def register_form(request: Request):
 
 
 @app.post("/register")
+@limiter.limit("5/minute")
 async def register(
     request: Request,
     name: str = Form(),
@@ -223,7 +251,9 @@ async def garmin_link(
         logger.info(f"Garmin verknüpft für User {user['id']}")
         return RedirectResponse("/?linked=1", status_code=303)
     except Exception as e:
-        logger.error(f"Garmin Login fehlgeschlagen: {e}")
+        logger.error(
+            f"Garmin Login fehlgeschlagen für User {user['id']}: {type(e).__name__}"
+        )
         return templates.TemplateResponse(
             request,
             "link_garmin.html",

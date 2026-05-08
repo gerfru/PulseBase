@@ -30,6 +30,8 @@ services:
       - FLYWAY_PASSWORD=${DB_PASSWORD}
       - FLYWAY_CONNECT_RETRIES=10
       - FLYWAY_MIXED=true
+      - FLYWAY_PLACEHOLDERS_DB_APP_USER=${DB_APP_USER}
+      - FLYWAY_PLACEHOLDERS_DB_APP_PASSWORD=${DB_APP_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
@@ -68,6 +70,8 @@ services:
       DB_NAME: garmin
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
       SESSION_SECRET: ${SESSION_SECRET}
       HTTPS_ONLY: ${HTTPS_ONLY:-true}
     volumes:
@@ -98,6 +102,8 @@ services:
       DB_NAME: garmin
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
       SYNC_HOUR: ${SYNC_HOUR:-6}
       SYNC_LOOKBACK_DAYS: ${SYNC_LOOKBACK_DAYS:-30}
     volumes:
