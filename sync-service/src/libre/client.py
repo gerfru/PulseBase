@@ -7,7 +7,7 @@ from pylibrelinkup import PyLibreLinkUp  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
-_TOKEN_FILE = "libre_token.json"
+_TOKEN_FILE = "libre_token.json"  # nosec B105 — filename, not a credential
 
 
 class LibreAuthError(Exception):
@@ -46,7 +46,7 @@ def connect(token_dir: str) -> PyLibreLinkUp:
         raise LibreAuthError("Kein Token gefunden — Neu-Verknüpfung erforderlich")
 
     data = json.loads(tp.read_text())
-    client = PyLibreLinkUp(email="", password="")
+    client = PyLibreLinkUp(email="", password="")  # nosec B106 — token replaces credentials below
     client.token = data["token"]
     return client
 
