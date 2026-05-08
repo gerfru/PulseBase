@@ -303,7 +303,22 @@ async function loadReadiness() {
     ].filter(Boolean);
 
     el.innerHTML = `
-        <h2>Readiness</h2>
+        <div class="readiness-header">
+            <h2>Readiness</h2>
+            <div class="readiness-info-wrap">
+                <button class="readiness-info-btn" aria-label="Berechnungsmethode" aria-expanded="false">ⓘ</button>
+                <div class="readiness-info-panel" role="tooltip">
+                    <p class="readiness-info-title">Wie wird der Score berechnet?</p>
+                    <ul class="readiness-info-list">
+                        <li><strong>HRV-Status</strong> <span style="color:var(--muted)">30&nbsp;%</span> — BALANCED=100, UNBALANCED=50, LOW=25, POOR=0</li>
+                        <li><strong>Schlaf-Score</strong> <span style="color:var(--muted)">30&nbsp;%</span> — Garmin Schlaf-Score (0–100)</li>
+                        <li><strong>Body Battery</strong> <span style="color:var(--muted)">20&nbsp;%</span> — Tages-Maximum (0–100)</li>
+                        <li><strong>Stress</strong> <span style="color:var(--muted)">20&nbsp;%</span> — (100 − Ø Stress), niedriger = besser</li>
+                    </ul>
+                    <p class="readiness-info-note">Fehlende Werte werden herausgerechnet; Gewichte proportional verteilt.</p>
+                </div>
+            </div>
+        </div>
         <div style="display:flex;align-items:baseline;gap:var(--sp-4);flex-wrap:wrap">
             <div class="readiness-score" style="color:${color}">${r.score}</div>
             <span class="badge ${r.cls}" style="margin-bottom:var(--sp-2)">${r.label}</span>
@@ -311,6 +326,14 @@ async function loadReadiness() {
         <div class="readiness-factors">
             ${factors.map(f => `<span class="readiness-factor">${f.label}<strong>${f.val}</strong></span>`).join('')}
         </div>`;
+
+    const infoBtn = el.querySelector('.readiness-info-btn');
+    const infoPanel = el.querySelector('.readiness-info-panel');
+    infoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pinned = infoPanel.classList.toggle('pinned');
+        infoBtn.setAttribute('aria-expanded', String(pinned));
+    });
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -397,6 +420,13 @@ document.getElementById('sync-btn').addEventListener('click', triggerSync);
 document.getElementById('activities-container').addEventListener('click', e => {
     const tr = e.target.closest('tr[data-id]');
     if (tr) location.href = '/activity/' + tr.dataset.id;
+});
+document.addEventListener('click', () => {
+    const panel = document.querySelector('.readiness-info-panel.pinned');
+    if (!panel) return;
+    panel.classList.remove('pinned');
+    const btn = document.querySelector('.readiness-info-btn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
 });
 
 // ── Init ───────────────────────────────────────────────────────────────────
