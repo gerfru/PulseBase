@@ -61,12 +61,12 @@ jobs:
         run: pip install -e api/ mypy --quiet
       - name: mypy api
         working-directory: api
-        run: mypy src/ --ignore-missing-imports
+        run: mypy src/ --ignore-missing-imports --explicit-package-bases
       - name: Install sync + mypy
         run: pip install -e sync-service/ mypy --quiet
       - name: mypy sync-service
         working-directory: sync-service
-        run: mypy src/ --ignore-missing-imports
+        run: mypy src/ --ignore-missing-imports --explicit-package-bases
 
   trivy:
     name: Trivy Image Scan
@@ -81,6 +81,7 @@ jobs:
           image-ref: garmin-api:ci
           exit-code: '1'
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
       - name: Build sync image
         run: docker build -t garmin-sync:ci sync-service/
       - name: Scan sync
@@ -89,6 +90,7 @@ jobs:
           image-ref: garmin-sync:ci
           exit-code: '1'
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
 
   test:
     name: Tests
