@@ -28,6 +28,8 @@ from src.db import (
     get_latest_training_status,
     get_weekly_stats,
     get_readiness,
+    request_sync,
+    get_sync_status,
 )
 from src.garmin.client import GarminClient
 
@@ -326,3 +328,23 @@ async def api_weekly(
 async def api_readiness(request: Request):
     user = await require_user(request)
     return await get_readiness(user["id"])
+
+
+@app.post("/api/sync")
+async def api_sync(request: Request):
+    user = await require_user(request)
+    if not user.get("garmin_linked"):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {"code": "NOT_LINKED", "message": "Garmin account not linked"}
+            },
+        )
+    await request_sync(user["id"])
+    return {"status": "requested"}
+
+
+@app.get("/api/sync-status")
+async def api_sync_status(request: Request):
+    user = await require_user(request)
+    return await get_sync_status(user["id"])

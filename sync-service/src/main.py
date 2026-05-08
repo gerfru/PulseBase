@@ -112,6 +112,35 @@ async def get_active_users(repo: TimescaleRepository) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+async def get_sync_requested_users(repo: TimescaleRepository) -> list[dict]:
+    async with repo._pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, name, garmin_email FROM users "
+            "WHERE garmin_linked = true AND is_active = true AND sync_requested = true"
+        )
+    return [dict(r) for r in rows]
+
+
+async def mark_sync_done(user_id: int, repo: TimescaleRepository) -> None:
+    async with repo._pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET sync_requested = false, last_sync_at = NOW() WHERE id = $1",
+            user_id,
+        )
+
+
+async def process_sync_requests(repo: TimescaleRepository) -> None:
+    users = await get_sync_requested_users(repo)
+    for user in users:
+        logger.info(f"Manueller Sync: {user['name']}")
+        try:
+            await sync_user(user, repo, days=2)
+        except Exception as e:
+            logger.error(f"Manueller Sync Fehler {user['name']}: {e}", exc_info=True)
+        finally:
+            await mark_sync_done(user["id"], repo)
+
+
 async def sync_all_users(repo: TimescaleRepository, days: int = 2) -> None:
     users = await get_active_users(repo)
     if not users:
@@ -122,6 +151,8 @@ async def sync_all_users(repo: TimescaleRepository, days: int = 2) -> None:
             await sync_user(user, repo, days=days)
         except Exception as e:
             logger.error(f"Sync Fehler {user['name']}: {e}", exc_info=True)
+        finally:
+            await mark_sync_done(user["id"], repo)
 
 
 async def main() -> None:
@@ -138,8 +169,16 @@ async def main() -> None:
         CronTrigger(hour=settings.sync_hour, minute=0),
         args=[repo, 2],
     )
+    scheduler.add_job(
+        process_sync_requests,
+        "interval",
+        minutes=1,
+        args=[repo],
+    )
     scheduler.start()
-    logger.info(f"Scheduler aktiv — täglicher Sync um {settings.sync_hour}:00 Uhr")
+    logger.info(
+        f"Scheduler aktiv — täglicher Sync um {settings.sync_hour}:00 Uhr, manuelle Requests alle 60s"
+    )
 
     await asyncio.Event().wait()
 
