@@ -512,6 +512,36 @@ tbody tr:hover { background: var(--surface-2); }
   }
 }
 
+/* ── ML Einblicke Widget ────────────────────────────────────────────────── */
+.ml-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.ml-item {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: 8px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+}
+.ml-item-warn {
+  background: rgba(239,68,68,.10);
+  border-color: rgba(239,68,68,.25);
+}
+.ml-item-icon {
+  font-size: 1.1rem;
+  line-height: 1.4;
+  min-width: 1.4rem;
+  text-align: center;
+  color: var(--muted);
+}
+.ml-item-warn .ml-item-icon { color: #ef4444; }
+.ml-item-title { font-size: .88rem; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.ml-item-desc  { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+@media (prefers-color-scheme: light) {
+  .ml-item { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.06); }
+  .ml-item-warn { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.20); }
+}
+
 /* ── Activity Page ──────────────────────────────────────────────────────── */
 .act-header {
   display: flex;

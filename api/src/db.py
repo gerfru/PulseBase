@@ -1,3 +1,5 @@
+import json
+
 import asyncpg
 from pydantic_settings import BaseSettings
 
@@ -311,6 +313,25 @@ async def get_latest_hrv(user_id: int) -> dict | None:
         user_id,
     )
     return dict(row) if row else None
+
+
+async def get_ml_insights(user_id: int) -> dict:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT model, value, metadata
+        FROM ml_predictions
+        WHERE user_id = $1
+          AND date >= CURRENT_DATE - 1
+        ORDER BY date DESC
+        """,
+        user_id,
+    )
+    result: dict = {}
+    for row in rows:
+        meta = json.loads(row["metadata"]) if row["metadata"] else {}
+        result[row["model"]] = {"value": row["value"], **meta}
+    return result
 
 
 async def request_sync(user_id: int) -> None:

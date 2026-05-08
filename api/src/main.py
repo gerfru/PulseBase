@@ -29,6 +29,7 @@ from src.db import (
     get_latest_training_status,
     get_weekly_stats,
     get_readiness,
+    get_ml_insights,
     request_sync,
     get_sync_status,
 )
@@ -358,6 +359,12 @@ async def api_weekly(
 async def api_readiness(request: Request):
     user = await require_user(request)
     return await get_readiness(user["id"])
+
+
+@app.get("/api/ml-insights")
+async def api_ml_insights(request: Request):
+    user = await require_user(request)
+    return await get_ml_insights(user["id"])
 
 
 @app.post("/api/sync")
