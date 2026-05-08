@@ -1,4 +1,4 @@
-.PHONY: network up up-standalone down clean reset logs logs-sync logs-all sync sync-history status migrate db gen-secrets setup add-host setup-user restart-api build-api build-sync
+.PHONY: network up up-standalone down clean reset logs logs-sync logs-ml logs-all sync sync-history status migrate db gen-secrets setup add-host setup-user restart-api build-api build-sync build-ml
 
 network:
 	docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
@@ -28,6 +28,9 @@ logs:
 logs-sync:
 	docker compose logs -f sync-service
 
+logs-ml:
+	docker compose logs -f ml-service
+
 logs-all:
 	docker compose logs -f
 
@@ -40,11 +43,14 @@ sync:
 build-sync: network
 	docker compose build sync-service && docker compose up -d sync-service
 
+build-ml: network
+	docker compose build ml-service && docker compose up -d ml-service
+
 status:
 	docker compose ps
 
 db:
-	docker compose exec db psql -U $${DB_USER} -d garmin
+	@export $$(grep -v '^#' .env | xargs) 2>/dev/null; docker compose exec db psql -U $${DB_APP_USER} -d garmin
 
 restart-api:
 	docker compose restart api
