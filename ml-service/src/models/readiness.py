@@ -26,16 +26,38 @@ def _rule_based_score(row: dict[str, Any]) -> float | None:
     return sum(v * w for v, w in components) / total_w
 
 
+def _median(vals: Any) -> float | None:
+    v = [float(x) for x in vals if x is not None]
+    if not v:
+        return None
+    v.sort()
+    return v[len(v) // 2]
+
+
 def prepare_training_data(
     rows: list[dict[str, Any]],
 ) -> tuple[np.ndarray, np.ndarray] | None:
-    """Build (X, y) where X=features on day N, y=readiness on day N+1."""
+    """Build (X, y) where X=features on day N, y=readiness on day N+1.
+
+    Missing feature values are imputed with the per-feature median so that rows
+    where only HRV (or only sleep) is missing still contribute training signal.
+    """
+    hrv_med = _median(r.get("hrv_last_night") for r in rows)
+    sleep_med = _median(r.get("sleep_score") for r in rows)
+    hr_med = _median(r.get("resting_hr") for r in rows)
+
     X_rows, y_vals = [], []
     for i in range(len(rows) - 1):
         cur, nxt = rows[i], rows[i + 1]
-        hrv = cur.get("hrv_last_night")
-        sleep = cur.get("sleep_score")
-        hr = cur.get("resting_hr")
+        hrv = (
+            cur.get("hrv_last_night")
+            if cur.get("hrv_last_night") is not None
+            else hrv_med
+        )
+        sleep = (
+            cur.get("sleep_score") if cur.get("sleep_score") is not None else sleep_med
+        )
+        hr = cur.get("resting_hr") if cur.get("resting_hr") is not None else hr_med
         if hrv is None or sleep is None or hr is None:
             continue
         target = _rule_based_score(nxt)

@@ -267,8 +267,13 @@ async function load(days) {
 async function loadMlInsights() {
     const d = await fetch('/api/ml-insights').then(r => r.json());
     const anomaly = d['anomaly_hr'];
-    const corr    = d['correlation_sleep_hrv'];
     const rf      = d['readiness_rf'];
+
+    const CORR_LABELS = {
+        'correlation_sleep_hrv': 'Schlaf → HRV (nächster Tag)',
+        'correlation_sleep_rhr': 'Schlaf → Ruhepuls (nächster Tag)',
+        'correlation_bb_rhr':    'Body Battery → Ruhepuls (nächster Tag)',
+    };
 
     const items = [];
 
@@ -294,16 +299,19 @@ async function loadMlInsights() {
         }
     }
 
-    if (corr && corr.r !== null) {
-        const dir = corr.r >= 0 ? 'positiv' : 'negativ';
-        items.push(`
-            <div class="ml-item">
-                <span class="ml-item-icon">≈</span>
-                <div>
-                    <div class="ml-item-title">Schlaf → HRV nächster Tag</div>
-                    <div class="ml-item-desc">${corr.interpretation} ${dir}er Zusammenhang (r = ${corr.r.toFixed(2)}, n = ${corr.n} Nächte) — besserer Schlaf geht bei dir mit höherem HRV am nächsten Tag einher.</div>
-                </div>
-            </div>`);
+    for (const [key, label] of Object.entries(CORR_LABELS)) {
+        const corr = d[key];
+        if (corr && corr.r !== null) {
+            const dir = corr.r >= 0 ? 'positiv' : 'negativ';
+            items.push(`
+                <div class="ml-item">
+                    <span class="ml-item-icon">≈</span>
+                    <div>
+                        <div class="ml-item-title">${label}</div>
+                        <div class="ml-item-desc">${corr.interpretation} ${dir}er Zusammenhang (r = ${corr.r.toFixed(2)}, n = ${corr.n} Nächte).</div>
+                    </div>
+                </div>`);
+        }
     }
 
     if (rf && rf.value !== null) {
