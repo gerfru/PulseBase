@@ -7,7 +7,13 @@ from sklearn.ensemble import RandomForestRegressor  # type: ignore[import-untype
 
 _MIN_TRAINING_ROWS = 30
 _HRV_MAP = {"BALANCED": 100, "UNBALANCED": 50, "LOW": 25, "POOR": 0}
-_CANDIDATE_FEATURES = ["hrv_last_night", "sleep_score", "resting_hr"]
+_CANDIDATE_FEATURES = [
+    "hrv_last_night",
+    "sleep_score",
+    "resting_hr",
+    "aerobic_effect_daily",
+    "anaerobic_effect_daily",
+]
 
 
 def _rule_based_score(row: dict[str, Any]) -> float | None:

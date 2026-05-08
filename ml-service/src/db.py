@@ -34,6 +34,20 @@ async def get_active_users() -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+async def get_ml_requested_users() -> list[dict[str, Any]]:
+    rows = await _pool_or_raise().fetch(
+        "SELECT id FROM users WHERE ml_requested = true AND is_active = true"
+    )
+    return [dict(r) for r in rows]
+
+
+async def mark_ml_done(user_id: int) -> None:
+    await _pool_or_raise().execute(
+        "UPDATE users SET ml_requested = false, last_ml_at = NOW() WHERE id = $1",
+        user_id,
+    )
+
+
 async def get_resting_hr_history(user_id: int, days: int = 31) -> list[float | None]:
     cutoff = date.today() - timedelta(days=days)
     rows = await _pool_or_raise().fetch(
@@ -70,12 +84,22 @@ async def get_readiness_training_rows(
                s.sleep_score,
                d.resting_hr,
                d.body_battery_high,
-               d.avg_stress
+               d.avg_stress,
+               COALESCE(atrain.aerobic_effect_daily,   0) AS aerobic_effect_daily,
+               COALESCE(atrain.anaerobic_effect_daily, 0) AS anaerobic_effect_daily
         FROM daily_summary d
         LEFT JOIN hrv_daily h ON h.date = d.date AND h.user_id = d.user_id
         LEFT JOIN sleep_sessions s
                ON DATE(s.start_time AT TIME ZONE 'UTC') = d.date
               AND s.user_id = d.user_id
+        LEFT JOIN (
+            SELECT DATE(started_at AT TIME ZONE 'UTC') AS activity_date,
+                   SUM(aerobic_effect)                  AS aerobic_effect_daily,
+                   SUM(anaerobic_effect)                AS anaerobic_effect_daily
+            FROM activities
+            WHERE user_id = $1 AND started_at >= $2
+            GROUP BY 1
+        ) atrain ON atrain.activity_date = d.date
         WHERE d.user_id = $1
           AND d.date >= $2
         ORDER BY d.date
@@ -194,12 +218,22 @@ async def get_latest_features(user_id: int) -> dict[str, Any]:
     row = await _pool_or_raise().fetchrow(
         """
         SELECT h.hrv_last_night, h.hrv_status, s.sleep_score,
-               d.resting_hr, d.body_battery_high, d.avg_stress
+               d.resting_hr, d.body_battery_high, d.avg_stress,
+               COALESCE(atrain.aerobic_effect_daily,   0) AS aerobic_effect_daily,
+               COALESCE(atrain.anaerobic_effect_daily, 0) AS anaerobic_effect_daily
         FROM daily_summary d
         LEFT JOIN hrv_daily h ON h.date = d.date AND h.user_id = d.user_id
         LEFT JOIN sleep_sessions s
                ON DATE(s.start_time AT TIME ZONE 'UTC') = d.date
               AND s.user_id = d.user_id
+        LEFT JOIN (
+            SELECT DATE(started_at AT TIME ZONE 'UTC') AS activity_date,
+                   SUM(aerobic_effect)                  AS aerobic_effect_daily,
+                   SUM(anaerobic_effect)                AS anaerobic_effect_daily
+            FROM activities
+            WHERE user_id = $1 AND started_at >= CURRENT_DATE - 3
+            GROUP BY 1
+        ) atrain ON atrain.activity_date = d.date
         WHERE d.user_id = $1 AND d.date >= CURRENT_DATE - 2
         ORDER BY d.date DESC
         LIMIT 1

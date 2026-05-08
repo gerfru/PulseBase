@@ -162,12 +162,21 @@ async def mark_sync_done(user_id: int, repo: TimescaleRepository) -> None:
         )
 
 
+async def set_ml_requested(user_id: int, repo: TimescaleRepository) -> None:
+    async with repo._db.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET ml_requested = true WHERE id = $1",
+            user_id,
+        )
+
+
 async def process_sync_requests(repo: TimescaleRepository) -> None:
     users = await get_sync_requested_users(repo)
     for user in users:
         logger.info(f"Manueller Sync: {user['name']}")
         try:
             await sync_user(user, repo, days=2)
+            await set_ml_requested(user["id"], repo)
         except Exception as e:
             logger.error(f"Manueller Sync Fehler {user['name']}: {e}", exc_info=True)
         finally:
