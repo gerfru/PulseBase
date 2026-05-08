@@ -307,3 +307,25 @@ async def get_latest_hrv(user_id: int) -> dict | None:
         user_id,
     )
     return dict(row) if row else None
+
+
+async def request_sync(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET sync_requested = true WHERE id = $1",
+        user_id,
+    )
+
+
+async def get_sync_status(user_id: int) -> dict:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT sync_requested, last_sync_at FROM users WHERE id = $1",
+        user_id,
+    )
+    return {
+        "pending": row["sync_requested"] if row else False,
+        "last_sync_at": row["last_sync_at"].isoformat()
+        if row and row["last_sync_at"]
+        else None,
+    }
