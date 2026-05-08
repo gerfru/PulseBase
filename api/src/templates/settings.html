@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseBase — Einstellungen</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="settings-wrap">
+
+        <div class="settings-header">
+            <a href="/dashboard" class="btn btn-secondary btn-sm">← Dashboard</a>
+            <h1 class="settings-title">Einstellungen</h1>
+        </div>
+
+        <!-- Account -->
+        <div class="card settings-section">
+            <h2>Account</h2>
+            <div class="settings-row">
+                <span class="settings-label">Name</span>
+                <span class="settings-value">{{ user.name }}</span>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">E-Mail</span>
+                <span class="settings-value">{{ user.email }}</span>
+            </div>
+        </div>
+
+        <!-- Garmin Connect -->
+        <div class="card settings-section">
+            <h2>Garmin Connect</h2>
+            {% if user.garmin_linked %}
+            <div class="settings-row">
+                <div>
+                    <div class="settings-connected-label">Verbunden</div>
+                    <div class="settings-connected-sub">{{ user.garmin_email }}</div>
+                </div>
+                <form method="post" action="/garmin/unlink">
+                    <button class="btn btn-danger btn-sm" type="submit">Trennen</button>
+                </form>
+            </div>
+            <p class="settings-hint">Aktivitäten, Tagesübersichten und Schlafdaten werden täglich synchronisiert.</p>
+            {% else %}
+            <div class="settings-row">
+                <span class="settings-value muted">Nicht verbunden</span>
+                <a class="btn btn-primary btn-sm" href="/garmin/link">Verbinden</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- LibreLinkUp -->
+        <div class="card settings-section">
+            <h2>LibreLinkUp (Glukose)</h2>
+            {% if user.libre_linked %}
+            <div class="settings-row">
+                <div>
+                    <div class="settings-connected-label">Verbunden</div>
+                    <div class="settings-connected-sub">{{ user.libre_email }}</div>
+                </div>
+                <form method="post" action="/libre/unlink">
+                    <button class="btn btn-danger btn-sm" type="submit">Trennen &amp; Daten löschen</button>
+                </form>
+            </div>
+            <p class="settings-hint">Glukosewerte werden alle 5 Minuten abgerufen. Beim Trennen werden alle gespeicherten Messwerte gelöscht.</p>
+            {% else %}
+            <div class="settings-row">
+                <span class="settings-value muted">Nicht verbunden</span>
+                <a class="btn btn-primary btn-sm" href="/libre/link">Verbinden</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Session -->
+        <div class="card settings-section">
+            <h2>Sitzung</h2>
+            <div class="settings-row">
+                <span class="settings-value">Angemeldet als {{ user.name }}</span>
+                <form method="post" action="/logout">
+                    <button class="btn btn-secondary btn-sm" type="submit">Abmelden</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

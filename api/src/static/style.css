@@ -611,3 +611,105 @@ tbody tr:hover { background: var(--surface-2); }
 @media (min-width: 640px) {
   .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
 }
+
+/* ── ML Info Box ────────────────────────────────────────────────────────── */
+.ml-info {
+  margin-top: var(--sp-6);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--surface-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: .85rem;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.ml-info-title {
+  font-weight: 700;
+  color: var(--text);
+  font-size: .9rem;
+  margin-bottom: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ml-info-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: var(--sp-3) 0;
+}
+.ml-info-scale-row {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+}
+.ml-info-scale-key {
+  font-weight: 700;
+  color: var(--text);
+  min-width: 80px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Settings ───────────────────────────────────────────────────────────── */
+.settings-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-4) var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.settings-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+.settings-section h2 {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin: 0 0 var(--sp-4);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.settings-label {
+  font-size: .85rem;
+  color: var(--muted);
+  min-width: 80px;
+}
+.settings-value {
+  font-size: .95rem;
+}
+.settings-value.muted { color: var(--muted); }
+.settings-connected-label {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--green);
+}
+.settings-connected-sub {
+  font-size: .82rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.settings-hint {
+  font-size: .8rem;
+  color: var(--muted);
+  margin: var(--sp-3) 0 0;
+}
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+  border: none;
+}
+.btn-danger:hover { background: #dc2626; }

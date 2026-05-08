@@ -31,6 +31,10 @@ from src.db import (
     get_readiness,
     get_ml_insights,
     get_ml_history,
+    set_libre_linked,
+    set_libre_unlinked,
+    get_glucose_recent,
+    get_glucose_stats,
     request_sync,
     get_sync_status,
 )
@@ -228,6 +232,12 @@ async def index(request: Request):
     return RedirectResponse("/dashboard", status_code=303)
 
 
+@app.get("/settings")
+async def settings_page(request: Request):
+    user = await require_user(request)
+    return templates.TemplateResponse(request, "settings.html", {"user": user})
+
+
 @app.get("/garmin/link")
 async def garmin_link_form(request: Request):
     user = await require_user(request)
@@ -270,6 +280,85 @@ async def garmin_unlink(request: Request):
     await set_garmin_unlinked(user["id"])
     logger.info(f"Garmin Verknüpfung entfernt für User {user['id']}")
     return RedirectResponse("/", status_code=303)
+
+
+# ── LibreLinkUp ───────────────────────────────────────────────────────────────
+
+
+@app.get("/libre/link")
+async def libre_link_form(request: Request):
+    user = await require_user(request)
+    return templates.TemplateResponse(request, "link_libre.html", {"user": user})
+
+
+@app.post("/libre/link")
+async def libre_link(
+    request: Request,
+    libre_email: str = Form(),
+    libre_password: str = Form(),
+):
+    from libre.client import LibreAuthError
+    from libre.client import authenticate as libre_authenticate
+
+    user = await require_user(request)
+    try:
+        libre_authenticate(
+            libre_email,
+            libre_password,
+            token_dir=f"/app/tokens/{user['id']}/libre",
+        )
+        await set_libre_linked(user["id"], libre_email)
+        logger.info(f"LibreLinkUp verknüpft für User {user['id']}")
+        return RedirectResponse("/dashboard", status_code=303)
+    except LibreAuthError as e:
+        logger.warning(f"LibreLinkUp Login fehlgeschlagen User {user['id']}: {e}")
+        return templates.TemplateResponse(
+            request,
+            "link_libre.html",
+            {
+                "user": user,
+                "error": "Login fehlgeschlagen. Bitte Zugangsdaten prüfen und sicherstellen, dass du als Follower akzeptiert wurdest.",
+            },
+            status_code=400,
+        )
+    except Exception as e:
+        logger.error(f"LibreLinkUp Fehler User {user['id']}: {type(e).__name__}")
+        return templates.TemplateResponse(
+            request,
+            "link_libre.html",
+            {
+                "user": user,
+                "error": "Verbindung fehlgeschlagen. Bitte erneut versuchen.",
+            },
+            status_code=400,
+        )
+
+
+@app.post("/libre/unlink")
+async def libre_unlink(request: Request):
+    import shutil
+
+    user = await require_user(request)
+    await set_libre_unlinked(user["id"])
+    token_dir = Path(f"/app/tokens/{user['id']}/libre")
+    if token_dir.exists():
+        shutil.rmtree(token_dir)
+    logger.info(f"LibreLinkUp Verknüpfung + Daten entfernt für User {user['id']}")
+    return RedirectResponse("/libre/link", status_code=303)
+
+
+@app.get("/api/glucose")
+async def api_glucose(request: Request, hours: int = Query(default=24, ge=1, le=168)):
+    user = await require_user(request)
+    return await get_glucose_recent(user["id"], hours)
+
+
+@app.get("/api/glucose/stats")
+async def api_glucose_stats(
+    request: Request, days: int = Query(default=14, ge=1, le=90)
+):
+    user = await require_user(request)
+    return await get_glucose_stats(user["id"], days)
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────

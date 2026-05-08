@@ -7,6 +7,9 @@ from apscheduler.triggers.cron import CronTrigger
 
 from config import Settings
 from garmin.client import GarminClient
+from libre.client import LibreAuthError, connect as libre_connect
+from libre.client import get_recent_glucose
+from libre.mapper import map_reading as map_glucose_reading
 from garmin.mapper import (
     map_activity,
     map_body_battery,
@@ -104,6 +107,36 @@ async def sync_user(user: dict, repo: TimescaleRepository, days: int = 1) -> Non
     logger.info(f"Sync fertig: {user['name']}")
 
 
+async def get_libre_users(repo: TimescaleRepository) -> list[dict]:
+    async with repo._db.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, name FROM users WHERE libre_linked = true AND is_active = true"
+        )
+    return [dict(r) for r in rows]
+
+
+async def sync_libre_user(user: dict, repo: TimescaleRepository) -> None:
+    token_dir = f"/app/tokens/{user['id']}/libre"
+    client = libre_connect(token_dir)
+    readings = get_recent_glucose(client, hours=2)
+    rows = [map_glucose_reading(r, user["id"]) for r in readings]
+    await repo.bulk_insert_glucose(user["id"], rows)
+    logger.info(f"Libre sync: user={user['id']} inserted {len(rows)} readings")
+
+
+async def sync_all_libre(repo: TimescaleRepository) -> None:
+    users = await get_libre_users(repo)
+    if not users:
+        return
+    for user in users:
+        try:
+            await sync_libre_user(user, repo)
+        except LibreAuthError as e:
+            logger.warning(f"Libre auth error user={user['id']}: {e}")
+        except Exception as e:
+            logger.error(f"Libre sync failed user={user['id']}: {e}", exc_info=True)
+
+
 async def get_active_users(repo: TimescaleRepository) -> list[dict]:
     async with repo._db.acquire() as conn:
         rows = await conn.fetch(
@@ -174,6 +207,13 @@ async def main() -> None:
         "interval",
         minutes=1,
         args=[repo],
+    )
+    scheduler.add_job(
+        sync_all_libre,
+        "interval",
+        minutes=5,
+        args=[repo],
+        id="libre_sync",
     )
     scheduler.start()
     logger.info(
