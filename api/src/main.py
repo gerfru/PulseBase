@@ -31,6 +31,7 @@ from src.db import (
     get_readiness,
     get_ml_insights,
     get_ml_history,
+    get_ml_status,
     set_libre_linked,
     set_libre_unlinked,
     get_glucose_recent,
@@ -521,3 +522,9 @@ async def api_sync(request: Request):
 async def api_sync_status(request: Request):
     user = await require_user(request)
     return await get_sync_status(user["id"])
+
+
+@app.get("/api/ml-status")
+async def api_ml_status(request: Request):
+    user = await require_user(request)
+    return await get_ml_status(user["id"])

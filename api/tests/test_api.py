@@ -122,3 +122,21 @@ async def test_ml_insights_authenticated(client):
     ):
         r = await client.get("/api/ml-insights")
     assert r.status_code == 200
+
+
+async def test_ml_status_unauthenticated(client):
+    r = await client.get("/api/ml-status")
+    assert r.status_code == 303
+
+
+async def test_ml_status_authenticated(client):
+    with (
+        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.main.get_ml_status",
+            AsyncMock(return_value={"pending": False, "last_ml_at": None}),
+        ),
+    ):
+        r = await client.get("/api/ml-status")
+    assert r.status_code == 200
+    assert "pending" in r.json()
