@@ -160,8 +160,10 @@ class TimescaleRepository(
         async with self._pool.acquire() as conn:
             await conn.execute(
                 """
-                UPDATE daily_summary SET training_status = $1
-                WHERE user_id = $2 AND date = $3
+                INSERT INTO daily_summary (user_id, date, training_status)
+                VALUES ($2, $3, $1)
+                ON CONFLICT (user_id, date)
+                DO UPDATE SET training_status = EXCLUDED.training_status
                 """,
                 status,
                 user_id,
