@@ -19,6 +19,7 @@ production database — always add a new migration file.
 | `V6__sync_trigger.sql` | Adds `sync_requested`, `last_sync_at` to `users` |
 | `V7__app_user.sql` | Creates least-privilege `garmin_app` DB user |
 | `V8__ml_predictions.sql` | Creates `ml_predictions` table for ML model outputs |
+| `V9__libre_glucose.sql` | Adds `libre_linked`/`libre_email` to `users`; creates `glucose_readings` hypertable |
 
 ---
 
@@ -36,6 +37,8 @@ production database — always add a new migration file.
 | `garmin_email` | `TEXT` | Garmin Connect email |
 | `is_active` | `BOOLEAN DEFAULT true` | Soft-disable users |
 | `authelia_username` | `TEXT UNIQUE` | Unused (Authelia removed) |
+| `libre_linked` | `BOOLEAN DEFAULT false` | LibreLinkUp account connected (V9) |
+| `libre_email` | `TEXT` | LibreLinkUp email (V9) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 ---
@@ -138,6 +141,27 @@ Primary key: `(date, user_id, model)` — one row per user per day per model, up
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 Index: `(user_id, date DESC)`
+
+---
+
+---
+
+### `glucose_readings`
+
+Hypertable for continuous glucose monitor (CGM) readings via LibreLinkUp (Libre 3).
+~1 reading per minute = ~1,440 rows/day/user. Added in V9.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `time` | `TIMESTAMPTZ NOT NULL` | Reading timestamp (partition key) |
+| `user_id` | `INTEGER → users(id)` | |
+| `value_mgdl` | `REAL NOT NULL` | Glucose in mg/dL |
+| `trend` | `SMALLINT` | 1=FallingQuickly, 2=Falling, 3=Stable, 4=Rising, 5=RisingQuickly |
+| `is_high` | `BOOLEAN` | Sensor-flagged high value |
+| `is_low` | `BOOLEAN` | Sensor-flagged low value (hypoglycemia) |
+
+UNIQUE INDEX on `(user_id, time)` — upserted with `ON CONFLICT DO NOTHING`.
+Compression: after 7 days, segmented by `user_id`.
 
 ---
 

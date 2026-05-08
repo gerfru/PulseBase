@@ -7,22 +7,31 @@ PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, priv
 ## Features
 
 - Automatic daily sync from Garmin Connect (activities, sleep, HRV, body battery, stress)
+- Continuous glucose monitoring via LibreLinkUp (Libre 3, every 5 min) — optional
 - Glassmorphism dashboard — mesh gradient background, frosted glass cards, dark + light mode
 - Readiness score (rule-based 0–100) as hero card with HRV, sleep, body battery, stress factors
-- ML Einblicke widget — anomaly detection (resting HR Z-score), sleep→HRV correlation, Random Forest readiness prediction
+- ML Einblicke — anomaly detection (resting HR Z-score), sleep→HRV correlation, Random Forest readiness prediction — each with dedicated detail pages
 - Activity detail page with GPS map (Leaflet.js), HR/pace/elevation/cadence charts
 - Training status tracking (PRODUCTIVE, MAINTAINING, RECOVERY, …)
 - Weekly training volume overview (run km / ride km stacked bar)
+- Central settings page — Garmin + LibreLinkUp connection management in one place
 - Self-service registration — no admin needed
-- Garmin passwords are **never stored** — token-only
+- Garmin and LibreLinkUp passwords are **never stored** — token-only
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — Services, data flow, network setup
-- [Design Decisions](docs/design-decisions.md) — Why no Grafana, no ORM, no JWT, Caddy vs Traefik, ...
-- [Database](docs/database.md) — Schema, hypertables, column names, useful queries
-- [API Reference](docs/api.md) — All endpoints with request/response format
-- [Setup Guide](docs/setup.md) — Full installation walkthrough
+Two levels — pick what you need:
+
+**Non-technical:**
+- [ELI5 — Das System erklärt wie für ein Kind](docs/eli5.md) — Was PulseBase tut, wie ML funktioniert, was Passwörter nie gespeichert werden, was Trend-Pfeile bedeuten
+
+**Technical:**
+- [ML Deep Dive](docs/ml-deep-dive.md) — Algorithmen, Formeln, Thresholds, Trainings-Pipeline
+- [Architecture](docs/architecture.md) — Services, Datenpfade, Netzwerk-Setup
+- [Database](docs/database.md) — Schema, Hypertables, Spaltennamen, Queries
+- [API Reference](docs/api.md) — Alle Endpunkte mit Request/Response-Format
+- [Design Decisions](docs/design-decisions.md) — Warum kein Grafana, kein ORM, kein JWT, Caddy vs Traefik, ...
+- [Setup Guide](docs/setup.md) — Vollständige Installationsanleitung
 
 ## Quickstart
 
