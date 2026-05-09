@@ -256,8 +256,8 @@ const METRICS = {
                 sub: dev !== '—' ? dev + ' vom Baseline' : (auton == null ? 'noch keine Daten' : ''),
                 kpis: [
                     { label: 'Score (0–100)', value: auton?.score != null ? Math.round(auton.score) : '—' },
-                    { label: 'Abweichung', value: dev },
-                    { label: 'Persönlicher Baseline', value: baseline },
+                    { label: 'Abweichung (σ = Standardabweichungen)', value: dev },
+                    { label: 'Persönlicher Baseline (Ø 90 Tage)', value: baseline },
                 ],
                 chart: hist.length > 3 ? {
                     title: 'HRV-Baseline Score (90 Tage)',
@@ -355,9 +355,9 @@ const METRICS = {
                 value: zscore,
                 sub: isAnom ? '⚠ Anomalie erkannt' : (anomaly?.z_score != null ? '✓ Normal' : 'zu wenig Daten'),
                 kpis: [
-                    { label: 'Z-Score heute', value: zscore },
+                    { label: 'Z-Score heute (Standardabweichungen vom Ø)', value: zscore },
                     { label: 'Status', value: isAnom ? '⚠ Anomalie' : (anomaly?.z_score != null ? '✓ Normal' : '—') },
-                    { label: 'Baseline Ø (30d)', value: anomaly?.baseline_mean ? Math.round(anomaly.baseline_mean) + ' bpm' : '—' },
+                    { label: 'Baseline Ø (30 Tage)', value: anomaly?.baseline_mean ? Math.round(anomaly.baseline_mean) + ' bpm' : '—' },
                     { label: 'Ruhepuls heute', value: today?.resting_hr ? today.resting_hr + ' bpm' : '—' },
                 ],
                 chart: daily.some(d => d.resting_hr) ? {
