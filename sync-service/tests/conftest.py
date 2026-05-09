@@ -46,7 +46,7 @@ RAW_SLEEP = {
 
 RAW_HRV = {
     "hrvSummary": {
-        "lastNight": 42,
+        "lastNightAvg": 42,
         "weeklyAvg": 45,
         "status": "BALANCED",
     }
