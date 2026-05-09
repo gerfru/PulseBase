@@ -97,16 +97,21 @@ async def run_inference(user_id: int, settings: Settings) -> None:
     features = await get_latest_features(user_id)
     predicted = predict_tomorrow(features, model_path)
     if predicted is not None:
-        tomorrow = date.today() + timedelta(days=1)
+        pred_meta = {
+            "confidence_low": predicted["confidence_low"],
+            "confidence_high": predicted["confidence_high"],
+        }
+        # Save for today (ensures dashboard always shows fresh value after every run)
+        await save_prediction(
+            user_id, date.today(), "readiness_rf", predicted["score"], pred_meta
+        )
+        # Save for tomorrow (forward-looking: how will I feel tomorrow?)
         await save_prediction(
             user_id,
-            tomorrow,
+            date.today() + timedelta(days=1),
             "readiness_rf",
             predicted["score"],
-            {
-                "confidence_low": predicted["confidence_low"],
-                "confidence_high": predicted["confidence_high"],
-            },
+            pred_meta,
         )
         logger.info(
             f"user={user_id} predicted tomorrow readiness={predicted['score']} "
