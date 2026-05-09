@@ -236,10 +236,10 @@ async def get_hrv_history_for_energy(
     return [r["hrv_last_night"] for r in rows]
 
 
-async def get_sleep_hours_7d(user_id: int) -> list[float | None]:
+async def get_sleep_data_7d(user_id: int) -> list[dict[str, float | None]]:
     rows = await _pool_or_raise().fetch(
         """
-        SELECT total_sleep_seconds FROM sleep_sessions
+        SELECT total_sleep_seconds, deep_sleep_seconds FROM sleep_sessions
         WHERE user_id = $1
           AND start_time >= CURRENT_DATE - INTERVAL '8 days'
         ORDER BY start_time DESC
@@ -248,9 +248,14 @@ async def get_sleep_hours_7d(user_id: int) -> list[float | None]:
         user_id,
     )
     return [
-        float(r["total_sleep_seconds"]) / 3600.0
-        if r["total_sleep_seconds"] is not None
-        else None
+        {
+            "total_h": float(r["total_sleep_seconds"]) / 3600.0
+            if r["total_sleep_seconds"] is not None
+            else None,
+            "deep_h": float(r["deep_sleep_seconds"]) / 3600.0
+            if r["deep_sleep_seconds"] is not None
+            else None,
+        }
         for r in rows
     ]
 
