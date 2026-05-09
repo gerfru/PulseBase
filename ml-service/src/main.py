@@ -5,9 +5,11 @@ from datetime import date, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from backfill import backfill_user
 from config import Settings
 from db import (
     close_pool,
+    count_energy_gaps,
     get_active_users,
     get_activity_trimp_inputs,
     get_bb_resting_hr_pairs,
@@ -183,6 +185,10 @@ async def run_on_request(settings: Settings) -> None:
     for user in users:
         uid = user["id"]
         try:
+            gaps = await count_energy_gaps(uid)
+            if gaps > 0:
+                logger.info(f"user={uid}: {gaps} energy history gaps — backfilling")
+                await backfill_user(uid)
             await run_training(uid, settings)
             await run_inference(uid, settings)
             logger.info(f"On-request ML completed for user={uid}")
@@ -201,6 +207,10 @@ async def run_all_users(settings: Settings, include_training: bool = False) -> N
         uid = user["id"]
         try:
             if include_training:
+                gaps = await count_energy_gaps(uid)
+                if gaps > 0:
+                    logger.info(f"user={uid}: {gaps} energy history gaps — backfilling")
+                    await backfill_user(uid)
                 await run_training(uid, settings)
             await run_inference(uid, settings)
         except Exception as e:
