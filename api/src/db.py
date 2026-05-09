@@ -167,11 +167,11 @@ async def get_daily_summaries(user_id: int, days: int = 30) -> list[dict]:
             WHERE user_id = $1
             GROUP BY date(time)
         ) bb ON bb.date = ds.date
-        WHERE ds.user_id = $1 AND ds.date >= NOW() - ($2 || ' days')::INTERVAL
+        WHERE ds.user_id = $1 AND ds.date >= NOW() - ($2 * INTERVAL '1 day')
         ORDER BY ds.date
         """,
         user_id,
-        str(days),
+        days,
     )
     return [dict(r) for r in rows]
 
@@ -199,11 +199,11 @@ async def get_hrv_trend(user_id: int, days: int = 30) -> list[dict]:
         """
         SELECT date, hrv_last_night, hrv_weekly_avg, hrv_status
         FROM hrv_daily
-        WHERE user_id = $1 AND date >= NOW() - ($2 || ' days')::INTERVAL
+        WHERE user_id = $1 AND date >= NOW() - ($2 * INTERVAL '1 day')
         ORDER BY date
         """,
         user_id,
-        str(days),
+        days,
     )
     return [dict(r) for r in rows]
 
@@ -404,10 +404,10 @@ async def get_glucose_stats(user_id: int, days: int = 14) -> dict:
             COUNT(*) FILTER (WHERE is_high = true)                          AS count_high
         FROM glucose_readings
         WHERE user_id = $1
-          AND time >= NOW() - ($2 || ' days')::interval
+          AND time >= NOW() - ($2 * INTERVAL '1 day')
         """,
         user_id,
-        str(days),
+        days,
     )
     return dict(row) if row else {}
 
