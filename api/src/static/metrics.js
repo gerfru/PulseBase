@@ -408,7 +408,16 @@ const METRICS = {
                     { label: 'Letzte Nacht HRV', value: latest?.hrv_last_night ? latest.hrv_last_night + ' ms' : '—' },
                     { label: 'Ausgeglichen (90d)', value: data.length ? countBalanced + ' / ' + data.length + ' Tage' : '—' },
                 ],
-                chart: null,
+                chart: data.some(d => d.hrv_last_night) ? {
+                    title: 'HRV letzte Nacht (90 Tage)',
+                    type: 'line',
+                    labels: data.map(d => fmtDate(d.date)),
+                    datasets: [{
+                        label: 'HRV letzte Nacht',
+                        data: data.map(d => d.hrv_last_night ?? null),
+                        borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2,
+                    }],
+                } : null,
                 formula: [
                     ['Quelle', 'Garmin-Algorithmus (hrv_daily.hrv_status)'],
                     ['Vergleich', 'HRV letzte Nacht vs. persönliche 3-Wochen-Baseline'],
@@ -424,8 +433,13 @@ const METRICS = {
     'training-status': {
         title: 'Trainingszustand',
         section: 'ML & Status',
-        async fetch() { return fetch('/api/training-status').then(r => r.json()); },
-        render(data) {
+        async fetch() {
+            return Promise.all([
+                fetch('/api/training-status').then(r => r.json()),
+                fetch('/api/ml-history?days=90').then(r => r.json()),
+            ]);
+        },
+        render([data, history]) {
             const tsMap = {
                 PRODUCTIVE:   { label: 'Aufbauend',       cls: 'badge-balanced',   desc: 'Dein Training ist effektiv — du wirst gerade fitter.' },
                 MAINTAINING:  { label: 'Erhalt',          cls: 'badge-balanced',   desc: 'Du hältst dein aktuelles Fitnesslevel stabil.' },
@@ -445,7 +459,21 @@ const METRICS = {
                     { label: 'Status', value: entry.label },
                     { label: 'Bedeutung', value: entry.desc || '—' },
                 ],
-                chart: null,
+                chart: (() => {
+                    const physHist = history.energy_physical || [];
+                    return physHist.length > 3 ? {
+                        title: 'Training Stress Balance — TSB (90 Tage)',
+                        type: 'line',
+                        labels: physHist.map(d => fmtDate(d.date)),
+                        datasets: [{
+                            label: 'TSB',
+                            data: physHist.map(d => d.tsb ?? null),
+                            borderColor: '#6366f1',
+                            backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)',
+                            fill: true, tension: 0.3, pointRadius: 0,
+                        }],
+                    } : null;
+                })(),
                 formula: [
                     ['Quelle', 'Garmin Firstbeat-Algorithmus (daily_summary.training_status)'],
                     ['Inputs', 'Trainingsbelastung letzte Wochen, VO₂max-Schätzung, Erholungsstatus'],
@@ -462,33 +490,63 @@ const METRICS = {
     readiness: {
         title: 'Readiness-Score',
         section: 'Readiness',
-        async fetch() { return fetch('/api/readiness').then(r => r.json()); },
-        render(data) {
+        async fetch() {
+            return Promise.all([
+                fetch('/api/readiness').then(r => r.json()),
+                fetch('/api/ml-history?days=90').then(r => r.json()),
+            ]);
+        },
+        render([today, history]) {
             const scoreColors = { 'badge-balanced': '#22c55e', 'badge-unbalanced': '#f59e0b', 'badge-poor': '#ef4444' };
-            const color = scoreColors[data?.cls] || '#64748b';
-            const hrvLbls = { BALANCED: 'Ausgeglichen', UNBALANCED: 'Unausgeglichen', LOW: 'Niedrig', POOR: 'Niedrig' };
-            const stressInv = data?.avg_stress != null ? 100 - data.avg_stress : null;
+            const color = scoreColors[today?.cls] || '#64748b';
+
+            // Historischen Readiness-Verlauf aus Energie-Komponenten rekonstruieren
+            const physMap  = Object.fromEntries((history.energy_physical  || []).map(d => [d.date, d.value]));
+            const autonMap = Object.fromEntries((history.energy_autonomic || []).map(d => [d.date, d.value]));
+            const cogMap   = Object.fromEntries((history.energy_cognitive || []).map(d => [d.date, d.value]));
+            const dates    = [...new Set([...Object.keys(physMap), ...Object.keys(autonMap), ...Object.keys(cogMap)])].sort();
+            const scores   = dates.map(date => {
+                const parts = [[physMap[date], 0.35], [autonMap[date], 0.40], [cogMap[date], 0.25]]
+                    .filter(([v]) => v != null);
+                if (!parts.length) return null;
+                const tw = parts.reduce((s, [, w]) => s + w, 0);
+                return Math.round(parts.reduce((s, [v, w]) => s + v * w / tw, 0));
+            });
+
+            const p = today?.energy_physical  != null ? Math.round(today.energy_physical)  : null;
+            const a = today?.energy_autonomic != null ? Math.round(today.energy_autonomic) : null;
+            const c = today?.energy_cognitive != null ? Math.round(today.energy_cognitive) : null;
+
             return {
-                value: data?.score != null
-                    ? `<span style="color:${color};font-size:4rem;font-weight:800;letter-spacing:-.04em">${data.score}</span>`
+                value: today?.score != null
+                    ? `<span style="color:${color};font-size:4rem;font-weight:800;letter-spacing:-.04em">${today.score}</span>`
                     : '—',
-                sub: data?.label ?? '',
+                sub: today?.label ?? '',
                 kpis: [
-                    { label: 'HRV-Status (30%)', value: data?.hrv_status ? (hrvLbls[data.hrv_status.toUpperCase()] ?? data.hrv_status) : '—' },
-                    { label: 'Schlaf-Score (30%)', value: data?.sleep_score ?? '—' },
-                    { label: 'Body Battery (20%)', value: data?.body_battery ?? '—' },
-                    { label: 'Stress-Umkehr (20%)', value: stressInv != null ? stressInv + ' (Stress: ' + data.avg_stress + ')' : '—' },
+                    { label: 'Physische Energie (35%)',  value: p != null ? p : '—' },
+                    { label: 'Autonome Energie (40%)',   value: a != null ? a : '—' },
+                    { label: 'Kognitive Energie (25%)',  value: c != null ? c : '—' },
                 ],
-                chart: null,
+                chart: dates.length > 3 ? {
+                    title: 'Readiness-Verlauf (90 Tage)',
+                    type: 'line',
+                    labels: dates.map(fmtDate),
+                    datasets: [{
+                        data: scores,
+                        borderColor: '#6366f1',
+                        backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)',
+                        fill: true, tension: 0.3, pointRadius: 0,
+                    }],
+                    scales: { y: { min: 0, max: 100 } },
+                } : null,
                 formula: [
-                    ['HRV-Status', 'BALANCED=100, UNBALANCED=50, LOW=25, POOR=0 — Gewicht: 30%'],
-                    ['Schlaf-Score', 'Garmin Schlaf-Score 0–100 — Gewicht: 30%'],
-                    ['Body Battery', 'Tages-Maximum 0–100 — Gewicht: 20%'],
-                    ['Stress-Umkehr', '100 − Ø Stress (niedriger Stress = besser) — Gewicht: 20%'],
-                    ['Fehlende Werte', 'Werden herausgerechnet; verbleibende Gewichte proportional verteilt'],
-                    ['Score', 'Gewichtetes Mittel aller vorhandenen Komponenten'],
+                    ['Physische Energie', 'Edwards TRIMP + Banister ATL/CTL/TSB → Score (0–100) — Gewicht: 35%'],
+                    ['Autonome Energie', 'HRV (RMSSD) ln-normiert, σ-Abweichung von 90d-Baseline — Gewicht: 40%'],
+                    ['Kognitive Energie', 'Borbély Process S: Schlafschuld 7d, tiefschlaf-qualitätsjustiert — Gewicht: 25%'],
+                    ['Fehlende Komponenten', 'Verbleibende Gewichte werden proportional normiert'],
+                    ['Score', 'Gewichtetes Mittel, geclampt 0–100'],
                 ],
-                eli5: 'Der Readiness-Score kombiniert vier Garmin-Kennzahlen zu einem Tageswert. HRV sagt, wie gut dein Nervensystem regeneriert hat. Schlaf bewertet die Nacht. Body Battery zeigt deine Energiereserven. Stress zeigt, wie belastet du warst. Alles zusammen ergibt einen Score von 0–100 — je höher, desto besser erholt bist du.',
+                eli5: 'Der Readiness-Score kombiniert drei eigene, transparent berechnete Dimensionen. Physisch: Wie viel Trainingsbelastung steckt noch im System? Autonom: Ist dein Nervensystem (HRV) heute besser oder schlechter erholt als dein persönlicher Normalwert? Kognitiv: Wie viel Schlafschuld hast du angehäuft? Alles ohne Garmin-Blackbox — nur unsere eigenen Formeln.',
             };
         },
     },
