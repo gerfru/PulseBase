@@ -40,6 +40,9 @@ migrate:
 sync:
 	docker compose build sync-service && docker compose up -d --force-recreate sync-service
 
+backfill-energy:
+	docker compose exec ml-service python /app/src/backfill_energy.py
+
 build-sync: network
 	docker compose build sync-service && docker compose up -d sync-service
 
