@@ -374,6 +374,32 @@ async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", {"user": user})
 
 
+_VALID_METRICS = {
+    "steps",
+    "sleep",
+    "hrv",
+    "body-battery",
+    "physical",
+    "autonomic",
+    "cognitive",
+    "hr-zscore",
+    "readiness-rf",
+    "hrv-status",
+    "training-status",
+    "readiness",
+}
+
+
+@app.get("/metrics/{name}")
+async def metrics_detail_page(request: Request, name: str):
+    user = await require_user(request)
+    if name not in _VALID_METRICS:
+        return RedirectResponse("/dashboard", status_code=303)
+    return templates.TemplateResponse(
+        request, "metrics.html", {"user": user, "metric_name": name}
+    )
+
+
 # ── JSON API ──────────────────────────────────────────────────────────────────
 
 
