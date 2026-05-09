@@ -45,54 +45,9 @@
 
     <div class="grid">
 
-        <!-- Readiness Hero + Aside -->
-        <div class="hero-aside">
-            <div class="card card-hero" id="readiness-hero">
-                <p class="empty" style="padding:var(--sp-8) 0">Lade…</p>
-            </div>
-            <div class="hero-aside-stack">
-                <div class="card">
-                    <h2>HRV — letzter Messwert</h2>
-                    <div id="hrv-container"><p class="empty">Lade…</p></div>
-                </div>
-                <div class="card">
-                    <h2>Trainingszustand</h2>
-                    <div id="training-status-container"><p class="empty">Lade…</p></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ML Einblicke -->
-        <div class="card full" id="ml-card" style="display:none">
-            <h2>ML Einblicke</h2>
-            <div id="ml-container"></div>
-        </div>
-
-        <!-- Stat Tiles -->
-        <div class="stat-row full">
-            <div class="stat-tile">
-                <div class="stat-label">Schritte</div>
-                <div class="stat-value" id="stat-steps">—</div>
-            </div>
-            <div class="stat-tile">
-                <div class="stat-label">Schlaf Score</div>
-                <div class="stat-value" id="stat-sleep">—</div>
-            </div>
-            <div class="stat-tile">
-                <div class="stat-label">HRV Ø</div>
-                <div class="stat-value" id="stat-hrv">—</div>
-            </div>
-            <div class="stat-tile">
-                <div class="stat-label">Body Battery</div>
-                <div class="stat-value" id="stat-battery">—</div>
-            </div>
-            {% if user.libre_linked %}
-            <div class="stat-tile" id="glucose-tile">
-                <div class="stat-label">Glukose</div>
-                <div class="stat-value" id="glucose-val">—</div>
-                <div style="font-size:.78rem;color:var(--muted);margin-top:2px" id="glucose-sub"></div>
-            </div>
-            {% endif %}
+        <!-- Metrics Hero — alle Kennzahlen -->
+        <div class="card card-hero full" id="metrics-hero">
+            <p class="empty">Lade…</p>
         </div>
 
         <!-- ── Training ──────────────────────────────────────────────── -->
@@ -169,11 +124,23 @@
             <p class="empty" id="hrv-trend-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-
     </div>
 
-    <script src="/static/dashboard.js"></script>
+    <div id="metric-modal" class="metric-modal" role="dialog" aria-modal="true" hidden>
+        <div class="metric-modal-backdrop" id="modal-backdrop"></div>
+        <div class="metric-modal-content">
+            <button class="metric-modal-close" id="modal-close" aria-label="Schließen">✕</button>
+            <div class="metric-modal-label" id="modal-section-label"></div>
+            <h2 class="metric-modal-title" id="modal-title"></h2>
+            <p class="metric-modal-section">Eingaben</p>
+            <ul class="metric-modal-inputs" id="modal-inputs"></ul>
+            <p class="metric-modal-section" id="modal-eli5-label" style="display:none">ELI5 — Erkläre mir das wie ich 5 bin</p>
+            <p class="metric-modal-eli5" id="modal-eli5" style="display:none"></p>
+        </div>
+    </div>
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
+
+    <script src="/static/dashboard.js"></script>
 </body>
 </html>
