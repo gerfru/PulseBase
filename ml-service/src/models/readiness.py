@@ -6,7 +6,6 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor  # type: ignore[import-untyped]
 
 _MIN_TRAINING_ROWS = 30
-_HRV_MAP = {"BALANCED": 100, "UNBALANCED": 50, "LOW": 25, "POOR": 0}
 _CANDIDATE_FEATURES = [
     "hrv_last_night",
     "sleep_score",
@@ -16,17 +15,14 @@ _CANDIDATE_FEATURES = [
 ]
 
 
-def _rule_based_score(row: dict[str, Any]) -> float | None:
+def _energy_based_score(row: dict[str, Any]) -> float | None:
     components: list[tuple[float, float]] = []
-    status = (row.get("hrv_status") or "").upper()
-    if status in _HRV_MAP:
-        components.append((_HRV_MAP[status], 0.30))
-    if row.get("sleep_score") is not None:
-        components.append((float(row["sleep_score"]), 0.30))
-    if row.get("body_battery_high") is not None:
-        components.append((float(row["body_battery_high"]), 0.20))
-    if row.get("avg_stress") is not None:
-        components.append((max(0.0, 100.0 - float(row["avg_stress"])), 0.20))
+    if row.get("energy_physical_score") is not None:
+        components.append((float(row["energy_physical_score"]), 0.35))
+    if row.get("energy_autonomic_score") is not None:
+        components.append((float(row["energy_autonomic_score"]), 0.40))
+    if row.get("energy_cognitive_score") is not None:
+        components.append((float(row["energy_cognitive_score"]), 0.25))
     if not components:
         return None
     total_w = sum(w for _, w in components)
@@ -69,7 +65,7 @@ def prepare_training_data(
             feat_vals.append(float(v))
         if skip:
             continue
-        target = _rule_based_score(nxt)
+        target = _energy_based_score(nxt)
         if target is None:
             continue
         X_rows.append(feat_vals)
