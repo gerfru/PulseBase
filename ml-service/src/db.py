@@ -179,6 +179,82 @@ async def get_bb_resting_hr_pairs(
     return [(float(r["body_battery_high"]), float(r["resting_hr"])) for r in rows]
 
 
+async def get_activity_trimp_inputs(
+    user_id: int, days: int = 50
+) -> list[dict[str, Any]]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT DATE(a.started_at AT TIME ZONE 'UTC') AS activity_date,
+               AVG(a.avg_hr)::float                  AS avg_hr,
+               SUM(a.duration_seconds)::float         AS duration_seconds,
+               MAX(d.resting_hr)::float               AS resting_hr
+        FROM activities a
+        LEFT JOIN daily_summary d
+               ON d.date    = DATE(a.started_at AT TIME ZONE 'UTC')
+              AND d.user_id = a.user_id
+        WHERE a.user_id = $1
+          AND a.started_at >= $2
+          AND a.avg_hr IS NOT NULL
+          AND a.duration_seconds IS NOT NULL
+        GROUP BY 1
+        ORDER BY 1
+        """,
+        user_id,
+        cutoff,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_hrmax(user_id: int) -> float:
+    row = await _pool_or_raise().fetchrow(
+        """
+        SELECT MAX(max_hr)::float AS hrmax FROM activities
+        WHERE user_id = $1
+          AND started_at >= CURRENT_DATE - INTERVAL '12 months'
+          AND max_hr IS NOT NULL
+        """,
+        user_id,
+    )
+    return float(row["hrmax"]) if row and row["hrmax"] else 190.0
+
+
+async def get_hrv_history_for_energy(
+    user_id: int, days: int = 90
+) -> list[float | None]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT hrv_last_night FROM hrv_daily
+        WHERE user_id = $1
+          AND date >= $2
+        ORDER BY date
+        """,
+        user_id,
+        cutoff,
+    )
+    return [r["hrv_last_night"] for r in rows]
+
+
+async def get_sleep_hours_7d(user_id: int) -> list[float | None]:
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT total_sleep_seconds FROM sleep_sessions
+        WHERE user_id = $1
+          AND start_time >= CURRENT_DATE - INTERVAL '8 days'
+        ORDER BY start_time DESC
+        LIMIT 7
+        """,
+        user_id,
+    )
+    return [
+        float(r["total_sleep_seconds"]) / 3600.0
+        if r["total_sleep_seconds"] is not None
+        else None
+        for r in rows
+    ]
+
+
 async def get_body_battery_today(user_id: int) -> list[dict[str, Any]]:
     rows = await _pool_or_raise().fetch(
         """

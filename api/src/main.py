@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, field_validator
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import bcrypt
@@ -22,6 +23,7 @@ from src.db import (
     set_garmin_unlinked,
     get_recent_activities,
     get_activity_detail,
+    set_activity_rpe,
     get_daily_summaries,
     get_sleep_sessions,
     get_latest_hrv,
@@ -29,6 +31,7 @@ from src.db import (
     get_latest_training_status,
     get_weekly_stats,
     get_readiness,
+    get_energy_metrics,
     get_ml_insights,
     get_ml_history,
     get_ml_status,
@@ -397,6 +400,29 @@ async def api_activity_detail(request: Request, activity_id: int):
     return detail
 
 
+class RpeBody(BaseModel):
+    rpe: int
+
+    @field_validator("rpe")
+    @classmethod
+    def validate_rpe(cls, v: int) -> int:
+        if not 1 <= v <= 10:
+            raise ValueError("RPE must be between 1 and 10")
+        return v
+
+
+@app.patch("/api/activities/{activity_id}/rpe")
+async def api_set_rpe(request: Request, activity_id: int, body: RpeBody):
+    user = await require_user(request)
+    updated = await set_activity_rpe(user["id"], activity_id, body.rpe)
+    if not updated:
+        return JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": "Activity not found"}},
+        )
+    return {"ok": True, "rpe": body.rpe}
+
+
 @app.get("/api/activities")
 async def api_activities(
     request: Request,
@@ -450,6 +476,12 @@ async def api_weekly(
 async def api_readiness(request: Request):
     user = await require_user(request)
     return await get_readiness(user["id"])
+
+
+@app.get("/api/energy")
+async def api_energy(request: Request):
+    user = await require_user(request)
+    return await get_energy_metrics(user["id"])
 
 
 @app.get("/ml/anomaly")

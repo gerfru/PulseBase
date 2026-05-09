@@ -9,13 +9,17 @@ from config import Settings
 from db import (
     close_pool,
     get_active_users,
+    get_activity_trimp_inputs,
     get_bb_resting_hr_pairs,
     get_body_battery_history,
     get_body_battery_today,
+    get_hrmax,
+    get_hrv_history_for_energy,
     get_latest_features,
     get_ml_requested_users,
     get_readiness_training_rows,
     get_resting_hr_history,
+    get_sleep_hours_7d,
     get_sleep_hrv_pairs,
     get_sleep_resting_hr_pairs,
     get_today_resting_hr,
@@ -27,6 +31,11 @@ from models.anomaly import detect_resting_hr_anomaly
 from models.battery_pattern import fit_and_save as battery_fit_and_save
 from models.battery_pattern import predict_today as battery_predict_today
 from models.correlation import compute_sleep_hrv_correlation
+from models.energy_metrics import (
+    compute_autonomic_energy,
+    compute_cognitive_energy,
+    compute_physical_energy,
+)
 from models.readiness import predict_tomorrow, train_and_save
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -112,6 +121,31 @@ async def run_inference(user_id: int, settings: Settings) -> None:
         logger.info(
             f"user={user_id} battery_pattern={bp['pattern']} cluster={bp['cluster']}"
         )
+
+    # ── Energy Metrics ──────────────────────────────────────────────────────
+    today = date.today()
+
+    act_rows = await get_activity_trimp_inputs(user_id)
+    hrmax = await get_hrmax(user_id)
+    phys = compute_physical_energy(act_rows, hrmax, today)
+    await save_prediction(user_id, today, "energy_physical", phys.get("score"), phys)
+    logger.info(
+        f"user={user_id} energy_physical score={phys.get('score')} tsb={phys.get('tsb')}"
+    )
+
+    hrv_hist = await get_hrv_history_for_energy(user_id)
+    auton = compute_autonomic_energy(hrv_hist)
+    await save_prediction(user_id, today, "energy_autonomic", auton.get("score"), auton)
+    logger.info(
+        f"user={user_id} energy_autonomic score={auton.get('score')} dev={auton.get('deviation')}"
+    )
+
+    sleep_h = await get_sleep_hours_7d(user_id)
+    cog = compute_cognitive_energy(sleep_h)
+    await save_prediction(user_id, today, "energy_cognitive", cog.get("score"), cog)
+    logger.info(
+        f"user={user_id} energy_cognitive score={cog.get('score')} debt={cog.get('debt_hours')}"
+    )
 
 
 async def run_training(user_id: int, settings: Settings) -> None:
