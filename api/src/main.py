@@ -107,7 +107,7 @@ async def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded)
     )
 
 
-app = FastAPI(title="Garmin Dashboard API", lifespan=lifespan)
+app = FastAPI(title="PulseBase API", lifespan=lifespan)
 app.mount(
     "/static",
     StaticFiles(directory=str(Path(__file__).parent / "static")),
@@ -210,7 +210,8 @@ async def register(
     try:
         password_hash = hash_password(password)
         user = await create_user(name, email, password_hash)
-    except Exception:
+    except Exception as e:
+        logger.warning("register failed for '%s': %s", email, e)
         return templates.TemplateResponse(
             request,
             "register.html",

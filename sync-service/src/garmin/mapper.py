@@ -164,7 +164,7 @@ def map_hrv(raw: dict[str, Any], user_id: int, day: date) -> HRVDaily | None:
     return HRVDaily(
         date=day,
         user_id=user_id,
-        hrv_last_night=summary.get("lastNight"),
+        hrv_last_night=summary.get("lastNightAvg"),
         hrv_weekly_avg=summary.get("weeklyAvg"),
         hrv_status=summary.get("status"),
     )

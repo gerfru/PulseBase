@@ -2,7 +2,7 @@ from typing import Any
 
 import numpy as np
 
-_THRESHOLD = 1.5
+_THRESHOLD = 2.0
 _MIN_HISTORY = 7
 
 
@@ -21,7 +21,7 @@ def detect_resting_hr_anomaly(
 
     z = (float(today) - mean) / std
     return {
-        "is_anomaly": z > _THRESHOLD,
+        "is_anomaly": abs(z) > _THRESHOLD,
         "z_score": round(z, 2),
         "threshold": _THRESHOLD,
         "baseline_mean": round(mean, 1),

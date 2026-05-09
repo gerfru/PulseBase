@@ -86,7 +86,10 @@ async def get_readiness_training_rows(
                d.body_battery_high,
                d.avg_stress,
                COALESCE(atrain.aerobic_effect_daily,   0) AS aerobic_effect_daily,
-               COALESCE(atrain.anaerobic_effect_daily, 0) AS anaerobic_effect_daily
+               COALESCE(atrain.anaerobic_effect_daily, 0) AS anaerobic_effect_daily,
+               ep.value AS energy_physical_score,
+               ea.value AS energy_autonomic_score,
+               ec.value AS energy_cognitive_score
         FROM daily_summary d
         LEFT JOIN hrv_daily h ON h.date = d.date AND h.user_id = d.user_id
         LEFT JOIN sleep_sessions s
@@ -100,6 +103,12 @@ async def get_readiness_training_rows(
             WHERE user_id = $1 AND started_at >= $2
             GROUP BY 1
         ) atrain ON atrain.activity_date = d.date
+        LEFT JOIN ml_predictions ep
+               ON ep.date = d.date AND ep.user_id = d.user_id AND ep.model = 'energy_physical'
+        LEFT JOIN ml_predictions ea
+               ON ea.date = d.date AND ea.user_id = d.user_id AND ea.model = 'energy_autonomic'
+        LEFT JOIN ml_predictions ec
+               ON ec.date = d.date AND ec.user_id = d.user_id AND ec.model = 'energy_cognitive'
         WHERE d.user_id = $1
           AND d.date >= $2
         ORDER BY d.date

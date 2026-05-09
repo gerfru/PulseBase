@@ -197,7 +197,7 @@ const METRICS = {
                     ['ATL (τ=7d)', 'ATLₜ = ATLₜ₋₁ × e^(−1/7) + TRIMPₜ × (1 − e^(−1/7))'],
                     ['CTL (τ=42d)', 'CTLₜ = CTLₜ₋₁ × e^(−1/42) + TRIMPₜ × (1 − e^(−1/42))'],
                     ['TSB', 'TSB = CTL − ATL'],
-                    ['Score', 'Score = 50 + TSB × 2 (geclampt 0–100)'],
+                    ['Score', 'Score = 50 + TSB × 1.5 (geclampt 0–100)'],
                 ],
                 eli5: 'Denk an ein Sparkonto: Jedes Training hebt Geld ab (ATL = kurzfristige Erschöpfung). Regelmäßiges Training über Monate baut Zinsen auf (CTL = Fitness-Basis). TSB ist dein Kontostand: positiv = ausgeruht und fit. Negativ = müde. Vor Wettkämpfen ist ein leicht positiver TSB (+5 bis +15) ideal — fit ohne erschöpft zu sein.',
             };
