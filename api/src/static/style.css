@@ -350,6 +350,42 @@ tbody tr:hover { background: var(--surface-2); }
 .effect-fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width .4s ease; }
 .effect-val  { font-size: .85rem; font-weight: 600; min-width: 32px; text-align: right; color: var(--text); }
 
+/* ── RPE Chips ─────────────────────────────────────────────────────────── */
+.rpe-chips {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.rpe-chip {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--rpe-color, var(--accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s, box-shadow .15s, opacity .15s;
+  opacity: .45;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+.rpe-chip:hover { transform: scale(1.12); opacity: .8; }
+.rpe-chip.active {
+  transform: scale(1.18);
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.2), 0 0 14px var(--rpe-color, var(--accent));
+}
+.rpe-hint {
+  font-size: .78rem;
+  color: var(--muted);
+  margin-top: var(--sp-3);
+  min-height: 1.2em;
+}
+
 /* ── HRV / Training Status Cards ──────────────────────────────────────── */
 .kv-card  { display: flex; flex-direction: column; gap: var(--sp-3); }
 .kv-row   { display: flex; justify-content: space-between; align-items: center; }
@@ -552,6 +588,145 @@ tbody tr:hover { background: var(--surface-2); }
   .ml-kpi-tile { background: rgba(0,0,0,.025); border-color: rgba(0,0,0,.07); }
   .ml-kpi-tile:hover { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.12); }
   .ml-kpi-tile-warn { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.18); }
+}
+
+/* ── Metric Grid (Hero) ──────────────────────────────────────────────────── */
+.metric-section-label {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--muted);
+  margin: var(--sp-4) 0 var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.metric-section-label:first-child { border-top: none; margin-top: 0; }
+@media (prefers-color-scheme: light) {
+  .metric-section-label { border-top-color: var(--border); }
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--sp-3);
+}
+.metric-tile {
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  padding: var(--sp-4);
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.metric-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  border-color: rgba(255,255,255,.22);
+}
+@media (prefers-color-scheme: light) {
+  .metric-tile {
+    background: #fff;
+    border-color: rgba(148,163,184,.3);
+    box-shadow: 0 1px 6px rgba(0,0,0,.07);
+  }
+  .metric-tile:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+    border-color: rgba(99,102,241,.4);
+  }
+}
+.metric-tile-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+.metric-tile-value { font-size: 1.6rem; font-weight: 700; line-height: 1.15; margin-top: 4px; color: var(--text); }
+.metric-tile-sub   { font-size: .72rem; color: var(--muted); margin-top: 2px; min-height: 1em; }
+.metric-tile-hint  { font-size: .62rem; color: var(--muted); margin-top: var(--sp-2); opacity: .55; }
+
+/* ── Metric Info Modal ──────────────────────────────────────────────────── */
+.metric-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+}
+.metric-modal[hidden] { display: none; }
+.metric-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+}
+.metric-modal-content {
+  position: relative;
+  background: var(--surface, #1e293b);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  padding: var(--sp-6);
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+  animation: modal-in .18s ease;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@media (prefers-color-scheme: light) {
+  .metric-modal-content {
+    background: #fff;
+    border-color: rgba(148,163,184,.3);
+    box-shadow: 0 24px 64px rgba(0,0,0,.18);
+  }
+}
+.metric-modal-close {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  border: none;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.metric-modal-close:hover { background: rgba(255,255,255,.15); color: var(--text); }
+@media (prefers-color-scheme: light) {
+  .metric-modal-close { background: rgba(0,0,0,.06); }
+  .metric-modal-close:hover { background: rgba(0,0,0,.12); }
+}
+.metric-modal-label { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent, #6366f1); margin-bottom: var(--sp-1); }
+.metric-modal-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 0 var(--sp-8) var(--sp-5) 0; }
+.metric-modal-section { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: var(--sp-4) 0 var(--sp-2); }
+.metric-modal-inputs { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.metric-modal-inputs li {
+  font-size: .82rem;
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(255,255,255,.04);
+  border-radius: 7px;
+  line-height: 1.45;
+}
+@media (prefers-color-scheme: light) {
+  .metric-modal-inputs li { background: rgba(0,0,0,.04); }
+}
+.metric-modal-inputs li .weight { color: var(--accent, #6366f1); font-weight: 600; margin-left: 4px; }
+.metric-modal-eli5 {
+  margin: var(--sp-4) 0 0;
+  font-size: .84rem;
+  line-height: 1.6;
+  color: var(--text);
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(99,102,241,.08);
+  border-left: 3px solid var(--accent, #6366f1);
+  border-radius: 0 8px 8px 0;
 }
 
 /* ── ML Insights Detail Page ─────────────────────────────────────────────── */

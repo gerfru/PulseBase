@@ -113,6 +113,7 @@ async def get_activity_detail(user_id: int, activity_id: int) -> dict | None:
                a.distance_meters, a.calories, a.avg_hr, a.max_hr,
                a.avg_pace_sec_per_km, a.avg_speed_kmh, a.avg_cadence,
                a.avg_power, a.elevation_gain, a.aerobic_effect, a.anaerobic_effect,
+               a.user_rpe,
                ds.training_status
         FROM activities a
         LEFT JOIN daily_summary ds
@@ -138,6 +139,17 @@ async def get_activity_detail(user_id: int, activity_id: int) -> dict | None:
     )
     detail["records"] = [dict(r) for r in records]
     return detail
+
+
+async def set_activity_rpe(user_id: int, activity_id: int, rpe: int) -> bool:
+    pool = await get_pool()
+    result = await pool.execute(
+        "UPDATE activities SET user_rpe = $1 WHERE id = $2 AND user_id = $3",
+        rpe,
+        activity_id,
+        user_id,
+    )
+    return result == "UPDATE 1"
 
 
 async def get_daily_summaries(user_id: int, days: int = 30) -> list[dict]:
@@ -409,6 +421,26 @@ async def get_glucose_stats(user_id: int, days: int = 14) -> dict:
         str(days),
     )
     return dict(row) if row else {}
+
+
+async def get_energy_metrics(user_id: int) -> dict:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT DISTINCT ON (model) model, value, metadata
+        FROM ml_predictions
+        WHERE user_id = $1
+          AND model IN ('energy_physical', 'energy_autonomic', 'energy_cognitive')
+          AND date >= CURRENT_DATE - 1
+        ORDER BY model, date DESC
+        """,
+        user_id,
+    )
+    result: dict = {}
+    for row in rows:
+        meta = json.loads(row["metadata"]) if row["metadata"] else {}
+        result[row["model"]] = {"score": row["value"], **meta}
+    return result
 
 
 async def get_ml_history(user_id: int, days: int = 30) -> dict:
