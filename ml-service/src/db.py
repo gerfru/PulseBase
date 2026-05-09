@@ -271,10 +271,14 @@ async def get_hrv_history_for_energy(
 async def get_sleep_data_7d(user_id: int) -> list[dict[str, float | None]]:
     rows = await _pool_or_raise().fetch(
         """
-        SELECT total_sleep_seconds, deep_sleep_seconds FROM sleep_sessions
+        SELECT DISTINCT ON (sleep_date)
+               DATE(start_time AT TIME ZONE 'UTC') AS sleep_date,
+               total_sleep_seconds,
+               deep_sleep_seconds
+        FROM sleep_sessions
         WHERE user_id = $1
           AND start_time >= CURRENT_DATE - INTERVAL '8 days'
-        ORDER BY start_time DESC
+        ORDER BY sleep_date DESC, total_sleep_seconds DESC NULLS LAST
         LIMIT 7
         """,
         user_id,

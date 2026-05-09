@@ -86,7 +86,10 @@ def train_and_save(
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
     model_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"model": model, "features": feature_names}, model_path)
+    medians = {f: _median(r.get(f) for r in rows) for f in feature_names}
+    joblib.dump(
+        {"model": model, "features": feature_names, "medians": medians}, model_path
+    )
     importances = {
         f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
     }
@@ -102,12 +105,16 @@ def predict_tomorrow(
     if isinstance(saved, dict):
         model = saved["model"]
         feature_names: list[str] = saved["features"]
+        medians: dict[str, float | None] = saved.get("medians", {})
     else:
         model = saved
         feature_names = list(_CANDIDATE_FEATURES)
+        medians = {}
     vals = []
     for f in feature_names:
         v = features.get(f)
+        if v is None:
+            v = medians.get(f)
         if v is None:
             return None
         vals.append(float(v))
