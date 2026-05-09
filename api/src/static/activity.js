@@ -39,6 +39,68 @@ function fmtTime(iso) {
     return new Date(iso).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
 }
 
+// RPE color scale: green (easy) → red (max effort), Foster et al. (2001)
+const RPE_COLORS = [
+    '#22c55e', '#4ade80', '#a3e635',
+    '#facc15', '#f59e0b', '#fb923c',
+    '#f97316', '#ef4444', '#dc2626', '#991b1b',
+];
+const RPE_LABELS = [
+    'Sehr leicht', 'Leicht', 'Moderat',
+    'Etwas anstrengend', 'Anstrengend', 'Sehr anstrengend',
+    'Sehr anstrengend', 'Extrem anstrengend', 'Extrem anstrengend', 'Maximale Anstrengung',
+];
+
+function renderRpe(activityId, initialRpe, avgHr, durationSeconds) {
+    const container = document.getElementById('rpe-chips');
+    const hintEl    = document.getElementById('rpe-hint');
+    let current = initialRpe || null;
+
+    function updateStats(rpe) {
+        const statsEl = document.getElementById('rpe-stats');
+        if (!rpe) { statsEl.style.display = 'none'; return; }
+        statsEl.style.display = '';
+        const durationMin = (durationSeconds || 0) / 60;
+        document.getElementById('rpe-session-load').textContent = Math.round(rpe * durationMin) + ' AU';
+        document.getElementById('rpe-hr-ratio').textContent = avgHr
+            ? (avgHr / rpe).toFixed(1) + ' bpm/RPE'
+            : '—';
+    }
+
+    function renderChips(activeRpe) {
+        container.innerHTML = RPE_COLORS.map((color, i) => {
+            const n = i + 1;
+            return `<button class="rpe-chip${n === activeRpe ? ' active' : ''}"
+                        style="--rpe-color:${color}"
+                        data-rpe="${n}"
+                        aria-label="RPE ${n}: ${RPE_LABELS[i]}"
+                        title="${RPE_LABELS[i]}">${n}</button>`;
+        }).join('');
+        hintEl.textContent = activeRpe ? RPE_LABELS[activeRpe - 1] : 'Bewerte deine Anstrengung (1–10)';
+        updateStats(activeRpe);
+    }
+
+    renderChips(current);
+
+    container.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.rpe-chip');
+        if (!btn) return;
+        const rpe = parseInt(btn.dataset.rpe, 10);
+        current = rpe;
+        renderChips(current);
+        try {
+            const res = await fetch(`/api/activities/${activityId}/rpe`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rpe }),
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            hintEl.textContent = 'Speichern fehlgeschlagen — bitte nochmal versuchen';
+        }
+    });
+}
+
 const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
 Chart.defaults.borderColor = isDark ? 'rgba(51,65,85,.6)' : 'rgba(226,232,240,.8)';
@@ -84,6 +146,9 @@ async function load() {
         ['Höhenmeter', a.elevation_gain ? '+' + Math.round(a.elevation_gain) + ' m' : '—'],
     ];
     document.getElementById('stat-grid').innerHTML = stats.map(([l, v]) => statTile(l, v)).join('');
+
+    // RPE — Session-RPE (Foster et al. 2001): subjektive Anstrengung 1–10
+    renderRpe(id, a.user_rpe, a.avg_hr, a.duration_seconds);
 
     // Training Effect
     if (a.aerobic_effect || a.anaerobic_effect) {

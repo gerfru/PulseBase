@@ -42,6 +42,23 @@
             </div>
         </div>
 
+        <!-- RPE Rating -->
+        <div class="card" id="rpe-card">
+            <h2>Anstrengung (RPE)</h2>
+            <div class="rpe-chips" id="rpe-chips"></div>
+            <div id="rpe-stats" style="display:none; margin-top:var(--sp-4)">
+                <div class="kv-row">
+                    <span class="kv-label">Session Load</span>
+                    <span class="kv-value" id="rpe-session-load">—</span>
+                </div>
+                <div class="kv-row" style="margin-top:var(--sp-2)">
+                    <span class="kv-label">HR:RPE Effizienz</span>
+                    <span class="kv-value" id="rpe-hr-ratio">—</span>
+                </div>
+            </div>
+            <div class="rpe-hint" id="rpe-hint"></div>
+        </div>
+
         <!-- GPS Map -->
         <div class="card" id="map-card" style="display:none">
             <h2>GPS-Track</h2>
