@@ -19,7 +19,7 @@ from db import (
     get_ml_requested_users,
     get_readiness_training_rows,
     get_resting_hr_history,
-    get_sleep_hours_7d,
+    get_sleep_data_7d,
     get_sleep_hrv_pairs,
     get_sleep_resting_hr_pairs,
     get_today_resting_hr,
@@ -140,7 +140,7 @@ async def run_inference(user_id: int, settings: Settings) -> None:
         f"user={user_id} energy_autonomic score={auton.get('score')} dev={auton.get('deviation')}"
     )
 
-    sleep_h = await get_sleep_hours_7d(user_id)
+    sleep_h = await get_sleep_data_7d(user_id)
     cog = compute_cognitive_energy(sleep_h)
     await save_prediction(user_id, today, "energy_cognitive", cog.get("score"), cog)
     logger.info(
