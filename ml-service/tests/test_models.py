@@ -187,8 +187,10 @@ def test_predict_tomorrow_no_model(tmp_path):
 def test_predict_tomorrow_missing_feature(tmp_path):
     model_path = tmp_path / "readiness_rf_1.joblib"
     train_and_save(_make_rows(60), model_path)
+    # Missing features are imputed from saved training medians — result is not None
     result = predict_tomorrow({}, model_path)
-    assert result is None
+    assert result is not None
+    assert 0.0 <= result["score"] <= 100.0
 
 
 def test_training_effects_used_when_present():
