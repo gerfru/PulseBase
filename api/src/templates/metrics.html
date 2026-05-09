@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseBase — Kennzahl</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="metrics-page">
+        <a class="back-link" href="/dashboard">← Dashboard</a>
+
+        <div class="card metrics-header-card">
+            <div class="metrics-section-badge" id="metric-section"></div>
+            <h1 class="metrics-title" id="metric-title">Lade…</h1>
+            <div class="metrics-value" id="metric-value">—</div>
+            <div class="metrics-sub" id="metric-sub"></div>
+        </div>
+
+        <div class="card" id="chart-card" style="display:none">
+            <h2 id="chart-title">Verlauf</h2>
+            <div class="chart-wrap-lg"><canvas id="metrics-chart"></canvas></div>
+        </div>
+
+        <div class="metrics-kpis" id="metrics-kpis"></div>
+
+        <div class="card" id="formula-card" style="display:none">
+            <h2>Berechnung &amp; Formel</h2>
+            <div id="formula-content"></div>
+        </div>
+
+        <div class="card" id="eli5-card" style="display:none">
+            <h2>ELI5 — Erkläre mir das wie ich 5 bin</h2>
+            <p class="eli5-text" id="eli5-text"></p>
+        </div>
+    </div>
+
+    <script src="/static/metrics.js"></script>
+</body>
+</html>
