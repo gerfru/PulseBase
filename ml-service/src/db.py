@@ -27,6 +27,29 @@ def _pool_or_raise() -> asyncpg.Pool:
     return _pool
 
 
+def get_pool() -> asyncpg.Pool:
+    return _pool_or_raise()
+
+
+async def count_energy_gaps(user_id: int) -> int:
+    row = await _pool_or_raise().fetchrow(
+        """
+        SELECT COUNT(*) AS gaps
+        FROM daily_summary d
+        WHERE d.user_id = $1
+          AND d.date < CURRENT_DATE
+          AND NOT EXISTS (
+            SELECT 1 FROM ml_predictions p
+            WHERE p.user_id = d.user_id
+              AND p.date    = d.date
+              AND p.model   = 'energy_physical'
+          )
+        """,
+        user_id,
+    )
+    return int(row["gaps"]) if row else 0
+
+
 async def get_active_users() -> list[dict[str, Any]]:
     rows = await _pool_or_raise().fetch(
         "SELECT id, name FROM users WHERE is_active = true AND garmin_linked = true"
