@@ -85,20 +85,34 @@ def compute_autonomic_energy(
 
 
 def compute_cognitive_energy(
-    sleep_hours_7d: list[float | None],
+    sleep_data_7d: list[dict[str, float | None]],
 ) -> dict[str, Any]:
-    # Algorithmus: vereinfachtes Borbély Two-Process Model (Process S — homöostatischer Schlafdruck)
+    # Algorithmus: Borbély Two-Process Model (Process S — homöostatischer Schlafdruck)
     # Quelle: Borbély AA (1982) A two process model of sleep regulation. Hum Neurobiol 1(3):195-204
-    # Vereinfachung: kumulierte Schlafschuld über 7 Tage als Proxy für Adenosin-Anreicherung
-    # Optimal = 8h/Nacht (National Sleep Foundation, Erwachsene)
-    # Nicht implementiert: Process C (zirkadianer Rhythmus) — braucht Einschlaf-/Aufwachzeiten
-    vals = [v for v in sleep_hours_7d if v is not None]
-    if not vals:
+    # Process S wird primär durch SWS (Tiefschlaf) entladen, nicht reine Schlafdauer.
+    # Qualitätsfaktor: deep_ratio / 0.20 (Zielanteil Tiefschlaf für Erwachsene, Empfehlung NSF)
+    # Fallback quality=1.0 wenn keine Tiefschlaf-Daten (rückwärtskompatibel)
+    _TARGET_DEEP_RATIO = 0.20
+
+    debt = 0.0
+    days_used = 0
+    for d in sleep_data_7d:
+        total = d.get("total_h")
+        if total is None:
+            continue
+        days_used += 1
+        deep = d.get("deep_h")
+        if deep is not None and total > 0:
+            quality = max(0.5, min(1.0, (deep / total) / _TARGET_DEEP_RATIO))
+        else:
+            quality = 1.0
+        debt += max(0.0, 8.0 - total * quality)
+
+    if days_used == 0:
         return {"score": None, "reason": "no_sleep_data"}
 
-    debt = sum(max(0.0, 8.0 - h) for h in vals)
     return {
         "score": round(_clip(100 - debt * 6), 1),
         "debt_hours": round(debt, 2),
-        "days_used": len(vals),
+        "days_used": days_used,
     }

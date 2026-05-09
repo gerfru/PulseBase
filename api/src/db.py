@@ -254,50 +254,40 @@ async def get_weekly_stats(user_id: int, weeks: int = 12) -> list[dict]:
 
 
 async def get_readiness(user_id: int) -> dict:
-    pool = await get_pool()
-    row = await pool.fetchrow(
-        """
-        SELECT h.hrv_status, h.hrv_last_night, h.hrv_weekly_avg,
-               d.resting_hr, d.body_battery_high, d.avg_stress,
-               s.sleep_score
-        FROM daily_summary d
-        LEFT JOIN hrv_daily h
-               ON h.date = d.date AND h.user_id = d.user_id
-        LEFT JOIN sleep_sessions s
-               ON DATE(s.start_time AT TIME ZONE 'UTC') = d.date
-              AND s.user_id = d.user_id
-        WHERE d.user_id = $1
-          AND d.date >= CURRENT_DATE - 2
-        ORDER BY d.date DESC
-        LIMIT 1
-        """,
-        user_id,
-    )
-    if not row:
-        return {"score": None}
+    # Readiness = gewichteter Durchschnitt der eigenen Energie-Dimensionen
+    # Physical (0.35) + Autonomic (0.40) + Cognitive (0.25)
+    # Keine Garmin-Blackbox-Werte (HRV-Status Firstbeat, Body Battery, Stress)
+    energy = await get_energy_metrics(user_id)
+    phys = energy.get("energy_physical", {})
+    auton = energy.get("energy_autonomic", {})
+    cog = energy.get("energy_cognitive", {})
 
-    hrv_map = {"BALANCED": 100, "UNBALANCED": 50, "LOW": 25, "POOR": 0}
-    components = []
-    if row["hrv_status"]:
-        components.append((hrv_map.get(row["hrv_status"].upper(), 60), 0.30))
-    if row["sleep_score"] is not None:
-        components.append((row["sleep_score"], 0.30))
-    if row["body_battery_high"] is not None:
-        components.append((row["body_battery_high"], 0.20))
-    if row["avg_stress"] is not None:
-        components.append((max(0, 100 - row["avg_stress"]), 0.20))
+    components: list[tuple[float, float]] = []
+    if phys.get("score") is not None:
+        components.append((phys["score"], 0.35))
+    if auton.get("score") is not None:
+        components.append((auton["score"], 0.40))
+    if cog.get("score") is not None:
+        components.append((cog["score"], 0.25))
 
     if not components:
-        return {"score": None}
+        return {
+            "score": None,
+            "label": "Keine Daten",
+            "cls": "badge-poor",
+            "energy_physical": None,
+            "energy_autonomic": None,
+            "energy_cognitive": None,
+        }
 
     total_w = sum(w for _, w in components)
-    score = round(sum(v * w for v, w in components) / total_w)
+    score = round(max(0, min(100, sum(s * w / total_w for s, w in components))))
 
-    if score >= 80:
+    if score >= 75:
         label, cls = "Bereit", "badge-balanced"
-    elif score >= 60:
-        label, cls = "In Ordnung", "badge-unbalanced"
-    elif score >= 40:
+    elif score >= 55:
+        label, cls = "In Ordnung", "badge-balanced"
+    elif score >= 35:
         label, cls = "Erholen", "badge-unbalanced"
     else:
         label, cls = "Pause", "badge-poor"
@@ -306,10 +296,9 @@ async def get_readiness(user_id: int) -> dict:
         "score": score,
         "label": label,
         "cls": cls,
-        "hrv_status": row["hrv_status"],
-        "sleep_score": row["sleep_score"],
-        "body_battery": row["body_battery_high"],
-        "avg_stress": row["avg_stress"],
+        "energy_physical": phys.get("score"),
+        "energy_autonomic": auton.get("score"),
+        "energy_cognitive": cog.get("score"),
     }
 
 

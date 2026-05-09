@@ -132,7 +132,7 @@ function buildGarminCard() {
         metricTile({ label: 'Schritte',     value: last?.steps?.toLocaleString('de-AT') ?? '—', metric: 'steps' }),
         metricTile({ label: 'Schlaf-Score', value: sleep[0]?.sleep_score ?? '—',                metric: 'sleep' }),
         metricTile({ label: 'HRV Wochenø',  value: hrv?.hrv_weekly_avg ? hrv.hrv_weekly_avg + ' ms' : '—', metric: 'hrv' }),
-        metricTile({ label: 'Body Battery', value: last?.body_battery_high ?? '—',              metric: 'body-battery' }),
+        metricTile({ label: 'Ruhepuls',     value: last?.resting_hr ? last.resting_hr + ' bpm' : '—', metric: 'hr-zscore' }),
     ];
     el.innerHTML = `<h2>Garmin</h2><div class="metric-grid">${tiles.join('')}</div>`;
 }
@@ -158,9 +158,7 @@ function buildEnergieCard() {
 function buildMlCard() {
     const el  = document.getElementById('bento-ml');
     if (!el) return;
-    const ml  = _heroData.ml || {};
-    const hrv = _heroData.hrv;
-    const ts  = _heroData.trainingStatus;
+    const ml      = _heroData.ml || {};
     const anomaly = ml.anomaly_hr;
     const rf      = ml.readiness_rf;
     const tiles   = [];
@@ -186,40 +184,6 @@ function buildMlCard() {
         }));
     } else {
         tiles.push(metricTile({ label: 'Prognose morgen', value: '—', sub: 'Modell trainiert sonntags', metric: 'readiness-rf' }));
-    }
-
-    const hrvStatusLabels = { balanced: 'Ausgeglichen', unbalanced: 'Unausgeglichen', low: 'Niedrig', poor: 'Niedrig' };
-    const hrvStatusKey = (hrv?.hrv_status || '').toLowerCase();
-    const hrvStatusVal = hrvStatusLabels[hrvStatusKey] ?? (hrv?.hrv_status ?? '—');
-    const hrvStatusCls = hrvStatusKey === 'balanced' ? 'badge-balanced'
-        : hrvStatusKey === 'unbalanced' ? 'badge-unbalanced'
-        : (hrvStatusKey === 'low' || hrvStatusKey === 'poor') ? 'badge-poor' : '';
-    tiles.push(metricTile({
-        label: 'HRV-Status',
-        value: hrvStatusCls ? `<span class="badge ${hrvStatusCls}" style="font-size:1rem;padding:.1rem .5rem">${hrvStatusVal}</span>` : '—',
-        sub: hrv?.hrv_last_night ? `${hrv.hrv_last_night} ms letzte Nacht` : '',
-        metric: 'hrv-status',
-    }));
-
-    const tsMap = {
-        PRODUCTIVE:   { label: 'Aufbauend',       cls: 'badge-balanced'   },
-        MAINTAINING:  { label: 'Erhalt',           cls: 'badge-balanced'   },
-        RECOVERY:     { label: 'Erholung',         cls: 'badge-unbalanced' },
-        UNPRODUCTIVE: { label: 'Nicht produktiv',  cls: 'badge-unbalanced' },
-        OVERREACHING: { label: 'Übertraining',     cls: 'badge-poor'       },
-        DETRAINING:   { label: 'Abfall',           cls: 'badge-poor'       },
-    };
-    if (ts?.training_status) {
-        const key   = (ts.training_status || '').toUpperCase();
-        const entry = tsMap[key] || { label: ts.training_status, cls: 'badge-unbalanced' };
-        const dStr  = ts.date ? new Date(ts.date).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' }) : '';
-        tiles.push(metricTile({
-            label: 'Trainingszustand',
-            value: `<span class="badge ${entry.cls}" style="font-size:1rem;padding:.1rem .5rem">${entry.label}</span>`,
-            sub: dStr ? `Stand ${dStr}` : '', metric: 'training-status',
-        }));
-    } else {
-        tiles.push(metricTile({ label: 'Trainingszustand', value: '—', sub: 'wird nach Sync befüllt', metric: 'training-status' }));
     }
 
     el.innerHTML = `<h2>ML &amp; Status</h2><div class="metric-grid">${tiles.join('')}</div>`;
