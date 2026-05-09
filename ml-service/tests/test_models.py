@@ -90,11 +90,11 @@ def _make_rows(n: int) -> list[dict]:
         rows.append(
             {
                 "hrv_last_night": float(np.random.uniform(30, 80)),
-                "hrv_status": "BALANCED",
                 "sleep_score": float(np.random.uniform(40, 90)),
                 "resting_hr": float(np.random.uniform(45, 70)),
-                "body_battery_high": float(np.random.uniform(30, 100)),
-                "avg_stress": float(np.random.uniform(10, 60)),
+                "energy_physical_score": float(np.random.uniform(20, 80)),
+                "energy_autonomic_score": float(np.random.uniform(20, 80)),
+                "energy_cognitive_score": float(np.random.uniform(20, 80)),
             }
         )
     return rows

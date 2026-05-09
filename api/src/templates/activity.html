@@ -24,6 +24,7 @@
         <!-- Training Effect -->
         <div class="card" id="effect-card" style="display:none">
             <h2>Trainingswirkung</h2>
+            <p class="card-desc">Garmin Firstbeat · Skala 0–5 · 1–2 Erhalt · 2–3 Verbesserung · 3–4 Stark verbessernd · 4–5 Überbelastung</p>
             <div id="effect-aerobic" class="effect-row">
                 <span class="effect-name">Aerobe Wirkung</span>
                 <div class="effect-bar"><div class="effect-fill" id="fill-aerobic" style="width:0%"></div></div>
@@ -45,14 +46,21 @@
         <!-- RPE Rating -->
         <div class="card" id="rpe-card">
             <h2>Anstrengung (RPE)</h2>
+            <p class="card-desc">Rating of Perceived Exertion — deine subjektive Einschätzung der Belastung · Skala 1 (sehr leicht) bis 10 (maximale Anstrengung) · Foster et al. (2001)</p>
             <div class="rpe-chips" id="rpe-chips"></div>
             <div id="rpe-stats" style="display:none; margin-top:var(--sp-4)">
                 <div class="kv-row">
-                    <span class="kv-label">Session Load</span>
+                    <span class="kv-label">
+                        Session Load
+                        <small class="kv-sub">RPE × Dauer in Minuten (Foster-Methode)</small>
+                    </span>
                     <span class="kv-value" id="rpe-session-load">—</span>
                 </div>
                 <div class="kv-row" style="margin-top:var(--sp-2)">
-                    <span class="kv-label">HR:RPE Effizienz</span>
+                    <span class="kv-label">
+                        HR:RPE Effizienz
+                        <small class="kv-sub">Ø Puls ÷ RPE — je niedriger, desto mehr Herzstress pro wahrgenommener Anstrengung</small>
+                    </span>
                     <span class="kv-value" id="rpe-hr-ratio">—</span>
                 </div>
             </div>
