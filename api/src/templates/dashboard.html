@@ -45,9 +45,16 @@
 
     <div class="grid">
 
-        <!-- Metrics Hero — alle Kennzahlen -->
-        <div class="card card-hero full" id="metrics-hero">
-            <p class="empty">Lade…</p>
+        <!-- Metrics Bento — Kennzahlen in Bento-Box-Layout -->
+        <div class="metrics-bento full">
+            <div class="bento-row bento-row-top">
+                <div class="card bento-readiness" id="bento-readiness"><p class="empty">Lade…</p></div>
+                <div class="card bento-garmin"    id="bento-garmin"><p class="empty">Lade…</p></div>
+            </div>
+            <div class="bento-row bento-row-bottom">
+                <div class="card bento-energie" id="bento-energie"><p class="empty">Lade…</p></div>
+                <div class="card bento-ml"      id="bento-ml"><p class="empty">Lade…</p></div>
+            </div>
         </div>
 
         <!-- ── Training ──────────────────────────────────────────────── -->
@@ -124,19 +131,6 @@
             <p class="empty" id="hrv-trend-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-    </div>
-
-    <div id="metric-modal" class="metric-modal" role="dialog" aria-modal="true" hidden>
-        <div class="metric-modal-backdrop" id="modal-backdrop"></div>
-        <div class="metric-modal-content">
-            <button class="metric-modal-close" id="modal-close" aria-label="Schließen">✕</button>
-            <div class="metric-modal-label" id="modal-section-label"></div>
-            <h2 class="metric-modal-title" id="modal-title"></h2>
-            <p class="metric-modal-section">Eingaben</p>
-            <ul class="metric-modal-inputs" id="modal-inputs"></ul>
-            <p class="metric-modal-section" id="modal-eli5-label" style="display:none">ELI5 — Erkläre mir das wie ich 5 bin</p>
-            <p class="metric-modal-eli5" id="modal-eli5" style="display:none"></p>
-        </div>
     </div>
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
