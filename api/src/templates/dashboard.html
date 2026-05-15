@@ -1,78 +1,85 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseBase — Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}PulseBase — Dashboard{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block content %}
 
-    <div class="dash-header">
-        <div class="dash-header-left">
-            <h1 class="dash-brand">PulseBase</h1>
-            <span class="dash-user">{{ user.name }}</span>
+    <header class="flex items-center justify-between px-4 py-3 mb-4 flex-wrap gap-3">
+        <div class="flex items-baseline gap-3">
+            <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</h1>
+            <span class="text-sm text-slate-500 dark:text-slate-400">{{ user.name }}</span>
         </div>
-        <div class="dash-header-right">
-            <div class="time-selector">
+        <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex gap-1">
                 <button class="time-btn active" data-days="7">7T</button>
                 <button class="time-btn" data-days="14">14T</button>
                 <button class="time-btn" data-days="30">30T</button>
                 <button class="time-btn" data-days="90">90T</button>
                 <button class="time-btn" data-days="365">365T</button>
             </div>
-            <div class="sync-status">
+            <div class="flex items-center gap-2">
                 <span id="ml-status" class="sync-last" style="display:none"></span>
                 <span id="sync-last" class="sync-last"></span>
-                <button id="sync-btn" class="btn btn-secondary btn-sm" aria-label="Sync jetzt starten">↻ Sync</button>
+                <button id="sync-btn"
+                        class="px-3 py-1.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+                        aria-label="Sync jetzt starten">↻ Sync</button>
             </div>
-            <a href="/settings" class="btn btn-secondary btn-sm" aria-label="Einstellungen">⚙ Einstellungen</a>
+            <a href="/settings"
+               class="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+               aria-label="Einstellungen">⚙ Einstellungen</a>
             <form method="post" action="/logout">
-                <button class="btn btn-secondary btn-sm" type="submit">Abmelden</button>
+                <button type="submit"
+                        class="px-3 py-1.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/15 transition-colors">
+                    Abmelden
+                </button>
             </form>
         </div>
-    </div>
+    </header>
 
     {% if not user.garmin_linked %}
-    <div style="padding: 0 var(--sp-4); margin-bottom: var(--sp-4);">
-        <div class="banner-warning">
+    <div class="px-4 mb-4">
+        <div class="px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/25 text-yellow-200 text-sm">
             Garmin Account noch nicht verknüpft —
-            <a href="/garmin/link">jetzt verbinden →</a>
+            <a href="/garmin/link" class="font-semibold text-yellow-300 hover:underline">jetzt verbinden →</a>
         </div>
     </div>
     {% endif %}
 
-    <div class="grid">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pb-12">
 
-        <!-- Metrics Bento — Kennzahlen in Bento-Box-Layout -->
-        <div class="metrics-bento full">
-            <div class="bento-row bento-row-top">
-                <div class="card bento-readiness" id="bento-readiness"><p class="empty">Lade…</p></div>
-                <div class="card bento-garmin"    id="bento-garmin"><p class="empty">Lade…</p></div>
+        <!-- Metrics Bento -->
+        <div class="col-span-full flex flex-col gap-4">
+            <div class="grid gap-4 grid-cols-1 sm:grid-cols-[1fr_2fr]">
+                <div class="card" id="bento-readiness"><p class="empty">Lade…</p></div>
+                <div class="card" id="bento-garmin"><p class="empty">Lade…</p></div>
             </div>
-            <div class="bento-row bento-row-bottom">
-                <div class="card bento-energie" id="bento-energie"><p class="empty">Lade…</p></div>
-                <div class="card bento-ml"      id="bento-ml"><p class="empty">Lade…</p></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="card" id="bento-energie"><p class="empty">Lade…</p></div>
+                <div class="card" id="bento-ml"><p class="empty">Lade…</p></div>
             </div>
         </div>
 
-        <!-- ── Training ──────────────────────────────────────────────── -->
-        <div class="section-label">Training</div>
+        <!-- ── Training ───────────────────────────────────────────── -->
+        <div class="col-span-full text-[0.68rem] font-bold uppercase tracking-[.12em] text-slate-500 pt-4 pb-1 border-t border-white/[0.07] mt-2">
+            Training
+        </div>
 
-        <div class="card full" id="weekly-card">
+        <div class="card col-span-full" id="weekly-card">
             <h2>Wochenübersicht</h2>
             <div class="chart-wrap"><canvas id="weekly-chart"></canvas></div>
             <p class="empty" id="weekly-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <div class="card full">
+        <div class="card col-span-full">
             <h2>Letzte Aktivitäten</h2>
             <div id="activities-container"><p class="empty">Lade…</p></div>
         </div>
 
-        <!-- ── Verlauf ───────────────────────────────────────────────── -->
-        <div class="section-label">Verlauf</div>
+        <!-- ── Verlauf ────────────────────────────────────────────── -->
+        <div class="col-span-full text-[0.68rem] font-bold uppercase tracking-[.12em] text-slate-500 pt-4 pb-1 border-t border-white/[0.07] mt-2">
+            Verlauf
+        </div>
 
         <div class="card">
             <h2>Schritte</h2>
@@ -110,8 +117,10 @@
             <p class="empty" id="calories-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- ── Erholung ──────────────────────────────────────────────── -->
-        <div class="section-label">Erholung</div>
+        <!-- ── Erholung ───────────────────────────────────────────── -->
+        <div class="col-span-full text-[0.68rem] font-bold uppercase tracking-[.12em] text-slate-500 pt-4 pb-1 border-t border-white/[0.07] mt-2">
+            Erholung
+        </div>
 
         <div class="card">
             <h2>Schlaf-Score</h2>
@@ -135,6 +144,7 @@
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
-    <script src="/static/dashboard.js"></script>
-</body>
-</html>
+{% endblock %}
+{% block scripts %}
+<script src="/static/dashboard.js"></script>
+{% endblock %}

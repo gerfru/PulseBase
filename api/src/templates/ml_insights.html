@@ -1,50 +1,50 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseBase — {{ title }}</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body data-section="{{ section }}">
+{% extends "base.html" %}
+{% block title %}PulseBase — {{ title }}{% endblock %}
+{% block body_attrs %}data-section="{{ section }}"{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block content %}
+<div>
 
-    <div class="act-header card">
-        <a class="act-back" href="/dashboard">← Dashboard</a>
-        <h1 class="act-title">{{ title }}</h1>
+    <div class="card mx-4 mt-4 flex flex-col gap-2">
+        <a class="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-100 transition-colors no-underline w-fit" href="/dashboard">← Dashboard</a>
+        <h1 class="text-2xl font-bold text-slate-100 m-0">{{ title }}</h1>
     </div>
 
-    <div class="content">
+    <div class="px-4 pb-10 flex flex-col gap-4 mt-4">
 
         <!-- Ruhepuls Anomalie -->
-        <div class="card full" id="anomaly-card" style="display:none">
+        <div class="card" id="anomaly-card" style="display:none">
             <div class="ml-stat-grid" id="anomaly-stats"></div>
             <div class="chart-wrap"><canvas id="anomaly-chart"></canvas></div>
         </div>
 
         <!-- Readiness Prognose -->
-        <div class="card full" id="rf-card" style="display:none">
+        <div class="card" id="rf-card" style="display:none">
             <div class="ml-stat-grid" id="rf-stats"></div>
             <div class="chart-wrap" style="margin-bottom:var(--sp-5)"><canvas id="rf-chart"></canvas></div>
             <div id="rf-importance" style="display:none">
-                <h2 style="margin-bottom:var(--sp-3)">Feature Importance</h2>
+                <h2>Feature Importance</h2>
                 <div class="chart-wrap" style="max-height:160px"><canvas id="importance-chart"></canvas></div>
                 <div id="rf-meta" style="margin-top:var(--sp-3)"></div>
             </div>
         </div>
 
         <!-- Korrelationen -->
-        <div class="card full" id="corr-card" style="display:none">
+        <div class="card" id="corr-card" style="display:none">
             <div id="corr-items"></div>
         </div>
 
         <!-- Body Battery Muster -->
-        <div class="card full" id="bp-card" style="display:none">
+        <div class="card" id="bp-card" style="display:none">
             <div id="bp-content"></div>
         </div>
 
     </div>
 
-    <script src="/static/ml_insights.js"></script>
-</body>
-</html>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/ml_insights.js"></script>
+{% endblock %}

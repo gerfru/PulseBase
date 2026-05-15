@@ -7,13 +7,22 @@ const SPORT_EMOJI = {
     running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
     hiking: '🥾', strength_training: '🏋️', yoga: '🧘',
     indoor_cycling: '🚴', trail_running: '🏔️', open_water_swimming: '🌊',
-    cardio: '💪', elliptical: '🔄', fitness_equipment: '🏋️', default: '⚡'
+    cardio: '💪', cardio_training: '💪', elliptical: '🔄',
+    fitness_equipment: '🏋️', other: '⚡', default: '⚡'
+};
+const SPORT_LABEL = {
+    running: 'Laufen', cycling: 'Radfahren', swimming: 'Schwimmen',
+    walking: 'Gehen', hiking: 'Wandern', strength_training: 'Krafttraining',
+    yoga: 'Yoga', indoor_cycling: 'Indoor Cycling', trail_running: 'Trailrunning',
+    open_water_swimming: 'Freiwasserschwimmen', cardio: 'Cardio',
+    cardio_training: 'Cardio', elliptical: 'Ellipsentrainer',
+    fitness_equipment: 'Fitnessgerät', other: 'Sonstige'
 };
 
 function sportLabel(type) {
     const emoji = SPORT_EMOJI[type] || SPORT_EMOJI.default;
-    const name = (type || 'unbekannt').replace(/_/g, ' ');
-    return `${emoji} ${name.charAt(0).toUpperCase() + name.slice(1)}`;
+    const name = SPORT_LABEL[type] || (type || 'Sonstige').replace(/_/g, ' ');
+    return `${emoji} ${name}`;
 }
 
 function fmtDuration(s) {
@@ -26,7 +35,8 @@ function fmtDist(m) { return m ? (m / 1000).toFixed(1) + ' km' : '—'; }
 
 function fmtDate(iso) {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
+    const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' });
 }
 
 function secToH(s) { return s ? +(s / 3600).toFixed(1) : null; }
@@ -355,17 +365,26 @@ async function loadEnergyMetrics() {
 
 async function loadWeekly() {
     const data = await fetch('/api/weekly?weeks=12').then(r => r.json());
-    if (!data.length || !data.some(w => w.run_km || w.ride_km)) {
+    if (!data.length || !data.some(w => w.total_km || w.other_hours)) {
         showEmpty('weekly'); return;
     }
     hideEmpty('weekly');
-    const labels = data.map(w =>
-        new Date(w.week).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' })
-    );
-    makeChart('weekly-chart', 'bar', labels, [
-        { label: 'Laufen',    data: data.map(w => w.run_km  || 0), backgroundColor: 'rgba(99,102,241,.75)',  stack: 'km', borderRadius: 3 },
+    const labels = data.map(w => {
+        const [y, mo, d] = String(w.week).slice(0, 10).split('-').map(Number);
+        return new Date(y, mo - 1, d).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' });
+    });
+    const hasStrength = data.some(w => w.other_hours);
+    const datasets = [
+        { label: 'Ausdauer',  data: data.map(w => w.run_km  || 0), backgroundColor: 'rgba(99,102,241,.75)',  stack: 'km', borderRadius: 3 },
         { label: 'Radfahren', data: data.map(w => w.ride_km || 0), backgroundColor: 'rgba(245,158,11,.75)', stack: 'km', borderRadius: 3 },
-    ], { scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } } });
+    ];
+    if (hasStrength) {
+        datasets.push({ label: 'Strength Training', data: data.map(w => w.other_hours || 0), backgroundColor: 'rgba(16,185,129,.65)', stack: 'st', borderRadius: 3, yAxisID: 'yh' });
+    }
+    const scales = hasStrength
+        ? { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' }, position: 'left' }, yh: { stacked: true, title: { display: true, text: 'h' }, position: 'right', grid: { drawOnChartArea: false } } }
+        : { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } };
+    makeChart('weekly-chart', 'bar', labels, datasets, { scales });
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -400,6 +419,7 @@ async function pollMlStatus() {
                 showToast('ML Einblicke aktualisiert');
                 loadMlInsights();
                 loadEnergyMetrics().catch(() => {});
+                loadReadiness().catch(() => {});
             }
             _mlPollTimer = null;
         }

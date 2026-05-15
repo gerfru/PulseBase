@@ -56,6 +56,7 @@ class TimescaleRepository(
                     avg_speed_kmh, aerobic_effect, anaerobic_effect
                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
                 ON CONFLICT (garmin_activity_id) DO UPDATE SET
+                    sport_type       = EXCLUDED.sport_type,
                     aerobic_effect   = EXCLUDED.aerobic_effect,
                     anaerobic_effect = EXCLUDED.anaerobic_effect
                 RETURNING id
