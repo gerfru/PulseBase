@@ -1,87 +1,126 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseBase — Einstellungen</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="settings-wrap">
+{% extends "base.html" %}
+{% block title %}PulseBase — Einstellungen{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8 pb-16 flex flex-col gap-4">
 
-        <div class="settings-header">
-            <a href="/dashboard" class="btn btn-secondary btn-sm">← Dashboard</a>
-            <h1 class="settings-title">Einstellungen</h1>
-        </div>
-
-        <!-- Account -->
-        <div class="card settings-section">
-            <h2>Account</h2>
-            <div class="settings-row">
-                <span class="settings-label">Name</span>
-                <span class="settings-value">{{ user.name }}</span>
-            </div>
-            <div class="settings-row">
-                <span class="settings-label">E-Mail</span>
-                <span class="settings-value">{{ user.email }}</span>
-            </div>
-        </div>
-
-        <!-- Garmin Connect -->
-        <div class="card settings-section">
-            <h2>Garmin Connect</h2>
-            {% if user.garmin_linked %}
-            <div class="settings-row">
-                <div>
-                    <div class="settings-connected-label">Verbunden</div>
-                    <div class="settings-connected-sub">{{ user.garmin_email }}</div>
-                </div>
-                <form method="post" action="/garmin/unlink">
-                    <button class="btn btn-danger btn-sm" type="submit">Trennen</button>
-                </form>
-            </div>
-            <p class="settings-hint">Aktivitäten, Tagesübersichten und Schlafdaten werden täglich synchronisiert.</p>
-            {% else %}
-            <div class="settings-row">
-                <span class="settings-value muted">Nicht verbunden</span>
-                <a class="btn btn-primary btn-sm" href="/garmin/link">Verbinden</a>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- LibreLinkUp -->
-        <div class="card settings-section">
-            <h2>LibreLinkUp (Glukose)</h2>
-            {% if user.libre_linked %}
-            <div class="settings-row">
-                <div>
-                    <div class="settings-connected-label">Verbunden</div>
-                    <div class="settings-connected-sub">{{ user.libre_email }}</div>
-                </div>
-                <form method="post" action="/libre/unlink">
-                    <button class="btn btn-danger btn-sm" type="submit">Trennen &amp; Daten löschen</button>
-                </form>
-            </div>
-            <p class="settings-hint">Glukosewerte werden alle 5 Minuten abgerufen. Beim Trennen werden alle gespeicherten Messwerte gelöscht.</p>
-            {% else %}
-            <div class="settings-row">
-                <span class="settings-value muted">Nicht verbunden</span>
-                <a class="btn btn-primary btn-sm" href="/libre/link">Verbinden</a>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Session -->
-        <div class="card settings-section">
-            <h2>Sitzung</h2>
-            <div class="settings-row">
-                <span class="settings-value">Angemeldet als {{ user.name }}</span>
-                <form method="post" action="/logout">
-                    <button class="btn btn-secondary btn-sm" type="submit">Abmelden</button>
-                </form>
-            </div>
-        </div>
-
+    <div class="flex items-center gap-4 mb-2">
+        <a href="/dashboard"
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+            ← Dashboard
+        </a>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Einstellungen</h1>
     </div>
-</body>
-</html>
+
+    <!-- Erscheinungsbild -->
+    <div class="card">
+        <h2>Erscheinungsbild</h2>
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-sm font-medium text-slate-700 dark:text-slate-200">Dunkelmodus</div>
+                <div class="text-xs text-slate-400 mt-0.5">Folgt der Systemeinstellung, wenn nicht manuell gesetzt</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                <input type="checkbox" id="theme-toggle" class="sr-only peer">
+                <div class="w-11 h-6 rounded-full transition-colors
+                            bg-slate-300 dark:bg-slate-600
+                            peer-checked:bg-emerald-500
+                            after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                            after:bg-white after:rounded-full after:h-5 after:w-5
+                            after:transition-all peer-checked:after:translate-x-5
+                            after:shadow-sm"></div>
+            </label>
+        </div>
+    </div>
+
+    <!-- Account -->
+    <div class="card">
+        <h2>Account</h2>
+        <div class="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-white/[0.06]">
+            <span class="text-sm text-slate-500 dark:text-slate-400">Name</span>
+            <span class="text-sm text-slate-900 dark:text-slate-100 font-medium">{{ user.name }}</span>
+        </div>
+        <div class="flex items-center justify-between py-2.5">
+            <span class="text-sm text-slate-500 dark:text-slate-400">E-Mail</span>
+            <span class="text-sm text-slate-900 dark:text-slate-100">{{ user.email }}</span>
+        </div>
+    </div>
+
+    <!-- Garmin Connect -->
+    <div class="card">
+        <h2>Garmin Connect</h2>
+        {% if user.garmin_linked %}
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-sm font-semibold text-emerald-500">Verbunden</div>
+                <div class="text-xs text-slate-400 mt-0.5">{{ user.garmin_email }}</div>
+            </div>
+            <form method="post" action="/garmin/unlink">
+                <button type="submit"
+                        class="px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-xs font-medium transition-colors">
+                    Trennen
+                </button>
+            </form>
+        </div>
+        <p class="mt-3 text-xs text-slate-400 leading-relaxed">
+            Aktivitäten, Tagesübersichten und Schlafdaten werden täglich synchronisiert.
+        </p>
+        {% else %}
+        <div class="flex items-center justify-between gap-4">
+            <span class="text-sm text-slate-400">Nicht verbunden</span>
+            <a href="/garmin/link"
+               class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-colors">
+                Verbinden
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- LibreLinkUp -->
+    <div class="card">
+        <h2>LibreLinkUp (Glukose)</h2>
+        {% if user.libre_linked %}
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-sm font-semibold text-emerald-500">Verbunden</div>
+                <div class="text-xs text-slate-400 mt-0.5">{{ user.libre_email }}</div>
+            </div>
+            <form method="post" action="/libre/unlink">
+                <button type="submit"
+                        class="px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-xs font-medium transition-colors">
+                    Trennen &amp; Daten löschen
+                </button>
+            </form>
+        </div>
+        <p class="mt-3 text-xs text-slate-400 leading-relaxed">
+            Glukosewerte werden alle 5 Minuten abgerufen. Beim Trennen werden alle Messwerte gelöscht.
+        </p>
+        {% else %}
+        <div class="flex items-center justify-between gap-4">
+            <span class="text-sm text-slate-400">Nicht verbunden</span>
+            <a href="/libre/link"
+               class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-colors">
+                Verbinden
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sitzung -->
+    <div class="card">
+        <h2>Sitzung</h2>
+        <div class="flex items-center justify-between gap-4">
+            <span class="text-sm text-slate-700 dark:text-slate-300">Angemeldet als {{ user.name }}</span>
+            <form method="post" action="/logout">
+                <button type="submit"
+                        class="px-3.5 py-1.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-black/10 dark:hover:bg-white/15 transition-colors">
+                    Abmelden
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/theme.js"></script>
+{% endblock %}

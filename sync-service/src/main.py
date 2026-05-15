@@ -104,6 +104,7 @@ async def sync_user(user: dict, repo: TimescaleRepository, days: int = 1) -> Non
 
         current += timedelta(days=1)
 
+    client.save_token()
     logger.info(f"Sync fertig: {user['name']}")
 
 
@@ -176,10 +177,10 @@ async def process_sync_requests(repo: TimescaleRepository) -> None:
         logger.info(f"Manueller Sync: {user['name']}")
         try:
             await sync_user(user, repo, days=2)
-            await set_ml_requested(user["id"], repo)
         except Exception as e:
             logger.error(f"Manueller Sync Fehler {user['name']}: {e}", exc_info=True)
         finally:
+            await set_ml_requested(user["id"], repo)
             await mark_sync_done(user["id"], repo)
 
 

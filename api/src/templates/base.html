@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="de" class="antialiased dark" {% block body_attrs %}{% endblock %}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PulseBase{% endblock %}</title>
+    <script src="/static/theme-init.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/tailwind-config.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
+    <div class="fixed inset-0 -z-10 pointer-events-none dark:block hidden" aria-hidden="true"
+         style="background:radial-gradient(ellipse 60% 50% at 10% 10%,rgba(16,185,129,.15) 0%,transparent 70%),radial-gradient(ellipse 50% 60% at 85% 30%,rgba(52,211,153,.11) 0%,transparent 70%),radial-gradient(ellipse 55% 45% at 40% 90%,rgba(5,150,105,.09) 0%,transparent 70%)"></div>
+    <div class="fixed inset-0 -z-10 pointer-events-none dark:hidden block" aria-hidden="true"
+         style="background:radial-gradient(ellipse 60% 50% at 10% 10%,rgba(16,185,129,.10) 0%,transparent 70%),radial-gradient(ellipse 50% 60% at 85% 30%,rgba(52,211,153,.07) 0%,transparent 70%),radial-gradient(ellipse 55% 45% at 40% 90%,rgba(5,150,105,.06) 0%,transparent 70%)"></div>
+    {% block content %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>
