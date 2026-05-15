@@ -45,6 +45,13 @@ logger = logging.getLogger(__name__)
 
 
 async def run_inference(user_id: int, settings: Settings) -> None:
+    """Run all inference models in order: anomaly → correlations (3×) → readiness RF →
+    battery pattern → energy metrics (physical/autonomic/cognitive).
+
+    RF readiness falls back silently when no trained model exists yet (< 30 training rows).
+    Battery pattern is skipped when today has < 6 body battery readings.
+    All results are written to ml_predictions; existing rows for today are overwritten.
+    """
     # Anomaly detection
     history = await get_resting_hr_history(user_id)
     today_hr = await get_today_resting_hr(user_id)
@@ -156,6 +163,12 @@ async def run_inference(user_id: int, settings: Settings) -> None:
 
 
 async def run_training(user_id: int, settings: Settings) -> None:
+    """Train RF readiness model first, then k-means battery pattern.
+
+    RF is trained before k-means so that inference (run immediately after on-request)
+    can already use the fresh model. Both return None silently when minimum data
+    thresholds are not met (RF: 30 rows, k-means: 14 days) — not an error condition.
+    """
     model_path = settings.model_dir / f"readiness_rf_{user_id}.joblib"
     rows = await get_readiness_training_rows(user_id)
     meta = train_and_save(rows, model_path)
@@ -186,6 +199,13 @@ async def run_training(user_id: int, settings: Settings) -> None:
 
 
 async def run_on_request(settings: Settings) -> None:
+    """Handle manual ML runs triggered by the sync-service after a Garmin sync.
+
+    Checks `ml_requested = true` in users table (set by sync-service). Backfills
+    energy history gaps (up to 30 days) before training so the first inference after
+    a fresh account link has a complete baseline. mark_ml_done resets the flag and
+    records last_ml_at regardless of success or failure.
+    """
     users = await get_ml_requested_users()
     for user in users:
         uid = user["id"]

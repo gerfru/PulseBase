@@ -582,6 +582,148 @@ Returns `{}` if no ML data has been computed yet.
 
 ---
 
+### `GET /api/energy`
+
+Returns today's three energy dimension scores computed by the ML service.
+
+**Response** — object with one key per computed dimension (absent if no data yet):
+
+```json
+{
+  "energy_physical": {
+    "score": 54.0,
+    "atl": 28.3,
+    "ctl": 31.1,
+    "tsb": 2.8,
+    "hrmax": 185.0
+  },
+  "energy_autonomic": {
+    "score": 62.0,
+    "deviation": 0.8,
+    "baseline_mean": 3.81,
+    "baseline_std": 0.22,
+    "hrv_raw_today": 3.99
+  },
+  "energy_cognitive": {
+    "score": 78.0,
+    "debt_hours": 3.7,
+    "days_used": 7
+  }
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `energy_physical.tsb` | Training Stress Balance (positive = recovered, negative = fatigued) |
+| `energy_autonomic.deviation` | HRV deviation in σ units from 90-day baseline |
+| `energy_cognitive.debt_hours` | Cumulative 7-day sleep deficit vs 8h target |
+
+Returns `{}` if ML inference has not run yet.
+
+---
+
+### `PATCH /api/activities/{activity_id}/rpe`
+
+Sets the subjective RPE (Rate of Perceived Exertion) for an activity. Session-protected.
+
+**Path parameter:** `activity_id` — integer
+
+**Request body (JSON):**
+
+```json
+{ "rpe": 7 }
+```
+
+| Field | Type | Constraint |
+|-------|------|------------|
+| `rpe` | integer | 1–10 (Foster CR-10 scale) |
+
+**Response on success:**
+
+```json
+{ "ok": true, "rpe": 7 }
+```
+
+**Error responses:**
+- `404` — activity not found or belongs to another user
+- `422` — `rpe` out of range
+
+---
+
+### `POST /api/sync`
+
+Requests an immediate Garmin sync for the authenticated user. The sync-service polls for
+this flag and processes it within 2 minutes.
+
+**Request body:** none
+
+**Response:**
+
+```json
+{ "status": "requested" }
+```
+
+**Error:** `400` with `code: NOT_LINKED` if Garmin account is not connected.
+
+---
+
+### `GET /api/sync-status`
+
+Returns the sync state for the authenticated user.
+
+**Response:**
+
+```json
+{
+  "pending": false,
+  "last_sync_at": "2026-05-15T06:12:44.123456+00:00"
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `pending` | `true` while sync is queued but not yet processed |
+| `last_sync_at` | ISO 8601 timestamp or `null` if never synced |
+
+---
+
+### `GET /api/ml-status`
+
+Returns the ML inference state for the authenticated user.
+
+**Response:**
+
+```json
+{
+  "pending": false,
+  "last_ml_at": "2026-05-15T07:02:11.445312+00:00"
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `pending` | `true` while ML run is queued (set by sync-service after Garmin sync) |
+| `last_ml_at` | ISO 8601 timestamp or `null` if never run |
+
+---
+
+## Protected Pages (additional)
+
+### `GET /metrics/{name}`
+
+Renders the metric detail page for a named metric. Redirects to `/dashboard` if `name` is
+not in the allowed set.
+
+**Valid `name` values:**
+
+`steps`, `sleep`, `hrv`, `body-battery`, `physical`, `autonomic`, `cognitive`,
+`hr-zscore`, `readiness-rf`, `hrv-status`, `training-status`, `readiness`
+
+**Response:** HTML page (`metrics.html` template). Data is loaded client-side via
+`/api/activities`, `/api/daily`, `/api/sleep`, `/api/hrv/trend`, and `/api/energy`.
+
+---
+
 ## Health
 
 ### `GET /health`
