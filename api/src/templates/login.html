@@ -1,33 +1,36 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseBase — Anmelden</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="auth-wrap">
-        <h1 class="auth-brand">PulseBase</h1>
-        <p class="auth-sub">Melde dich an</p>
+{% extends "base.html" %}
+{% block title %}PulseBase — Anmelden{% endblock %}
+{% block content %}
+<div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-100 mb-1">PulseBase</h1>
+    <p class="text-slate-400 text-sm mb-8">Melde dich an</p>
 
+    <div class="w-full max-w-sm">
         <div class="card">
             {% if error %}
-            <div class="error">{{ error }}</div>
+            <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">{{ error }}</div>
             {% endif %}
 
-            <form method="post" action="/login">
-                <label for="email">E-Mail</label>
-                <input type="email" id="email" name="email" required autofocus autocomplete="email">
-
-                <label for="password">Passwort</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
-
-                <button class="btn btn-primary btn-block" type="submit" style="margin-top: var(--sp-6)">Anmelden</button>
+            <form method="post" action="/login" class="flex flex-col gap-4">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-300 mb-1.5">E-Mail</label>
+                    <input type="email" id="email" name="email" required autofocus autocomplete="email"
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-300 mb-1.5">Passwort</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password"
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors">
+                </div>
+                <button type="submit"
+                        class="mt-1 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors">
+                    Anmelden
+                </button>
             </form>
         </div>
-
-        <p class="auth-footer">Noch kein Konto? <a href="/register">Registrieren</a></p>
+        <p class="mt-5 text-center text-sm text-slate-400">
+            Noch kein Konto? <a href="/register" class="text-emerald-400 hover:underline">Registrieren</a>
+        </p>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

@@ -16,7 +16,9 @@ function scaleRow(key, desc) {
 }
 
 function fmtDate(s) {
-    return new Date(s).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' });
+    if (!s) return '—';
+    const [y, m, d] = String(s).slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' });
 }
 
 function statTile(label, value, sub) {

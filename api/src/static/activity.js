@@ -2,7 +2,16 @@ const SPORT_EMOJI = {
     running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
     hiking: '🥾', strength_training: '🏋️', yoga: '🧘',
     indoor_cycling: '🚴', trail_running: '🏔️', open_water_swimming: '🌊',
-    cardio: '💪', elliptical: '🔄', fitness_equipment: '🏋️', default: '⚡'
+    cardio: '💪', cardio_training: '💪', elliptical: '🔄',
+    fitness_equipment: '🏋️', other: '⚡', default: '⚡'
+};
+const SPORT_LABEL = {
+    running: 'Laufen', cycling: 'Radfahren', swimming: 'Schwimmen',
+    walking: 'Gehen', hiking: 'Wandern', strength_training: 'Krafttraining',
+    yoga: 'Yoga', indoor_cycling: 'Indoor Cycling', trail_running: 'Trailrunning',
+    open_water_swimming: 'Freiwasserschwimmen', cardio: 'Cardio',
+    cardio_training: 'Cardio', elliptical: 'Ellipsentrainer',
+    fitness_equipment: 'Fitnessgerät', other: 'Sonstige'
 };
 const TS_LABELS = {
     PRODUCTIVE: { label: 'Aufbauend', cls: 'badge-balanced' },
@@ -15,8 +24,8 @@ const TS_LABELS = {
 
 function sportLabel(type) {
     const emoji = SPORT_EMOJI[type] || SPORT_EMOJI.default;
-    const name = (type || 'unbekannt').replace(/_/g, ' ');
-    return `${emoji} ${name.charAt(0).toUpperCase() + name.slice(1)}`;
+    const name = SPORT_LABEL[type] || (type || 'Sonstige').replace(/_/g, ' ');
+    return `${emoji} ${name}`;
 }
 function fmtDuration(s) {
     if (!s) return '—';
@@ -129,8 +138,8 @@ async function load() {
 
     // Header
     const emoji = SPORT_EMOJI[a.sport_type] || SPORT_EMOJI.default;
-    const sportName = (a.sport_type || 'Aktivität').replace(/_/g, ' ');
-    document.getElementById('act-title').textContent = `${emoji} ${sportName.charAt(0).toUpperCase() + sportName.slice(1)}`;
+    const sportName = SPORT_LABEL[a.sport_type] || (a.sport_type || 'Sonstige').replace(/_/g, ' ');
+    document.getElementById('act-title').textContent = `${emoji} ${sportName}`;
     document.getElementById('act-meta').textContent = `${fmtDate(a.started_at)} · ${fmtTime(a.started_at)}`;
     document.title = `PulseBase — ${sportName}`;
 

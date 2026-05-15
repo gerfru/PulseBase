@@ -17,7 +17,9 @@ _SPORT_TYPE_MAP = {s.value for s in SportType}
 
 
 def map_activity(raw: dict[str, Any], user_id: int) -> Activity:
-    sport_raw = raw.get("activityType", {}).get("typeKey", "other")
+    sport_raw = raw.get("subActivityType", {}).get("typeKey") or raw.get(
+        "activityType", {}
+    ).get("typeKey", "other")
     sport = SportType(sport_raw) if sport_raw in _SPORT_TYPE_MAP else SportType.OTHER
 
     speed_ms = raw.get("averageSpeed")

@@ -1,47 +1,45 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseBase — Kennzahl</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-    <div class="metrics-page">
-        <a class="back-link" href="/dashboard">← Dashboard</a>
+{% extends "base.html" %}
+{% block title %}PulseBase — Kennzahl{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-4 pb-12 flex flex-col gap-4">
 
-        <div class="card metrics-header-card">
-            <div class="metrics-section-badge" id="metric-section"></div>
-            <h1 class="metrics-title" id="metric-title">Lade…</h1>
-            <div class="metrics-value" id="metric-value">—</div>
-            <div class="metrics-sub" id="metric-sub"></div>
-        </div>
+    <a class="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors no-underline w-fit py-1" href="/dashboard">← Dashboard</a>
 
-        <div class="card" id="chart-card" style="display:none">
-            <h2 id="chart-title">Verlauf</h2>
-            <div class="chart-wrap-lg"><canvas id="metrics-chart"></canvas></div>
-        </div>
-
-        <div class="metrics-kpis" id="metrics-kpis"></div>
-
-        <div class="card" id="eli5-card" style="display:none">
-            <h2>ELI5 — Erkläre mir das wie ich 5 bin</h2>
-            <p class="eli5-text" id="eli5-text"></p>
-        </div>
-
-        <div class="card" id="formula-card" style="display:none">
-            <h2>Methodik</h2>
-            <p class="science-text" id="science-text" style="display:none"></p>
-            <div id="formula-content"></div>
-        </div>
-
-        <div class="card" id="sources-card" style="display:none">
-            <h2>Quellen</h2>
-            <ul class="sources-list" id="sources-list"></ul>
-        </div>
+    <div class="card">
+        <div class="text-[0.65rem] font-bold uppercase tracking-[.1em] text-emerald-500 dark:text-emerald-400 mb-1" id="metric-section"></div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 m-0 mb-4" id="metric-title">Lade…</h1>
+        <div class="text-6xl font-extrabold leading-none tracking-tight text-slate-900 dark:text-slate-100" id="metric-value">—</div>
+        <div class="text-sm text-slate-500 dark:text-slate-400 mt-2" id="metric-sub"></div>
     </div>
 
-    <script src="/static/metrics.js"></script>
-</body>
-</html>
+    <div class="card" id="chart-card" style="display:none">
+        <h2 id="chart-title">Verlauf</h2>
+        <div class="chart-wrap-lg"><canvas id="metrics-chart"></canvas></div>
+    </div>
+
+    <div class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(170px,1fr))]" id="metrics-kpis"></div>
+
+    <div class="card" id="eli5-card" style="display:none">
+        <h2>ELI5 — Erkläre mir das wie ich 5 bin</h2>
+        <p class="eli5-text" id="eli5-text"></p>
+    </div>
+
+    <div class="card" id="formula-card" style="display:none">
+        <h2>Methodik</h2>
+        <p class="science-text" id="science-text" style="display:none"></p>
+        <div id="formula-content"></div>
+    </div>
+
+    <div class="card" id="sources-card" style="display:none">
+        <h2>Quellen</h2>
+        <ul class="sources-list" id="sources-list"></ul>
+    </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/metrics.js"></script>
+{% endblock %}

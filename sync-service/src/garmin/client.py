@@ -32,6 +32,11 @@ class GarminClient:
             self._client.login(self.token_dir)
             logger.info(f"Token-Login: {self.email}")
 
+    def save_token(self) -> None:
+        if self._client and hasattr(self._client, "garth"):
+            self._client.garth.dump(self.token_dir)
+            logger.debug("Garmin token auf Disk gespeichert")
+
     def get_activities(self, start: date, end: date) -> list[dict[str, Any]]:
         return (
             self._client.get_activities_by_date(start.isoformat(), end.isoformat())
