@@ -107,27 +107,36 @@ starts Traefik alongside PulseBase. This is the fallback, not the default.
 
 ---
 
-## Shared CSS design system (no inline styles, no framework)
+## CSS: Tailwind CDN + custom style.css
 
-All templates share a single `api/src/static/style.css` using CSS Custom Properties.
-No Tailwind, no Bootstrap, no build step — just one file served by FastAPI's `StaticFiles`.
+Templates use **Tailwind CSS** (CDN Play Script, no build step required for dev) for layout,
+spacing, and color utilities. A companion `api/src/static/style.css` (~420 lines) handles
+only the classes that JavaScript generates dynamically at runtime (`.card`, `.badge-*`,
+`.metric-tile-*`, `.toast`, etc.) — these cannot be inlined because they are constructed
+in dashboard.js/activity.js/metrics.js via string concatenation.
 
-Benefits:
-- Dark mode via `prefers-color-scheme` — zero JavaScript
-- Design tokens in `:root` make color/spacing changes a one-line edit
-- New templates start clean — no copy-pasting inline styles
+**Light / Dark theme:**
+- `theme-init.js` runs before Tailwind CDN to set `.dark` on `<html>` from `localStorage`
+  (key `pb-theme`) — prevents FOUC
+- `tailwind.config.js` sets `darkMode: 'class'`; all templates use `dark:` variants
+- Toggle switch in Settings page writes to `localStorage` and toggles the class live
 
-Inline `<style>` blocks in templates are prohibited: CSP uses `'unsafe-inline'` only for
-`style-src`, but keeping styles in `style.css` is enforced by convention so that a future
-nonce-based CSP upgrade requires no template changes.
+**Production (Phase 5 — pending):**
+Tailwind CLI standalone binary (no Node.js) in the `api` Dockerfile generates a minified
+`style.css` from `input.css`, replacing the CDN script. Not yet implemented.
+
+**Sport type display:**
+`subActivityType.typeKey` is read before `activityType.typeKey` so activities like
+Krafttraining, Yoga, Indoor Cycling get their specific label instead of "Other".
+German display labels are mapped in `dashboard.js` and `activity.js` (`SPORT_LABEL`).
 
 ### Glassmorphism
 
 The dashboard uses a glassmorphism aesthetic:
-- `body::before` mesh gradient (3 radial blobs: indigo / violet / emerald)
-- Cards: `background: rgba(30,41,59,.55)` + `backdrop-filter: blur(16px)` — requires a
-  non-white body background in light mode (`#eef2f7`) for the blur to be visible
-- Light mode: blobs at higher opacity (`.20/.15/.12`), card borders `rgba(148,163,184,.25)`
+- Emerald radial gradient overlays on `body` background (3 blobs, dark + light variants)
+- Cards: `backdrop-filter: blur(16px)` + CSS variable `--card-bg` (dark: slate/60,
+  light: white/80) — requires non-solid body background for blur to be visible
+- Accent color: emerald `#10b981` throughout (previously indigo)
 
 ---
 
