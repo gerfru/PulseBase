@@ -113,11 +113,19 @@ async def backfill_user(user_id: int) -> int:
             FROM daily_summary d
             WHERE d.user_id = $1
               AND d.date < CURRENT_DATE
-              AND NOT EXISTS (
-                SELECT 1 FROM ml_predictions p
-                WHERE p.user_id = d.user_id
-                  AND p.date    = d.date
-                  AND p.model   = 'energy_physical'
+              AND (
+                NOT EXISTS (
+                  SELECT 1 FROM ml_predictions p
+                  WHERE p.user_id = d.user_id
+                    AND p.date    = d.date
+                    AND p.model   = 'energy_physical'
+                )
+                OR NOT EXISTS (
+                  SELECT 1 FROM ml_predictions p
+                  WHERE p.user_id = d.user_id
+                    AND p.date    = d.date
+                    AND p.model IN ('body_battery_custom', 'stress_score_custom')
+                )
               )
             ORDER BY d.date
             """,
