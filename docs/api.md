@@ -622,6 +622,32 @@ Returns `{}` if ML inference has not run yet.
 
 ---
 
+### `PATCH /api/profile`
+
+Saves the user's date of birth and biological sex. Used for Banister TRIMP computation in the ML service. Session-protected.
+
+**Request body (JSON):**
+
+```json
+{ "date_of_birth": "1990-05-15", "sex": "m" }
+```
+
+| Field | Type | Constraint |
+|-------|------|------------|
+| `date_of_birth` | `date \| null` | ISO 8601, must be in the past |
+| `sex` | `string \| null` | `"m"`, `"f"`, or `"diverse"` |
+
+**Response on success:**
+
+```json
+{ "ok": true }
+```
+
+**Error responses:**
+- `422` — `date_of_birth` not in the past, or `sex` not in allowed values
+
+---
+
 ### `PATCH /api/activities/{activity_id}/rpe`
 
 Sets the subjective RPE (Rate of Perceived Exertion) for an activity. Session-protected.

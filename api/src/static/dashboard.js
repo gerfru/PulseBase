@@ -137,14 +137,29 @@ function buildGarminCard() {
     const daily = _heroData.daily || [];
     const sleep = _heroData.sleep || [];
     const hrv   = _heroData.hrv;
+    const ml    = _heroData.ml || {};
     const last  = daily[daily.length - 1];
+
+    // Schlaf-Score: custom wenn vorhanden, sonst Garmin-Fallback
+    const customSleep = ml.sleep_score_custom;
+    let sleepValue, sleepMetric;
+    if (customSleep?.score != null) {
+        const sc  = Math.round(customSleep.score);
+        const cls = sc >= 75 ? 'badge-balanced' : sc >= 50 ? 'badge-unbalanced' : 'badge-poor';
+        sleepValue  = `<span class="badge ${cls}">${sc}</span>`;
+        sleepMetric = 'sleep-score-custom';
+    } else {
+        sleepValue  = sleep[0]?.sleep_score ?? '—';
+        sleepMetric = 'sleep';
+    }
+
     const tiles = [
         metricTile({ label: 'Schritte',     value: last?.steps?.toLocaleString('de-AT') ?? '—', metric: 'steps' }),
-        metricTile({ label: 'Schlaf-Score', value: sleep[0]?.sleep_score ?? '—',                metric: 'sleep' }),
+        metricTile({ label: 'Schlaf-Score', value: sleepValue, metric: sleepMetric }),
         metricTile({ label: 'HRV Wochenø',  value: hrv?.hrv_weekly_avg ? hrv.hrv_weekly_avg + ' ms' : '—', metric: 'hrv' }),
         metricTile({ label: 'Ruhepuls',     value: last?.resting_hr ? last.resting_hr + ' bpm' : '—', metric: 'hr-zscore' }),
     ];
-    el.innerHTML = `<h2>Garmin</h2><div class="metric-grid">${tiles.join('')}</div>`;
+    el.innerHTML = `<h2>Heute</h2><div class="metric-grid">${tiles.join('')}</div>`;
 }
 
 function buildEnergieCard() {
@@ -168,9 +183,12 @@ function buildEnergieCard() {
 function buildMlCard() {
     const el  = document.getElementById('bento-ml');
     if (!el) return;
-    const ml      = _heroData.ml || {};
+    const ml     = _heroData.ml || {};
     const anomaly = ml.anomaly_hr;
     const rf      = ml.readiness_rf;
+    const hrvSt   = ml.hrv_status_custom;
+    const im      = ml.intensity_minutes_custom;
+    const te      = ml.training_effect_custom;
     const tiles   = [];
 
     if (anomaly?.z_score != null) {
@@ -196,6 +214,36 @@ function buildMlCard() {
         tiles.push(metricTile({ label: 'Prognose morgen', value: '—', sub: 'Modell trainiert sonntags', metric: 'readiness-rf' }));
     }
 
+    if (hrvSt?.status != null) {
+        const cls    = hrvSt.status === 'BALANCED' ? 'badge-balanced' : hrvSt.status === 'POOR' ? 'badge-poor' : 'badge-unbalanced';
+        const devStr = hrvSt.deviation != null ? `${hrvSt.deviation >= 0 ? '+' : ''}${hrvSt.deviation.toFixed(1)}σ Abweichung` : '';
+        tiles.push(metricTile({
+            label: 'HRV Status',
+            value: `<span class="badge ${cls}">${hrvSt.status}</span>`,
+            sub: devStr, metric: 'hrv-status-custom',
+        }));
+    }
+
+    if (im?.moderate_minutes != null) {
+        const total = im.moderate_minutes + im.vigorous_minutes * 2;
+        tiles.push(metricTile({
+            label: 'Intensitätsminuten',
+            value: total,
+            sub: `${im.moderate_minutes}m moderat · ${im.vigorous_minutes}m intensiv`,
+            metric: 'intensity-minutes',
+        }));
+    }
+
+    if (te?.effect != null) {
+        const cls = te.effect >= 3.5 ? 'badge-balanced' : te.effect >= 2 ? 'badge-unbalanced' : 'badge-poor';
+        tiles.push(metricTile({
+            label: 'Training Effect',
+            value: `<span class="badge ${cls}">${te.effect.toFixed(1)} / 5</span>`,
+            sub: te.vo2max ? `VO₂max ≈ ${te.vo2max}` : '',
+            metric: 'training-effect',
+        }));
+    }
+
     el.innerHTML = `<h2>ML &amp; Status</h2><div class="metric-grid">${tiles.join('')}</div>`;
 }
 
@@ -209,13 +257,14 @@ function buildAllBentoCards() {
 // ─── Loaders ───────────────────────────────────────────────────────────────
 
 async function load(days) {
-    const [activities, daily, sleep, hrv, hrvTrend, trainingStatus] = await Promise.all([
+    const [activities, daily, sleep, hrv, hrvTrend, trainingStatus, mlHistory] = await Promise.all([
         fetch(`/api/activities?days=${days}`).then(r => r.json()),
         fetch(`/api/daily?days=${days}`).then(r => r.json()),
         fetch(`/api/sleep?days=${days}`).then(r => r.json()),
         fetch('/api/hrv').then(r => r.json()),
         fetch(`/api/hrv/trend?days=${days}`).then(r => r.json()),
         fetch('/api/training-status').then(r => r.json()),
+        fetch(`/api/ml-history?days=${days}`).then(r => r.json()),
     ]);
 
     _heroData.daily = daily;
@@ -302,7 +351,15 @@ async function load(days) {
     // ── Schlaf-Score ──────────────────────────────────────────────────
     const sleepSorted = [...sleep].reverse();
     const sleepLabels = sleepSorted.map(s => fmtDate(s.date));
-    if (sleepSorted.some(s => s.sleep_score != null)) {
+    const customSleepHist = (mlHistory?.sleep_score_custom || []).filter(s => s.value != null);
+    if (customSleepHist.length >= 2) {
+        hideEmpty('sleep');
+        makeChart('sleep-chart', 'line',
+            customSleepHist.map(s => fmtDate(s.date)),
+            [{ label: 'Score', data: customSleepHist.map(s => s.value),
+               borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+            { scales: { y: { min: 0, max: 100 } } });
+    } else if (sleepSorted.some(s => s.sleep_score != null)) {
         hideEmpty('sleep');
         makeChart('sleep-chart', 'line', sleepLabels,
             [{ label: 'Score', data: sleepSorted.map(s => s.sleep_score ?? null),
@@ -326,7 +383,17 @@ async function load(days) {
     } else { showEmpty('sleep-stages'); }
 
     // ── Intensitätsminuten ────────────────────────────────────────────
-    if (daily.some(d => d.intensity_moderate || d.intensity_vigorous)) {
+    const customIntHist = (mlHistory?.intensity_minutes_custom || []).filter(s => s.value != null);
+    if (customIntHist.length >= 2) {
+        hideEmpty('intensity');
+        makeChart('intensity-chart', 'bar',
+            customIntHist.map(s => fmtDate(s.date)), [
+            { label: 'Moderat', data: customIntHist.map(s => s.moderate_minutes || 0),
+              backgroundColor: '#22c55e', stack: 'intensity', borderRadius: 2 },
+            { label: 'Intensiv', data: customIntHist.map(s => s.vigorous_minutes || 0),
+              backgroundColor: '#06b6d4', stack: 'intensity', borderRadius: 2 },
+        ], { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Minuten' } } } });
+    } else if (daily.some(d => d.intensity_moderate || d.intensity_vigorous)) {
         hideEmpty('intensity');
         makeChart('intensity-chart', 'bar', labels, [
             { label: 'Moderat', data: daily.map(d => d.intensity_moderate || 0),

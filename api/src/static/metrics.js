@@ -620,6 +620,178 @@ const METRICS = {
             };
         },
     },
+
+    'sleep-score-custom': {
+        title: 'Schlafqualität (Custom)',
+        section: 'Schlaf',
+        async fetch() {
+            return fetch('/api/ml-insights').then(r => r.json());
+        },
+        render(data) {
+            const d = data['sleep_score_custom'];
+            if (!d || d.score == null) return { value: '—', sub: 'Keine Schlafdaten', kpis: [] };
+            const sc  = Math.round(d.score);
+            const cls = sc >= 75 ? 'badge-balanced' : sc >= 50 ? 'badge-unbalanced' : 'badge-poor';
+            const lbl = sc >= 75 ? 'Gut' : sc >= 50 ? 'Okay' : 'Schlecht';
+            return {
+                value: `<span class="badge ${cls}" style="font-size:3rem;padding:.2rem .8rem">${sc}</span>`,
+                sub: lbl + ' · 0–100',
+                kpis: [
+                    { label: 'Schlafdauer', value: d.total_h != null ? d.total_h + ' h' : '—' },
+                    { label: 'Tiefschlaf', value: d.deep_pct != null ? d.deep_pct + ' %' : '—' },
+                    { label: 'REM-Schlaf', value: d.rem_pct  != null ? d.rem_pct  + ' %' : '—' },
+                    { label: 'Wachzeit',   value: d.wake_pct != null ? d.wake_pct + ' %' : '—' },
+                ],
+                formula: [
+                    ['Tiefschlaf-Score (35%)', 'min(100, Tiefschlaf% / 20% × 100) — Optimum 20% Tiefschlaf'],
+                    ['REM-Score (25%)',         'min(100, REM% / 22% × 100) — Optimum 22% REM'],
+                    ['Dauer-Score (25%)',       'min(100, Stunden / 8 × 100) — Optimum 8h'],
+                    ['Wach-Penalty (15%)',      'max(0, 100 − Wach% × 500) — Optimum < 0.2% Wachzeit'],
+                    ['Fehlende Phasen',         'Verbleibende Gewichte werden proportional normiert'],
+                ],
+                science: 'Der Custom-Schlaf-Score gewichtet Schlafphasen nach physiologischer Relevanz. Tiefschlaf (SWS) ist für körperliche Erholung und Gedächtniskonsolidierung kritisch (Empfehlung NSF: 20%). REM-Schlaf reguliert emotionale Verarbeitung und Kreativität (Empfehlung NSF: 22%). Schlafdauer bildet die Grundlage; Wachphasen über dem Minimum wirken als Penalty.',
+                sources: [
+                    { label: 'Walker (2017): Why We Sleep — Penguin Books', url: 'https://www.amazon.de/Why-We-Sleep-Science-Dreams/dp/0141983760' },
+                    { label: 'National Sleep Foundation: Sleep Architecture Recommendations', url: 'https://www.thensf.org/sleep-faqs/what-are-sleep-stages/' },
+                ],
+                eli5: 'Statt einfach zu sagen wie lange du geschlafen hast, schaut dieser Score auch ob du genug Tiefschlaf (körperliche Erholung) und REM-Schlaf (Träume, emotionale Verarbeitung) hattest. Ein guter Score bedeutet: die richtige Menge und die richtigen Phasen — nicht nur lange im Bett.',
+            };
+        },
+    },
+
+    'hrv-status-custom': {
+        title: 'HRV Status (Custom)',
+        section: 'Autonomic',
+        async fetch() {
+            const [insights, history] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=30').then(r => r.json()),
+            ]);
+            return { insights, history };
+        },
+        render({ insights, history }) {
+            const d = insights['hrv_status_custom'];
+            if (!d || d.status == null) return { value: '—', sub: 'Zu wenig HRV-Daten (min. 7 Tage)', kpis: [] };
+            const cls    = d.status === 'BALANCED' ? 'badge-balanced' : d.status === 'POOR' ? 'badge-poor' : 'badge-unbalanced';
+            const devStr = d.deviation != null ? `${d.deviation >= 0 ? '+' : ''}${d.deviation.toFixed(2)}σ` : '';
+
+            const hist = (history['hrv_status_custom'] || []).slice(-30);
+            const statusToScore = { BALANCED: 100, UNBALANCED: 50, LOW: 25, POOR: 0 };
+
+            return {
+                value: `<span class="badge ${cls}" style="font-size:2.5rem;padding:.3rem 1rem">${d.status}</span>`,
+                sub: devStr + (d.baseline_mean != null ? ` · Baseline ${d.baseline_mean.toFixed(1)} ln(ms)` : ''),
+                kpis: [
+                    { label: 'σ-Abweichung',   value: devStr || '—' },
+                    { label: 'Baseline Mean',   value: d.baseline_mean  != null ? d.baseline_mean.toFixed(1)  : '—' },
+                    { label: 'Baseline Std',    value: d.baseline_std   != null ? d.baseline_std.toFixed(2)   : '—' },
+                    { label: 'HRV heute (ln)',  value: d.hrv_raw_today  != null ? d.hrv_raw_today.toFixed(1)  : '—' },
+                ],
+                chart: hist.length > 3 ? {
+                    title: 'HRV Status Verlauf (30 Tage)',
+                    type: 'line',
+                    labels: hist.map(h => fmtDate(h.date)),
+                    datasets: [{
+                        label: 'Status-Score',
+                        data: hist.map(h => h.status != null ? statusToScore[h.status] ?? null : null),
+                        borderColor: '#6366f1', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2,
+                    }],
+                    scales: { y: { min: 0, max: 100, ticks: { callback: v => ({ 100: 'BALANCED', 50: 'UNBALANCED', 25: 'LOW', 0: 'POOR' })[v] ?? '' } } },
+                } : null,
+                formula: [
+                    ['Log-Transformation',  'ln(RMSSD) × 20 — normalisiert rechtschiefe HRV-Verteilung (Ithlete/Elite HRV)'],
+                    ['Baseline',            'Rollierendes 90-Tage-Fenster: Mittelwert + Standardabweichung'],
+                    ['Deviation',           '(heute − baseline_mean) / baseline_std'],
+                    ['BALANCED',            'Deviation ≥ −0.5σ'],
+                    ['UNBALANCED',          '−1.5σ ≤ Deviation < −0.5σ'],
+                    ['LOW',                 '−2.0σ ≤ Deviation < −1.5σ'],
+                    ['POOR',               'Deviation < −2.0σ'],
+                ],
+                science: 'Im Gegensatz zu Garmins proprietärem HRV-Status (Firstbeat-Algorithmus, Black Box) verwendet dieser Score eine persönliche σ-Baseline: Der heutige ln(RMSSD)-Wert wird gegen dein eigenes 90-Tage-Fenster normiert. Dadurch sind Schwellenwerte individuell statt absolut — ein HRV von 35ms kann für Person A BALANCED und für Person B LOW sein.',
+                sources: [
+                    { label: 'Plews et al. (2013): HRV and Training Monitoring — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
+                    { label: 'Altini & Plews (2021): Making Sense of HRV — Frontiers', url: 'https://www.frontiersin.org/articles/10.3389/fphys.2021.615561' },
+                    { label: 'Elite HRV Score Methodology', url: 'https://help.elitehrv.com/article/57-the-1-10-relative-balance-score' },
+                ],
+                eli5: 'Garmin vergleicht deine HRV mit einer anonymen Referenzpopulation — wir vergleichen sie mit DIR. Wenn du normalerweise eine HRV von 60ms hast und heute 55ms misst, ist das für dich anders als für jemanden dessen Normal bei 40ms liegt. Dein persönlicher Normalwert ist der einzig sinnvolle Vergleichsmaßstab.',
+            };
+        },
+    },
+
+    'intensity-minutes': {
+        title: 'Intensitätsminuten (Karvonen)',
+        section: 'Aktivität',
+        async fetch() {
+            return fetch('/api/ml-insights').then(r => r.json());
+        },
+        render(data) {
+            const d = data['intensity_minutes_custom'];
+            if (!d || d.moderate_minutes == null) return { value: '—', sub: 'Keine Aktivitätsdaten für heute', kpis: [] };
+            const total = d.moderate_minutes + d.vigorous_minutes * 2;
+            return {
+                value: total,
+                sub: `${d.moderate_minutes} min moderat · ${d.vigorous_minutes} min intensiv`,
+                kpis: [
+                    { label: 'Moderat (50–70% HRr)',  value: d.moderate_minutes + ' min' },
+                    { label: 'Intensiv (≥70% HRr)',   value: d.vigorous_minutes + ' min' },
+                    { label: 'Äquivalente Minuten',   value: total + ' min (intensiv ×2)' },
+                    { label: 'HRmax (verwendet)',      value: d.hrmax_used != null ? d.hrmax_used + ' bpm' : '—' },
+                ],
+                formula: [
+                    ['HRR (Karvonen)',     'HRr = (HR − Ruhepuls) / (HRmax − Ruhepuls)'],
+                    ['Moderat',           '0.50 ≤ HRr < 0.70 — jede Sekunde zählt als 1/60 Minute'],
+                    ['Intensiv',          'HRr ≥ 0.70 — jede Sekunde zählt als 1/60 Minute'],
+                    ['WHO-Äquivalent',    'moderat_min + intensiv_min × 2 (intensiv zählt doppelt)'],
+                    ['Wochenziel WHO',    '150–300 min moderat ODER 75–150 min intensiv'],
+                ],
+                science: 'Die Karvonen-Methode (Heart Rate Reserve) ist physiologisch präziser als absolute HR-Zonen, da sie Ruhepuls und maximale HR individuell berücksichtigt. Garmin verwendet für Intensitätsminuten einen festen Schwellenwert von 60% der maximalen HR — Karvonen passt sich deiner Fitness an.',
+                sources: [
+                    { label: 'Karvonen et al. (1957): Effect of Training on Heart Rate — Ann Med Exp', url: 'https://pubmed.ncbi.nlm.nih.gov/13470504/' },
+                    { label: 'WHO (2020): Physical Activity Guidelines', url: 'https://www.who.int/publications/i/item/9789240015128' },
+                    { label: 'ACSM Guidelines for Exercise Testing and Prescription, 11th Ed.', url: 'https://www.acsm.org/education-resources/books/guidelines-exercise-testing-prescription' },
+                ],
+                eli5: 'Garmin zählt Intensitätsminuten nach einem fixen Pulsgrenzwert — egal wie fit du bist. Karvonen berücksichtigt deinen Ruhepuls: Wenn dein Herz in Ruhe sehr langsam schlägt (gute Fitness), muss es bei gleicher Anstrengung weniger schlagen. Die Formel normalisiert das und gibt dir eine faire Einschätzung.',
+            };
+        },
+    },
+
+    'training-effect': {
+        title: 'Training Effect (Banister)',
+        section: 'Aktivität',
+        async fetch() {
+            return fetch('/api/ml-insights').then(r => r.json());
+        },
+        render(data) {
+            const d = data['training_effect_custom'];
+            if (!d || d.effect == null) return { value: '—', sub: 'Profil (Geburtsdatum + Geschlecht) in Einstellungen eintragen', kpis: [] };
+            const cls = d.effect >= 3.5 ? 'badge-balanced' : d.effect >= 2 ? 'badge-unbalanced' : 'badge-poor';
+            const lbl = d.effect >= 4 ? 'Überbelastend' : d.effect >= 3 ? 'Stark' : d.effect >= 2 ? 'Moderat' : d.effect >= 1 ? 'Leicht' : 'Minimal';
+            return {
+                value: `<span class="badge ${cls}" style="font-size:3rem;padding:.2rem .8rem">${d.effect.toFixed(1)}</span>`,
+                sub: `${lbl} · 0–5 Skala`,
+                kpis: [
+                    { label: 'Effect (0–5)',     value: d.effect.toFixed(2) },
+                    { label: 'TRIMP heute',      value: d.trimp_today != null ? d.trimp_today.toFixed(1) : '—' },
+                    { label: 'CTL (Fitness)',    value: d.ctl != null ? d.ctl.toFixed(1) : '—' },
+                    { label: 'VO₂max (Schätz.)', value: d.vo2max != null ? d.vo2max + ' ml/kg/min' : '—' },
+                ],
+                formula: [
+                    ['Banister TRIMP',     'Dauer(min) × HRr × e^(b × HRr) — b = 1.92 (männlich) / 1.67 (weiblich)'],
+                    ['CTL (42d EWM)',      'Fitness-Baseline: exponentiell gewichteter Mittelwert über 42 Tage'],
+                    ['Training Effect',   'atan(TRIMP_heute / (CTL × 0.5)) × (10/π) → geclampt 0–5'],
+                    ['VO₂max (Uth 2004)', '15 × (HRmax / HRruhepuls)'],
+                    ['Geschlecht',        'Koeffizient b aus Profil — Einstellungen → Profil'],
+                ],
+                science: 'Banister TRIMP (1991) berücksichtigt im Gegensatz zu Edwards TRIMP die exponentielle HR-Intensitäts-Beziehung: Bei sehr hoher Belastung steigt der physiologische Stress überproportional. Die Koeffizienten b unterscheiden sich nach biologischem Geschlecht (Morton 1990). Der Training Effect normiert den täglichen TRIMP gegen die CTL-Baseline — eine Session hat relativ mehr Effekt bei geringer Grundfitness.',
+                sources: [
+                    { label: 'Banister (1991): Modelling Elite Athletic Performance — Physiological Testing', url: 'https://www.researchgate.net/publication/232157711' },
+                    { label: 'Morton et al. (1990): Modeling Human Performance in Running — J Appl Physiol', url: 'https://pubmed.ncbi.nlm.nih.gov/2262449/' },
+                    { label: 'Uth et al. (2004): Estimation of VO2max from HR — Eur J Appl Physiol', url: 'https://pubmed.ncbi.nlm.nih.gov/14624296/' },
+                ],
+                eli5: 'Garmin zeigt dir einen Aerobic Training Effect nach einem Firstbeat-Algorithmus, den du nicht nachvollziehen kannst. Unser Wert basiert auf Banister TRIMP: Wie intensiv war das Training (Puls × Zeit), und wie viel davon verträgt dein aktuelles Fitness-Niveau (CTL)? Ein Training Effect von 3.0 bedeutet: deutliche Anpassungsreize, ohne überzubelasten.',
+            };
+        },
+    },
 };
 
 async function load() {

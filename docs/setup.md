@@ -122,12 +122,12 @@ No manual action needed after initial setup.
 | `make down` | Stop all services |
 | `make reset` | Stop + wipe all data + re-run migrations (deletes all users!) |
 | `make migrate` | Run pending Flyway migrations |
-| `make sync` | Trigger Garmin sync immediately (don't wait for scheduled hour) |
-| `make build-api` | Rebuild and restart only the API container |
-| `make build-ml` | Rebuild and restart only the ML service |
-| `make logs` | Live logs from the API |
+| `make sync` | Rebuild sync-service + restart (triggers Garmin sync immediately) |
+| `make dashboard` | Rebuild and restart the API/dashboard container |
+| `make analytics` | Rebuild and restart the ML analytics service |
+| `make logs-dashboard` | Live logs from the API |
 | `make logs-sync` | Live logs from the sync-service |
-| `make logs-ml` | Live logs from the ML service |
+| `make logs-analytics` | Live logs from the ML analytics service |
 | `make status` | Show container status |
 | `make db` | Open a psql shell on the database |
 | `make gen-secrets` | Generate a random SESSION_SECRET value |
