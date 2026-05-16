@@ -616,6 +616,136 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
         </div>
       </div>
 
+      <!-- ACWR (Acute-to-Chronic Workload Ratio) -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">ACWR (Acute-to-Chronic Workload Ratio)</span>
+              <span class="badge-type bg-emerald-500/15 text-emerald-300">Regelbasiert · Verletzungsprävention</span>
+            </div>
+            <p class="text-sm text-slate-400">Misst das Verhältnis zwischen kurzfristiger Trainingsbelastung (ATL) und langfristiger Fitness (CTL) zur Vorhersage von Übertraining und Verletzungsrisiko. Die „Gabbett Zone" 0.8–1.3 minimiert Verletzungen.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Acute-to-Chronic Workload Ratio (Gabbett 2016)</span>
+<span class="k">ATL</span> = EWM(TRIMP_history, τ=7 Tage)    <span class="c">← aktuelle Belastung</span>
+<span class="k">CTL</span> = EWM(TRIMP_history, τ=42 Tage)  <span class="c">← chronische Fitness</span>
+
+<span class="k">ACWR</span> = ATL / CTL
+
+<span class="c"># Risiko-Zonen</span>
+<span class="v">0.8–1.3</span>   <span style="color:#10b981">grün</span>   <span class="c">Optimale Zone</span>
+<span class="v">1.3–1.5</span>   <span style="color:#f59e0b">amber</span>  <span class="c">Erhöhtes Risiko</span>
+<span class="v">&gt;1.5</span>       <span style="color:#ef4444">rot</span>    <span class="c">Hohes Verletzungsrisiko</span>
+<span class="v">&lt;0.8</span>       <span style="color:#ef4444">rot</span>    <span class="c">Detraining-Zone</span>
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: Trainingshistorie (ATL/CTL berechnet aus TRIMP) · Lookback: 49 Tage (max 42 Tage für CTL) ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Gabbett TJ (2016) BJSM « Is the acute-to-chronic workload ratio » ·
+          Banister EW (1991) « Modeling elite athletic performance »
+        </div>
+      </div>
+
+      <!-- Training Monotony (Foster) -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Training Monotony (Foster 1998)</span>
+              <span class="badge-type bg-emerald-500/15 text-emerald-300">Regelbasiert · Trainingsvariation</span>
+            </div>
+            <p class="text-sm text-slate-400">Misst die Variation in der Trainingsbelastung über 7 Tage. Hohe Monotonie (&gt;2.0) deutet auf repetitive, eintönige Trainingsprogramme hin, die Übertraining-Syndrome fördern.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Foster Training Stress Balance (1998)</span>
+<span class="k">TRIMP_i</span> = Dauer(min) × HRr × (HRr × 4 + 1)  <span class="c">← HRr-Polynom pro Sekunde</span>
+
+<span class="k">monotony</span> = mean(TRIMP_7d) / σ(TRIMP_7d)
+
+<span class="k">strain</span>    = Σ(TRIMP_7d) × monotony
+
+<span class="c"># Interpretation</span>
+<span class="v">≤ 1.0</span>  Optimale Variation, angepasster Trainingsreiz
+<span class="v">1.0–2.0</span> Akzeptable Monotonie, moderat variable Last
+<span class="v">&gt; 2.0</span>  <span style="color:#f59e0b">Hohes Monotonie-Risiko</span> → Variation erhöhen oder Ruhe
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: activity_records (Sekundenauflösungs-HR) der letzten 7 Tage · Min: 2 Trainingseinheiten ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Foster C (1998) « Training in Sport » ·
+          Halson SL (2014) « Monitoring overtraining and overreaching in athletes » (Br J Sports Med)
+        </div>
+      </div>
+
+      <!-- SpO2 Trend (Slope + Apnea Flag) -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">SpO₂ Trend &amp; Apnoe-Erkennung</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Statistisch · Nächte</span>
+            </div>
+            <p class="text-sm text-slate-400">Analysiert den 7-Tage SpO₂-Trend mit linearer Regression und kennzeichnet mögliche Schlafapnoe basierend auf wiederholten nächtlichen SpO₂-Dips. <strong>Nicht klinisch validiert</strong> — dient nur der Screening-Orientierung.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># 7-Tage SpO₂ Trend (Linear Regression)</span>
+<span class="k">slope</span> = Σ((i − i_mean) × (SpO₂_i − SpO₂_mean)) / Σ((i − i_mean)²)
+  <span class="c">Einheit: % SpO₂ pro Tag</span>
+
+<span class="k">trend</span> =
+  <span style="color:#ef4444">"fallend"</span>   slope &lt; −0.2  <span class="c">Warnung: Sauerstoffversorgung sinkt</span>
+  <span style="color:#f59e0b">"stabil"</span>    −0.2 ≤ slope ≤ 0.2
+  <span style="color:#10b981">"steigend"</span>  slope &gt; 0.2
+
+<span class="k">apnea_flag</span> = <span style="color:#ef4444">wahr</span>  wenn min_spo₂ &lt; 90% auf ≥ 2 Nächten
+  <span class="c">90% ist Schwelle für Hypoxämie-Risiko (Kapur 2017)</span>
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: daily_summary.avg_spo2, min_spo2 (letzte 7 Nächte) · <strong>⚠ Screening only</strong> ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Kapur VK (2017) « Obstructive Sleep Apnea in Adults » (Ann Intern Med) ·
+          Duce BR (1986) SpO₂ Normwerte im Schlaf
+        </div>
+      </div>
+
+      <!-- Sleep Consistency (Phillips Circadian) -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Sleep Consistency (Schlafrhythmus-Score)</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Statistisch · Zirkadian</span>
+            </div>
+            <p class="text-sm text-slate-400">Bewertet die Stabilität des Schlaf- und Aufwachrhythmus über 14 Nächte. Schlafkonsistenz korreliert mit zirkadianer Robustheit und Erholung (Phillips et al. 2017).</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Phillips Sleep Consistency Index (2017)</span>
+<span class="c"># Zirkadiane Standardabweichung mit Mitternachts-Wrap-around</span>
+<span class="k">σ_sleep</span>  = √(Σ(sleep_hour_i − sleep_hour_mean)² / n)  <span class="c">Einschlafzeit (Stunden)</span>
+<span class="k">σ_wake</span>   = √(Σ(wake_hour_i − wake_hour_mean)² / n)   <span class="c">Aufwachzeit (Stunden)</span>
+
+<span class="k">score</span> = max(0, min(100, 100 − σ_wake × 15 − σ_sleep × 10))
+  <span class="c">Gewichte: wake×15, sleep×10 (Phillips et al. kalibriert)</span>
+
+<span class="c"># Interpretation</span>
+<span class="v">80–100</span> <span style="color:#10b981">Exzellent</span> Stabiler, regelmäßiger Schlaf
+<span class="v">70–79</span>  <span style="color:#f59e0b">Gut</span>      Akzeptable Konsistenz, leichte Schwankungen
+<span class="v">&lt; 70</span>   <span style="color:#ef4444">Niedrig</span>  Unregelmäßiger Schlafrhythmus (Circadian Dysregulation)
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: sleep_sessions (letzte 14 Nächte) · Min: 5 Schlafsessionen ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Phillips AJ (2017) « Irregular Sleep/Wake Patterns » (PLOS One) ·
+          West AC (2019) « Circadian Misalignment and Illness » (Curr Biol) ·
+          Wittmann M (2006) « Social Jetlag » (Curr Biol)
+        </div>
+      </div>
+
       <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 mt-10">Epilepsie-Modus — Anfallstagebuch &amp; Risiko-Indikator</h3>
 
       <!-- Anfallsrisiko-Indikator -->
