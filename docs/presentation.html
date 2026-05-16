@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="de" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseBase — Technische Präsentation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+          colors: {
+            accent: { DEFAULT: '#10b981', dark: '#059669', light: '#34d399' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+    .formula { background: #0f172a; border-left: 3px solid #10b981; border-radius: 0 8px 8px 0; padding: 1rem 1.25rem; font-size: .85rem; line-height: 1.8; color: #94a3b8; overflow-x: auto; }
+    .formula .k  { color: #10b981; }
+    .formula .v  { color: #7dd3fc; }
+    .formula .c  { color: #64748b; font-style: italic; }
+    .badge-type { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: .7rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+    .arch-box { border: 1px solid rgba(16,185,129,.3); background: rgba(16,185,129,.06); border-radius: 12px; padding: 1rem 1.5rem; text-align: center; }
+    .arch-arrow { color: #10b981; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
+    :target { scroll-margin-top: 5rem; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased">
+
+  <!-- Hintergrund-Gradient -->
+  <div class="fixed inset-0 -z-10 pointer-events-none" style="background:radial-gradient(ellipse 60% 50% at 10% 10%,rgba(16,185,129,.12) 0%,transparent 70%),radial-gradient(ellipse 50% 60% at 85% 30%,rgba(52,211,153,.08) 0%,transparent 70%)"></div>
+
+  <!-- ── Sticky Nav ───────────────────────────────────────────────────────── -->
+  <nav class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-white/[0.07] px-6 py-3 flex items-center gap-6 overflow-x-auto">
+    <span class="font-bold text-accent-DEFAULT mr-4 shrink-0">PulseBase</span>
+    <a href="#architektur" class="text-sm text-slate-400 hover:text-slate-100 transition-colors shrink-0">Architektur</a>
+    <a href="#stack"       class="text-sm text-slate-400 hover:text-slate-100 transition-colors shrink-0">Tech Stack</a>
+    <a href="#datenquellen" class="text-sm text-slate-400 hover:text-slate-100 transition-colors shrink-0">Datenquellen</a>
+    <a href="#metriken"    class="text-sm text-slate-400 hover:text-slate-100 transition-colors shrink-0">Kennwerte</a>
+    <a href="#schema"      class="text-sm text-slate-400 hover:text-slate-100 transition-colors shrink-0">Datenbankschema</a>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-16">
+
+    <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+    <section class="mb-24 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-DEFAULT/10 border border-accent-DEFAULT/20 text-accent-light text-xs font-semibold mb-6">
+        Self-hosted · Open Source · No Cloud
+      </div>
+      <h1 class="text-5xl sm:text-6xl font-extrabold tracking-tight mb-4">
+        Pulse<span class="text-accent-DEFAULT">Base</span>
+      </h1>
+      <p class="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+        Personalisierte Gesundheits-Analytics — alle Formeln transparent,
+        alle Daten lokal, kein Vendor-Lock-in.
+      </p>
+      <p class="mt-4 text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
+        PulseBase kombiniert Garmin-Rohdaten mit eigenen Algorithmen und
+        ersetzt Hersteller-Blackbox-Scores durch nachvollziehbare, individuell
+        kalibrierte Kennwerte. Der gesamte Stack läuft auf einem Mac mini im Heimnetz.
+      </p>
+    </section>
+
+    <!-- ── Architektur ──────────────────────────────────────────────────── -->
+    <section id="architektur" class="mb-20">
+      <h2 class="text-2xl font-bold mb-2">Architektur</h2>
+      <p class="text-slate-400 text-sm mb-8">Vier Docker-Container kommunizieren über eine gemeinsame TimescaleDB. Kein externer Cloud-Aufruf außer von den Datenquellen.</p>
+
+      <!-- Datenfluss-Diagramm -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6 sm:p-8 mb-6">
+
+        <!-- Externe Quellen -->
+        <div class="flex flex-wrap gap-3 justify-center mb-4">
+          <div class="arch-box flex-1 min-w-[140px]">
+            <div class="text-xs text-slate-400 mb-1">Datenquelle</div>
+            <div class="font-semibold">Garmin Connect API</div>
+            <div class="text-xs text-slate-500 mt-1">Aktivitäten · HRV · Schlaf · Schritte</div>
+          </div>
+          <div class="arch-box flex-1 min-w-[140px]">
+            <div class="text-xs text-slate-400 mb-1">Datenquelle</div>
+            <div class="font-semibold">LibreLinkUp API</div>
+            <div class="text-xs text-slate-500 mt-1">Freestyle Libre 3 · Glukose ~1/min</div>
+          </div>
+        </div>
+
+        <div class="arch-arrow mb-4">↓</div>
+
+        <!-- Sync Service -->
+        <div class="arch-box mb-4 max-w-sm mx-auto">
+          <div class="text-xs text-slate-400 mb-1">sync-service</div>
+          <div class="font-semibold text-accent-light">Sync &amp; Ingest</div>
+          <div class="text-xs text-slate-500 mt-1">Täglich 06:00 UTC · APScheduler · asyncpg</div>
+        </div>
+
+        <div class="arch-arrow mb-4">↓</div>
+
+        <!-- DB -->
+        <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4 max-w-sm mx-auto mb-4 text-center">
+          <div class="text-xs text-indigo-300 mb-1">Persistenz</div>
+          <div class="font-semibold text-indigo-200">TimescaleDB</div>
+          <div class="text-xs text-slate-500 mt-1">PostgreSQL 16 · Hypertables · Flyway V1–V12</div>
+        </div>
+
+        <div class="flex gap-4 justify-center mb-4">
+          <div class="arch-arrow flex-1 max-w-[80px]">↙</div>
+          <div class="arch-arrow flex-1 max-w-[80px]">↘</div>
+        </div>
+
+        <!-- Analytics + API nebeneinander -->
+        <div class="grid sm:grid-cols-2 gap-4 max-w-xl mx-auto">
+          <div class="arch-box">
+            <div class="text-xs text-slate-400 mb-1">analytics-service</div>
+            <div class="font-semibold text-accent-light">Analytics &amp; ML</div>
+            <div class="text-xs text-slate-500 mt-1">Inferenz tägl. 07:00 · Training sonntags 03:00</div>
+            <div class="text-xs text-slate-500">scikit-learn · scipy · numpy</div>
+          </div>
+          <div class="arch-box">
+            <div class="text-xs text-slate-400 mb-1">api-service</div>
+            <div class="font-semibold text-accent-light">API &amp; Dashboard</div>
+            <div class="text-xs text-slate-500 mt-1">FastAPI · Jinja2 · Session Auth</div>
+            <div class="text-xs text-slate-500">Alle Routen · REST JSON API</div>
+          </div>
+        </div>
+
+        <div class="arch-arrow mt-4">↓</div>
+        <div class="text-center mt-2 text-sm text-slate-400">Browser Dashboard · <code class="text-accent-DEFAULT text-xs">https://garmin.home.lab</code></div>
+      </div>
+
+      <!-- Security-Layer -->
+      <div class="bg-slate-900/40 border border-white/[0.06] rounded-xl p-4 text-sm text-slate-400">
+        <span class="font-semibold text-slate-200">Security:</span>
+        CSP <code class="text-slate-300">script-src 'self'</code> · Starlette Session Cookies (httpOnly, secure, sameSite=Lax) ·
+        bcrypt Passwort-Hashing · Rate Limiting via slowapi · Caddy/Traefik Reverse Proxy mit HTTPS ·
+        Defense-in-Depth: Middleware → Route → Data-Access-Layer
+      </div>
+    </section>
+
+    <!-- ── Tech Stack ───────────────────────────────────────────────────── -->
+    <section id="stack" class="mb-20">
+      <h2 class="text-2xl font-bold mb-2">Tech Stack</h2>
+      <p class="text-slate-400 text-sm mb-8">Kein Framework-Overhead im Frontend, kein ORM im Backend — gezielt eingesetzte Libraries wo sie wirklich helfen.</p>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5">
+          <div class="text-xs font-bold uppercase tracking-widest text-accent-DEFAULT mb-3">Backend</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">FastAPI</span><span class="text-slate-500">Async HTTP, Routes, Middleware</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">asyncpg</span><span class="text-slate-500">DB-Treiber, Prepared Statements</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Pydantic</span><span class="text-slate-500">Input-Validierung an API-Grenzen</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">bcrypt</span><span class="text-slate-500">Passwort-Hashing (direkt, kein passlib)</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">slowapi</span><span class="text-slate-500">Rate Limiting (Login-Endpunkte)</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">APScheduler</span><span class="text-slate-500">Cron-Jobs in Sync &amp; Analytics</span></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5">
+          <div class="text-xs font-bold uppercase tracking-widest text-accent-DEFAULT mb-3">Datenbank</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">TimescaleDB</span><span class="text-slate-500">PostgreSQL 16 + Zeitreihen-Extension</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Hypertables</span><span class="text-slate-500">activity_records, glucose_readings, body_battery</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Flyway</span><span class="text-slate-500">V1–V12 Migrations, automatisch beim Start</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">SCRAM-SHA-256</span><span class="text-slate-500">pg_hba.conf, kein md5</span></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5">
+          <div class="text-xs font-bold uppercase tracking-widest text-accent-DEFAULT mb-3">Analytics / ML</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">scikit-learn ≥1.4</span><span class="text-slate-500">RandomForestRegressor, KMeans, StandardScaler</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">scipy ≥1.12</span><span class="text-slate-500">pearsonr() Korrelationstests</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">numpy ≥1.26</span><span class="text-slate-500">Array-Operationen, EWM</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">joblib</span><span class="text-slate-500">Modell-Serialisierung (.joblib)</span></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5">
+          <div class="text-xs font-bold uppercase tracking-widest text-accent-DEFAULT mb-3">Frontend</div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Vanilla JS</span><span class="text-slate-500">Kein Framework, kein Build-Step</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Chart.js</span><span class="text-slate-500">Alle Trend-Charts (line, bar, stacked)</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Leaflet.js</span><span class="text-slate-500">GPS-Karte auf Aktivitäts-Detail</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Jinja2</span><span class="text-slate-500">Server-Side Templates, Nonce-CSP</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Tailwind CSS</span><span class="text-slate-500">CDN, kein Build · Inter Font</span></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5 sm:col-span-2">
+          <div class="text-xs font-bold uppercase tracking-widest text-accent-DEFAULT mb-3">Infrastruktur &amp; CI/CD</div>
+          <div class="grid sm:grid-cols-3 gap-x-8 gap-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Docker Compose</span><span class="text-slate-500">4 Container + Named Volumes</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Caddy</span><span class="text-slate-500">Reverse Proxy, Auto-HTTPS, homelab-gateway</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">GitHub Actions</span><span class="text-slate-500">lint → typecheck → test → trivy</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">pre-commit</span><span class="text-slate-500">gitleaks → ruff → bandit → mypy</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">Trivy</span><span class="text-slate-500">Docker Image Scan, CRITICAL+HIGH → exit 1</span></div>
+            <div class="flex justify-between"><span class="text-slate-200 font-medium">pip-audit</span><span class="text-slate-500">SCA — bekannte CVEs in Dependencies</span></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Datenquellen ─────────────────────────────────────────────────── -->
+    <section id="datenquellen" class="mb-20">
+      <h2 class="text-2xl font-bold mb-2">Datenquellen</h2>
+      <p class="text-slate-400 text-sm mb-8">Alle Daten bleiben lokal. Keine Cloud-Verarbeitung, keine Drittanbieter-Analytics.</p>
+
+      <div class="space-y-4">
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5">
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div class="font-semibold text-slate-100 mb-1">Garmin Connect API</div>
+              <div class="text-sm text-slate-400 leading-relaxed">
+                Einmal täglich (Standard 06:00 UTC) via <code class="text-slate-300">garminconnect</code> Python-Client.
+                Login-Token wird lokal gespeichert, Garmin-Passwort <em>nie</em> in der DB.
+              </div>
+            </div>
+            <span class="badge-type bg-emerald-500/15 text-emerald-300">täglich</span>
+          </div>
+          <div class="mt-3 grid sm:grid-cols-3 gap-2 text-xs text-slate-500">
+            <div class="bg-slate-800/60 rounded-lg px-3 py-2">Aktivitäten (Sport, HR, GPS, Kalorien)</div>
+            <div class="bg-slate-800/60 rounded-lg px-3 py-2">Tagesübersicht (Schritte, Stress, Body Battery, Ruhepuls)</div>
+            <div class="bg-slate-800/60 rounded-lg px-3 py-2">Schlaf (Phasen, Score), HRV, Training Status</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5">
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div class="font-semibold text-slate-100 mb-1">LibreLinkUp (Freestyle Libre 3)</div>
+              <div class="text-sm text-slate-400 leading-relaxed">
+                Kontinuierliche Glukosemessungen ca. alle 5 Minuten. EU-API-Endpoint.
+                Nur aktiv wenn <code class="text-slate-300">libre_linked = true</code>.
+              </div>
+            </div>
+            <span class="badge-type bg-blue-500/15 text-blue-300">~5 min</span>
+          </div>
+          <div class="mt-3 grid sm:grid-cols-2 gap-2 text-xs text-slate-500">
+            <div class="bg-slate-800/60 rounded-lg px-3 py-2">Glukosewert (mmol/L)</div>
+            <div class="bg-slate-800/60 rounded-lg px-3 py-2">Trendrichtung + Hoch/Tief-Flags</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-5">
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div class="font-semibold text-slate-100 mb-1">Benutzerprofil (manuell)</div>
+              <div class="text-sm text-slate-400 leading-relaxed">
+                Über <code class="text-slate-300">PATCH /api/profile</code> in den Einstellungen gespeichert.
+                Benötigt für individuelle Kalibrierung der Trainingsmodelle.
+              </div>
+            </div>
+            <span class="badge-type bg-violet-500/15 text-violet-300">manuell</span>
+          </div>
+          <div class="mt-3 grid sm:grid-cols-2 gap-2 text-xs text-slate-500">
+            <div class="bg-slate-800/60 rounded-lg px-3 py-2">Geburtsdatum → Alter → HRmax-Schätzung</div>
+            <div class="bg-slate-800/60 rounded-lg px-3 py-2">Biologisches Geschlecht → Banister TRIMP-Koeffizient (b)</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Kennwerte ────────────────────────────────────────────────────── -->
+    <section id="metriken" class="mb-20">
+      <h2 class="text-2xl font-bold mb-2">Kennwerte &amp; Berechnungsgrundlagen</h2>
+      <p class="text-slate-400 text-sm mb-8">
+        Alle Metriken werden täglich in <code class="text-slate-300">ml_predictions</code> gespeichert.
+        Jede Formel ist vollständig transparent — keine Blackbox.
+      </p>
+
+      <!-- Gruppe: Status & Vorhersage -->
+      <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 mt-10">Status &amp; Vorhersage</h3>
+
+      <!-- Readiness RF -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Readiness Score</span>
+              <span class="badge-type bg-violet-500/15 text-violet-300">Random Forest</span>
+            </div>
+            <p class="text-sm text-slate-400">Vorhersage der körperlichen Bereitschaft für morgen (0–100). Der Random Forest lernt nicht aus externen Labels, sondern aus einem regelbasierten Trainings-Target, das täglich aus mehreren Signalen berechnet wird.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Trainings-Target (regelbasiert)</span>
+<span class="k">T</span> = (w₁·HRV_status + w₂·Schlaf_score + w₃·Body_battery + w₄·(100−Stress)) / Σwᵢ
+  <span class="c">Gewichte: HRV 30%, Schlaf 30%, Body Battery 20%, Stress (invertiert) 20%</span>
+
+<span class="c"># Features für Training &amp; Inferenz (Tag N)</span>
+<span class="k">X</span> = [hrv_last_night, sleep_score, resting_hr]   <span class="c">← dynamische Selektion</span>
+
+<span class="c"># Modell</span>
+<span class="k">RandomForestRegressor</span>(n_estimators=100)
+  Lookback: 365 Tage | Min: 30 Trainingspaare | Fehlend: Median-Imputation
+  Output: clip([0, 100])
+        </div>
+        <div class="text-xs text-slate-500 leading-relaxed">
+          <span class="text-slate-300 font-medium">Persistenz:</span> <code>/app/models/readiness_rf_{user_id}.joblib</code> —
+          Training wöchentlich Sonntag 03:00, Inferenz täglich. Feature Importances in <code>model_meta_rf</code>.
+        </div>
+      </div>
+
+      <!-- Gruppe: Energie-Triptychon -->
+      <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 mt-10">Energie-Triptychon</h3>
+
+      <!-- Physical Energy -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Physical Energy (CTL/ATL/TSB)</span>
+              <span class="badge-type bg-emerald-500/15 text-emerald-300">Regelbasiert</span>
+            </div>
+            <p class="text-sm text-slate-400">Trainingsbelastung und -adaptation nach dem Banister Impulse-Response-Modell. TSB (Form) zeigt an, ob der Körper gerade am adaptieren (negativ) oder erholt (positiv) ist.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># TRIMP-Berechnung pro Aktivität</span>
+<span class="k">HRr</span> = (HR_avg − RHR) / (HRmax − RHR)          <span class="c">← Karvonen-Reserve</span>
+<span class="k">TRIMP</span> = Dauer(min) × HRr × e^(<span class="v">b</span> × HRr)
+  <span class="v">b</span> = 1.92 (männlich) | 1.67 (weiblich)        <span class="c">← Morton et al. 1990</span>
+
+<span class="c"># Fitness (CTL) &amp; Fatigue (ATL) via Exponentielles Weighted Moving Average</span>
+<span class="k">CTL</span> = EWM(TRIMP, τ=42 Tage)     <span class="c">← "chronic" fitness</span>
+<span class="k">ATL</span> = EWM(TRIMP, τ= 7 Tage)     <span class="c">← "acute" fatigue</span>
+<span class="k">TSB</span> = CTL − ATL                  <span class="c">← "form": positiv = erholt</span>
+
+<span class="c"># Score-Skalierung 0–100</span>
+<span class="k">score</span> = min(100, ctl / 100 × 100)  <span class="c">← normiert auf Fitness-Level</span>
+        </div>
+        <div class="text-xs text-slate-500">
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Banister (1991) "Modeling elite athletic performance" ·
+          Morton et al. (1990) "Modeling human performance in running" ·
+          Karvonen et al. (1957) Heart rate reserve formula
+        </div>
+      </div>
+
+      <!-- Autonomic Energy -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Autonomic Energy (HRV σ-Baseline)</span>
+              <span class="badge-type bg-emerald-500/15 text-emerald-300">Regelbasiert</span>
+            </div>
+            <p class="text-sm text-slate-400">HRV (Herzratenvariabilität) ist ein Marker des parasympathischen Nervensystems. Statt absoluter Werte — die stark individuell variieren — wird die Abweichung von der persönlichen 90-Tage-Baseline verwendet.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Individuelle Baseline (90-Tage Log-Normal)</span>
+<span class="k">log_HRV</span> = ln(hrv_last_night)       <span class="c">← HRV ist log-normal verteilt</span>
+<span class="k">μ_log</span> = Mittelwert(log_HRV, 90d)
+<span class="k">σ_log</span> = Standardabweichung(log_HRV, 90d)
+
+<span class="c"># Abweichung vom persönlichen Normalwert</span>
+<span class="k">deviation</span> = (ln(hrv_heute) − μ_log) / σ_log    <span class="c">← in Sigma-Einheiten</span>
+
+<span class="c"># Score-Skalierung 0–100</span>
+<span class="k">score</span> = min(100, max(0, 50 + deviation × 25))
+        </div>
+        <div class="text-xs text-slate-500">
+          <span class="text-slate-300 font-medium">Minimum:</span> 7 HRV-Werte (90-Tage-Lookback) ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Plews et al. (2013) "Heart rate variability in elite triathletes" ·
+          Esco &amp; Flatt (2014) "HRV monitoring" — Log-Transformation für Normalverteilung
+        </div>
+      </div>
+
+      <!-- Cognitive Energy -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Cognitive Energy (Schlafschuld)</span>
+              <span class="badge-type bg-emerald-500/15 text-emerald-300">Regelbasiert</span>
+            </div>
+            <p class="text-sm text-slate-400">Akkumulierter Schlafmangel der letzten 7 Tage relativ zum persönlichen Durchschnitt. Schlafschuld baut sich bei &lt;7h/Nacht auf und korreliert mit kognitiver Leistungsminderung.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Persönlicher Schlaf-Benchmark (90-Tage-Median)</span>
+<span class="k">baseline_h</span> = Median(total_sleep_seconds / 3600, 90d)
+<span class="k">target_h</span>   = max(7.0, baseline_h)      <span class="c">← mind. 7h Ziel</span>
+
+<span class="c"># Schlafschuld-Akkumulation (7-Tage-Fenster)</span>
+<span class="k">debt_today</span> = target_h − sleep_h_gestern
+<span class="k">debt_total</span> = EWM(debt_today, τ=7 Tage)  <span class="c">← gewichteter Schnitt</span>
+
+<span class="c"># Score 0–100</span>
+<span class="k">score</span> = max(0, 100 − debt_total × 20)   <span class="c">← −20 Punkte pro Stunde Schulden</span>
+        </div>
+        <div class="text-xs text-slate-500">
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Walker (2017) "Why We Sleep" ·
+          Killgore (2010) "Effects of sleep deprivation on cognition" ·
+          Cappuccio et al. (2011) &lt;7h Schlaf ↔ erhöhte kardiovaskuläre Mortalität
+        </div>
+      </div>
+
+      <!-- Gruppe: Diagnostik -->
+      <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 mt-10">Diagnostik &amp; Musteranalyse</h3>
+
+      <!-- Z-Score -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Ruhepuls Z-Score (Anomalie-Erkennung)</span>
+              <span class="badge-type bg-amber-500/15 text-amber-300">Statistisch</span>
+            </div>
+            <p class="text-sm text-slate-400">Identifiziert ungewöhnlich hohe Ruhepulswerte als Frühwarnsignal (Übertraining, Krankheit). Threshold 1.5σ statt 2.0σ — bewusstes Design als sensitives Frühwarnsystem.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># 31-Tage-Baseline (exkl. heute, min. 7 Punkte)</span>
+<span class="k">μ</span> = Mittelwert(resting_hr, 31d)
+<span class="k">σ</span> = Standardabweichung(resting_hr, 31d)   <span class="c">← Population-Std</span>
+
+<span class="c"># Z-Score heute</span>
+<span class="k">z</span> = (resting_hr_heute − μ) / σ
+  σ &lt; 1.0 → z = 0.0    <span class="c">← Division bei zu wenig Varianz vermeiden</span>
+
+<span class="c"># Klassifikation</span>
+<span class="k">is_anomaly</span> = z &gt; 1.5  <span class="c">← ~13% Tage bei Normalverteilung</span>
+        </div>
+        <div class="text-xs text-slate-500">
+          Lookback: 31 Tage · Min: 7 Datenpunkte ·
+          <span class="text-slate-300 font-medium">Basis:</span> Statistical Process Control (Shewhart 1924)
+        </div>
+      </div>
+
+      <!-- Pearson-Korrelationen -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Pearson-Korrelationen (3 Paare)</span>
+              <span class="badge-type bg-amber-500/15 text-amber-300">Statistisch</span>
+            </div>
+            <p class="text-sm text-slate-400">Berechnet täglich drei Zusammenhänge über 90 Tage. Zeigt, wie stark Schlaf, HRV und Body Battery beim <em>individuellen</em> Nutzer zusammenhängen — nicht bei einer Durchschnittsperson.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="k">r</span>(X, Y) = Σ[(xᵢ−x̄)(yᵢ−ȳ)] / √[Σ(xᵢ−x̄)² · Σ(yᵢ−ȳ)²]
+  <span class="c">scipy.stats.pearsonr(x, y) → (r, p_value)</span>
+  Min: n ≥ 10 Paare | Lookback: 90 Tage
+
+<span class="c"># Drei berechnete Korrelationen (Tag N → Tag N+1)</span>
+<span class="v">Schlaf-Score(N)</span>  → <span class="v">HRV(N+1)</span>        <span class="c">erwartete Richtung: positiv</span>
+<span class="v">Schlaf-Score(N)</span>  → <span class="v">Ruhepuls(N+1)</span>   <span class="c">erwartete Richtung: negativ</span>
+<span class="v">Body Battery(N)</span> → <span class="v">Ruhepuls(N+1)</span>   <span class="c">erwartete Richtung: negativ</span>
+
+<span class="c"># Interpretation: |r| ≥ 0.7 stark · ≥ 0.4 moderat · ≥ 0.2 schwach</span>
+        </div>
+        <div class="text-xs text-slate-500">
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Walker (2017) Schlaf → HRV-Restauration ·
+          Guo et al. (2019) Body Battery als Erholungsmarker
+        </div>
+      </div>
+
+      <!-- K-Means -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Body-Battery-Tagesmuster (K-Means)</span>
+              <span class="badge-type bg-violet-500/15 text-violet-300">Clustering</span>
+            </div>
+            <p class="text-sm text-slate-400">Erkennt wiederkehrende Energieverlaufsmuster über den Tag: stabil hoch, Erholung, erschöpft. Trainiert wöchentlich auf 90-Tage-Intraday-Daten.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># 5 Features pro Tag (aus body_battery_intraday)</span>
+<span class="k">morning_avg</span>  = Mittelwert(06:00–09:00)
+<span class="k">evening_avg</span>  = Mittelwert(20:00–23:00)
+<span class="k">daily_range</span>  = max(wert) − min(wert)
+<span class="k">auc</span>          = Trapezregel(readings) / total_stunden    <span class="c">← Fläche unter Kurve</span>
+<span class="k">n_dips</span>       = Σ(abfall &gt; 10 Punkte zwischen Readings)  <span class="c">← Einbrüche</span>
+
+<span class="c"># Modell: 3 Cluster, StandardScaler</span>
+KMeans(n_clusters=3, n_init=10) auf 90-Tage-History
+Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> · <span class="v">erschoepft</span>
+        </div>
+        <div class="text-xs text-slate-500">Lookback Training: 90 Tage · Persistenz: <code>battery_kmeans_{user_id}.joblib</code></div>
+      </div>
+
+      <!-- Gruppe: Custom Metrics -->
+      <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 mt-10">Custom Metrics — Ersatz für Garmin-Blackbox</h3>
+
+      <!-- Sleep Score Custom -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Schlaf-Score Custom</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Regelbasiert · Ersetzt Garmin</span>
+            </div>
+            <p class="text-sm text-slate-400">Gewichteter Schlafqualitäts-Score aus Schlafphasen-Zusammensetzung und -Dauer. Transparente Alternative zum undokumentierten Garmin Sleep Score.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Komponenten (fehlende Phasen → proportionale Normierung)</span>
+<span class="k">tiefschlaf_score</span> = min(100, deep%  / 20% × 100)  <span class="c">Gewicht: 35%</span>
+<span class="k">rem_score</span>        = min(100, rem%   / 22% × 100)  <span class="c">Gewicht: 25%</span>
+<span class="k">dauer_score</span>      = min(100, stunden / 8  × 100)  <span class="c">Gewicht: 25%</span>
+<span class="k">wach_penalty</span>     = max(0, 100 − wake% × 500)     <span class="c">Gewicht: 15%</span>
+
+<span class="k">score</span> = (0.35·tiefschlaf + 0.25·rem + 0.25·dauer + 0.15·wach) / Σaktive_gewichte
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: letzte Schlafsession (bis 2 Tage Lookback) ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Hirshkowitz et al. (2015) NSFA Sleep-Empfehlungen ·
+          Ohayon et al. (2004) Normwerte Tiefschlaf (≥20%) und REM (≥22%)
+        </div>
+      </div>
+
+      <!-- HRV Status Custom -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">HRV Status Custom</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Regelbasiert · Ersetzt Garmin</span>
+            </div>
+            <p class="text-sm text-slate-400">Klassifiziert den autonomen Nervensystem-Status basierend auf der σ-Abweichung vom persönlichen 90-Tage-HRV-Baseline. Verwendet dieselbe Berechnung wie Autonomic Energy.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Gleiche σ-Baseline wie Autonomic Energy</span>
+<span class="k">deviation</span> = (ln(hrv_heute) − μ_log) / σ_log   <span class="c">← in Sigma-Einheiten</span>
+
+<span class="c"># Status-Labels</span>
+<span class="k">BALANCED</span>   deviation ≥ −0.5σ
+<span class="k">UNBALANCED</span> −1.5σ ≤ deviation &lt; −0.5σ
+<span class="k">LOW</span>        −2.0σ ≤ deviation &lt; −1.5σ
+<span class="k">POOR</span>       deviation &lt; −2.0σ
+        </div>
+        <div class="text-xs text-slate-500">Lookback: 90 Tage · Min: 7 HRV-Werte</div>
+      </div>
+
+      <!-- Intensity Minutes Custom -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Intensitätsminuten (Karvonen)</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Regelbasiert · Ersetzt Garmin</span>
+            </div>
+            <p class="text-sm text-slate-400">Berechnet moderate und intensive Trainingsminuten aus den rohen Sekundenauflösungs-HR-Daten via Karvonen Heart Rate Reserve. Individuell kalibriert statt mit festen HR-Zonen.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Karvonen Heart Rate Reserve (per Sekunde aus activity_records)</span>
+<span class="k">HRr</span> = (HR − Ruhepuls) / (HRmax − Ruhepuls)
+
+<span class="c"># Klassifikation</span>
+<span class="k">moderat</span>  = 0.50 ≤ HRr &lt; 0.70
+<span class="k">intensiv</span> = HRr ≥ 0.70
+
+<span class="c"># Score 0–100 (WHO-Empfehlung: 150 min moderat/Woche)</span>
+<span class="k">score</span> = min(100, (moderate_min + vigorous_min × 2) / 30 × 100)
+  <span class="c">Vigorous zählt doppelt (WHO-Äquivalenz)</span>
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: activity_records.heart_rate (Sekunden) + daily_summary.resting_hr ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Karvonen et al. (1957) Heart rate reserve ·
+          WHO Physical Activity Guidelines (2020) — 150–300 min moderate/Woche
+        </div>
+      </div>
+
+      <!-- Training Effect Custom -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Training Effect (Banister TRIMP)</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Regelbasiert · 0–5 Skala</span>
+            </div>
+            <p class="text-sm text-slate-400">Misst den akuten Trainingsreiz relativ zur aktuellen Fitness (CTL). Basiert auf dem Banister Impulse-Response-Modell mit geschlechtsspezifischen Koeffizienten.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Banister TRIMP (geschlechtsspezifisch)</span>
+<span class="k">TRIMP</span> = Dauer(min) × HRr × e^(<span class="v">b</span> × HRr)
+  <span class="v">b</span> = 1.92 (männlich) | 1.67 (weiblich)    <span class="c">Morton et al. 1990</span>
+
+<span class="c"># Fitness-Kontext (EWM, 50-Tage-Lookback)</span>
+<span class="k">CTL</span> = EWM(TRIMP_history, τ=42 Tage)  <span class="c">← chronische Fitness</span>
+
+<span class="c"># Training Effect 0–5 (atan-Skalierung)</span>
+<span class="k">effect</span> = atan(TRIMP_heute / (CTL × 0.5)) × (10/π)
+  <span class="c">0–1: minimal · 1–2: moderat · 2–3: verbessernd · 3–4: hoch · 4–5: überbelastend</span>
+
+<span class="c"># VO₂max-Schätzung (Uth et al. 2004)</span>
+<span class="k">VO₂max</span> ≈ 15 × (HRmax / HRrest)
+        </div>
+        <div class="text-xs text-slate-500">
+          Benötigt: <code>sex</code> in Einstellungen gesetzt · Lookback: 50 Tage Aktivitäten ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Banister (1991) "Modeling elite athletic performance" ·
+          Morton et al. (1990) geschlechtsspez. TRIMP-Koeffizienten ·
+          Uth et al. (2004) Maximal Oxygen Uptake Estimation
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── Datenbankschema ──────────────────────────────────────────────── -->
+    <section id="schema" class="mb-20">
+      <h2 class="text-2xl font-bold mb-2">Datenbankschema</h2>
+      <p class="text-slate-400 text-sm mb-8">TimescaleDB auf PostgreSQL 16. Migrationen V1–V12 via Flyway. Hypertables für hochfrequente Zeitreihendaten.</p>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-white/[0.08]">
+              <th class="text-left py-2 pr-6 text-xs font-bold uppercase tracking-wider text-slate-500">Tabelle</th>
+              <th class="text-left py-2 pr-6 text-xs font-bold uppercase tracking-wider text-slate-500">Typ</th>
+              <th class="text-left py-2 text-xs font-bold uppercase tracking-wider text-slate-500">Wichtige Spalten</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/[0.04]">
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">users</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">id, name, email, password_hash, garmin_linked, garmin_email, libre_linked, libre_email, date_of_birth, sex, is_active</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">activities</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">id, user_id, started_at, sport_type, duration_seconds, distance_meters, avg_hr, calories, aerobic_effect, anaerobic_effect</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">daily_summary</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">date, user_id, steps, resting_hr, body_battery_high, body_battery_low, avg_stress, calories_total, intensity_moderate, intensity_vigorous</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">sleep_sessions</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">start_time, user_id, sleep_score, total_sleep_seconds, deep_sleep_seconds, light_sleep_seconds, rem_sleep_seconds, awake_seconds</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">hrv_daily</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">date, user_id, hrv_last_night, hrv_weekly_avg, hrv_status</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-violet-400 text-xs">activity_records</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Hypertable</td>
+              <td class="py-3 text-slate-400 text-xs">ts, activity_id, heart_rate, latitude, longitude, altitude, speed — sekündliche GPS+HR-Daten</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-violet-400 text-xs">glucose_readings</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Hypertable</td>
+              <td class="py-3 text-slate-400 text-xs">ts, user_id, value_mmol, trend — CGM-Werte Libre 3</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-violet-400 text-xs">body_battery_intraday</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Hypertable</td>
+              <td class="py-3 text-slate-400 text-xs">ts, user_id, value — minütliche Body-Battery-Werte</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">ml_predictions</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">date, user_id, model, value, metadata (JSONB) — PK: (date, user_id, model) · Upsert bei jeder Inferenz</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-6 bg-slate-900/40 border border-white/[0.06] rounded-xl p-4 text-sm text-slate-400">
+        <span class="font-semibold text-slate-200">Migrationen:</span>
+        V1–V5 Schema · V6 sync_trigger · V7 app_user (least-privilege) · V8 ml_predictions ·
+        V9 glucose/intraday · V10 libre_link · V11 training_status · V12 user_profile (date_of_birth, sex)
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+  <footer class="border-t border-white/[0.06] px-6 py-8 text-center text-xs text-slate-600">
+    PulseBase — Self-hosted Personal Health Analytics ·
+    FastAPI · TimescaleDB · scikit-learn · Vanilla JS
+  </footer>
+
+</body>
+</html>

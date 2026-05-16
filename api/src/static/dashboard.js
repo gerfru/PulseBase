@@ -78,21 +78,72 @@ function hideEmpty(id) {
     if (empty) empty.style.display = 'none';
 }
 
-let currentDays = 7;
+let currentDays   = 7;
+let currentOffset = 0;
+
+function getEndDate() {
+    if (currentOffset === 0) return null;
+    const d = new Date();
+    d.setDate(d.getDate() - currentOffset * currentDays);
+    return d.toISOString().slice(0, 10);
+}
+
+function updateNavBar() {
+    const end   = new Date();
+    end.setDate(end.getDate() - currentOffset * currentDays);
+    const start = new Date(end);
+    start.setDate(start.getDate() - currentDays + 1);
+    const fmt = d => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const rangeEl = document.getElementById('nav-range');
+    const fwdEl   = document.getElementById('nav-forward');
+    if (rangeEl) rangeEl.textContent = `${fmt(start)} – ${fmt(end)}`;
+    if (fwdEl)   fwdEl.disabled = currentOffset === 0;
+}
+
+function shiftPeriod(delta) {
+    currentOffset = Math.max(0, currentOffset + delta);
+    updateNavBar();
+    load(currentDays, getEndDate()).catch(() => {});
+    loadWeekly(Math.max(4, Math.ceil(currentDays / 7)), getEndDate()).catch(() => {});
+}
 
 function setDays(days) {
-    currentDays = days;
+    currentDays   = days;
+    currentOffset = 0;
     document.querySelectorAll('.time-btn').forEach(b => {
         b.classList.toggle('active', +b.dataset.days === days);
     });
+    updateNavBar();
     load(days);
+    loadWeekly(Math.max(4, Math.ceil(days / 7))).catch(() => {});
 }
 
-// ─── Metric Hero ───────────────────────────────────────────────────────────
+// ─── Tab Navigation ────────────────────────────────────────────────────────
+function setTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => { p.style.display = 'none'; });
+    document.getElementById('tab-' + name).style.display = '';
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === name);
+    });
+    setTimeout(() => Object.values(charts).forEach(c => c.resize()), 50);
+}
+
+// ─── Hero Card ─────────────────────────────────────────────────────────────
 const _heroData = {
     readiness: null, daily: null, sleep: null, hrv: null,
     trainingStatus: null, energy: null, ml: null,
 };
+
+function esc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function scoreColor(score) {
+    if (score == null) return 'var(--muted)';
+    if (score >= 75)   return 'var(--green)';
+    if (score >= 50)   return 'var(--amber)';
+    return 'var(--red)';
+}
 
 function metricTile({ label, value, sub = '', metric = '' }) {
     if (metric) {
@@ -110,168 +161,189 @@ function metricTile({ label, value, sub = '', metric = '' }) {
     </div>`;
 }
 
-function buildReadinessCard() {
-    const el = document.getElementById('bento-readiness');
+function buildHeroCard() {
+    const el = document.getElementById('bento-hero');
     if (!el) return;
-    const r = _heroData.readiness;
-    let html = '<h2>Readiness</h2>';
-    if (!r || r.score === null) {
-        html += '<p class="empty" style="padding:var(--sp-4) 0">Noch keine Daten — Sync läuft täglich um 6 Uhr.</p>';
-    } else {
-        const scoreColors = { 'badge-balanced': '#22c55e', 'badge-unbalanced': '#f59e0b', 'badge-poor': '#ef4444' };
-        const color = scoreColors[r.cls] || scoreColors['badge-poor'];
-        html += `<a class="readiness-tile" href="/metrics/readiness">
-            <div style="display:flex;align-items:baseline;gap:var(--sp-4);flex-wrap:wrap;margin-bottom:var(--sp-2)">
-                <div class="readiness-score" style="color:${color}">${r.score}</div>
-                <span class="badge ${r.cls}">${r.label}</span>
-            </div>
-            <div class="metric-tile-hint">→ Details zur Berechnung</div>
-        </a>`;
-    }
-    el.innerHTML = html;
-}
 
-function buildGarminCard() {
-    const el    = document.getElementById('bento-garmin');
-    if (!el) return;
-    const daily = _heroData.daily || [];
-    const sleep = _heroData.sleep || [];
-    const hrv   = _heroData.hrv;
-    const ml    = _heroData.ml || {};
-    const last  = daily[daily.length - 1];
-
-    // Schlaf-Score: custom wenn vorhanden, sonst Garmin-Fallback
-    const customSleep = ml.sleep_score_custom;
-    let sleepValue, sleepMetric;
-    if (customSleep?.score != null) {
-        const sc  = Math.round(customSleep.score);
-        const cls = sc >= 75 ? 'badge-balanced' : sc >= 50 ? 'badge-unbalanced' : 'badge-poor';
-        sleepValue  = `<span class="badge ${cls}">${sc}</span>`;
-        sleepMetric = 'sleep-score-custom';
-    } else {
-        sleepValue  = sleep[0]?.sleep_score ?? '—';
-        sleepMetric = 'sleep';
-    }
-
-    const tiles = [
-        metricTile({ label: 'Schritte',     value: last?.steps?.toLocaleString('de-AT') ?? '—', metric: 'steps' }),
-        metricTile({ label: 'Schlaf-Score', value: sleepValue, metric: sleepMetric }),
-        metricTile({ label: 'HRV Wochenø',  value: hrv?.hrv_weekly_avg ? hrv.hrv_weekly_avg + ' ms' : '—', metric: 'hrv' }),
-        metricTile({ label: 'Ruhepuls',     value: last?.resting_hr ? last.resting_hr + ' bpm' : '—', metric: 'hr-zscore' }),
-    ];
-    el.innerHTML = `<h2>Heute</h2><div class="metric-grid">${tiles.join('')}</div>`;
-}
-
-function buildEnergieCard() {
-    const el     = document.getElementById('bento-energie');
-    if (!el) return;
+    const r      = _heroData.readiness;
     const energy = _heroData.energy || {};
+    const daily  = _heroData.daily  || [];
+    const sleep  = _heroData.sleep  || [];
+    const hrv    = _heroData.hrv;
+    const ml     = _heroData.ml     || {};
     const phys   = energy.energy_physical;
     const auton  = energy.energy_autonomic;
     const cog    = energy.energy_cognitive;
+
+    const score        = r?.score ?? null;
+    const circumference = 327; // 2π × 52
+    const fill         = score != null ? Math.round(score / 100 * circumference) : 0;
+    const ringColor    = scoreColor(score);
+
+    const today     = new Date();
+    const dateLabel = today.toLocaleDateString('de-AT', { weekday: 'short', day: 'numeric', month: 'long' });
+
+    // ── SVG Ring ────────────────────────────────────────────────────────────
+    const svgRing = `<svg viewBox="0 0 120 120" class="readiness-ring">
+        <circle cx="60" cy="60" r="52" fill="none" class="ring-track" stroke-width="8"/>
+        <circle cx="60" cy="60" r="52" fill="none"
+            stroke="${ringColor}" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"
+            transform="rotate(-90 60 60)"
+            class="readiness-ring-progress" id="hero-ring-progress"/>
+        <text x="60" y="56" text-anchor="middle" class="ring-score-text" id="hero-ring-score">0</text>
+        <text x="60" y="72" text-anchor="middle" class="ring-label-text">READINESS</text>
+    </svg>`;
+
+    const ringSection = `<div class="hero-ring-section">
+        ${svgRing}
+        <div class="hero-ring-meta">
+            <span class="hero-ring-status">${esc(r?.label ?? '—')}</span>
+            <a class="hero-ring-link" href="/metrics/readiness">→ Details</a>
+        </div>
+    </div>`;
+
+    // ── Energy Rows ─────────────────────────────────────────────────────────
+    function energyRow(rowScore, label, sub, metric, isAlert) {
+        const s     = rowScore != null ? Math.round(rowScore) : null;
+        const color = scoreColor(s);
+        const pfx   = isAlert ? '⚠ ' : '';
+        const cls   = isAlert ? ' hero-energy-row-alert' : '';
+        return `<a class="hero-energy-row${cls}" href="/metrics/${metric}">
+            <span class="hero-energy-dot" style="background:${color}"></span>
+            <span class="hero-energy-val">${pfx}${s ?? '—'}</span>
+            <span class="hero-energy-label">${esc(label)}</span>
+            <span class="hero-energy-sub">${esc(sub)}</span>
+            <span class="hero-energy-arrow">↗</span>
+        </a>`;
+    }
+
     const tsbStr  = phys?.tsb != null ? (phys.tsb >= 0 ? `TSB +${phys.tsb.toFixed(1)}` : `TSB ${phys.tsb.toFixed(1)}`) : '';
     const devStr  = auton?.deviation != null ? `${auton.deviation >= 0 ? '+' : ''}${auton.deviation.toFixed(1)}σ` : '';
     const debtStr = cog?.debt_hours != null ? `${cog.debt_hours.toFixed(1)}h Schulden` : '';
-    const tiles = [
-        metricTile({ label: 'Physisch', value: phys?.score != null ? Math.round(phys.score) : '—',  sub: tsbStr  || (phys  == null ? 'noch keine Daten' : ''), metric: 'physical' }),
-        metricTile({ label: 'Autonom',  value: auton?.score != null ? Math.round(auton.score) : '—', sub: devStr  || (auton == null ? 'noch keine Daten' : ''), metric: 'autonomic' }),
-        metricTile({ label: 'Kognitiv', value: cog?.score != null ? Math.round(cog.score) : '—',    sub: debtStr || (cog   == null ? 'noch keine Daten' : ''), metric: 'cognitive' }),
-    ];
-    el.innerHTML = `<h2>Energie</h2><div class="metric-grid">${tiles.join('')}</div>`;
-}
 
-function buildMlCard() {
-    const el  = document.getElementById('bento-ml');
-    if (!el) return;
-    const ml     = _heroData.ml || {};
+    const energySection = `<div class="hero-energy-section">
+        ${energyRow(phys?.score,  'Physisch', tsbStr,  'physical')}
+        ${energyRow(auton?.score, 'Autonom',  devStr,  'autonomic')}
+        ${energyRow(cog?.score,   'Kognitiv', debtStr, 'cognitive', (cog?.score ?? 100) < 30)}
+    </div>`;
+
+    // ── Vitals Strip ────────────────────────────────────────────────────────
+    const last   = daily.length ? daily[daily.length - 1] : null;
+    const stepsVal = last?.steps != null ? last.steps.toLocaleString('de-AT') : '—';
+    const hrVal    = last?.resting_hr != null ? last.resting_hr + ' bpm' : '—';
+    const hrvVal   = hrv?.hrv_weekly_avg != null ? hrv.hrv_weekly_avg + 'ms' : '—';
+
+    const customSleep = ml.sleep_score_custom;
+    let sleepVal;
+    if (customSleep?.score != null) {
+        const sc  = Math.round(customSleep.score);
+        const cls = sc >= 75 ? 'chip-green' : sc >= 50 ? 'chip-amber' : 'chip-red';
+        sleepVal  = `<span class="hero-chip ${cls}" style="display:inline;padding:2px 8px">${sc}</span>`;
+    } else {
+        sleepVal = sleep[0]?.sleep_score ?? '—';
+    }
+
+    const vitalsSection = `<div class="hero-vitals">
+        <a class="hero-vital" href="/metrics/steps">
+            <span class="hero-vital-val">${stepsVal}</span>
+            <span class="hero-vital-label">Schritte</span>
+        </a>
+        <a class="hero-vital" href="/metrics/sleep">
+            <span class="hero-vital-val">${sleepVal}</span>
+            <span class="hero-vital-label">Schlaf-Score</span>
+        </a>
+        <a class="hero-vital" href="/metrics/hrv">
+            <span class="hero-vital-val">${hrvVal}</span>
+            <span class="hero-vital-label">HRV Wochenø</span>
+        </a>
+        <a class="hero-vital" href="/metrics/hr-zscore">
+            <span class="hero-vital-val">${hrVal}</span>
+            <span class="hero-vital-label">Ruhepuls</span>
+        </a>
+    </div>`;
+
+    // ── Status Chips ────────────────────────────────────────────────────────
     const anomaly = ml.anomaly_hr;
     const rf      = ml.readiness_rf;
     const hrvSt   = ml.hrv_status_custom;
     const im      = ml.intensity_minutes_custom;
-    const te      = ml.training_effect_custom;
-    const tiles   = [];
-
-    if (anomaly?.z_score != null) {
-        tiles.push(metricTile({
-            label: 'Ruhepuls Z-Score', value: anomaly.z_score.toFixed(2),
-            sub: anomaly.is_anomaly ? '⚠ Anomalie' : `✓ Normal (Ø ${Math.round(anomaly.baseline_mean)} bpm)`,
-            metric: 'hr-zscore',
-        }));
-    } else {
-        tiles.push(metricTile({ label: 'Ruhepuls Z-Score', value: '—', sub: 'zu wenig Daten', metric: 'hr-zscore' }));
-    }
-
-    if (rf?.value != null) {
-        const score = Math.round(rf.value);
-        const cls   = score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor';
-        const rfLbl = score >= 80 ? 'Gut' : score >= 50 ? 'Moderat' : 'Niedrig';
-        tiles.push(metricTile({
-            label: 'Prognose morgen',
-            value: `<span class="badge ${cls}" style="font-size:1.4rem;padding:.1rem .5rem">${score}</span>`,
-            sub: `${rfLbl} · Readiness (0–100)`, metric: 'readiness-rf',
-        }));
-    } else {
-        tiles.push(metricTile({ label: 'Prognose morgen', value: '—', sub: 'Modell trainiert sonntags', metric: 'readiness-rf' }));
-    }
+    const chips   = [];
 
     if (hrvSt?.status != null) {
-        const cls    = hrvSt.status === 'BALANCED' ? 'badge-balanced' : hrvSt.status === 'POOR' ? 'badge-poor' : 'badge-unbalanced';
-        const devStr = hrvSt.deviation != null ? `${hrvSt.deviation >= 0 ? '+' : ''}${hrvSt.deviation.toFixed(1)}σ Abweichung` : '';
-        tiles.push(metricTile({
-            label: 'HRV Status',
-            value: `<span class="badge ${cls}">${hrvSt.status}</span>`,
-            sub: devStr, metric: 'hrv-status-custom',
-        }));
+        const cls = hrvSt.status === 'BALANCED' ? 'chip-green' : hrvSt.status === 'POOR' ? 'chip-red' : 'chip-amber';
+        chips.push(`<span class="hero-chip ${cls}">${esc(hrvSt.status)}</span>`);
     }
-
+    if (anomaly?.z_score != null) {
+        const cls = anomaly.is_anomaly ? 'chip-red' : '';
+        chips.push(`<span class="hero-chip ${cls}">z ${anomaly.z_score.toFixed(2)} ${anomaly.is_anomaly ? '⚠' : '✓'}</span>`);
+    }
+    if (rf?.value != null) {
+        const s   = Math.round(rf.value);
+        const cls = s >= 75 ? 'chip-green' : s >= 50 ? 'chip-amber' : 'chip-red';
+        chips.push(`<span class="hero-chip ${cls}">Prognose ↓${s}</span>`);
+    }
     if (im?.moderate_minutes != null) {
-        const total = im.moderate_minutes + im.vigorous_minutes * 2;
-        tiles.push(metricTile({
-            label: 'Intensitätsminuten',
-            value: total,
-            sub: `${im.moderate_minutes}m moderat · ${im.vigorous_minutes}m intensiv`,
-            metric: 'intensity-minutes',
-        }));
+        const total = im.moderate_minutes + (im.vigorous_minutes || 0) * 2;
+        chips.push(`<span class="hero-chip">Intensität ${total}min</span>`);
     }
 
-    if (te?.effect != null) {
-        const cls = te.effect >= 3.5 ? 'badge-balanced' : te.effect >= 2 ? 'badge-unbalanced' : 'badge-poor';
-        tiles.push(metricTile({
-            label: 'Training Effect',
-            value: `<span class="badge ${cls}">${te.effect.toFixed(1)} / 5</span>`,
-            sub: te.vo2max ? `VO₂max ≈ ${te.vo2max}` : '',
-            metric: 'training-effect',
-        }));
+    const chipsSection = chips.length ? `<div class="hero-chips">${chips.join('')}</div>` : '';
+
+    // ── Assemble ────────────────────────────────────────────────────────────
+    el.innerHTML = `<div class="hero-header">
+            <span class="hero-title">TAGESSTATUS</span>
+            <span class="hero-date">${esc(dateLabel)}</span>
+        </div>
+        <div class="hero-grid">
+            ${ringSection}
+            <div class="hero-right">
+                ${energySection}
+                ${vitalsSection}
+            </div>
+        </div>
+        ${chipsSection}`;
+
+    // ── Ring animation ───────────────────────────────────────────────────────
+    if (score != null) {
+        const progress = document.getElementById('hero-ring-progress');
+        const scoreEl  = document.getElementById('hero-ring-score');
+        requestAnimationFrame(() => {
+            if (progress) progress.style.strokeDashoffset = String(circumference - fill);
+            if (scoreEl) {
+                const t0 = performance.now();
+                (function tick(now) {
+                    const p = Math.min((now - t0) / 600, 1);
+                    scoreEl.textContent = Math.round(p * score);
+                    if (p < 1) requestAnimationFrame(tick);
+                })(performance.now());
+            }
+        });
+    } else {
+        const scoreEl = document.getElementById('hero-ring-score');
+        if (scoreEl) scoreEl.textContent = '—';
     }
-
-    el.innerHTML = `<h2>ML &amp; Status</h2><div class="metric-grid">${tiles.join('')}</div>`;
-}
-
-function buildAllBentoCards() {
-    buildReadinessCard();
-    buildGarminCard();
-    buildEnergieCard();
-    buildMlCard();
 }
 
 // ─── Loaders ───────────────────────────────────────────────────────────────
 
-async function load(days) {
+async function load(days, endDate = null) {
+    const ed = endDate ? `&end_date=${endDate}` : '';
     const [activities, daily, sleep, hrv, hrvTrend, trainingStatus, mlHistory] = await Promise.all([
-        fetch(`/api/activities?days=${days}`).then(r => r.json()),
-        fetch(`/api/daily?days=${days}`).then(r => r.json()),
-        fetch(`/api/sleep?days=${days}`).then(r => r.json()),
+        fetch(`/api/activities?days=${days}${ed}`).then(r => r.json()),
+        fetch(`/api/daily?days=${days}${ed}`).then(r => r.json()),
+        fetch(`/api/sleep?days=${days}${ed}`).then(r => r.json()),
         fetch('/api/hrv').then(r => r.json()),
-        fetch(`/api/hrv/trend?days=${days}`).then(r => r.json()),
+        fetch(`/api/hrv/trend?days=${days}${ed}`).then(r => r.json()),
         fetch('/api/training-status').then(r => r.json()),
-        fetch(`/api/ml-history?days=${days}`).then(r => r.json()),
+        fetch(`/api/ml-history?days=${days}${ed}`).then(r => r.json()),
     ]);
 
     _heroData.daily = daily;
     _heroData.sleep = sleep;
     _heroData.hrv = hrv;
     _heroData.trainingStatus = trainingStatus;
-    buildAllBentoCards();
+    buildHeroCard();
 
     // ── Aktivitäten ───────────────────────────────────────────────────
     const actEl = document.getElementById('activities-container');
@@ -415,23 +487,24 @@ async function load(days) {
 async function loadReadiness() {
     const r = await fetch('/api/readiness').then(res => res.json());
     _heroData.readiness = r;
-    buildAllBentoCards();
+    buildHeroCard();
 }
 
 async function loadMlInsights() {
     const d = await fetch('/api/ml-insights').then(r => r.json());
     _heroData.ml = d;
-    buildAllBentoCards();
+    buildHeroCard();
 }
 
 async function loadEnergyMetrics() {
     const d = await fetch('/api/energy').then(r => r.json());
     _heroData.energy = d;
-    buildAllBentoCards();
+    buildHeroCard();
 }
 
-async function loadWeekly() {
-    const data = await fetch('/api/weekly?weeks=12').then(r => r.json());
+async function loadWeekly(weeks = 12, endDate = null) {
+    const ed   = endDate ? `&end_date=${endDate}` : '';
+    const data = await fetch(`/api/weekly?weeks=${weeks}${ed}`).then(r => r.json());
     if (!data.length || !data.some(w => w.total_km || w.other_hours)) {
         showEmpty('weekly'); return;
     }
@@ -533,8 +606,10 @@ async function pollSyncStatus() {
             setSyncLoading(false);
             if (_syncPollTimer) {
                 showToast('Sync abgeschlossen');
+                currentOffset = 0;
+                updateNavBar();
                 load(currentDays);
-                loadWeekly();
+                loadWeekly(Math.max(4, Math.ceil(currentDays / 7)));
                 loadReadiness();
                 loadEnergyMetrics().catch(() => {});
                 _mlPollTimer = setTimeout(pollMlStatus, 5000);
@@ -577,13 +652,19 @@ async function triggerSync() {
 document.querySelectorAll('.time-btn').forEach(btn => {
     btn.addEventListener('click', () => setDays(+btn.dataset.days));
 });
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+});
 document.getElementById('sync-btn').addEventListener('click', triggerSync);
+document.getElementById('nav-back').addEventListener('click', () => shiftPeriod(1));
+document.getElementById('nav-forward').addEventListener('click', () => shiftPeriod(-1));
 document.getElementById('activities-container').addEventListener('click', e => {
     const tr = e.target.closest('tr[data-id]');
     if (tr) location.href = '/activity/' + tr.dataset.id;
 });
 
 // ── Init ───────────────────────────────────────────────────────────────────
+updateNavBar();
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadWeekly().catch(() => showToast('Wochendaten konnten nicht geladen werden', 'error'));
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));

@@ -101,21 +101,24 @@ async def set_garmin_unlinked(user_id: int) -> None:
 
 
 async def get_recent_activities(
-    user_id: int, limit: int = 500, days: int = 7
+    user_id: int, limit: int = 500, days: int = 7, end_date: date | None = None
 ) -> list[dict]:
     pool = await get_pool()
+    end = end_date if end_date is not None else date.today()
     rows = await pool.fetch(
         """
         SELECT id, sport_type, started_at, duration_seconds, distance_meters,
                avg_hr, calories
         FROM activities
         WHERE user_id = $1
-          AND started_at >= NOW() - ($2 * INTERVAL '1 day')
+          AND started_at >= ($3::date - ($2 * INTERVAL '1 day'))::timestamp
+          AND started_at < ($3::date + INTERVAL '1 day')::timestamp
         ORDER BY started_at DESC
-        LIMIT $3
+        LIMIT $4
         """,
         user_id,
         days,
+        end,
         limit,
     )
     return [dict(r) for r in rows]
@@ -168,8 +171,11 @@ async def set_activity_rpe(user_id: int, activity_id: int, rpe: int) -> bool:
     return result == "UPDATE 1"
 
 
-async def get_daily_summaries(user_id: int, days: int = 30) -> list[dict]:
+async def get_daily_summaries(
+    user_id: int, days: int = 30, end_date: date | None = None
+) -> list[dict]:
     pool = await get_pool()
+    end = end_date if end_date is not None else date.today()
     rows = await pool.fetch(
         """
         SELECT ds.date, ds.steps, ds.resting_hr, ds.avg_stress, ds.calories_total,
@@ -183,43 +189,57 @@ async def get_daily_summaries(user_id: int, days: int = 30) -> list[dict]:
             WHERE user_id = $1
             GROUP BY date(time)
         ) bb ON bb.date = ds.date
-        WHERE ds.user_id = $1 AND ds.date >= NOW() - ($2 * INTERVAL '1 day')
+        WHERE ds.user_id = $1
+          AND ds.date >= $3::date - ($2 * INTERVAL '1 day')
+          AND ds.date <= $3::date
         ORDER BY ds.date
         """,
         user_id,
         days,
+        end,
     )
     return [dict(r) for r in rows]
 
 
-async def get_sleep_sessions(user_id: int, limit: int = 14) -> list[dict]:
+async def get_sleep_sessions(
+    user_id: int, days: int = 14, end_date: date | None = None
+) -> list[dict]:
     pool = await get_pool()
+    end = end_date if end_date is not None else date.today()
     rows = await pool.fetch(
         """
         SELECT date(start_time) AS date, sleep_score, total_sleep_seconds,
                deep_sleep_seconds, light_sleep_seconds, rem_sleep_seconds, awake_seconds
         FROM sleep_sessions
         WHERE user_id = $1
+          AND DATE(start_time) >= $3::date - ($2 * INTERVAL '1 day')
+          AND DATE(start_time) <= $3::date
         ORDER BY start_time DESC
-        LIMIT $2
         """,
         user_id,
-        limit,
+        days,
+        end,
     )
     return [dict(r) for r in rows]
 
 
-async def get_hrv_trend(user_id: int, days: int = 30) -> list[dict]:
+async def get_hrv_trend(
+    user_id: int, days: int = 30, end_date: date | None = None
+) -> list[dict]:
     pool = await get_pool()
+    end = end_date if end_date is not None else date.today()
     rows = await pool.fetch(
         """
         SELECT date, hrv_last_night, hrv_weekly_avg, hrv_status
         FROM hrv_daily
-        WHERE user_id = $1 AND date >= NOW() - ($2 * INTERVAL '1 day')
+        WHERE user_id = $1
+          AND date >= $3::date - ($2 * INTERVAL '1 day')
+          AND date <= $3::date
         ORDER BY date
         """,
         user_id,
         days,
+        end,
     )
     return [dict(r) for r in rows]
 
@@ -239,8 +259,11 @@ async def get_latest_training_status(user_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-async def get_weekly_stats(user_id: int, weeks: int = 12) -> list[dict]:
+async def get_weekly_stats(
+    user_id: int, weeks: int = 12, end_date: date | None = None
+) -> list[dict]:
     pool = await get_pool()
+    end = end_date if end_date is not None else date.today()
     rows = await pool.fetch(
         """
         SELECT
@@ -259,12 +282,14 @@ async def get_weekly_stats(user_id: int, weeks: int = 12) -> list[dict]:
                            THEN duration_seconds ELSE 0 END) / 3600.0)::numeric, 1) AS other_hours
         FROM activities
         WHERE user_id = $1
-          AND started_at >= NOW() - ($2 * INTERVAL '1 week')
+          AND started_at >= ($3::date - ($2 * INTERVAL '1 week'))::timestamp
+          AND started_at < ($3::date + INTERVAL '1 day')::timestamp
         GROUP BY 1
         ORDER BY 1 ASC
         """,
         user_id,
         weeks,
+        end,
     )
     return [dict(r) for r in rows]
 
@@ -448,18 +473,22 @@ async def get_energy_metrics(user_id: int) -> dict:
     return result
 
 
-async def get_ml_history(user_id: int, days: int = 30) -> dict:
+async def get_ml_history(
+    user_id: int, days: int = 30, end_date: date | None = None
+) -> dict:
     pool = await get_pool()
-    cutoff = date.today() - timedelta(days=days)
+    end = end_date if end_date is not None else date.today()
+    cutoff = end - timedelta(days=days)
     rows = await pool.fetch(
         """
         SELECT date, model, value, metadata
         FROM ml_predictions
-        WHERE user_id = $1 AND date >= $2
+        WHERE user_id = $1 AND date >= $2 AND date <= $3
         ORDER BY date ASC
         """,
         user_id,
         cutoff,
+        end,
     )
     result: dict = {}
     for row in rows:
