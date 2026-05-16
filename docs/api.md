@@ -100,8 +100,14 @@ belongs to a different user.
 ### `GET /settings`
 
 Renders the settings page. Shows account info (name, email), Garmin Connect
-connection status, and LibreLinkUp connection status — each with inline
-connect/disconnect buttons.
+connection status, LibreLinkUp connection status, and the Epilepsie-Modus toggle —
+each with inline connect/disconnect buttons.
+
+### `GET /epilepsy`
+
+Renders the seizure diary page (`epilepsy.html`). Redirects to `/settings` if
+`epilepsy_mode` is not enabled for the user. Contains three sections:
+daily risk indicator, log form, and event history.
 
 ### `GET /libre/link`
 
@@ -631,18 +637,19 @@ Returns `{}` if ML inference has not run yet.
 
 ### `PATCH /api/profile`
 
-Saves the user's date of birth and biological sex. Used for Banister TRIMP computation in the ML service. Session-protected.
+Saves the user's date of birth, biological sex, and optional epilepsy mode flag. Used for Banister TRIMP computation in the ML service. Session-protected.
 
 **Request body (JSON):**
 
 ```json
-{ "date_of_birth": "1990-05-15", "sex": "m" }
+{ "date_of_birth": "1990-05-15", "sex": "m", "epilepsy_mode": true }
 ```
 
 | Field | Type | Constraint |
 |-------|------|------------|
 | `date_of_birth` | `date \| null` | ISO 8601, must be in the past |
 | `sex` | `string \| null` | `"m"`, `"f"`, or `"diverse"` |
+| `epilepsy_mode` | `boolean \| null` | Enables seizure diary; omit to leave unchanged |
 
 **Response on success:**
 
@@ -755,6 +762,217 @@ not in the allowed set.
 
 **Response:** HTML page (`metrics.html` template). Data is loaded client-side via
 `/api/activities`, `/api/daily`, `/api/sleep`, `/api/hrv/trend`, and `/api/energy`.
+
+---
+
+### `POST /api/seizures`
+
+Logs a new seizure event. Session-protected. Only meaningful when `epilepsy_mode = true`.
+
+**Request body (JSON):**
+
+```json
+{
+  "occurred_at": "2026-05-16T08:30:00Z",
+  "type": "focal",
+  "duration_seconds": 90,
+  "severity": 3,
+  "notes": "Nach Schlafentzug, mit Aura"
+}
+```
+
+| Field | Type | Constraint |
+|-------|------|------------|
+| `occurred_at` | ISO 8601 datetime | required |
+| `type` | string | `"focal"`, `"generalized"`, or `"unknown"` (default) |
+| `duration_seconds` | integer \| null | optional |
+| `severity` | integer \| null | 1–5; optional |
+| `notes` | string \| null | free text; optional |
+
+**Response:**
+
+```json
+{ "ok": true, "id": 1 }
+```
+
+---
+
+### `GET /api/seizures`
+
+Returns logged seizure events for the authenticated user.
+
+**Query parameters:**
+
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| `days` | `365` | Look-back window |
+
+**Response** — array ordered by `occurred_at DESC`:
+
+```json
+[
+  {
+    "id": 1,
+    "occurred_at": "2026-05-16T08:30:00+00:00",
+    "duration_seconds": 90,
+    "type": "focal",
+    "severity": 3,
+    "notes": "Nach Schlafentzug, mit Aura"
+  }
+]
+```
+
+---
+
+### `GET /api/seizures/risk`
+
+Returns a rule-based daily risk indicator computed from existing biomarkers.
+No seizure history required — useful from day 1.
+
+**Response:**
+
+```json
+{
+  "level": "amber",
+  "flags": [
+    { "label": "Schlafschuld", "detail": "3.2h in 7 Nächten", "color": "amber" }
+  ],
+  "sleep_debt_h": 3.2
+}
+```
+
+| Field | Values | Notes |
+|-------|--------|-------|
+| `level` | `"ok"` / `"amber"` / `"red"` | Highest severity across all flags — `"red"` is never downgraded by subsequent amber flags |
+| `flags` | array | Each active risk factor with `label`, `detail`, `color` |
+| `sleep_debt_h` | float | Cumulative sleep deficit vs 7h/night target over last 7 nights |
+
+**Risk rules:**
+
+| Condition | Level | Data source |
+|-----------|-------|-------------|
+| Sleep debt > 5h (last 7 nights vs 7h target) | red | `sleep_sessions` |
+| Sleep debt 2–5h | amber | `sleep_sessions` |
+| avg_stress (yesterday) > 70 | amber | `daily_summary` |
+| HRV last night < 80 % of weekly average | amber | `hrv_daily` |
+| Body battery daily low < 20 (yesterday) | amber | `daily_summary` |
+| Vigorous intensity > 60 min (yesterday) | amber | `daily_summary` |
+| Resting HR > 110 % of 30-day baseline | amber | `daily_summary` |
+
+#### Rationale and scientific basis
+
+> **Disclaimer:** These are rule-based heuristics. No prospective study has validated
+> this exact combination of consumer wearable metrics as seizure predictors. The thresholds
+> are clinically plausible but not clinically validated for epilepsy specifically. This
+> indicator is not a substitute for neurological care.
+
+---
+
+#### Rule 1 — Sleep debt (red ≥ 5h, amber 2–5h over 7 nights)
+
+Sleep deprivation is the most consistently reported seizure trigger in clinical epilepsy
+literature. The 7h/night target follows Walker (2017), NSF and AASM adult sleep
+recommendations. The mechanism: sleep loss reduces GABA-ergic inhibition and upregulates
+glutamate, progressively lowering cortical seizure threshold (Bazil 2003, Malow 2004).
+The 5h cumulative threshold corresponds to ≈ 43 min average nightly deficit — the point
+where the published literature describes measurable effects on cortical excitability.
+
+- Sleep deprivation as trigger: Frucht et al. (2000) — 37% of patients report it as
+  their primary trigger; Nakken et al. (2005) — confirmed in prospective diary study.
+- Neuroscience: Sanchez-Alavez et al. (2019) — sleep–wake cycle regulates GABA/glutamate
+  balance; disruption measurably shifts the excitation–inhibition ratio.
+
+---
+
+#### Rule 2 — HRV drop > 20 % below personal weekly average
+
+HRV (heart rate variability) reflects the balance between the sympathetic and
+parasympathetic nervous system. A significant acute drop indicates elevated sympathetic
+tone and reduced vagal activity — both associated with increased cortical excitability
+and lowered seizure threshold.
+
+The 20% threshold is established in sports medicine as a clinically meaningful deviation
+from personal baseline (used by WHOOP, Oura, and published athlete-monitoring protocols).
+For epilepsy specifically, Jansen & Lagae (2010) showed preictal HRV depression in the
+hours preceding focal seizures, suggesting ANS dysregulation precedes seizure onset.
+
+> **Limitation:** Garmin's wrist-based optical HRV (rMSSD proxy from Firstbeat) has higher
+> measurement noise than medical-grade ECG HRV. The 20% threshold compensates for this
+> with a conservatively wide margin.
+
+---
+
+#### Rule 3 — Garmin stress score (yesterday) > 70
+
+Garmin's stress score is itself computed from HRV (specifically the deviation of
+sympatho-vagal balance from a personal baseline via Firstbeat's algorithm). A score > 70
+corresponds to Garmin's own "high stress" classification. Physiologically, sustained high
+stress activates the HPA axis (cortisol, adrenaline), which is a documented seizure risk
+factor: Bhagya et al. (2012) demonstrated that elevated cortisol measurably reduces
+seizure threshold in animal models; Temkin & Davis (1984) confirmed psychological stress
+as a self-reported trigger in 30–40% of epilepsy patients.
+
+> **Note:** This rule and the HRV-drop rule overlap mechanistically (both reflect sympathetic
+> dominance). Simultaneous flags from both rules do not compound risk multiplicatively —
+> each contributes one amber flag to the indicator independently.
+
+---
+
+#### Rule 4 — Body battery daily low < 20
+
+Garmin's Body Battery is a proprietary composite score incorporating overnight HRV
+recovery, stress load, sleep quality, and activity level (via Firstbeat Analytics).
+A daily low below 20 indicates extreme overall depletion — essentially a corroborating
+composite signal when individual metrics are each only moderately elevated or unavailable.
+Chosen as a fallback / catch-all when Garmin HRV data is missing.
+
+---
+
+#### Rule 5 — Vigorous intensity > 60 min (yesterday)
+
+Regular moderate exercise is established as protective for epilepsy (Arida et al. 2008 —
+exercise reduces seizure frequency in most studies). This rule flags only excessive
+vigorous effort, not exercise in general. Mechanisms for excessive-exercise risk:
+
+- Hyponatremia (dilutional, from high fluid intake during prolonged endurance effort) is
+  a direct seizure trigger.
+- Hypomagnesemia from sweat loss lowers seizure threshold.
+- Extreme post-exercise fatigue amplifies the effect of concurrent sleep debt.
+
+The 60 min threshold is pragmatic (not from a specific RCT) — it targets the minority of
+training days where vigorous-intensity duration is unusually high relative to typical
+Garmin daily summaries.
+
+---
+
+#### Rule 6 — Resting HR > 10 % above 30-day personal baseline
+
+Elevated resting heart rate above personal baseline is an established early indicator of:
+overtraining syndrome, acute viral illness, dehydration, and persistent psychological
+stress — all of which are documented seizure risk factors or associated with other
+flagged biomarkers. The 10% threshold follows standard sports-medicine practice for
+flagging overtraining (Kreher & Schwartz 2012). Technically: `ROUND(AVG(resting_hr))`
+over the 30 days prior to today, excluding today (to avoid comparing today against itself).
+
+> **Limitation:** `resting_hr` from Garmin represents the lowest HR recorded during sleep,
+> not a true clinical resting HR. Values can be affected by sleep position and movement
+> artifacts, slightly increasing false-positive rates for this rule.
+
+---
+
+**Selected references:**
+
+| Citation | Rule |
+|----------|------|
+| Frucht et al. (2000). Epilepsy & Behavior 1(5). | 1 |
+| Nakken et al. (2005). Epilepsia 46(1). | 1 |
+| Bazil CW (2003). Lancet Neurol 2(5). | 1 |
+| Malow BA (2004). Epilepsia 45(s10). | 1 |
+| Jansen & Lagae (2010). Seizure 19(8). | 2 |
+| Temkin & Davis (1984). Epilepsia 25(4). | 3 |
+| Bhagya et al. (2012). Epilepsy Res 102(3). | 3 |
+| Arida et al. (2008). Neuroscience Biobehav Rev 32(3). | 5 |
+| Kreher & Schwartz (2012). Sports Health 4(2). | 6 |
 
 ---
 
