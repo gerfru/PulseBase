@@ -206,9 +206,9 @@ score = clip(100 − total_debt × 6, 0, 100)
 
 ## Was noch fehlt (Roadmap)
 
-| Erweiterung | Voraussetzung |
-|-------------|---------------|
-| Banister TRIMP (präziser) | `users.sex` in DB ergänzen |
-| HRmax via Altersformel (Fallback) | `users.age` in DB ergänzen |
-| Borbély Process C (Zirkadian) | Einschlaf-/Aufwachzeiten speichern |
-| 7-Tage gleitendes Baseline-Fenster HRV | Bereits möglich, derzeit 90 Tage fix |
+| Erweiterung | Status |
+|-------------|--------|
+| Banister TRIMP (präziser, geschlechtsspezifisch) | ✅ Implementiert als `training_effect_custom` — `users.sex` + `users.date_of_birth` in V12 migriert |
+| HRmax via Altersformel (Fallback) | ✅ `users.date_of_birth` vorhanden; Alter aus Geburtsdatum berechenbar |
+| Borbély Process C (Zirkadian) | Offen — Einschlaf-/Aufwachzeiten müssten explizit gespeichert werden |
+| 7-Tage gleitendes Baseline-Fenster HRV | Offen — derzeit 90 Tage fix |

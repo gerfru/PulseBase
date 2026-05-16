@@ -110,10 +110,11 @@ starts Traefik alongside PulseBase. This is the fallback, not the default.
 ## CSS: Tailwind CDN + custom style.css
 
 Templates use **Tailwind CSS** (CDN Play Script, no build step required for dev) for layout,
-spacing, and color utilities. A companion `api/src/static/style.css` (~420 lines) handles
+spacing, and color utilities. A companion `api/src/static/style.css` (~600 lines) handles
 only the classes that JavaScript generates dynamically at runtime (`.card`, `.badge-*`,
-`.metric-tile-*`, `.toast`, etc.) — these cannot be inlined because they are constructed
-in dashboard.js/activity.js/metrics.js via string concatenation.
+`.metric-tile-*`, `.toast`, `.hero-grid`, `.hero-chip`, `.nav-bar`, etc.) — these cannot be
+inlined because they are constructed in dashboard.js/activity.js/metrics.js via string
+concatenation.
 
 **Light / Dark theme:**
 - `theme-init.js` runs before Tailwind CDN to set `.dark` on `<html>` from `localStorage`
@@ -130,13 +131,59 @@ Tailwind CLI standalone binary (no Node.js) in the `api` Dockerfile generates a 
 Krafttraining, Yoga, Indoor Cycling get their specific label instead of "Other".
 German display labels are mapped in `dashboard.js` and `activity.js` (`SPORT_LABEL`).
 
-### Glassmorphism
+### Slate/Emerald Dark Instrument Panel
 
-The dashboard uses a glassmorphism aesthetic:
-- Emerald radial gradient overlays on `body` background (3 blobs, dark + light variants)
-- Cards: `backdrop-filter: blur(16px)` + CSS variable `--card-bg` (dark: slate/60,
-  light: white/80) — requires non-solid body background for blur to be visible
-- Accent color: emerald `#10b981` throughout (previously indigo)
+The dashboard uses a "Dark Instrument Panel" aesthetic — precision-focused, information-dense,
+inspired by WHOOP and Bloomberg Terminal. Replaced the earlier glassmorphism style.
+
+- Slate background (`#0f172a` / `#1e293b`) with subtle emerald radial gradient accents
+- Cards: flat with `rgba(255,255,255,0.04–0.08)` fill + `1px` border — no blur
+- Accent colors: emerald green (#22c55e), amber (#f59e0b), red (#ef4444) for score-based
+  color coding — only three semantic colors used throughout the dashboard
+
+---
+
+## Hero Section: Unified Tagesstatus Card
+
+**Phase:** Implemented (replaced the 4 separate Bento cards).
+
+Four separate cards (Readiness, Heute, Energie, ML Status) were merged into a single
+"Tagesstatus" card using a WHOOP-style 3-tier hierarchy:
+
+**Tier 1 (left) — Readiness Ring:**
+SVG ring animates on load (`stroke-dashoffset`, 800ms ease-out). Score counts up from 0
+via `requestAnimationFrame` (600ms). Ring color and fill determined by score: ≥75 green,
+≥50 amber, <50 red.
+
+**Tier 2 (right) — Energie-Triptychon + Vitals:**
+Three energy rows (Physisch / Autonom / Kognitiv) with color-coded dots, scores, sub-labels
+(TSB, σ-deviation, sleep debt hours), and arrow links. A 2×2 vitals strip below shows
+steps, sleep score, HRV avg, resting HR.
+
+**Tier 3 (bottom) — ML Status Chips:**
+Compact badge pills for: HRV status (BALANCED/UNBALANCED/LOW/POOR), Z-score anomaly,
+RF readiness forecast, Body Battery pattern, training effect. Only rendered when data exists.
+
+**Layout:** Two-column grid (ring | right-panel) on desktop, stacked on mobile ≤600px.
+
+---
+
+## Time Navigation (← → Period Shifting)
+
+**Phase:** Implemented.
+
+The 7T/14T/30T/90T/365T buttons set the window size. The ← → nav bar (between tabs and
+chart panels) shifts that window into the past via a `currentOffset` integer (0 = current
+period, 1 = one period back, etc.).
+
+`getEndDate()` computes `today - offset × days` as an ISO date string.
+All 6 data endpoints (`/api/activities`, `/api/daily`, `/api/sleep`, `/api/hrv/trend`,
+`/api/weekly`, `/api/ml-history`) accept `end_date` as an optional query parameter.
+The DB layer uses a date-range `WHERE date >= end_date - days AND date <= end_date`
+instead of the previous `WHERE date >= NOW() - interval`.
+
+Switching time range (7T→30T etc.) resets offset to 0.
+The forward button (`→`) is disabled when offset=0.
 
 ---
 

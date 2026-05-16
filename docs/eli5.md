@@ -155,9 +155,12 @@ Dasselbe wird auch für Schlaf→Ruhepuls und Body Battery→Ruhepuls berechnet.
 Deine Body Battery zeigt über den Tag, wie viel Energie du hattest.
 Der Computer gruppiert alle deine Tage in drei Muster:
 
-- **⚡ Hohe & stabile Energie** — Morgens gut gestartet, abends noch viel übrig
-- **🔄 Erholung** — Mittleres Niveau, normaler Alltag
-- **📉 Erschöpft** — Stark abgefallen, viele Belastungsspitzen
+- **Stabil hoch** — Morgens gut gestartet, abends noch viel übrig
+- **Erholung** — Mittleres Niveau, normaler Alltag
+- **Erschöpft** — Stark abgefallen, viele Belastungsspitzen
+
+Das Muster wird täglich als kleiner Status-Chip im Tagesstatus-Hero angezeigt.
+Die Detail-Seite (`/ml/battery`) zeigt die Feature-Aufschlüsselung für den aktuellen Tag.
 
 ---
 
