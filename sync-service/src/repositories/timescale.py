@@ -53,12 +53,19 @@ class TimescaleRepository(
                     user_id, garmin_activity_id, started_at, duration_seconds,
                     sport_type, distance_meters, calories, avg_hr, max_hr,
                     avg_pace_sec_per_km, avg_cadence, avg_power, elevation_gain,
-                    avg_speed_kmh, aerobic_effect, anaerobic_effect
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                    avg_speed_kmh, aerobic_effect, anaerobic_effect,
+                    avg_ground_contact_time, avg_vertical_oscillation,
+                    avg_stride_length, avg_vertical_ratio, avg_running_power
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
                 ON CONFLICT (garmin_activity_id) DO UPDATE SET
-                    sport_type       = EXCLUDED.sport_type,
-                    aerobic_effect   = EXCLUDED.aerobic_effect,
-                    anaerobic_effect = EXCLUDED.anaerobic_effect
+                    sport_type               = EXCLUDED.sport_type,
+                    aerobic_effect           = EXCLUDED.aerobic_effect,
+                    anaerobic_effect         = EXCLUDED.anaerobic_effect,
+                    avg_ground_contact_time  = EXCLUDED.avg_ground_contact_time,
+                    avg_vertical_oscillation = EXCLUDED.avg_vertical_oscillation,
+                    avg_stride_length        = EXCLUDED.avg_stride_length,
+                    avg_vertical_ratio       = EXCLUDED.avg_vertical_ratio,
+                    avg_running_power        = EXCLUDED.avg_running_power
                 RETURNING id
                 """,
                 activity.user_id,
@@ -77,6 +84,11 @@ class TimescaleRepository(
                 activity.avg_speed_kmh,
                 activity.aerobic_effect,
                 activity.anaerobic_effect,
+                activity.avg_ground_contact_time,
+                activity.avg_vertical_oscillation,
+                activity.avg_stride_length,
+                activity.avg_vertical_ratio,
+                activity.avg_running_power,
             )
             return row["id"] if row else None
 
