@@ -314,7 +314,7 @@ function buildHeroCard() {
 
     const vitalsSection = `<div class="hero-vitals">
         ${vitalTile(stepsVal, 'Schritte', '/metrics/steps')}
-        ${vitalTile(sleepVal, 'Schlaf-Score', '/metrics/sleep')}
+        ${vitalTile(sleepVal, 'Schlaf-Score', ml.sleep_score_custom ? '/metrics/sleep-score-custom' : '/metrics/sleep')}
         ${vitalTile(hrvVal,  'HRV Wochenø',  '/metrics/hrv',       hrvSubVal, hrvSubCls, 'Balance')}
         ${vitalTile(hrVal,   'Ruhepuls',      '/metrics/hr-zscore', hrSubVal,  hrSubCls,  'vs. Ø')}
     </div>`;
