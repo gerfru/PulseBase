@@ -65,7 +65,7 @@ async def get_user_by_id(user_id: int) -> dict | None:
     row = await pool.fetchrow(
         """
         SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email,
-               date_of_birth, sex, epilepsy_mode
+               date_of_birth, sex, epilepsy_mode, spo2_enabled
         FROM users WHERE id = $1
         """,
         user_id,
@@ -92,6 +92,15 @@ async def update_epilepsy_mode(user_id: int, epilepsy_mode: bool) -> None:
     await pool.execute(
         "UPDATE users SET epilepsy_mode = $1 WHERE id = $2",
         epilepsy_mode,
+        user_id,
+    )
+
+
+async def update_spo2_enabled(user_id: int, spo2_enabled: bool) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET spo2_enabled = $1 WHERE id = $2",
+        spo2_enabled,
         user_id,
     )
 
@@ -223,7 +232,7 @@ async def get_sleep_sessions(
     end = end_date if end_date is not None else date.today()
     rows = await pool.fetch(
         """
-        SELECT date(start_time) AS date, sleep_score, total_sleep_seconds,
+        SELECT date(start_time) AS date, start_time, end_time, sleep_score, total_sleep_seconds,
                deep_sleep_seconds, light_sleep_seconds, rem_sleep_seconds, awake_seconds
         FROM sleep_sessions
         WHERE user_id = $1
