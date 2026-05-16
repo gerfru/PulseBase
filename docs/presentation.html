@@ -616,6 +616,112 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
         </div>
       </div>
 
+      <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 mt-10">Epilepsie-Modus — Anfallstagebuch &amp; Risiko-Indikator</h3>
+
+      <!-- Anfallsrisiko-Indikator -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Anfallsrisiko-Indikator</span>
+              <span class="badge-type bg-violet-500/15 text-violet-300">Regelbasiert · Heuristisch</span>
+              <span class="badge-type bg-amber-500/15 text-amber-300">Nicht klinisch validiert</span>
+            </div>
+            <p class="text-sm text-slate-400 mb-3">
+              Tagesaktueller Risikoindikator aus bestehenden Garmin-Biomarkern.
+              Kein Anfallsverlauf nötig — nützlich ab Tag 1. Optional hinter <code>epilepsy_mode</code>-Toggle.
+            </p>
+            <p class="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
+              ⚠ Heuristisch: Die Schwellenwerte sind klinisch plausibel, aber nicht in kontrollierten Studien
+              als Anfallsprädiktoren validiert. Kein Ersatz für neurologische Betreuung.
+            </p>
+          </div>
+        </div>
+
+        <div class="formula mb-4">
+<span class="c"># Ampel-Logik (ok / amber / red)</span>
+<span class="c"># "red" wird nie durch nachfolgende amber-Flags zurückgestuft</span>
+
+<span class="k">Schlafschuld</span>  = Σ max(0, 7h − total_sleep_h) über letzte 7 Nächte
+  <span class="v">≥ 5h</span> → <span style="color:#ef4444">red</span>   <span class="c">≈ 43 min Defizit/Nacht Durchschnitt</span>
+  <span class="v">2–5h</span> → <span style="color:#f59e0b">amber</span>
+
+<span class="k">HRV-Einbruch</span>  hrv_last_night &lt; hrv_weekly_avg × 0.80  → <span style="color:#f59e0b">amber</span>
+<span class="k">Hoher Stress</span>  avg_stress (gestern) &gt; 70                → <span style="color:#f59e0b">amber</span>
+<span class="k">Body Battery</span>  body_battery_low (gestern) &lt; 20           → <span style="color:#f59e0b">amber</span>
+<span class="k">Intensiv-Tr.</span>  intensity_vigorous (gestern) &gt; 60 min      → <span style="color:#f59e0b">amber</span>
+<span class="k">Ruhepuls ↑</span>   resting_hr &gt; ROUND(AVG_30d) × 1.10        → <span style="color:#f59e0b">amber</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 text-xs">
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-slate-300 font-semibold mb-1">Schlafschuld (Regel 1)</div>
+            <div class="text-slate-400">
+              Schlafentzug ist der am häufigsten dokumentierte Anfallstrigger (Frucht et al. 2000: 37% der Patienten;
+              Nakken et al. 2005). Mechanismus: Schlafverlust reduziert GABA-erge Hemmung und erhöht Glutamat
+              (Bazil 2003, Malow 2004). Ziel 7h/Nacht = NSF/AASM-Empfehlung.
+              5h-Schwelle ≈ 43 min avg. Defizit/Nacht.
+            </div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-slate-300 font-semibold mb-1">HRV-Einbruch (Regel 2)</div>
+            <div class="text-slate-400">
+              HRV spiegelt autonome Balance. Akuter Drop → erhöhter Sympathikotonus → geringere Krampfschwelle.
+              Jansen &amp; Lagae (2010): Präiktale HRV-Depression in den Stunden vor fokalen Anfällen nachgewiesen.
+              20%-Schwelle: etablierter Sportmedizin-Grenzwert (WHOOP, Oura).
+              Limitation: Optischer Pulssensor (Handgelenk) hat höheres Messrauschen als medizin. EKG.
+            </div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-slate-300 font-semibold mb-1">Stress &amp; Cortisol (Regel 3)</div>
+            <div class="text-slate-400">
+              Garmins Stress-Score ist HRV-basiert (Firstbeat). Score &gt;70 = "hoher Stress" lt. Garmin.
+              Bhagya et al. (2012): Erhöhter Cortisol senkt Krampfschwelle messbar.
+              Temkin &amp; Davis (1984): 30–40% berichten psychischen Stress als primären Trigger.
+              Mechanistische Überlappung mit Regel 2 — keine multiplikative Kompoundierung.
+            </div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-slate-300 font-semibold mb-1">Body Battery &amp; Intensivtraining (Regeln 4 &amp; 5)</div>
+            <div class="text-slate-400">
+              Body Battery &lt;20 = Garmin-Composite-Fallback wenn Einzel-Metriken fehlen.
+              Intensivtraining &gt;60 min: Arida et al. (2008) — moderates Training ist schützend;
+              exzessives Training kann Hyponatriämie, Hypomagnesiämie und Erschöpfung auslösen —
+              bekannte Anfallstrigger. Schwelle pragmatisch (kein spezifisches RCT).
+            </div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-slate-300 font-semibold mb-1">Erhöhter Ruhepuls (Regel 6)</div>
+            <div class="text-slate-400">
+              RHR &gt;10% über persönlicher 30-Tage-Baseline = Frühindikator für Übertraining, Erkrankung,
+              Dehydration oder anhaltendem Stress. Kreher &amp; Schwartz (2012): Standardschwelle in der
+              Sportmedizin. Limitation: Garmin-RHR = niedrigste HR im Schlaf, keine echte klinische Ruhepulsmessung.
+            </div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-slate-300 font-semibold mb-1">Datenquellen</div>
+            <div class="text-slate-400 font-mono">
+              sleep_sessions.total_sleep_seconds<br>
+              hrv_daily.hrv_last_night / hrv_weekly_avg<br>
+              daily_summary.avg_stress<br>
+              daily_summary.body_battery_low<br>
+              daily_summary.intensity_vigorous<br>
+              daily_summary.resting_hr (30-Tage-AVG)
+            </div>
+          </div>
+        </div>
+
+        <div class="text-xs text-slate-500">
+          Kein historischer Anfallsverlauf nötig · Toggle: <code>users.epilepsy_mode</code> ·
+          Anfallsdaten in <code>seizure_events</code> (V15) — Grundlage für spätere ML-Korrelation (V2 geplant) ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Frucht et al. (2000) Epilepsy &amp; Behavior ·
+          Jansen &amp; Lagae (2010) Seizure ·
+          Arida et al. (2008) Neuroscience Biobehav Rev ·
+          Kreher &amp; Schwartz (2012) Sports Health
+        </div>
+      </div>
+
     </section>
 
     <!-- ── Datenbankschema ──────────────────────────────────────────────── -->
@@ -636,7 +742,7 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
             <tr>
               <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">users</td>
               <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
-              <td class="py-3 text-slate-400 text-xs">id, name, email, password_hash, garmin_linked, garmin_email, libre_linked, libre_email, date_of_birth, sex, is_active</td>
+              <td class="py-3 text-slate-400 text-xs">id, name, email, password_hash, garmin_linked, garmin_email, libre_linked, libre_email, date_of_birth, sex, epilepsy_mode, is_active</td>
             </tr>
             <tr>
               <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">activities</td>
@@ -678,6 +784,11 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
               <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
               <td class="py-3 text-slate-400 text-xs">date, user_id, model, value, metadata (JSONB) — PK: (date, user_id, model) · Upsert bei jeder Inferenz</td>
             </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">seizure_events</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">id, user_id, occurred_at, duration_seconds, type (focal/generalized/unknown), severity (1–5), notes — Anfallstagebuch (V15)</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -686,7 +797,8 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
         <span class="font-semibold text-slate-200">Migrationen:</span>
         V1–V5 Schema · V6 sync_trigger · V7 app_user (least-privilege) · V8 ml_predictions ·
         V9 glucose/intraday · V10 ml_trigger · V11 activity_rpe · V12 user_profile (date_of_birth, sex) ·
-        V13 running_economy · V14 fix stride length precision (cm statt m)
+        V13 running_economy · V14 fix stride length precision (cm statt m) ·
+        V15 epilepsy_mode + seizure_events
       </div>
     </section>
 

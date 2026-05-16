@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Query, Request
@@ -23,6 +23,7 @@ from src.db import (
     get_user_by_email,
     get_user_by_id,
     update_user_profile,
+    update_epilepsy_mode,
     set_garmin_linked,
     set_garmin_unlinked,
     get_recent_activities,
@@ -48,6 +49,9 @@ from src.db import (
     get_training_load_inputs,
     get_activity_hrmax,
     get_user_sex,
+    save_seizure,
+    get_seizures,
+    get_seizure_risk,
 )
 from src.training_load import build_training_load
 from src.garmin.client import GarminClient
@@ -648,6 +652,7 @@ async def api_ml_status(request: Request):
 class ProfileBody(BaseModel):
     date_of_birth: date | None = None
     sex: str | None = None
+    epilepsy_mode: bool | None = None
 
     @field_validator("sex")
     @classmethod
@@ -667,5 +672,65 @@ class ProfileBody(BaseModel):
 @app.patch("/api/profile")
 async def api_update_profile(request: Request, body: ProfileBody):
     user = await require_user(request)
-    await update_user_profile(user["id"], body.date_of_birth, body.sex)
+    fields = body.model_fields_set
+    if "epilepsy_mode" in fields and body.epilepsy_mode is not None:
+        await update_epilepsy_mode(user["id"], body.epilepsy_mode)
+    if "date_of_birth" in fields or "sex" in fields:
+        await update_user_profile(user["id"], body.date_of_birth, body.sex)
     return {"ok": True}
+
+
+class SeizureBody(BaseModel):
+    occurred_at: datetime
+    duration_seconds: int | None = None
+    type: str = "unknown"
+    severity: int | None = None
+    notes: str | None = None
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        if v not in ("focal", "generalized", "unknown"):
+            raise ValueError("type must be focal, generalized, or unknown")
+        return v
+
+    @field_validator("severity")
+    @classmethod
+    def validate_severity(cls, v: int | None) -> int | None:
+        if v is not None and not (1 <= v <= 5):
+            raise ValueError("severity must be 1–5")
+        return v
+
+
+@app.get("/epilepsy")
+async def epilepsy_page(request: Request):
+    user = await require_user(request)
+    if not user.get("epilepsy_mode"):
+        return RedirectResponse("/settings", status_code=303)
+    return templates.TemplateResponse(request, "epilepsy.html", {"user": user})
+
+
+@app.post("/api/seizures")
+async def api_log_seizure(request: Request, body: SeizureBody):
+    user = await require_user(request)
+    id_ = await save_seizure(
+        user["id"],
+        body.occurred_at,
+        body.duration_seconds,
+        body.type,
+        body.severity,
+        body.notes,
+    )
+    return {"ok": True, "id": id_}
+
+
+@app.get("/api/seizures")
+async def api_get_seizures(request: Request, days: int = 365):
+    user = await require_user(request)
+    return await get_seizures(user["id"], days)
+
+
+@app.get("/api/seizures/risk")
+async def api_seizure_risk(request: Request):
+    user = await require_user(request)
+    return await get_seizure_risk(user["id"])
