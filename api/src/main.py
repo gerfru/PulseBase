@@ -1,5 +1,7 @@
 import logging
+import time
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Query, Request
@@ -19,6 +21,7 @@ from src.db import (
     create_user,
     get_user_by_email,
     get_user_by_id,
+    update_user_profile,
     set_garmin_linked,
     set_garmin_unlinked,
     get_recent_activities,
@@ -124,6 +127,7 @@ app.add_middleware(
     same_site="lax",
 )
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates.env.globals["v"] = str(int(time.time()))
 
 
 class NeedsLogin(Exception):
@@ -241,7 +245,9 @@ async def index(request: Request):
 @app.get("/settings")
 async def settings_page(request: Request):
     user = await require_user(request)
-    return templates.TemplateResponse(request, "settings.html", {"user": user})
+    return templates.TemplateResponse(
+        request, "settings.html", {"user": user, "today": date.today().isoformat()}
+    )
 
 
 @app.get("/garmin/link")
@@ -387,8 +393,12 @@ _VALID_METRICS = {
     "hr-zscore",
     "readiness-rf",
     "hrv-status",
+    "hrv-status-custom",
     "training-status",
     "readiness",
+    "sleep-score-custom",
+    "intensity-minutes",
+    "training-effect",
 }
 
 
@@ -588,3 +598,29 @@ async def api_sync_status(request: Request):
 async def api_ml_status(request: Request):
     user = await require_user(request)
     return await get_ml_status(user["id"])
+
+
+class ProfileBody(BaseModel):
+    date_of_birth: date | None = None
+    sex: str | None = None
+
+    @field_validator("sex")
+    @classmethod
+    def validate_sex(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("m", "f", "diverse"):
+            raise ValueError("sex must be 'm', 'f', or 'diverse'")
+        return v
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_dob(cls, v: date | None) -> date | None:
+        if v is not None and v >= date.today():
+            raise ValueError("date_of_birth must be in the past")
+        return v
+
+
+@app.patch("/api/profile")
+async def api_update_profile(request: Request, body: ProfileBody):
+    user = await require_user(request)
+    await update_user_profile(user["id"], body.date_of_birth, body.sex)
+    return {"ok": True}

@@ -45,6 +45,40 @@
         </div>
     </div>
 
+    <!-- Profil -->
+    <div class="card">
+        <h2>Profil</h2>
+        <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-1.5">
+                <label for="dob" class="text-sm font-medium text-slate-700 dark:text-slate-200">Geburtsdatum</label>
+                <input type="date" id="dob"
+                       value="{{ user.date_of_birth.isoformat() if user.date_of_birth else '' }}"
+                       max="{{ today }}"
+                       class="px-3.5 py-2 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors">
+            </div>
+            <div class="flex flex-col gap-1.5">
+                <label for="sex" class="text-sm font-medium text-slate-700 dark:text-slate-200">Biologisches Geschlecht
+                    <span class="text-xs text-slate-400 font-normal ml-1">(für TRIMP-Berechnung)</span>
+                </label>
+                <select id="sex"
+                        class="px-3.5 py-2 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors">
+                    <option value="" {% if not user.sex %}selected{% endif %}>Keine Angabe</option>
+                    <option value="m" {% if user.sex == 'm' %}selected{% endif %}>Männlich</option>
+                    <option value="f" {% if user.sex == 'f' %}selected{% endif %}>Weiblich</option>
+                    <option value="diverse" {% if user.sex == 'diverse' %}selected{% endif %}>Divers</option>
+                </select>
+            </div>
+            <div class="flex items-center justify-between">
+                <span id="profile-msg" class="text-xs text-emerald-500" style="display:none">Gespeichert ✓</span>
+                <span></span>
+                <button id="profile-save"
+                        class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-colors">
+                    Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Garmin Connect -->
     <div class="card">
         <h2>Garmin Connect</h2>
@@ -122,5 +156,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/theme.js"></script>
+<script src="/static/theme.js?v={{ v }}"></script>
+<script src="/static/settings.js?v={{ v }}"></script>
 {% endblock %}

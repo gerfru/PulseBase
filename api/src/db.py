@@ -61,10 +61,26 @@ async def get_user_by_email(email: str) -> dict | None:
 async def get_user_by_id(user_id: int) -> dict | None:
     pool = await get_pool()
     row = await pool.fetchrow(
-        "SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email FROM users WHERE id = $1",
+        """
+        SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email,
+               date_of_birth, sex
+        FROM users WHERE id = $1
+        """,
         user_id,
     )
     return dict(row) if row else None
+
+
+async def update_user_profile(
+    user_id: int, date_of_birth: date | None, sex: str | None
+) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET date_of_birth = $1, sex = $2 WHERE id = $3",
+        date_of_birth,
+        sex,
+        user_id,
+    )
 
 
 async def set_garmin_linked(user_id: int, garmin_email: str) -> None:

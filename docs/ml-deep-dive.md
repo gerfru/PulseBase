@@ -368,10 +368,98 @@ ON CONFLICT (date, user_id, model) DO UPDATE
 | `readiness_rf` | Predicted score 0–100 | — |
 | `battery_pattern` | Cluster-ID (int) | `pattern`, `features`, `cluster` |
 | `model_meta_rf` | n_rows (float) | `features`, `importances`, `n_rows` |
+| `sleep_score_custom` | Score 0–100 | `total_h`, `deep_pct`, `rem_pct`, `wake_pct` |
+| `hrv_status_custom` | Score 0–100 | `status`, `deviation`, `baseline_mean`, `baseline_std`, `hrv_raw_today` |
+| `intensity_minutes_custom` | Score 0–100 | `moderate_minutes`, `vigorous_minutes`, `hrmax_used`, `resting_hr_used` |
+| `training_effect_custom` | Score 0–100 | `effect`, `trimp_today`, `ctl`, `atl`, `tsb`, `vo2max`, `sex`, `b_coeff` |
 
 ---
 
-## 7. Lookback-Windows im Überblick
+## 7. Custom Metric Models (Items 1–3 + 6)
+
+Vier rein algorithmische Modelle ohne ML-Training — alle Formeln sind transparent.
+
+### `sleep_score_custom` — Custom Schlaf-Score
+
+**Datei:** `ml-service/src/models/sleep_score.py`
+
+**Formel:** Gewichteter Durchschnitt der Schlafphasen-Qualität:
+
+| Komponente | Gewicht | Formel |
+|---|---|---|
+| Tiefschlaf-Score | 35% | `min(100, deep% / 20% × 100)` |
+| REM-Score | 25% | `min(100, rem% / 22% × 100)` |
+| Dauer-Score | 25% | `min(100, stunden / 8 × 100)` |
+| Wach-Penalty | 15% | `max(0, 100 − wake% × 500)` |
+
+Fehlende Phasen: verbleibende Gewichte werden proportional normiert.
+
+**Input:** `sleep_sessions` letzte Nacht (bis 2 Tage Lookback)
+**Skip-Bedingung:** kein `total_sleep_seconds` vorhanden
+
+---
+
+### `hrv_status_custom` — Custom HRV Status
+
+**Datei:** `ml-service/src/models/hrv_status.py`
+
+Verwendet `compute_autonomic_energy()` intern (gleiche Log-Baseline) und mappt die σ-Deviation auf Labels:
+
+| Status | Bedingung |
+|---|---|
+| `BALANCED` | deviation ≥ −0.5σ |
+| `UNBALANCED` | −1.5σ ≤ deviation < −0.5σ |
+| `LOW` | −2.0σ ≤ deviation < −1.5σ |
+| `POOR` | deviation < −2.0σ |
+
+**Input:** `hrv_daily.hrv_last_night` — 90 Tage Lookback
+**Skip-Bedingung:** weniger als 7 HRV-Werte vorhanden
+
+---
+
+### `intensity_minutes_custom` — Karvonen Intensitätsminuten
+
+**Datei:** `ml-service/src/models/intensity_minutes.py`
+
+**Formel:** Karvonen Heart Rate Reserve:
+```
+HRr = (HR − Ruhepuls) / (HRmax − Ruhepuls)
+Moderat: 0.50 ≤ HRr < 0.70
+Intensiv: HRr ≥ 0.70
+```
+
+Score = `min(100, (moderate_min + vigorous_min × 2) / 30 × 100)`
+
+**Input:** `activity_records.heart_rate` (Sekundenwerte) + `daily_summary.resting_hr` für heutige Aktivitäten
+**Skip-Bedingung:** keine activity_records für heute oder kein resting_hr
+
+---
+
+### `training_effect_custom` — Banister TRIMP + Training Effect
+
+**Datei:** `ml-service/src/models/training_effect.py`
+
+**Banister TRIMP** (geschlechtsspezifisch):
+```
+TRIMP = Dauer(min) × HRr × e^(b × HRr)
+b = 1.92 (männlich) | b = 1.67 (weiblich)
+```
+
+**CTL/ATL** via EWM (gleiche Zeitkonstanten wie `energy_physical`: τ=42/7):
+
+**Training Effect (0–5):**
+```
+effect = atan(TRIMP_heute / (CTL × 0.5)) × (10/π)
+```
+
+**VO₂max** (Uth et al. 2004): `15 × (HRmax / HRrest)`
+
+**Input:** `activities` (50d Lookback), `users.sex` + `users.date_of_birth`
+**Skip-Bedingung:** `has_profile = False` (sex nicht gesetzt in Einstellungen → Profil)
+
+---
+
+## 8. Lookback-Windows im Überblick
 
 | Modell | Lookback | Minimum |
 |--------|----------|---------|
@@ -380,6 +468,10 @@ ON CONFLICT (date, user_id, model) DO UPDATE
 | RF Training | 365 Tage | 30 Trainingspaare |
 | K-Means Training | 90 Tage | k.A. |
 | Inferenz (Features) | 2 Tage | alle aktiven Features müssen vorhanden sein |
+| `sleep_score_custom` | 2 Tage | letzte Schlafsession |
+| `hrv_status_custom` | 90 Tage | 7 HRV-Werte |
+| `intensity_minutes_custom` | heute | min. 1 activity_record |
+| `training_effect_custom` | 50 Tage | Profil (sex) gesetzt |
 
 ---
 

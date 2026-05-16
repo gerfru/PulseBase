@@ -17,6 +17,7 @@ from db import (
     get_body_battery_today,
     get_hrmax,
     get_hrv_history_for_energy,
+    get_last_sleep_session,
     get_latest_features,
     get_ml_requested_users,
     get_readiness_training_rows,
@@ -25,6 +26,8 @@ from db import (
     get_sleep_hrv_pairs,
     get_sleep_resting_hr_pairs,
     get_today_resting_hr,
+    get_todays_activity_hr_records,
+    get_user_profile,
     init_pool,
     mark_ml_done,
     save_prediction,
@@ -38,7 +41,11 @@ from models.energy_metrics import (
     compute_cognitive_energy,
     compute_physical_energy,
 )
+from models.hrv_status import classify_hrv_status
+from models.intensity_minutes import compute_intensity_minutes
 from models.readiness import predict_tomorrow, train_and_save
+from models.sleep_score import compute_custom_sleep_score
+from models.training_effect import compute_banister_trimp, compute_training_effect_today
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -160,6 +167,51 @@ async def run_inference(user_id: int, settings: Settings) -> None:
     logger.info(
         f"user={user_id} energy_cognitive score={cog.get('score')} debt={cog.get('debt_hours')}"
     )
+
+    # ── Custom Sleep Score (Item 2) ─────────────────────────────────────────
+    sleep_row = await get_last_sleep_session(user_id)
+    if sleep_row:
+        ss = compute_custom_sleep_score(sleep_row)
+        await save_prediction(user_id, today, "sleep_score_custom", ss.get("score"), ss)
+        logger.info(
+            f"user={user_id} sleep_score_custom score={ss.get('score')} total_h={ss.get('total_h')}"
+        )
+
+    # ── Custom HRV Status (Item 3) ──────────────────────────────────────────
+    hrv_status = classify_hrv_status(hrv_hist)
+    if hrv_status.get("status") is not None:
+        await save_prediction(
+            user_id, today, "hrv_status_custom", hrv_status.get("score"), hrv_status
+        )
+        logger.info(
+            f"user={user_id} hrv_status_custom status={hrv_status.get('status')} dev={hrv_status.get('deviation')}"
+        )
+
+    # ── Custom Intensity Minutes (Item 1) ───────────────────────────────────
+    hr_records, resting_hr_today = await get_todays_activity_hr_records(user_id)
+    if hr_records and resting_hr_today is not None:
+        im = compute_intensity_minutes(hr_records, resting_hr_today, hrmax)
+        await save_prediction(
+            user_id, today, "intensity_minutes_custom", im.get("score"), im
+        )
+        logger.info(
+            f"user={user_id} intensity_minutes_custom mod={im.get('moderate_minutes')} vig={im.get('vigorous_minutes')}"
+        )
+
+    # ── Banister TRIMP + Training Effect (Item 6) ───────────────────────────
+    profile = await get_user_profile(user_id)
+    if profile.get("has_profile"):
+        btr = compute_banister_trimp(act_rows, profile["sex"], hrmax)
+        rhr_for_vo2 = resting_hr_today or 60.0
+        te = compute_training_effect_today(
+            btr["trimp_today"], btr["ctl"], rhr_for_vo2, hrmax
+        )
+        await save_prediction(
+            user_id, today, "training_effect_custom", te.get("score"), {**btr, **te}
+        )
+        logger.info(
+            f"user={user_id} training_effect_custom effect={te.get('effect')} trimp={btr.get('trimp_today')}"
+        )
 
 
 async def run_training(user_id: int, settings: Settings) -> None:
