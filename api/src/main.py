@@ -519,7 +519,7 @@ async def api_training_status(request: Request):
 @app.get("/api/weekly")
 async def api_weekly(
     request: Request,
-    weeks: int = Query(default=12, ge=1, le=52),
+    weeks: int = Query(default=12, ge=1, le=56),
     end_date: date | None = Query(default=None),
 ):
     user = await require_user(request)
