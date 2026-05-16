@@ -132,43 +132,45 @@ Stryd Running Power — bereits als `avg_running_power` in V13 gespeichert).
 
 Metriken die wir noch nicht berechnen, aber mit vorhandenen Daten könnten.
 
-### 2.1 ACWR — Acute:Chronic Workload Ratio (Verletzungsprävention) 🟡
+### 2.1 ACWR — Acute:Chronic Workload Ratio (Verletzungsprävention) ✅
 
-**Basis:** Gabbett (2016) — ACWR > 1.5 erhöht Verletzungsrisiko signifikant.
+**Implementiert (V16):** `ml_predictions.model = 'acwr'` mit ATL/CTL-Ratio und Ampel-Level.
+
+**Berechnung:** ACWR = ATL (7d) / CTL (42d)
 
 ```
-ACWR = ATL (7d) / CTL (28d)
-
-Grüner Bereich: 0.8 – 1.3
-Amber:          1.3 – 1.5
-Rot:            > 1.5 (Überbelastungsrisiko) oder < 0.8 (Detraining)
+Grüne Zone:  0.8 – 1.3  (optimal, minimales Verletzungsrisiko)
+Amber Zone:  1.3 – 1.5  (erhöhte Warnung)
+Rote Zone:   > 1.5      (Überbelastungsrisiko)
+             < 0.8      (Detraining-Warnung)
 ```
 
-**Daten vorhanden:** ATL und CTL bereits in `ml_predictions.energy_physical`.
+**Metriken-Detail:** `/metrics/acwr` mit 30-Tage ACWR-Trend und KPIs.
 
-**Aufwand:** Sehr niedrig — zwei bestehende Werte dividieren, als eigene `model`-Row speichern.
-
-**Quelle:** Gabbett TJ (2016). The training-injury prevention paradox. BJSM 50(5):273–280.
+**Quellen:**
+- Gabbett TJ (2016). The training-injury prevention paradox. BJSM 50(5):273–280
+- Banister EW, Calvert TW (1991). Modeling Elite Athletic Performance. Physiological Testing
 
 ---
 
-### 2.2 Training Monotony + Training Strain 🟡
+### 2.2 Training Monotony + Training Strain ✅
 
-**Basis:** Foster (1998) — zu wenig Variation im Training erhöht Krankheits- und Verletzungsrisiko.
+**Implementiert (V16):** `ml_predictions.model = 'training_monotony'` mit Monotony, Strain und 7d-Statistik.
 
+**Berechnung:**
 ```
-Training Monotony = Ø TRIMP_7d / σ(TRIMP_7d)
-  — hoch (> 2.0) = wenig Abwechslung im Training
-
-Training Strain = Σ TRIMP_7d × Monotony
-  — kombinierter Belastungsindikator
+Monotony = mean(TRIMP₇d) / σ(TRIMP₇d)
+Strain   = Σ(TRIMP₇d) × Monotony
 ```
 
-**Daten vorhanden:** TRIMP-History in `ml_predictions`.
+- **Grüne Zone:** 1.0–1.5 (gute Balance aus Konsistenz und Variation)
+- **Rot:** > 2.0 (zu monoton → Immuntoleranz, erhöhte Infekt-/Verletzungsrate)
 
-**Aufwand:** Niedrig.
+**Metriken-Detail:** `/metrics/training-monotony` mit 30-Tage Verlauf.
 
-**Quelle:** Foster C (1998). Monitoring training in athletes. Med Sci Sports Exerc 30(7).
+**Quellen:**
+- Foster C (1998). Monitoring training in athletes. Med Sci Sports Exerc 30(7)
+- Halson SL (2014). Monitoring Training Load to Enhance Performance. Curr Opin Clin Nutr Metab Care
 
 ---
 
@@ -200,47 +202,50 @@ economy_score = gct_score × 0.4 + vo_score × 0.35 + vr_score × 0.25
 
 ---
 
-### 2.4 Sleep Consistency Score 🟡
+### 2.4 Sleep Consistency Score ✅
 
-**Basis:** Reguläre Schlaf-/Aufwachzeiten sind unabhängiger Prädiktor für Schlafqualität
-(Phillips et al. 2017 — Social Jet Lag).
+**Implementiert (V16):** `ml_predictions.model = 'sleep_consistency'` mit Score, σ-Werte und Nächte-Count.
 
+**Berechnung (Phillips et al. 2017):**
 ```
-wake_times   = start_time + total_sleep_seconds [letzte 14 Nächte]
-sleep_times  = start_time
-
-consistency  = 100 − (σ(wake_times_h) × 15 + σ(sleep_times_h) × 10)
-  — σ in Stunden; optimal < 30min Varianz = Score ~90+
+Score = 100 − (σ_wake × 15 + σ_sleep × 10)
+σ = Standardabw. von Schlaf-/Aufwachzeiten (zirkuläre Statistik, Wrap-Around Mitternacht)
 ```
 
-**Daten vorhanden:** `sleep_sessions.start_time` + `total_sleep_seconds`
+- **Score ≥ 80:** Ausgezeichnet (< 30 min Varianz in beiden)
+- **Score 60–80:** Akzeptabel
+- **Score < 60:** Schlecht (Social Jet Lag-Effekt)
 
-**Aufwand:** Niedrig.
+**Metriken-Detail:** `/metrics/sleep-consistency` mit 14d-Daten und Circadian-Science.
 
 **Quellen:**
-- Monk TH, et al. (1976). "The timing of personal habits and its effect on alertness". Int J Chronobiol 4(2):147–157
-- Phillips AJ, et al. (2017). "Irregular sleep/wake patterns are associated with poorer academic performance and delayed circadian and sleep/wake timing". Sci Rep 7:3216
-- West AC, et al. (2019). "Timing of sleep is regulated by circadian rhythms of hunger". Nat Commun 10:5381
+- Phillips AJ, et al. (2017). Irregular sleep/wake patterns and academic performance. Sci Rep 7:3216
+- Wittmann M, et al. (2006). Social Jetlag and obesity. Curr Biol 16(6):R187–188
+- West AC, et al. (2019). Timing of sleep is regulated by circadian rhythms. Nat Commun 10:5381
 
 ---
 
-### 2.5 SpO2-Trendanalyse 🟡
+### 2.5 SpO2-Trendanalyse ✅
 
-**Aktuell:** `daily_summary.avg_spo2` / `min_spo2` werden gezeigt, aber nicht analysiert.
+**Implementiert (V16):** `ml_predictions.model = 'spo2_trend'` mit Trend, Slope und Apnoe-Flag.
 
-**Mögliches Feature:**
-- 7-Tage-Trend: Abfallende SpO2 → mögliche Erkrankung / Altitude-Effekt
-- Nacht-Minimum < 90% wiederholt → Flag für mögliche Schlafapnoe (Hinweis, kein Befund)
-- Korrelation SpO2 ↔ Schlafqualität
+**Berechnung:**
+```
+mean_spo2  = 7d-Durchschnitt von daily_summary.avg_spo2
+slope      = Lineare Regressions-Steigung (% SpO2 / Tag)
+apnea_flag = TRUE wenn ≥2 Nächte mit min_spo2 < 90%
+```
 
-**Daten vorhanden:** `daily_summary`, `spo2_readings` (hypertable, intraday)
+- **Trend-Kategorien:** falling (slope < −0.2), stable, rising
+- **Apnoe-Flag:** Hinweis (nicht Befund!) für wiederholte Desaturationen → ärztliche Abklärung
 
-**Aufwand:** Niedrig für Trend. Medium für Schlafapnoe-Flag.
+**Dashboard:** SpO2-Tile verlinkt zu `/metrics/spo2-trend` wenn Trend-Daten verfügbar.
+
+**Disclaimer:** Nächtliche SpO2-Desaturationen sind Screening-Kriterium für OSA, erfordern aber formale Polysomnographie-Diagnose.
 
 **Quellen:**
-- Kapur VK, et al. (2017). "Clinical practice guidelines for the diagnosis and management of obstructive sleep apnea". J Clin Sleep Med 13(3):479–504
-- Saldías F, et al. (2019). "Arterial blood gases, pulse oximetry and end-tidal CO2 monitoring in chronic obstructive pulmonary disease". Arch Bronconeumol 55(5):261–269
-- Duce BR, et al. (1986). "Nocturnal oxygen desaturation in patients with chronic obstructive pulmonary disease". Chest 88(3):346–350
+- Kapur VK, et al. (2017). Clinical practice guidelines for sleep apnea diagnosis. J Clin Sleep Med 13(3):479–504
+- Duce BR, et al. (1986). Nocturnal oxygen desaturation in COPD. Chest 88(3):346–350
 
 ---
 

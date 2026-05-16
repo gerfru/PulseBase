@@ -312,20 +312,58 @@ function buildHeroCard() {
         </a>`;
     }
 
+    // SpO2 tile with conditional link to trend if data available
+    const spo2Val = last?.avg_spo2 != null ? last.avg_spo2 + ' %' : '—';
+    const spo2Link = ml.spo2_trend?.mean_spo2 != null ? '/metrics/spo2-trend' : '/metrics/steps';  // fallback if no trend data
+
     const vitalsSection = `<div class="hero-vitals">
         ${vitalTile(stepsVal, 'Schritte', '/metrics/steps')}
         ${vitalTile(sleepVal, 'Schlaf-Score', ml.sleep_score_custom ? '/metrics/sleep-score-custom' : '/metrics/sleep')}
         ${vitalTile(hrvVal,  'HRV Wochenø',  '/metrics/hrv',       hrvSubVal, hrvSubCls, 'Balance')}
         ${vitalTile(hrVal,   'Ruhepuls',      '/metrics/hr-zscore', hrSubVal,  hrSubCls,  'vs. Ø')}
+        ${vitalTile(spo2Val, 'SpO₂ Ø',       spo2Link)}
     </div>`;
 
-    // ── Intensität (einziger verbleibender Einblick) ─────────────────────────
+    // ── Intensity & New Metrics (ACWR, Monotony, Sleep Consistency) ──────────
     let chipsSection = '';
+    const chips = [];
+
     if (im?.moderate_minutes != null) {
         const total = im.moderate_minutes + (im.vigorous_minutes || 0) * 2;
+        chips.push(`<span class="hero-chip">Intensität: ${total} Min/Woche</span>`);
+    }
+
+    // ACWR chip
+    const acwr = ml.acwr;
+    if (acwr?.acwr != null) {
+        const acolor = acwr.level === 'red' ? 'chip-red' : acwr.level === 'amber' ? 'chip-amber' : 'chip-green';
+        chips.push(`<a href="/metrics/acwr" class="hero-chip ${acolor}" style="text-decoration:none">
+            ACWR: ${acwr.acwr.toFixed(2)} · ${acwr.level === 'red' ? '⚠️ Risiko' : acwr.level === 'amber' ? '⚠️ Erhöht' : '✓ OK'}
+        </a>`);
+    }
+
+    // Training Monotony chip
+    const mono = ml.training_monotony;
+    if (mono?.monotony != null) {
+        const warnIcon = mono.monotony > 2.0 ? '⚠️' : '';
+        chips.push(`<a href="/metrics/training-monotony" class="hero-chip chip-${mono.monotony > 2.0 ? 'red' : 'amber'}" style="text-decoration:none">
+            Monotony: ${mono.monotony.toFixed(2)} ${warnIcon}
+        </a>`);
+    }
+
+    // Sleep Consistency chip
+    const cons = ml.sleep_consistency;
+    if (cons?.score != null) {
+        const ccolor = cons.score >= 80 ? 'chip-green' : cons.score >= 70 ? 'chip-amber' : 'chip-red';
+        chips.push(`<a href="/metrics/sleep-consistency" class="hero-chip ${ccolor}" style="text-decoration:none">
+            Schlafrhythmus: ${Math.round(cons.score)}
+        </a>`);
+    }
+
+    if (chips.length > 0) {
         chipsSection = `<div class="hero-chips-wrap">
             <div class="hero-chips">
-                <span class="hero-chip">Intensität: ${total} Min/Woche</span>
+                ${chips.join('')}
             </div>
         </div>`;
     }

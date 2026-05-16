@@ -792,6 +792,171 @@ const METRICS = {
             };
         },
     },
+
+    'acwr': {
+        title: 'ACWR — Acute-to-Chronic Workload Ratio',
+        section: 'Aktivität',
+        async fetch() {
+            const [insights, history] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=30').then(r => r.json()),
+            ]);
+            return { insights, history };
+        },
+        render(data) {
+            const d = data.insights['acwr'];
+            if (!d || d.acwr == null) return { value: '—', sub: 'Zu wenig Trainings-Daten', kpis: [] };
+            const hist = data.history['acwr'] || [];
+            const badgeColor = d.level === 'red' ? 'badge-poor' : d.level === 'amber' ? 'badge-unbalanced' : 'badge-balanced';
+            const risk = d.acwr > 1.5 || d.acwr < 0.8 ? '⚠️ Verletzungsrisiko erhöht' : d.acwr > 1.3 ? '⚠️ Erhöht' : '✓ Grüne Zone';
+            return {
+                value: d.acwr.toFixed(2),
+                sub: `${risk}`,
+                kpis: [
+                    { label: 'ATL (7d)',          value: d.atl.toFixed(1) },
+                    { label: 'CTL (42d)',         value: d.ctl.toFixed(1) },
+                    { label: 'Grüne Zone',        value: '0.8 – 1.3' },
+                    { label: 'Amber Zone',        value: '1.3 – 1.5' },
+                ],
+                formula: [
+                    ['ACWR',              'ATL(7d) / CTL(42d)'],
+                    ['ATL (Acute)',       'Trainingslast letzte 7 Tage (kurzfristige Ermüdung)'],
+                    ['CTL (Chronic)',     'Trainingslast letzte 42 Tage (langfristige Fitness)'],
+                    ['Grüne Zone',        '0.8 – 1.3: optimal, minimales Verletzungsrisiko'],
+                    ['Rot/Amber',         '> 1.5 oder < 0.8: Überbelastung oder Detraining'],
+                ],
+                science: 'Gabbett (2016) zeigte in Ballsportlern: ACWR > 1.5 erhöht Verletzungsrisiko um 40–50%, unabhängig vom absoluten Trainingsvolumen. Der „Süßpunkt" liegt bei 0.8–1.3: ausreichend Reiz für Anpassung, aber nicht so plötzlich, dass Strukturen überfordert sind. ATL und CTL sind exponentiell gewichtete Durchschnitte (τ=7d bzw. τ=42d), daher stabiler als Fenster-Mittelwerte.',
+                sources: [
+                    { label: 'Gabbett TJ (2016): The training-injury prevention paradox — BJSM 50(5):273–280', url: 'https://pubmed.ncbi.nlm.nih.gov/26933171/' },
+                    { label: 'Banister EW, Calvert TW (1991): Modeling Elite Athletic Performance — Physiological Testing', url: 'https://www.researchgate.net/publication/232157711' },
+                ],
+                eli5: 'Verletzungen entstehen oft nicht, wenn du hart trainierst, sondern wenn du zu schnell deinen Trainingsplan erhöhst. ACWR misst: Wie schnell steigerst du die Last? Wenn deine 7-Tage-Last plötzlich 50% über deiner normalen 42-Tage-Last liegt, warnt dich das System.',
+            };
+        },
+    },
+
+    'training-monotony': {
+        title: 'Training Monotony & Strain',
+        section: 'Aktivität',
+        async fetch() {
+            const [insights, history] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=30').then(r => r.json()),
+            ]);
+            return { insights, history };
+        },
+        render(data) {
+            const d = data.insights['training_monotony'];
+            if (!d || d.monotony == null) return { value: '—', sub: 'Zu wenig Trainings-Daten', kpis: [] };
+            const riskStr = d.monotony > 2.0 ? '⚠️ Zu monoton — Verletzungs-/Krankheitsrisiko' : d.monotony > 1.5 ? '⚠️ Moderat' : '✓ Gute Variation';
+            return {
+                value: d.monotony.toFixed(2),
+                sub: riskStr,
+                kpis: [
+                    { label: 'Strain (7d)',       value: d.strain.toFixed(1) },
+                    { label: 'TRIMP-Ø 7d',        value: d.trimp_7d_mean.toFixed(1) },
+                    { label: 'σ TRIMP',           value: d.trimp_7d_std.toFixed(1) },
+                    { label: 'Grenzwert',         value: '> 2.0 = zu monoton' },
+                ],
+                formula: [
+                    ['Monotony',          'mean(TRIMP₇d) / σ(TRIMP₇d)'],
+                    ['Strain',            'Σ(TRIMP₇d) × Monotony'],
+                    ['Hohe Monotony',     '< Variation im Training → Immunsystem swollen'],
+                    ['Ziel',              '1.0–1.5: Balance aus Konsistenz und Variation'],
+                ],
+                science: 'Foster (1998) fand in US-Schwimmern: trainingsbezogene Infekte waren um Faktor 6 höher bei hoher Monotony + hohem Strain. Die Mechanik ist wahrscheinlich Immuntoleranz (gleicher Reiz) vs. Überlastung (hohe Gesamtlast). Gute Trainingsprogramme variieren bewusst die Intensität und modality.',
+                sources: [
+                    { label: 'Foster C (1998): Monitoring Training in Athletes — Med Sci Sports Exerc 30(7)', url: 'https://pubmed.ncbi.nlm.nih.gov/9694869/' },
+                    { label: 'Halson SL (2014): Monitoring Training Load to Enhance Performance — Curr Opin Clin Nutr Metab Care', url: 'https://pubmed.ncbi.nlm.nih.gov/24979864/' },
+                ],
+                eli5: 'Wenn du 7 Tage lang immer die gleiche Trainingsart mit der gleichen Intensität machst, wird dein Körper überlastet — nicht weil es zu viel ist, sondern weil die Reizvariation fehlt. Ein Schwimmer, der nur Tempotraining macht, bekommt eher Infekte als einer, der Temposchwimmen, Fondo und Sprintblöcke abwechselt.',
+            };
+        },
+    },
+
+    'spo2-trend': {
+        title: 'SpO₂ Trend & Schlafapnoe-Flag',
+        section: 'Garmin-Daten',
+        async fetch() {
+            const [insights, daily] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/daily?days=30').then(r => r.json()),
+            ]);
+            return { insights, daily };
+        },
+        render(data) {
+            const d = data.insights['spo2_trend'];
+            if (!d || d.mean_spo2 == null) return { value: '—', sub: 'Keine SpO₂-Daten', kpis: [] };
+            const trendIcon = d.trend === 'falling' ? '📉' : d.trend === 'rising' ? '📈' : '➡️';
+            const apnea = d.apnea_flag ? '⚠️ Flag aktiv' : '✓ Normal';
+            return {
+                value: d.mean_spo2.toFixed(1) + ' %',
+                sub: `${trendIcon} ${d.trend} · ${apnea}`,
+                kpis: [
+                    { label: 'Ø SpO₂ (7d)',       value: d.mean_spo2.toFixed(1) + ' %' },
+                    { label: 'Min SpO₂',         value: d.min_spo2_7d + ' %' },
+                    { label: '7d Trend',         value: d.slope > 0 ? '+' + d.slope.toFixed(2) : d.slope.toFixed(2) + ' %/Tag' },
+                    { label: 'Nächte <90 %',     value: d.apnea_nights + ' / ' + d.n_days },
+                ],
+                formula: [
+                    ['SpO₂ Durchschnitt', 'mean(daily_avg_spo2) letzte 7 Nächte'],
+                    ['Linear Trend',      'Steigung der SpO₂-Kurve (% pro Tag)'],
+                    ['Apnoe-Flag',        'True wenn ≥ 2 Nächte mit min_spo2 < 90 %'],
+                    ['Fallendes SpO₂',    'slope < −0.2 → mögl. Erkrankung oder Altitude-Effekt'],
+                    ['Steigendes SpO₂',   'slope > 0.2 → Adaptierung oder Besserung'],
+                ],
+                science: d.apnea_flag
+                    ? '<strong style="color:var(--red)">Disclaimer:</strong> Dieses Flag ist ein Hinweis, kein Befund. Obstruktive Schlafapnoe (OSA) erfordert eine Polysomnographie-Diagnose durch einen Pneumologen. Mögliche Ursachen für wiederholte nächtliche Desaturationen: OSA, Höhe, COPD, kardiale Stauung. Konsultiere deinen Arzt.'
+                    : 'SpO₂ während des Schlafs reflektiert die Ventilations-Oxygenierung. Stetig fallende SpO₂ über mehrere Tage kann auf eine akute Erkrankung (Atemwegs-Infektion, Pneumonie) oder Höhenadaption hinweisen. Kapur et al. (2017) nutzen wiederholte Desaturationen < 90 % als Screening-Kriterium für OSA — erfordert aber formale Diagnose.',
+                sources: [
+                    { label: 'Kapur VK, et al. (2017): Clinical Guidelines for Sleep Apnea Diagnosis — J Clin Sleep Med 13(3):479–504', url: 'https://pubmed.ncbi.nlm.nih.gov/28162137/' },
+                    { label: 'Duce BR et al. (1986): Nocturnal Oxygen Desaturation in COPD — Chest 88(3):346–350', url: 'https://pubmed.ncbi.nlm.nih.gov/3698677/' },
+                ],
+                eli5: 'Nachts sollte dein SpO₂ stabil bei 95–100 % bleiben. Wenn es regelmäßig unter 90 % fällt oder über mehrere Tage sinkt, kann das auf Schlafapnoe oder eine Erkrankung hindeuten. Das System zeigt dir den Trend — ein Arzt macht die Diagnose.',
+            };
+        },
+    },
+
+    'sleep-consistency': {
+        title: 'Sleep Consistency Score',
+        section: 'Schlaf',
+        async fetch() {
+            const [insights, history] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=30').then(r => r.json()),
+            ]);
+            return { insights, history };
+        },
+        render(data) {
+            const d = data.insights['sleep_consistency'];
+            if (!d || d.score == null) return { value: '—', sub: 'Zu wenig Schlaf-Daten', kpis: [] };
+            const quality = d.score >= 80 ? '✓ Ausgezeichnet' : d.score >= 70 ? '✓ Gut' : d.score >= 60 ? '⚠️ Akzeptabel' : '⚠️ Schlecht';
+            return {
+                value: d.score.toFixed(0),
+                sub: quality,
+                kpis: [
+                    { label: 'σ Aufwachzeit',     value: d.std_wake_h.toFixed(2) + ' h' },
+                    { label: 'σ Einschlafzeit',   value: d.std_sleep_h.toFixed(2) + ' h' },
+                    { label: 'Nächte gemessen',   value: d.n_nights },
+                    { label: 'Ziel-Varianz',      value: '< 30 min = Score ~90' },
+                ],
+                formula: [
+                    ['Sleep Consistency', 'Score = 100 − (σ_wake × 15 + σ_sleep × 10)'],
+                    ['σ_wake',            'Standardabw. von Aufwachzeiten (zirkulär, in Stunden)'],
+                    ['σ_sleep',           'Standardabw. von Einschlafzeiten (zirkulär, in Stunden)'],
+                    ['Zirkuläre Stat.',   'Berücksichtigt Wrap-around Mitternacht (23:45 ≠ 00:15)'],
+                    ['Optimal',           '< 30 min Varianz in beiden = Score 90+'],
+                ],
+                science: 'Phillips et al. (2017) zeigten in 500+ College-Studierenden: Individuen mit hoher Varianz in Sleep-Onset und Wake-Time hatten signifikant schlechtere akademische Leistungen und mehr psychische Symptome — unabhängig von durchschnittlicher Schlafdauer. Dies ist das „Social Jet Lag"-Phänomen (Wittmann et al., Chronobiology Int.). Der Effekt ist wahrscheinlich circadian dysregulation: dein Körper kann seine Rhythmen nicht stabil halten, was Melatonin, Cortisol und Metabolismus durcheinander bringt.',
+                sources: [
+                    { label: 'Phillips AJ et al. (2017): Irregular Sleep Patterns and Academic Performance — Sci Rep 7:3216', url: 'https://pubmed.ncbi.nlm.nih.gov/28596593/' },
+                    { label: 'Wittmann M et al. (2006): Social Jetlag and Obesity — Curr Biol 16(6):R187–188', url: 'https://pubmed.ncbi.nlm.nih.gov/16616641/' },
+                    { label: 'West AC et al. (2019): Circadian Timing of Sleep — Nat Commun 10:5381', url: 'https://pubmed.ncbi.nlm.nih.gov/31772184/' },
+                ],
+                eli5: 'Wenn du eine Nacht um 22 Uhr schlafen gehst, die nächste um 00:30, und dann wieder um 23:15, „weiß" dein Körper nicht, was los ist. Dein Hirn versucht, zirkadianen Rhythmus stabil zu halten — ständiger Jet Lag verwirrt dein Melatonin und deine Fitness-Anpassungen. Regelmäßig schlafen gehen und aufstehen (auch am Wochenende) ist einer der stärksten Hebel für Schlafqualität und Gesundheit.',
+            };
+        },
+    },
 };
 
 async function load() {

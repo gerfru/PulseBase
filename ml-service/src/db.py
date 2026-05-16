@@ -331,6 +331,44 @@ async def get_body_battery_history(
     return history
 
 
+async def get_spo2_history(user_id: int, days: int = 7) -> list[dict[str, Any]]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT date, avg_spo2, min_spo2
+        FROM daily_summary
+        WHERE user_id = $1
+          AND date >= $2
+          AND date < CURRENT_DATE
+        ORDER BY date
+        """,
+        user_id,
+        cutoff,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_sleep_sessions_14d(user_id: int) -> list[dict[str, Any]]:
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT DISTINCT ON (sleep_date)
+               DATE(start_time AT TIME ZONE 'UTC') AS sleep_date,
+               EXTRACT(HOUR FROM start_time AT TIME ZONE 'UTC')
+                 + EXTRACT(MINUTE FROM start_time AT TIME ZONE 'UTC') / 60.0 AS start_h,
+               EXTRACT(HOUR FROM (start_time + (total_sleep_seconds || ' seconds')::interval) AT TIME ZONE 'UTC')
+                 + EXTRACT(MINUTE FROM (start_time + (total_sleep_seconds || ' seconds')::interval) AT TIME ZONE 'UTC') / 60.0 AS end_h
+        FROM sleep_sessions
+        WHERE user_id = $1
+          AND start_time >= CURRENT_DATE - INTERVAL '15 days'
+          AND total_sleep_seconds IS NOT NULL
+        ORDER BY sleep_date DESC, total_sleep_seconds DESC NULLS LAST
+        LIMIT 14
+        """,
+        user_id,
+    )
+    return [dict(r) for r in rows]
+
+
 async def get_latest_features(user_id: int) -> dict[str, Any]:
     row = await _pool_or_raise().fetchrow(
         """
