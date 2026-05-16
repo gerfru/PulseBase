@@ -63,24 +63,34 @@ def compute_autonomic_energy(
     # Quelle: https://help.elitehrv.com/article/57-the-1-10-relative-balance-score
     # Begründung log: RMSSD ist rechtsschief verteilt → log-Transformation normalisiert
     # Individuelle σ-Baseline statt Absolutwert (Marco Altini, HRV4Training)
-    # hrv_history muss ORDER BY date ASC kommen; letzter Wert = heute
+    # 7-Tage-Rolling-Mean statt Einzeltag (Plews et al. 2013; HRV4Training):
+    #   RMSSD schwankt täglich 20–30% durch Messartefakte → Wochenmittel ist robuster
+    # hrv_history muss ORDER BY date ASC kommen; letzte 7 Werte = aktuelle Woche
+    _WINDOW = 7
     raw = [math.log(v) * 20 for v in hrv_history if v is not None and v > 0]
     if len(raw) < 7:
         return {"score": None, "reason": "insufficient_hrv_data"}
 
-    today_raw = raw[-1]
-    baseline = raw[:-1]
+    if len(raw) >= 14:
+        current_window = raw[-_WINDOW:]
+        baseline = raw[:-_WINDOW]
+        current_mean = sum(current_window) / len(current_window)
+    else:
+        # Fallback für neue User (<14 Datenpunkte): Einzeltag wie bisher
+        current_mean = raw[-1]
+        baseline = raw[:-1]
+
     n = len(baseline)
     mean = sum(baseline) / n
     std = max(1.0, math.sqrt(sum((x - mean) ** 2 for x in baseline) / n))
-    dev = (today_raw - mean) / std
+    dev = (current_mean - mean) / std
 
     return {
         "score": round(_clip(50 + dev * 15), 1),
         "deviation": round(dev, 2),
         "baseline_mean": round(mean, 2),
         "baseline_std": round(std, 2),
-        "hrv_raw_today": round(today_raw, 2),
+        "hrv_7d_mean": round(current_mean, 2),
     }
 
 
