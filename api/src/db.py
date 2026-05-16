@@ -135,6 +135,8 @@ async def get_activity_detail(user_id: int, activity_id: int) -> dict | None:
                a.avg_pace_sec_per_km, a.avg_speed_kmh, a.avg_cadence,
                a.avg_power, a.elevation_gain, a.aerobic_effect, a.anaerobic_effect,
                a.user_rpe,
+               a.avg_ground_contact_time, a.avg_vertical_oscillation,
+               a.avg_stride_length, a.avg_vertical_ratio, a.avg_running_power,
                ds.training_status
         FROM activities a
         LEFT JOIN daily_summary ds
