@@ -93,14 +93,15 @@ Zugriff: `https://garmin.home.lab` (via homelab-gateway) oder `make up-standalon
 ## Entwicklungs-Workflow
 
 ```bash
-make build-api      # API neu bauen + starten (nach Code-Änderungen in api/)
-make build-ml       # ML-Service neu bauen + starten (nach Code-Änderungen in ml-service/)
+make dashboard      # API neu bauen + starten (nach Code-Änderungen in api/)
+make analytics      # Analytics-Service neu bauen + starten (nach Code-Änderungen in ml-service/)
 make up             # Alle Services starten
 make reset          # Alles löschen + DB neu aufsetzen (löscht alle User!)
 make sync           # Garmin-Sync sofort auslösen (nicht auf 6 Uhr warten)
-make logs           # API-Logs live
+make logs-dashboard # API-Logs live
+make logs-analytics # Analytics-Service-Logs live
 make logs-sync      # Sync-Service-Logs live
-make logs-ml        # ML-Service-Logs live
+make logs-all       # Alle Logs zusammen
 make migrate        # DB-Migrationen ausführen
 make db             # psql-Shell (liest DB_APP_USER aus .env)
 ```

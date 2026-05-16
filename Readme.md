@@ -8,9 +8,10 @@ PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, priv
 
 - Automatic daily sync from Garmin Connect (activities, sleep, HRV, body battery, stress)
 - Continuous glucose monitoring via LibreLinkUp (Libre 3, every 5 min) — optional
-- Glassmorphism dashboard — mesh gradient background, frosted glass cards, dark + light mode
-- Readiness score (rule-based 0–100) as hero card with HRV, sleep, body battery, stress factors
-- ML Einblicke — anomaly detection (resting HR Z-score), sleep→HRV correlation, Random Forest readiness prediction — each with dedicated detail pages
+- Slate/Emerald dark instrument panel dashboard — tabbed layout (Training / Verlauf / Erholung), dark + light mode
+- Unified Tagesstatus hero card: animated SVG ring (Readiness), Energie-Triptychon (Physisch / Autonom / Kognitiv), vitals strip, ML status chips — WHOOP-style 3-tier hierarchy
+- Time navigation (← →) for all charts — browse any historical period without switching time range
+- ML insights: anomaly detection (resting HR Z-score), sleep→HRV Pearson correlation, Random Forest readiness prediction, Body Battery K-Means pattern — each with dedicated detail pages
 - Activity detail page with GPS map (Leaflet.js), HR/pace/elevation/cadence charts
 - Training status tracking (PRODUCTIVE, MAINTAINING, RECOVERY, …)
 - Weekly training volume overview (run km / ride km stacked bar)
@@ -62,8 +63,11 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 | `make down` | Stop services |
 | `make reset` | Wipe everything + fresh DB (deletes all users!) |
 | `make sync` | Trigger Garmin sync immediately |
-| `make build-api` | Rebuild + restart API |
-| `make logs` | Live API logs |
+| `make dashboard` | Rebuild + restart API (dashboard service) |
+| `make analytics` | Rebuild + restart ML/analytics service |
+| `make migrate` | Run DB migrations |
+| `make logs-dashboard` | Live API logs |
+| `make logs-analytics` | Live analytics-service logs |
 | `make logs-sync` | Live sync-service logs |
 | `make status` | Container status |
 | `make db` | Open psql shell |
