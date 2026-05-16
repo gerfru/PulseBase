@@ -609,7 +609,7 @@ Returns today's three energy dimension scores computed by the ML service.
     "deviation": 0.8,
     "baseline_mean": 3.81,
     "baseline_std": 0.22,
-    "hrv_raw_today": 3.99
+    "hrv_7d_mean": 3.99
   },
   "energy_cognitive": {
     "score": 78.0,
@@ -623,7 +623,7 @@ Returns today's three energy dimension scores computed by the ML service.
 |-------|-------|
 | `energy_physical.tsb` | Training Stress Balance (positive = recovered, negative = fatigued) |
 | `energy_autonomic.deviation` | HRV deviation in σ units from 90-day baseline |
-| `energy_cognitive.debt_hours` | Cumulative 7-day sleep deficit vs 8h target |
+| `energy_cognitive.debt_hours` | Cumulative 7-day sleep deficit vs 7h target |
 
 Returns `{}` if ML inference has not run yet.
 

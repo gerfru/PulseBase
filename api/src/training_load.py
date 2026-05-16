@@ -8,6 +8,8 @@ _ATL_TAU = 7.0
 _CTL_TAU = 42.0
 _K_ATL = math.exp(-1.0 / _ATL_TAU)
 _K_CTL = math.exp(-1.0 / _CTL_TAU)
+_ALPHA_ATL = 1.0 - _K_ATL  # EWM weight for new TRIMP (ATL)
+_ALPHA_CTL = 1.0 - _K_CTL  # EWM weight for new TRIMP (CTL)
 
 # Enough history so CTL (τ=42d) is ≥95% converged at display start
 _WARMUP_DAYS = 180
@@ -56,8 +58,8 @@ def build_training_load(
     history: list[dict[str, Any]] = []
     while d <= today:
         t = trimp_by_day.get(d, 0.0)
-        atl = atl * _K_ATL + t
-        ctl = ctl * _K_CTL + t
+        atl = atl * _K_ATL + t * _ALPHA_ATL
+        ctl = ctl * _K_CTL + t * _ALPHA_CTL
         if d >= display_from:
             history.append(
                 {

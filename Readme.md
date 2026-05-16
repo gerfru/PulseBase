@@ -9,7 +9,7 @@ PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, priv
 - Automatic daily sync from Garmin Connect (activities, sleep, HRV, body battery, stress)
 - Continuous glucose monitoring via LibreLinkUp (Libre 3, every 5 min) — optional
 - Slate/Emerald dark instrument panel dashboard — tabbed layout (Training / Verlauf / Erholung), dark + light mode
-- Unified Tagesstatus hero card: animated SVG ring (Readiness), Energie-Triptychon (Physisch / Autonom / Kognitiv), vitals strip, ML status chips — WHOOP-style 3-tier hierarchy
+- Unified Tagesstatus hero card: animated partial arc gauge (Readiness, Oura-style) with HRV/Schlaf/Puls contributor rows, Energie-Triptychon (Physisch / Autonom / Kognitiv), vitals strip
 - Time navigation (← →) for all charts — browse any historical period without switching time range
 - ML insights: anomaly detection (resting HR Z-score), sleep→HRV Pearson correlation, Random Forest readiness prediction, Body Battery K-Means pattern — each with dedicated detail pages
 - Activity detail page with GPS map (Leaflet.js), HR/pace/elevation/cadence charts
