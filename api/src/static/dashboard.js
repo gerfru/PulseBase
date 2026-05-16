@@ -154,11 +154,62 @@ function esc(s) {
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function openFormulaDialog(title, bodyHtml, href) {
+    document.getElementById('formula-dialog-title').textContent = title;
+    document.getElementById('formula-dialog-body').innerHTML = bodyHtml;
+    document.getElementById('formula-dialog-link').href = href;
+    document.getElementById('formula-dialog').showModal();
+}
+
 function scoreColor(score) {
     if (score == null) return 'var(--muted)';
     if (score >= 75)   return 'var(--green)';
     if (score >= 50)   return 'var(--amber)';
     return 'var(--red)';
+}
+
+async function buildWeeklyReview() {
+    try {
+        const weekly = await fetch('/api/weekly?weeks=2').then(r => r.json());
+        if (!weekly || weekly.length < 2) return;
+        const [thisWeek, lastWeek] = weekly.slice(-2).reverse();
+        const d = thisWeek;
+        if (!d) return;
+
+        const weekLabel = `KW ${String(d.week).padStart(2, '0')} · ${d.start_date?.slice(5,10).replace('-', '.') || '?'} – ${d.end_date?.slice(5,10).replace('-', '.') || '?'}`;
+        const actDelta = lastWeek ? d.activity_count - lastWeek.activity_count : 0;
+        const actTrend = actDelta > 0 ? '↑' : actDelta < 0 ? '↓' : '→';
+        const kmDelta = lastWeek ? d.total_km - lastWeek.total_km : 0;
+        const kmPct = lastWeek && lastWeek.total_km > 0 ? ((kmDelta / lastWeek.total_km) * 100).toFixed(0) : 0;
+        const kmTrend = kmDelta > 0 ? '↑' : kmDelta < 0 ? '↓' : '→';
+
+        const reviewHtml = `
+        <div style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
+            <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">${weekLabel}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Aktivitäten</div>
+                    <div style="font-size: 1.25rem; font-weight: bold;">${d.activity_count} ${actTrend}</div>
+                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">vs. ${lastWeek ? lastWeek.activity_count : '?'} Vorwoche</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Distanz</div>
+                    <div style="font-size: 1.25rem; font-weight: bold;">${Math.round(d.total_km)} km ${kmTrend}</div>
+                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${kmPct > 0 ? '+' : ''}${kmPct}%</div>
+                </div>
+            </div>
+        </div>`;
+
+        const card = document.getElementById('weekly-card');
+        if (card) {
+            const chartWrap = card.querySelector('.chart-wrap');
+            if (chartWrap) {
+                chartWrap.insertAdjacentHTML('beforebegin', reviewHtml);
+            }
+        }
+    } catch (e) {
+        console.warn('buildWeeklyReview error:', e);
+    }
 }
 
 function metricTile({ label, value, sub = '', metric = '' }) {
@@ -305,23 +356,28 @@ function buildHeroCard() {
         const sub = subVal != null
             ? `<span class="hero-vital-derived ${subCls}">${esc(String(subVal))}${subMeta ? `<span class="hero-derived-meta"> · ${subMeta}</span>` : ''}</span>`
             : '';
-        return `<a class="hero-vital" href="${href}">
+        const tag = href ? 'a' : 'div';
+        const hrefAttr = href ? ` href="${href}"` : '';
+        return `<${tag} class="hero-vital"${hrefAttr}>
             <span class="hero-vital-val">${val}</span>
             <span class="hero-vital-label">${esc(label)}</span>
             ${sub}
-        </a>`;
+        </${tag}>`;
     }
 
-    // SpO2 tile with conditional link to trend if data available
+    // SpO2 tile (conditional on settings)
+    const spo2Enabled = window.__spo2Enabled === true;
     const spo2Val = last?.avg_spo2 != null ? last.avg_spo2 + ' %' : '—';
-    const spo2Link = ml.spo2_trend?.mean_spo2 != null ? '/metrics/spo2-trend' : '/metrics/steps';  // fallback if no trend data
+    const spo2Tile = spo2Enabled
+        ? vitalTile(spo2Val, 'SpO₂ Ø', '/metrics/spo2-trend')
+        : '';
 
     const vitalsSection = `<div class="hero-vitals">
-        ${vitalTile(stepsVal, 'Schritte', '/metrics/steps')}
+        ${vitalTile(stepsVal, 'Schritte')}
         ${vitalTile(sleepVal, 'Schlaf-Score', ml.sleep_score_custom ? '/metrics/sleep-score-custom' : '/metrics/sleep')}
         ${vitalTile(hrvVal,  'HRV Wochenø',  '/metrics/hrv',       hrvSubVal, hrvSubCls, 'Balance')}
         ${vitalTile(hrVal,   'Ruhepuls',      '/metrics/hr-zscore', hrSubVal,  hrSubCls,  'vs. Ø')}
-        ${vitalTile(spo2Val, 'SpO₂ Ø',       spo2Link)}
+        ${spo2Tile}
     </div>`;
 
     // ── Intensity & New Metrics (ACWR, Monotony, Sleep Consistency) ──────────
@@ -357,6 +413,24 @@ function buildHeroCard() {
         const ccolor = cons.score >= 80 ? 'chip-green' : cons.score >= 70 ? 'chip-amber' : 'chip-red';
         chips.push(`<a href="/metrics/sleep-consistency" class="hero-chip ${ccolor}" style="text-decoration:none">
             Schlafrhythmus: ${Math.round(cons.score)}
+        </a>`);
+    }
+
+    // Body Battery Custom chip
+    const bb = ml.body_battery_custom;
+    if (bb?.score != null) {
+        const bbcolor = bb.score >= 75 ? 'chip-green' : bb.score >= 40 ? 'chip-amber' : 'chip-red';
+        chips.push(`<a href="/metrics/body-battery-custom" class="hero-chip ${bbcolor}" style="text-decoration:none">
+            Energie: ${Math.round(bb.score)}% · ↑${bb.recovery} ↓${bb.activity_drain}
+        </a>`);
+    }
+
+    // Stress Score Custom chip
+    const ss = ml.stress_score_custom;
+    if (ss?.score != null) {
+        const sscolor = ss.score < 30 ? 'chip-green' : ss.score < 60 ? 'chip-amber' : 'chip-red';
+        chips.push(`<a href="/metrics/stress-score-custom" class="hero-chip ${sscolor}" style="text-decoration:none">
+            Stress: ${Math.round(ss.score)}
         </a>`);
     }
 
@@ -423,6 +497,9 @@ async function load(days, endDate = null) {
     _heroData.hrv = hrv;
     _heroData.trainingStatus = trainingStatus;
     buildHeroCard();
+
+    // Build weekly review widget
+    buildWeeklyReview();
 
     // ── Aktivitäten ───────────────────────────────────────────────────
     const actEl = document.getElementById('activities-container');

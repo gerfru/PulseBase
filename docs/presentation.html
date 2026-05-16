@@ -746,6 +746,161 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
         </div>
       </div>
 
+      <!-- Body Battery Custom -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Body Battery (Custom)</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Regelbasiert · Heuristisch</span>
+            </div>
+            <p class="text-sm text-slate-400">Energie-Budget-Modell aus Recovery (Schlaf×HRV-Ratio), Aktivitäts-Drain (TRIMP) und Stress-Drain. Transparente Alternative zum Garmin Firstbeat Body Battery mit expliziten Drain-Komponenten.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Energy Budget: Recovery − Drains</span>
+<span class="k">recovery</span> = +30 × (sleep_hours / 7) × (hrv_last / hrv_baseline)  <span class="c">max +30</span>
+<span class="k">activity_drain</span> = min(40, today_trimp × 0.5)  <span class="c">max −40</span>
+<span class="k">stress_drain</span> = max(0, (avg_stress − 25) × 0.2)
+
+<span class="k">score</span> = clip(prev_score + recovery − activity_drain − stress_drain, [5, 100])
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 text-xs">
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-emerald-400 font-semibold mb-1">📚 Aus Literatur</div>
+            <div class="text-slate-400">Banister (1991) Impulse-Response · Kellmann (2001) Recovery</div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-amber-400 font-semibold mb-1">🔧 Heuristisch kalibriert</div>
+            <div class="text-slate-400">Konstanten: +30 Recovery-Max, ×0.5 Activity-Drain, ×0.2 Stress-Drain</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: daily_summary (sleep, stress), hrv_daily (baseline 30d), activities (TRIMP) ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Banister EW (1991) Modeling elite athletic performance ·
+          Kellmann M (2001) Recovery-Stress Questionnaire
+        </div>
+      </div>
+
+      <!-- Stress Score Custom -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Stress Score (Custom)</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Regelbasiert · Heuristisch</span>
+            </div>
+            <p class="text-sm text-slate-400">HRV-Baseline-Abweichung (parasympathisch) + Garmin avg_stress (sympathisch) im 60/40-Blend. Hohe HRV = niedriger Stress. Basiert auf Task Force ESC/NASPE ln(HRV) z-Score Normalisierung.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># ln(HRV) z-Score (Task Force 1996, Shaffer 2017)</span>
+<span class="k">μ, σ</span> = mean, std(ln(hrv_history[−97d:]))  <span class="c">97-Tage-Baseline</span>
+<span class="k">deviation</span> = (ln(hrv_heute) − μ) / σ
+
+<span class="k">hrv_stress</span> = clip(50 − deviation × 20, [0, 100])  <span class="c">hohe HRV → niedriger Stress</span>
+
+<span class="k">score</span> = hrv_stress × 0.6 + garmin_stress × 0.4  <span class="c">wenn garmin_stress vorhanden</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 text-xs">
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-emerald-400 font-semibold mb-1">📚 Aus Literatur</div>
+            <div class="text-slate-400">Task Force ESC (1996) HRV-Standarisierung · Shaffer (2017) ln(HRV) Normalisierung</div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-amber-400 font-semibold mb-1">🔧 Heuristisch kalibriert</div>
+            <div class="text-slate-400">60/40-Blend HRV/Garmin · ×20 Skalierungsfaktor</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: hrv_daily (97d), daily_summary.avg_stress ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Task Force ESC/NASPE (1996) HRV Standards ·
+          Shaffer F et al. (2017) HRV Metrics Overview
+        </div>
+      </div>
+
+      <!-- Running Economy -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">Running Economy</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Statistisch · Läufer</span>
+            </div>
+            <p class="text-sm text-slate-400">Biomechanik-Effizienzscore aus Ground Contact Time (GCT), Vertical Oscillation (VO) und Vertical Ratio (VR). Basiert auf Moore (2016) und Cavanagh (1985) Optimumschwellen. Running only.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Biomechanische Optima (Moore 2016, Cavanagh 1985)</span>
+<span class="k">gct_score</span> = clip(100 − (avg_gct − 200) × 0.5, [0, 100])    <span class="c">ideal: 200ms</span>
+<span class="k">vo_score</span>  = clip(100 − (avg_vo − 60) × 2.5, [0, 100])   <span class="c">ideal: 60mm</span>
+<span class="k">vr_score</span>  = clip(100 − (avg_vr − 6) × 8.0, [0, 100])   <span class="c">ideal: 6%</span>
+
+<span class="k">score</span> = gct_score × 0.40 + vo_score × 0.35 + vr_score × 0.25
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 text-xs">
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-emerald-400 font-semibold mb-1">📚 Aus Literatur</div>
+            <div class="text-slate-400">Moore IS (2016) Runner Injury Etiology · Cavanagh PE (1985) Biomechanics</div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-amber-400 font-semibold mb-1">🔧 Heuristisch kalibriert</div>
+            <div class="text-slate-400">Gewichte 40/35/25% · Lineare Scoring-Funktion</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: activities (running/trail_running mit GCT, VO, VR), letzte 10 Läufe ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Moore IS et al. (2016) Runner's Injury Etiology ·
+          Fletcher JR et al. (2009) Ground Reaction Force
+        </div>
+      </div>
+
+      <!-- HRV Recovery Trajectory -->
+      <div class="bg-slate-900/60 border border-white/[0.08] rounded-xl p-6 mb-4">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-slate-100">HRV Recovery Trajectory</span>
+              <span class="badge-type bg-sky-500/15 text-sky-300">Statistisch · Zeitreihe</span>
+            </div>
+            <p class="text-sm text-slate-400">Recovery-Speed nach Trainingsbelastung (Plews 2013). Detektiert TRIMP-Peaks (>1.5× Ø) und misst HRV-Wiederherstellungs-Slope über 7-Tage-Fenster. Schnelle Recovery = gute parasympathische Plastizität.</p>
+          </div>
+        </div>
+        <div class="formula mb-4">
+<span class="c"># Peak-Detection (Plews 2013)</span>
+<span class="k">trimp_threshold</span> = ⟨TRIMP_60d⟩ × 1.5  <span class="c">identifies „heavy days"</span>
+
+<span class="c"># Recovery-Slope nach Peak (7-Tage Fenster)</span>
+<span class="k">slope</span> = Ø(hrv_t+1 bis t+7 − hrv_baseline)
+
+<span class="k">recovery_speed</span> = Ø(slopes über alle Events)  <span class="c">einheit: ms/tag</span>
+
+<span class="c"># Interpretation</span>
+<span class="v">>+2 ms/d</span>  <span style="color:#10b981">Schnelle Recovery</span> gute parasympathische Adaptabilität
+<span class="v">0 bis +2</span> <span style="color:#f59e0b">Normal</span>  typische Recovery nach Training
+<span class="v">&lt; 0</span>      <span style="color:#ef4444">Verzögert</span> mögliche autonome Maladaptation
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 text-xs">
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-emerald-400 font-semibold mb-1">📚 Aus Literatur</div>
+            <div class="text-slate-400">Plews DL (2013) HRV Recovery · Stanley J (2015) Parasympathische Reaktivierung</div>
+          </div>
+          <div class="bg-slate-800/60 rounded-lg p-3">
+            <div class="text-amber-400 font-semibold mb-1">🔧 Heuristisch kalibriert</div>
+            <div class="text-slate-400">Lookback 60d · TRIMP-Threshold ×1.5 · 7-Tage HRV-Fenster</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-500">
+          Input: hrv_daily (60d), activities (TRIMP), min 14 HRV-Werte ·
+          <span class="text-slate-300 font-medium">Quellen:</span>
+          Plews DL et al. (2013) HRV Recovery in Elite Athletes ·
+          Stanley J et al. (2015) Cardiac Parasympathetic Reactivation
+        </div>
+      </div>
+
       <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 mt-10">Epilepsie-Modus — Anfallstagebuch &amp; Risiko-Indikator</h3>
 
       <!-- Anfallsrisiko-Indikator -->
