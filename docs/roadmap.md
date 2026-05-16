@@ -33,6 +33,11 @@ Body Battery = min(100, max(0, Vortag + Recovery_Nacht − Drain_Aktivität − 
 
 **Aufwand:** Medium — ML-Service-Erweiterung, kein neues Schema.
 
+**Quellen:**
+- Banister EW, Calvert TW (1991). "Modeling elite athletic performance". In: Driskell JE, Markham SL (eds). Stress and Human Performance. Mahwah: Lawrence Erlbaum
+- Achten J, Jeukendrup AE (2003). "Heart rate monitoring: applications and limitations". Sports Medicine 33(7):517–538
+- Kellmann M, Kallus KW (2001). Recovery-Stress Questionnaire for Athletes. Human Kinetics Publishers
+
 ---
 
 ### 1.2 Stress-Score — eigener HRV-basierter Tagesstress 🟡
