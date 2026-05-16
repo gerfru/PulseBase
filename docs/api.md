@@ -169,6 +169,7 @@ Returns activities within the requested time range.
 |-----------|---------|-------|-------|
 | `days` | `7` | 1–365 | How many days back to query |
 | `limit` | `500` | 1–500 | Maximum number of results |
+| `end_date` | `today` | ISO date | Last day of the window (for time navigation) |
 
 **Response** — array of objects ordered by `started_at DESC`:
 
@@ -259,6 +260,7 @@ Returns daily summaries.
 | Parameter | Default | Range | Notes |
 |-----------|---------|-------|-------|
 | `days` | `30` | 1–365 | How many days back to return |
+| `end_date` | `today` | ISO date | Last day of the window (for time navigation) |
 
 **Response** — array of objects ordered by date ascending:
 
@@ -288,7 +290,8 @@ Returns recent sleep sessions.
 
 | Parameter | Default | Range | Notes |
 |-----------|---------|-------|-------|
-| `days` | `14` | 1–365 | Number of sessions to return (LIMIT) |
+| `days` | `14` | 1–365 | How many days back to return |
+| `end_date` | `today` | ISO date | Last day of the window (for time navigation) |
 
 **Response** — array ordered by `start_time DESC`:
 
@@ -339,6 +342,7 @@ Returns HRV data points for a date range.
 | Parameter | Default | Range | Notes |
 |-----------|---------|-------|-------|
 | `days` | `30` | 1–365 | How many days back |
+| `end_date` | `today` | ISO date | Last day of the window (for time navigation) |
 
 **Response** — array ordered by date ascending:
 
@@ -364,6 +368,7 @@ Returns weekly training volume aggregates.
 | Parameter | Default | Range | Notes |
 |-----------|---------|-------|-------|
 | `weeks` | `12` | 1–52 | How many weeks back |
+| `end_date` | `today` | ISO date | Last day of the window (for time navigation) |
 
 **Response** — array ordered by week ascending:
 
@@ -400,29 +405,30 @@ Returns a rule-based readiness score for the most recent day with data (within l
 {
   "score": 74,
   "label": "In Ordnung",
-  "cls": "badge-unbalanced",
-  "hrv_status": "BALANCED",
-  "sleep_score": 78,
-  "body_battery": 82,
-  "avg_stress": 34
+  "cls": "badge-balanced",
+  "energy_physical": 62,
+  "energy_autonomic": 78,
+  "energy_cognitive": 85
 }
 ```
 
 | Field | Notes |
 |-------|-------|
-| `score` | 0–100, weighted average of available inputs |
-| `label` | `Bereit` / `In Ordnung` / `Erholen` / `Pause` |
+| `score` | 0–100, weighted average of the three energy dimensions |
+| `label` | `Bereit` (≥75) / `In Ordnung` (≥55) / `Erholen` (≥35) / `Pause` (<35) |
 | `cls` | CSS badge class for color coding |
-| `score: null` | Returned when no data is available within 2 days |
+| `energy_physical` | Physical energy score or `null` if not yet computed |
+| `energy_autonomic` | Autonomic (HRV) energy score or `null` |
+| `energy_cognitive` | Cognitive (sleep debt) energy score or `null` |
+| `score: null` | Returned when none of the three energy dimensions have data yet |
 
-**Score formula** (missing inputs are excluded and weights renormalized):
+**Score formula** (missing dimensions are excluded and weights renormalized):
 
-| Input | Weight | Mapping |
-|-------|--------|---------|
-| HRV status | 30% | BALANCED=100, UNBALANCED=50, LOW=25, POOR=0 |
-| Sleep score | 30% | Garmin 0–100 directly |
-| Body battery high | 20% | 0–100 directly |
-| Avg stress (inverted) | 20% | `max(0, 100 − avg_stress)` |
+| Dimension | Weight |
+|-----------|--------|
+| Physical energy (CTL/TSB) | 35% |
+| Autonomic energy (HRV σ-baseline) | 40% |
+| Cognitive energy (sleep debt) | 25% |
 
 ---
 
@@ -524,6 +530,7 @@ Returns historical ML prediction values grouped by model.
 | Parameter | Default | Notes                    |
 |-----------|---------|--------------------------|
 | `days`    | `30`    | How many days back       |
+| `end_date` | `today` | Last day of the window (ISO date, for time navigation) |
 
 **Response** — object with one array per model:
 
@@ -743,7 +750,8 @@ not in the allowed set.
 **Valid `name` values:**
 
 `steps`, `sleep`, `hrv`, `body-battery`, `physical`, `autonomic`, `cognitive`,
-`hr-zscore`, `readiness-rf`, `hrv-status`, `training-status`, `readiness`
+`hr-zscore`, `readiness-rf`, `hrv-status`, `hrv-status-custom`, `training-status`,
+`readiness`, `sleep-score-custom`, `intensity-minutes`, `training-effect`
 
 **Response:** HTML page (`metrics.html` template). Data is loaded client-side via
 `/api/activities`, `/api/daily`, `/api/sleep`, `/api/hrv/trend`, and `/api/energy`.
