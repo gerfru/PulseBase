@@ -25,6 +25,7 @@ production database — always add a new migration file.
 | `V12__user_profile.sql` | Adds `date_of_birth DATE`, `sex TEXT` to `users` (required for Banister TRIMP) |
 | `V13__running_economy.sql` | Adds running dynamics columns to `activities` (ground contact time, vertical oscillation, stride length, vertical ratio, running power) |
 | `V14__fix_stride_length_precision.sql` | Widens `avg_stride_length` to `NUMERIC(6,1)` — Garmin returns cm, not meters |
+| `V15__epilepsy.sql` | Adds `epilepsy_mode BOOLEAN` to `users`; creates `seizure_events` table |
 
 ---
 
@@ -46,6 +47,7 @@ production database — always add a new migration file.
 | `libre_email` | `TEXT` | LibreLinkUp email (V9) |
 | `date_of_birth` | `DATE` | Used for age calculation + Banister TRIMP (V12) |
 | `sex` | `TEXT CHECK (sex IN ('m','f','diverse'))` | Required for Banister TRIMP coefficients (V12) |
+| `epilepsy_mode` | `BOOLEAN DEFAULT false` | Enables seizure diary + risk indicator (V15) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 ---
@@ -175,6 +177,25 @@ Hypertable for continuous glucose monitor (CGM) readings via LibreLinkUp (Libre 
 
 UNIQUE INDEX on `(user_id, time)` — upserted with `ON CONFLICT DO NOTHING`.
 Compression: after 7 days, segmented by `user_id`.
+
+---
+
+### `seizure_events`
+
+Manual seizure diary entries. Added in V15.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `SERIAL PK` | |
+| `user_id` | `INTEGER → users(id)` | Cascade delete |
+| `occurred_at` | `TIMESTAMPTZ NOT NULL` | When the seizure happened |
+| `duration_seconds` | `INTEGER` | Optional |
+| `type` | `TEXT CHECK ('focal','generalized','unknown')` | Default `unknown` |
+| `severity` | `SMALLINT CHECK (1–5)` | 1=very mild, 5=very severe; optional |
+| `notes` | `TEXT` | Free text; optional |
+| `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
+
+Index: `(user_id, occurred_at DESC)`
 
 ---
 
