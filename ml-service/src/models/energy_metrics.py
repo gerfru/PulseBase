@@ -89,11 +89,8 @@ def compute_cognitive_energy(
 ) -> dict[str, Any]:
     # Algorithmus: Borbély Two-Process Model (Process S — homöostatischer Schlafdruck)
     # Quelle: Borbély AA (1982) A two process model of sleep regulation. Hum Neurobiol 1(3):195-204
-    # Process S wird primär durch SWS (Tiefschlaf) entladen, nicht reine Schlafdauer.
-    # Qualitätsfaktor: deep_ratio / 0.20 (Zielanteil Tiefschlaf für Erwachsene, Empfehlung NSF)
-    # Fallback quality=1.0 wenn keine Tiefschlaf-Daten (rückwärtskompatibel)
-    _TARGET_DEEP_RATIO = 0.20
-
+    # Qualitätsfaktor entfernt: Garmins Tiefschlaf-Messung (Akzelerometer+HRV) zu unzuverlässig
+    # Ziel 7h: NSF-Empfehlung 7–9h, 7h als untere Grenze für Erwachsene (vorher 8h)
     debt = 0.0
     days_used = 0
     for d in sleep_data_7d:
@@ -101,12 +98,7 @@ def compute_cognitive_energy(
         if total is None:
             continue
         days_used += 1
-        deep = d.get("deep_h")
-        if deep is not None and total > 0:
-            quality = max(0.5, min(1.0, (deep / total) / _TARGET_DEEP_RATIO))
-        else:
-            quality = 1.0
-        debt += max(0.0, 8.0 - total * quality)
+        debt += max(0.0, 7.0 - total)
 
     if days_used == 0:
         return {"score": None, "reason": "no_sleep_data"}
