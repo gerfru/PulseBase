@@ -100,8 +100,14 @@ belongs to a different user.
 ### `GET /settings`
 
 Renders the settings page. Shows account info (name, email), Garmin Connect
-connection status, and LibreLinkUp connection status — each with inline
-connect/disconnect buttons.
+connection status, LibreLinkUp connection status, and the Epilepsie-Modus toggle —
+each with inline connect/disconnect buttons.
+
+### `GET /epilepsy`
+
+Renders the seizure diary page (`epilepsy.html`). Redirects to `/settings` if
+`epilepsy_mode` is not enabled for the user. Contains three sections:
+daily risk indicator, log form, and event history.
 
 ### `GET /libre/link`
 
@@ -631,18 +637,19 @@ Returns `{}` if ML inference has not run yet.
 
 ### `PATCH /api/profile`
 
-Saves the user's date of birth and biological sex. Used for Banister TRIMP computation in the ML service. Session-protected.
+Saves the user's date of birth, biological sex, and optional epilepsy mode flag. Used for Banister TRIMP computation in the ML service. Session-protected.
 
 **Request body (JSON):**
 
 ```json
-{ "date_of_birth": "1990-05-15", "sex": "m" }
+{ "date_of_birth": "1990-05-15", "sex": "m", "epilepsy_mode": true }
 ```
 
 | Field | Type | Constraint |
 |-------|------|------------|
 | `date_of_birth` | `date \| null` | ISO 8601, must be in the past |
 | `sex` | `string \| null` | `"m"`, `"f"`, or `"diverse"` |
+| `epilepsy_mode` | `boolean \| null` | Enables seizure diary; omit to leave unchanged |
 
 **Response on success:**
 
@@ -755,6 +762,102 @@ not in the allowed set.
 
 **Response:** HTML page (`metrics.html` template). Data is loaded client-side via
 `/api/activities`, `/api/daily`, `/api/sleep`, `/api/hrv/trend`, and `/api/energy`.
+
+---
+
+### `POST /api/seizures`
+
+Logs a new seizure event. Session-protected. Only meaningful when `epilepsy_mode = true`.
+
+**Request body (JSON):**
+
+```json
+{
+  "occurred_at": "2026-05-16T08:30:00Z",
+  "type": "focal",
+  "duration_seconds": 90,
+  "severity": 3,
+  "notes": "Nach Schlafentzug, mit Aura"
+}
+```
+
+| Field | Type | Constraint |
+|-------|------|------------|
+| `occurred_at` | ISO 8601 datetime | required |
+| `type` | string | `"focal"`, `"generalized"`, or `"unknown"` (default) |
+| `duration_seconds` | integer \| null | optional |
+| `severity` | integer \| null | 1–5; optional |
+| `notes` | string \| null | free text; optional |
+
+**Response:**
+
+```json
+{ "ok": true, "id": 1 }
+```
+
+---
+
+### `GET /api/seizures`
+
+Returns logged seizure events for the authenticated user.
+
+**Query parameters:**
+
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| `days` | `365` | Look-back window |
+
+**Response** — array ordered by `occurred_at DESC`:
+
+```json
+[
+  {
+    "id": 1,
+    "occurred_at": "2026-05-16T08:30:00+00:00",
+    "duration_seconds": 90,
+    "type": "focal",
+    "severity": 3,
+    "notes": "Nach Schlafentzug, mit Aura"
+  }
+]
+```
+
+---
+
+### `GET /api/seizures/risk`
+
+Returns a rule-based daily risk indicator computed from existing biomarkers.
+No seizure history required — useful from day 1.
+
+**Response:**
+
+```json
+{
+  "level": "amber",
+  "flags": [
+    { "label": "Schlafschuld", "detail": "3.2h in 7 Nächten", "color": "amber" }
+  ],
+  "sleep_debt_h": 3.2
+}
+```
+
+| Field | Values | Notes |
+|-------|--------|-------|
+| `level` | `"ok"` / `"amber"` / `"red"` | Highest severity across all flags |
+| `flags` | array | Each active risk factor with label, detail, color |
+| `sleep_debt_h` | float | Cumulative sleep deficit vs 7h/night over last 7 nights |
+
+**Risk rules (current):**
+
+| Condition | Level | Data source |
+|-----------|-------|-------------|
+| Sleep debt > 5h (last 7 nights vs 7h target) | red | `sleep_sessions` |
+| Sleep debt 2–5h | amber | `sleep_sessions` |
+| avg_stress (yesterday) > 70 | amber | `daily_summary` |
+| HRV last night < 80 % of weekly average | amber | `hrv_daily` |
+| Body battery daily low < 20 (yesterday) | amber | `daily_summary` |
+| Vigorous intensity > 60 min (yesterday) | amber | `daily_summary` |
+| Resting HR > 110 % of 30-day baseline | amber | `daily_summary` |
 
 ---
 
