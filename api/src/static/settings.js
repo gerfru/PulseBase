@@ -10,3 +10,12 @@ document.getElementById('profile-save').addEventListener('click', async function
     msg.style.display = 'inline';
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
 });
+
+document.getElementById('epilepsy-toggle')?.addEventListener('change', async function (e) {
+    await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({epilepsy_mode: e.target.checked}),
+    });
+    document.getElementById('epilepsy-link').style.display = e.target.checked ? '' : 'none';
+});

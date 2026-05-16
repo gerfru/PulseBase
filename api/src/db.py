@@ -1,5 +1,5 @@
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import asyncpg
 from pydantic_settings import BaseSettings
@@ -65,7 +65,7 @@ async def get_user_by_id(user_id: int) -> dict | None:
     row = await pool.fetchrow(
         """
         SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email,
-               date_of_birth, sex
+               date_of_birth, sex, epilepsy_mode
         FROM users WHERE id = $1
         """,
         user_id,
@@ -74,15 +74,27 @@ async def get_user_by_id(user_id: int) -> dict | None:
 
 
 async def update_user_profile(
-    user_id: int, date_of_birth: date | None, sex: str | None
+    user_id: int,
+    date_of_birth: date | None,
+    sex: str | None,
+    epilepsy_mode: bool | None = None,
 ) -> None:
     pool = await get_pool()
-    await pool.execute(
-        "UPDATE users SET date_of_birth = $1, sex = $2 WHERE id = $3",
-        date_of_birth,
-        sex,
-        user_id,
-    )
+    if epilepsy_mode is not None:
+        await pool.execute(
+            "UPDATE users SET date_of_birth = $1, sex = $2, epilepsy_mode = $3 WHERE id = $4",
+            date_of_birth,
+            sex,
+            epilepsy_mode,
+            user_id,
+        )
+    else:
+        await pool.execute(
+            "UPDATE users SET date_of_birth = $1, sex = $2 WHERE id = $3",
+            date_of_birth,
+            sex,
+            user_id,
+        )
 
 
 async def set_garmin_linked(user_id: int, garmin_email: str) -> None:
@@ -586,3 +598,102 @@ async def get_user_sex(user_id: int) -> str:
     pool = await get_pool()
     row = await pool.fetchrow("SELECT sex FROM users WHERE id = $1", user_id)
     return str(row["sex"]) if row and row["sex"] else "male"
+
+
+async def save_seizure(
+    user_id: int,
+    occurred_at: datetime,
+    duration_seconds: int | None,
+    type_: str,
+    severity: int | None,
+    notes: str | None,
+) -> int:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO seizure_events
+               (user_id, occurred_at, duration_seconds, type, severity, notes)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
+        user_id,
+        occurred_at,
+        duration_seconds,
+        type_,
+        severity,
+        notes,
+    )
+    if row is None:
+        raise RuntimeError("save_seizure: INSERT RETURNING returned no row")
+    return int(row["id"])
+
+
+async def get_seizures(user_id: int, days: int = 365) -> list[dict]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT id, occurred_at, duration_seconds, type, severity, notes
+           FROM seizure_events
+           WHERE user_id = $1
+             AND occurred_at >= NOW() - ($2 || ' days')::interval
+           ORDER BY occurred_at DESC""",
+        user_id,
+        str(days),
+    )
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["occurred_at"] = d["occurred_at"].isoformat()
+        result.append(d)
+    return result
+
+
+async def get_seizure_risk(user_id: int) -> dict:
+    pool = await get_pool()
+    sleep_rows = await pool.fetch(
+        """SELECT total_sleep_seconds FROM sleep_sessions
+           WHERE user_id = $1 AND start_time >= NOW() - INTERVAL '8 days'
+           ORDER BY start_time DESC LIMIT 7""",
+        user_id,
+    )
+    sleep_debt_h = sum(
+        max(0.0, 7.0 - (r["total_sleep_seconds"] or 0) / 3600.0) for r in sleep_rows
+    )
+    yesterday = await pool.fetchrow(
+        """SELECT d.avg_stress, h.hrv_last_night
+           FROM daily_summary d
+           LEFT JOIN hrv_daily h ON h.user_id = d.user_id AND h.date = d.date
+           WHERE d.user_id = $1
+           ORDER BY d.date DESC LIMIT 1""",
+        user_id,
+    )
+    flags: list[dict] = []
+    level = "ok"
+
+    if sleep_debt_h > 5:
+        flags.append(
+            {
+                "label": "Schlafschuld",
+                "detail": f"{sleep_debt_h:.1f}h in 7 Nächten",
+                "color": "red",
+            }
+        )
+        level = "red"
+    elif sleep_debt_h > 2:
+        flags.append(
+            {
+                "label": "Schlafschuld",
+                "detail": f"{sleep_debt_h:.1f}h in 7 Nächten",
+                "color": "amber",
+            }
+        )
+        level = "amber"
+
+    if yesterday and (yesterday["avg_stress"] or 0) > 70:
+        flags.append(
+            {
+                "label": "Hoher Stress",
+                "detail": f"Ø {yesterday['avg_stress']} gestern",
+                "color": "amber",
+            }
+        )
+        if level == "ok":
+            level = "amber"
+
+    return {"level": level, "flags": flags, "sleep_debt_h": round(sleep_debt_h, 1)}

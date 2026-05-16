@@ -45,6 +45,16 @@
         </div>
     </div>
     {% endif %}
+    {% if user.epilepsy_mode %}
+    <div class="px-4 mb-2">
+        <a href="/epilepsy"
+           class="inline-flex items-center gap-2 px-3 py-2 rounded-xl
+                  bg-violet-500/10 border border-violet-500/20
+                  text-violet-300 text-sm hover:bg-violet-500/15 transition-colors">
+            Anfallstagebuch
+        </a>
+    </div>
+    {% endif %}
 
     <!-- ── Hero: immer sichtbar ─────────────────────────────────── -->
     <div class="px-4 sm:px-6">

@@ -79,6 +79,37 @@
         </div>
     </div>
 
+    <!-- Epilepsie-Modus -->
+    <div class="card">
+        <h2>Epilepsie-Modus</h2>
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-sm font-medium text-slate-700 dark:text-slate-200">Anfallstagebuch</div>
+                <div class="text-xs text-slate-400 mt-0.5">
+                    Aktiviert das Anfallstagebuch und den täglichen Risiko-Indikator.
+                    Kein Ersatz für neurologische Betreuung.
+                </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                <input type="checkbox" id="epilepsy-toggle" class="sr-only peer"
+                       {% if user.epilepsy_mode %}checked{% endif %}>
+                <div class="w-11 h-6 rounded-full transition-colors
+                            bg-slate-300 dark:bg-slate-600
+                            peer-checked:bg-emerald-500
+                            after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                            after:bg-white after:rounded-full after:h-5 after:w-5
+                            after:transition-all peer-checked:after:translate-x-5
+                            after:shadow-sm"></div>
+            </label>
+        </div>
+        <div id="epilepsy-link"
+             style="{% if not user.epilepsy_mode %}display:none;{% endif %}margin-top:var(--sp-3,0.75rem)">
+            <a href="/epilepsy" class="text-sm text-emerald-500 hover:underline">
+                → Anfallstagebuch öffnen
+            </a>
+        </div>
+    </div>
+
     <!-- Garmin Connect -->
     <div class="card">
         <h2>Garmin Connect</h2>
