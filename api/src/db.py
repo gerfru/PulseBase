@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     db_app_password: str
     session_secret: str
     https_only: bool = True
+    trimp_lookback_days: int = 7
+    trimp_forecast_days: int = 7
 
     @property
     def db_url(self) -> str:
@@ -532,3 +534,53 @@ async def get_ml_status(user_id: int) -> dict:
         if row and row["last_ml_at"]
         else None,
     }
+
+
+async def get_training_load_inputs(user_id: int, days: int = 200) -> list[dict]:
+    """Per-activity rows needed for TRIMP calculation (one row per activity)."""
+    from datetime import date, timedelta
+
+    cutoff = date.today() - timedelta(days=days)
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT DATE(a.started_at AT TIME ZONE 'UTC') AS activity_date,
+               a.avg_hr::float,
+               a.duration_seconds::float,
+               d.resting_hr::float
+        FROM activities a
+        LEFT JOIN daily_summary d
+               ON d.date    = DATE(a.started_at AT TIME ZONE 'UTC')
+              AND d.user_id = a.user_id
+        WHERE a.user_id = $1
+          AND a.started_at >= $2
+          AND a.avg_hr IS NOT NULL
+          AND a.avg_hr > 0
+          AND a.duration_seconds IS NOT NULL
+          AND a.duration_seconds > 0
+        ORDER BY activity_date
+        """,
+        user_id,
+        cutoff,
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_activity_hrmax(user_id: int) -> float:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT MAX(max_hr)::float AS hrmax FROM activities
+        WHERE user_id = $1
+          AND started_at >= CURRENT_DATE - INTERVAL '12 months'
+          AND max_hr IS NOT NULL
+        """,
+        user_id,
+    )
+    return float(row["hrmax"]) if row and row["hrmax"] else 190.0
+
+
+async def get_user_sex(user_id: int) -> str:
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT sex FROM users WHERE id = $1", user_id)
+    return str(row["sex"]) if row and row["sex"] else "male"

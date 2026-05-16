@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     sync_hour: int = 6
     sync_lookback_days: int = 30
+    sync_daily_days: int = 2  # days synced on daily run and manual button
 
     @property
     def db_url(self) -> str:
