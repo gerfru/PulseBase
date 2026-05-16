@@ -51,6 +51,11 @@ class Activity(BaseModel):
     avg_speed_kmh: Optional[float] = None
     aerobic_effect: Optional[float] = None
     anaerobic_effect: Optional[float] = None
+    avg_ground_contact_time: Optional[int] = None
+    avg_vertical_oscillation: Optional[float] = None
+    avg_stride_length: Optional[float] = None
+    avg_vertical_ratio: Optional[float] = None
+    avg_running_power: Optional[int] = None
     records: list[ActivityRecord] = []
 
 
