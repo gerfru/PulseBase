@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PulseBase{% endblock %}</title>
-    <script src="/static/theme-init.js"></script>
+    <script src="/static/theme-init.js?v={{ v }}"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/static/tailwind-config.js"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/tailwind-config.js?v={{ v }}"></script>
+    <link rel="stylesheet" href="/static/style.css?v={{ v }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">

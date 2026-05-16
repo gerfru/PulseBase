@@ -1,4 +1,4 @@
-.PHONY: network up up-standalone down clean reset logs logs-sync logs-ml logs-all sync sync-history status migrate db gen-secrets setup add-host setup-user restart-api build-api build-sync build-ml
+.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy
 
 network:
 	docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
@@ -22,14 +22,23 @@ reset:
 	docker compose up flyway
 	docker compose up -d --build
 
-logs:
+dashboard: network
+	docker compose build api && docker compose up -d api
+
+analytics: network
+	docker compose build ml-service && docker compose up -d ml-service
+
+sync: network
+	docker compose build sync-service && docker compose up -d --force-recreate sync-service
+
+logs-dashboard:
 	docker compose logs -f api
+
+logs-analytics:
+	docker compose logs -f ml-service
 
 logs-sync:
 	docker compose logs -f sync-service
-
-logs-ml:
-	docker compose logs -f ml-service
 
 logs-all:
 	docker compose logs -f
@@ -37,29 +46,21 @@ logs-all:
 migrate:
 	docker compose up flyway
 
-sync:
-	docker compose build sync-service && docker compose up -d --force-recreate sync-service
-
 backfill-energy:
 	docker compose exec ml-service python /app/src/backfill_energy.py
-
-build-sync: network
-	docker compose build sync-service && docker compose up -d sync-service
-
-build-ml: network
-	docker compose build ml-service && docker compose up -d ml-service
 
 status:
 	docker compose ps
 
 db:
-	@export $$(grep -v '^#' .env | xargs) 2>/dev/null; docker compose exec db psql -U $${DB_APP_USER} -d garmin
-
-restart-api:
-	docker compose restart api
-
-build-api: network
-	docker compose build api && docker compose up -d api
+	@export $$(grep -v '^#' .env | xargs) 2>/dev/null; \
+	if [ -n "$(SQL)" ]; then \
+		docker compose exec -T db psql -U $${DB_APP_USER} -d garmin -c "$(SQL)"; \
+	elif [ -t 0 ]; then \
+		docker compose exec db psql -U $${DB_APP_USER} -d garmin; \
+	else \
+		docker compose exec -T db psql -U $${DB_APP_USER} -d garmin; \
+	fi
 
 gen-secrets:
 	@echo "Folgende Werte in .env eintragen:"
