@@ -369,7 +369,7 @@ ON CONFLICT (date, user_id, model) DO UPDATE
 | `battery_pattern` | Cluster-ID (int) | `pattern`, `features`, `cluster` |
 | `model_meta_rf` | n_rows (float) | `features`, `importances`, `n_rows` |
 | `sleep_score_custom` | Score 0–100 | `total_h`, `deep_pct`, `rem_pct`, `wake_pct` |
-| `hrv_status_custom` | Score 0–100 | `status`, `deviation`, `baseline_mean`, `baseline_std`, `hrv_raw_today` |
+| `hrv_status_custom` | Score 0–100 | `status`, `deviation`, `baseline_mean`, `baseline_std`, `hrv_7d_mean` |
 | `intensity_minutes_custom` | Score 0–100 | `moderate_minutes`, `vigorous_minutes`, `hrmax_used`, `resting_hr_used` |
 | `training_effect_custom` | Score 0–100 | `effect`, `trimp_today`, `ctl`, `atl`, `tsb`, `vo2max`, `sex`, `b_coeff` |
 

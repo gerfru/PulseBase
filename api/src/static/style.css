@@ -428,7 +428,7 @@ html:not(.dark) .formula-row { background: rgba(0,0,0,.04); }
 html:not(.dark) .ring-track { stroke: rgba(0,0,0,.08); }
 .ring-score-text { font-size: 28px; font-weight: 800; fill: var(--text); font-family: inherit; dominant-baseline: middle; }
 .ring-label-text { font-size: 8px; font-weight: 700; fill: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-family: inherit; dominant-baseline: middle; }
-.readiness-ring-progress { transition: stroke-dashoffset 800ms ease-out; }
+.readiness-ring-progress { }
 
 /* Hero ring section */
 .hero-ring-section { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
@@ -436,6 +436,7 @@ html:not(.dark) .ring-track { stroke: rgba(0,0,0,.08); }
 .hero-ring-status  { font-size: .82rem; font-weight: 600; color: var(--text); }
 .hero-ring-link    { font-size: .72rem; color: var(--muted); text-decoration: none; opacity: .6; transition: opacity .15s, color .15s; }
 .hero-ring-link:hover { opacity: 1; color: var(--accent); }
+
 
 /* Hero grid layout */
 .hero-grid  { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-6); align-items: start; }

@@ -63,7 +63,7 @@ obendrauf. Vollständiger Schlaf baut ihn wieder ab — aber nur wenn du wirklic
 **Quellen:**
 - Sally Edwards (1993): Heart Rate Monitor Training
 - Banister EW & Calvert TW (1991): Planning for future performance. Can J Sport Sci 17(1):9
-- TrainingPeaks: https://www.trainingpeaks.com/learn/articles/applying-the-numbers/
+- TrainingPeaks: <https://www.trainingpeaks.com/learn/articles/applying-the-numbers/>
 
 **Formel:**
 
@@ -71,14 +71,14 @@ obendrauf. Vollständiger Schlaf baut ihn wieder ab — aber nur wenn du wirklic
 # Schritt 1: Heart Rate Reserve Fraction (HRr)
 HRr = (avg_hr_aktivität − resting_hr) / (hrmax − resting_hr)
 
-# Schritt 2: TRIMP pro Aktivität (Edwards, ohne Geschlechtskoeffizienten)
+# Schritt 2: Edwards TRIMP pro Aktivität (kein Geschlechtskoeffizient nötig)
 TRIMP = duration_min × HRr × (HRr × 4 + 1)
 
 # Schritt 3: Exponentiell gewichteter Mittelwert (Banister, 1991)
 ATL_t = ATL_{t-1} × e^(−1/7)  + TRIMP_t × (1 − e^(−1/7))   # τ = 7 Tage
 CTL_t = CTL_{t-1} × e^(−1/42) + TRIMP_t × (1 − e^(−1/42))  # τ = 42 Tage
 
-# Schritt 4: TSB (Training Stress Balance)
+# Schritt 4: TSB (Training Stress Balance / Form)
 TSB = CTL − ATL
 
 # Schritt 5: Score
@@ -86,7 +86,7 @@ score = clip(50 + TSB × 1.5, 0, 100)
 ```
 
 **Parameter:**
-- HRmax: `MAX(activities.max_hr)` der letzten 12 Monate; Fallback 190 bpm
+- HRmax: `MAX(activities.max_hr)` aus der Aktivitäts-History; Fallback 190 bpm
 - Resting HR Fallback: 60 bpm wenn kein Wert vorhanden
 - Fenster: 50 Tage täglich dekayend (dense-date-Walk)
 
@@ -101,8 +101,8 @@ score = clip(50 + TSB × 1.5, 0, 100)
 | < −10 | Deutliche Ermüdung |
 
 **Bekannte Vereinfachungen:**
-- Banister TRIMP wäre präziser (geschlechtsspezifische Exponentialkurve), benötigt aber `users.sex`
 - avg_hr statt Sekunden-HR; bei Ausdauer-Sport (konstante Intensität) gute Näherung
+- Genauere Variante mit Banister TRIMP (geschlechtsspezifisch) verfügbar über `/api/training-load`
 
 ---
 
@@ -110,9 +110,9 @@ score = clip(50 + TSB × 1.5, 0, 100)
 
 **Quellen:**
 - Elite HRV (2021): The 1-10 Relative Balance Score.
-  https://help.elitehrv.com/article/57-the-1-10-relative-balance-score
+  <https://help.elitehrv.com/article/57-the-1-10-relative-balance-score>
 - Altini M (HRV4Training, 2021): On Heart Rate Variability and Readiness.
-  https://medium.com/@altini_marco/on-heart-rate-variability-hrv-and-readiness-394a499ed05b
+  <https://medium.com/@altini_marco/on-heart-rate-variability-hrv-and-readiness-394a499ed05b>
 
 **Formel:**
 
@@ -120,14 +120,19 @@ score = clip(50 + TSB × 1.5, 0, 100)
 # Schritt 1: Log-Normierung (RMSSD ist rechtsschief verteilt)
 HRV_raw = ln(hrv_last_night) × 20
 
-# Schritt 2: Persönliche 90-Tage-Baseline (exkl. heutiger Wert)
-baseline_mean = Σ HRV_raw / n
+# Schritt 2: 7-Tage-Rolling-Mean als "aktueller" Wert (Plews et al. 2013)
+# Ab 14 Datenpunkten: Mittelwert der letzten 7 Tage statt Einzeltag
+# Fallback für neue User (<14 Punkte): nur letzter Wert
+current_mean = Σ HRV_raw[-7:] / 7
+
+# Schritt 3: Persönliche Baseline (Rest der 90-Tage-History, exkl. der letzten 7 Tage)
+baseline_mean = Σ HRV_raw[:-7] / n
 baseline_std  = √(Σ(HRV_raw − mean)² / n), min. 1.0
 
-# Schritt 3: σ-Normierung
-deviation = (HRV_raw_heute − baseline_mean) / baseline_std
+# Schritt 4: σ-Normierung
+deviation = (current_mean − baseline_mean) / baseline_std
 
-# Schritt 4: Score
+# Schritt 5: Score
 score = clip(50 + deviation × 15, 0, 100)
 ```
 
@@ -198,4 +203,4 @@ score = clip(100 − total_debt × 6, 0, 100)
 | Banister TRIMP (präziser, geschlechtsspezifisch) | ✅ Implementiert als `training_effect_custom` — `users.sex` + `users.date_of_birth` in V12 migriert |
 | HRmax via Altersformel (Fallback) | ✅ `users.date_of_birth` vorhanden; Alter aus Geburtsdatum berechenbar |
 | Borbély Process C (Zirkadian) | Offen — Einschlaf-/Aufwachzeiten müssten explizit gespeichert werden |
-| 7-Tage gleitendes Baseline-Fenster HRV | Offen — derzeit 90 Tage fix |
+| 7-Tage gleitendes Baseline-Fenster HRV | ✅ Implementiert — 7-Tage-Rolling-Mean vs. Rest-Baseline |
