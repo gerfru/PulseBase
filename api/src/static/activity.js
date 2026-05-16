@@ -132,6 +132,45 @@ function statTile(label, value) {
     return `<div class="stat-tile"><div class="stat-label">${label}</div><div class="stat-value" style="font-size:1.2rem">${value}</div></div>`;
 }
 
+function econColor(val, lo, hi) {
+    if (val == null) return null;
+    if (val <= lo) return 'var(--green)';
+    if (val <= hi) return 'var(--amber)';
+    return 'var(--red)';
+}
+
+function econRow(label, val, sub, color) {
+    return `<div class="kv-row">
+        <span class="kv-label">${label}${sub ? `<small class="kv-sub">${sub}</small>` : ''}</span>
+        <span class="kv-value"${color ? ` style="color:${color}"` : ''}>${val}</span>
+    </div>`;
+}
+
+function renderEconomy(a) {
+    if (a.sport_type !== 'running' && a.sport_type !== 'trail_running') return;
+    const hasData = a.avg_ground_contact_time || a.avg_vertical_oscillation ||
+                    a.avg_stride_length || a.avg_vertical_ratio || a.avg_running_power;
+    if (!hasData) return;
+
+    const rows = [];
+    if (a.avg_ground_contact_time)
+        rows.push(econRow('Bodenkontaktzeit', a.avg_ground_contact_time + ' ms',
+            '< 240 ms optimal', econColor(a.avg_ground_contact_time, 240, 270)));
+    if (a.avg_vertical_oscillation)
+        rows.push(econRow('Vertikale Oszillation', a.avg_vertical_oscillation.toFixed(1) + ' cm',
+            '< 8 cm optimal', econColor(a.avg_vertical_oscillation, 8, 10)));
+    if (a.avg_stride_length)
+        rows.push(econRow('Schrittlänge', a.avg_stride_length.toFixed(2) + ' m', '', null));
+    if (a.avg_vertical_ratio)
+        rows.push(econRow('Vertikales Verhältnis', a.avg_vertical_ratio.toFixed(1) + ' %',
+            '< 8 % optimal', econColor(a.avg_vertical_ratio, 8, 10)));
+    if (a.avg_running_power)
+        rows.push(econRow('Laufleistung', a.avg_running_power + ' W', '', null));
+
+    document.getElementById('economy-rows').innerHTML = rows.join('');
+    document.getElementById('economy-card').style.display = '';
+}
+
 async function load() {
     const id = location.pathname.split('/').pop();
     const a = await fetch(`/api/activities/${id}`).then(r => r.json());
@@ -158,6 +197,7 @@ async function load() {
 
     // RPE — Session-RPE (Foster et al. 2001): subjektive Anstrengung 1–10
     renderRpe(id, a.user_rpe, a.avg_hr, a.duration_seconds);
+    renderEconomy(a);
 
     // Training Effect
     if (a.aerobic_effect || a.anaerobic_effect) {

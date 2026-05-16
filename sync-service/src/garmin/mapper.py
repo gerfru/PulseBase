@@ -45,6 +45,11 @@ def map_activity(raw: dict[str, Any], user_id: int) -> Activity:
         avg_speed_kmh=avg_speed_kmh,
         aerobic_effect=raw.get("aerobicTrainingEffect"),
         anaerobic_effect=raw.get("anaerobicTrainingEffect"),
+        avg_ground_contact_time=_int_or_none(raw.get("avgGroundContactTime")),
+        avg_vertical_oscillation=_float_or_none(raw.get("avgVerticalOscillation")),
+        avg_stride_length=_float_or_none(raw.get("avgStrideLength")),
+        avg_vertical_ratio=_float_or_none(raw.get("avgVerticalRatio")),
+        avg_running_power=_int_or_none(raw.get("avgRunningPower")),
     )
 
 
@@ -204,5 +209,12 @@ def _pace_to_sec(speed_ms: float | None) -> float | None:
 def _int_or_none(val: Any) -> int | None:
     try:
         return int(val) if val is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _float_or_none(val: Any) -> float | None:
+    try:
+        return float(val) if val is not None else None
     except (TypeError, ValueError):
         return None
