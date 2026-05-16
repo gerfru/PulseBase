@@ -60,7 +60,7 @@ duration_h = total_sleep_seconds / 3600
 # Komponenten (je 0–100)
 deep_score     = min(100, deep_pct / 0.20 × 100)           # optimal bei 20%
 rem_score      = min(100, rem_pct  / 0.22 × 100)           # optimal bei 22%
-duration_score = min(100, duration_h / 8.0 × 100)          # optimal bei 8h
+duration_score = min(100, duration_h / 7.0 × 100)          # optimal bei 7h (NSF-Empfehlung)
 wake_penalty   = max(0, 100 − wake_pct × 500)              # -5 Punkte je 1% Wachanteil
 
 score = deep_score × 0.35 + rem_score × 0.25 + duration_score × 0.25 + wake_penalty × 0.15
@@ -78,7 +78,8 @@ score = deep_score × 0.35 + rem_score × 0.25 + duration_score × 0.25 + wake_p
 rollender Baseline (keine absoluten Cutoffs, sondern individuelle Standardabweichungen).
 
 ```
-baseline_mean = exponentiell gewichteter Mittelwert (90-Tage, Neueres zählt mehr)
+baseline_mean = Mittelwert der 90-Tage-History exkl. der letzten 7 Tage (Plews et al. 2013)
+current_mean  = 7-Tage-Rolling-Mean der letzten 7 Tage (robuster als Einzeltag)
 baseline_std  = Standardabweichung der Baseline
 
 deviation = (hrv_last_night − baseline_mean) / baseline_std
@@ -117,17 +118,7 @@ Validiert in hunderten Studien seit 1991.
 - `activities.duration_seconds` ✅
 - `daily_summary.resting_hr` ✅
 - `activities.max_hr` (oder aus History ableiten) ✅
-- `users.sex` ❌ (fehlt — für Koeffizienten k und b)
-
-**Alternative ohne Geschlecht:** Edwards TRIMP (Sally Edwards, 1993) — einfacher, zonenbasiert:
-
-```
-TRIMP = Σ(Minuten_in_Zone × Zonenkoeffizient)
-Zone 1 (50–60% HRmax) × 1 ... Zone 5 (90–100%) × 5
-```
-
-Weniger physiologisch präzise (willkürliche Koeffizienten), aber kein Geschlecht nötig
-und direkt aus Sekunden-HR in `activity_records` berechenbar.
+- `users.sex` ✅ (V12 migriert — `users.sex TEXT` mit Wert `'m'`/`'f'`/`'diverse'`)
 
 ---
 
@@ -149,6 +140,7 @@ TSB (Training Stress Balance / Form):
 ```
 
 **Interpretation TSB:**
+
 | TSB | Bedeutung |
 |-----|-----------|
 | > +10 | Sehr erholt, Topform |
@@ -187,9 +179,10 @@ HRV_Factor    = (HRV_Score_raw − Baseline_mean) / Baseline_std
               → normiert auf 0–100 relativ zur persönlichen Norm
 ```
 
-**Sleep_Factor (0–100) — eigener Sleep Score (s. oben)**
+#### Sleep\_Factor (0–100) — eigener Sleep Score (s. oben)
 
-**Recovery_Factor (0–100) aus TSB:**
+#### Recovery\_Factor (0–100) aus TSB
+
 ```
 Recovery_Factor = 50 + TSB × 1.5    # TSB ≈ ±30 typisch → ergibt 5–95
                   geclippt auf [0, 100]
@@ -424,8 +417,8 @@ Für eine vollständige eigene Berechnung fehlen zwei Felder in der `users`-Tabe
 | `age` | INTEGER | HRmax-Formel (220−Alter), HRV-Perzentilen | Hoch |
 | `sex` | TEXT (`m`/`f`/`diverse`) | Banister TRIMP (Koeffizienten), HRV-Normwerte | Hoch |
 
-Beide wären **optionale** Felder — ohne sie können wir Edwards TRIMP (keine Koeffizienten nötig)
-und einen sex-agnostischen HRV-Status berechnen, aber die Präzision steigt deutlich mit diesen Angaben.
+`users.sex` ist in V12 als Pflichtfeld migriert — Banister TRIMP mit geschlechtsspezifischen
+Koeffizienten (b=1.92/1.67) ist implementiert. `users.age` kann aus `users.date_of_birth` berechnet werden.
 
 HRmax ohne Altersformel: aus `MAX(activities.max_hr)` der letzten 12 Monate ableitbar —
 das ist sogar besser als die generische Formel.
@@ -440,7 +433,7 @@ das ist sogar besser als die generische Formel.
 | 2 | **Sleep Score (custom)** | 2–3 Tage | Schlafdauern (✅ vorhanden) | Transparent, kein Garmin-Blackbox |
 | 3 | **HRV Status** | 3–5 Tage | `hrv_last_night` + 90d History (✅ vorhanden) | Persönliche Baseline statt absoluter Cutoff |
 | 4 | **Readiness / Energie-Score** | 1 Woche | HRV + Sleep Score + TSB | Body-Battery-Ersatz, vollständig transparent |
-| 5 | **TRIMP + CTL/ATL/TSB** | 2 Wochen | Aktivitäts-HR (✅ vorhanden) + `users.age/sex` (❌ fehlt) | Training Status + Readiness-Grundlage |
+| 5 | **TRIMP + CTL/ATL/TSB** | ✅ Implementiert | Banister TRIMP + `users.sex` (V12) — `/api/training-load` | Training Status + Readiness-Grundlage |
 | 6 | **Aerober Training Effect** | 3–4 Wochen | TRIMP-Grundlage (Prio 5) + VO2max-Schätzung | Ersatz für Garmin Training Effect |
 
 ---

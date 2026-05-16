@@ -150,15 +150,15 @@ inspired by WHOOP and Bloomberg Terminal. Replaced the earlier glassmorphism sty
 Four separate cards (Readiness, Heute, Energie, ML Status) were merged into a single
 "Tagesstatus" card using a WHOOP-style 3-tier hierarchy:
 
-**Tier 1 (left) — Readiness Ring:**
-SVG ring animates on load (`stroke-dashoffset`, 800ms ease-out). Score counts up from 0
-via `requestAnimationFrame` (600ms). Ring color and fill determined by score: ≥75 green,
-≥50 amber, <50 red.
+**Tier 1 (left) — Readiness Arc:**
+SVG partial arc (240°, opens at bottom — Oura/WHOOP style). Score counts up from 0 via
+`requestAnimationFrame` (600ms), arc fill animated via `stroke-dasharray`. Arc color
+determined by score: ≥75 green, ≥50 amber, <50 red.
 
 **Tier 2 (right) — Energie-Triptychon + Vitals:**
 Three energy rows (Physisch / Autonom / Kognitiv) with color-coded dots, scores, sub-labels
-(TSB, σ-deviation, sleep debt hours), and arrow links. A 2×2 vitals strip below shows
-steps, sleep score, HRV avg, resting HR.
+(Form/Fitness, σ-deviation, sleep debt hours), and arrow links. A 2×2 vitals strip below
+shows steps, sleep score, HRV avg, resting HR.
 
 **Tier 3 (bottom) — ML Status Chips:**
 Compact badge pills for: HRV status (BALANCED/UNBALANCED/LOW/POOR), Z-score anomaly,
