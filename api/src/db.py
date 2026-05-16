@@ -656,7 +656,8 @@ async def get_seizure_risk(user_id: int) -> dict:
         max(0.0, 7.0 - (r["total_sleep_seconds"] or 0) / 3600.0) for r in sleep_rows
     )
     yesterday = await pool.fetchrow(
-        """SELECT d.avg_stress, h.hrv_last_night
+        """SELECT d.avg_stress, d.body_battery_low, d.resting_hr, d.intensity_vigorous,
+                  h.hrv_last_night, h.hrv_weekly_avg
            FROM daily_summary d
            LEFT JOIN hrv_daily h ON h.user_id = d.user_id AND h.date = d.date
            WHERE d.user_id = $1
@@ -666,6 +667,11 @@ async def get_seizure_risk(user_id: int) -> dict:
     flags: list[dict] = []
     level = "ok"
 
+    def _raise(new: str) -> str:
+        if new == "red" or level == "red":
+            return "red"
+        return new
+
     if sleep_debt_h > 5:
         flags.append(
             {
@@ -674,7 +680,7 @@ async def get_seizure_risk(user_id: int) -> dict:
                 "color": "red",
             }
         )
-        level = "red"
+        level = _raise("red")
     elif sleep_debt_h > 2:
         flags.append(
             {
@@ -683,17 +689,75 @@ async def get_seizure_risk(user_id: int) -> dict:
                 "color": "amber",
             }
         )
-        level = "amber"
+        level = _raise("amber")
 
-    if yesterday and (yesterday["avg_stress"] or 0) > 70:
-        flags.append(
-            {
-                "label": "Hoher Stress",
-                "detail": f"Ø {yesterday['avg_stress']} gestern",
-                "color": "amber",
-            }
-        )
-        if level == "ok":
-            level = "amber"
+    if yesterday:
+        avg_stress = yesterday["avg_stress"] or 0
+        hrv_now = yesterday["hrv_last_night"]
+        hrv_avg = yesterday["hrv_weekly_avg"]
+        bb_low = yesterday["body_battery_low"]
+        resting_hr = yesterday["resting_hr"]
+        vigorous = yesterday["intensity_vigorous"] or 0
+
+        if avg_stress > 70:
+            flags.append(
+                {
+                    "label": "Hoher Stress",
+                    "detail": f"Ø {avg_stress} gestern",
+                    "color": "amber",
+                }
+            )
+            level = _raise("amber")
+
+        if hrv_now and hrv_avg and hrv_avg > 0 and hrv_now < hrv_avg * 0.8:
+            drop_pct = round((1 - hrv_now / hrv_avg) * 100)
+            flags.append(
+                {
+                    "label": "HRV-Einbruch",
+                    "detail": f"{hrv_now} ms (−{drop_pct}% vom Wochenschnitt)",
+                    "color": "amber",
+                }
+            )
+            level = _raise("amber")
+
+        if bb_low is not None and bb_low < 20:
+            flags.append(
+                {
+                    "label": "Niedriger Body Battery",
+                    "detail": f"Tiefstwert {bb_low} gestern",
+                    "color": "amber",
+                }
+            )
+            level = _raise("amber")
+
+        if vigorous > 60:
+            flags.append(
+                {
+                    "label": "Intensives Training",
+                    "detail": f"{vigorous} min vigorous gestern",
+                    "color": "amber",
+                }
+            )
+            level = _raise("amber")
+
+        if resting_hr:
+            hr_baseline_row = await pool.fetchrow(
+                """SELECT ROUND(AVG(resting_hr)) AS baseline
+                   FROM daily_summary
+                   WHERE user_id = $1 AND resting_hr IS NOT NULL
+                     AND date >= CURRENT_DATE - INTERVAL '30 days'
+                     AND date < CURRENT_DATE""",
+                user_id,
+            )
+            baseline = hr_baseline_row["baseline"] if hr_baseline_row else None
+            if baseline and resting_hr > baseline * 1.1:
+                flags.append(
+                    {
+                        "label": "Erhöhte Ruheherzfrequenz",
+                        "detail": f"{resting_hr} bpm (Schnitt {int(baseline)} bpm)",
+                        "color": "amber",
+                    }
+                )
+                level = _raise("amber")
 
     return {"level": level, "flags": flags, "sleep_debt_h": round(sleep_debt_h, 1)}

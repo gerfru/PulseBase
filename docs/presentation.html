@@ -636,7 +636,7 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
             <tr>
               <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">users</td>
               <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
-              <td class="py-3 text-slate-400 text-xs">id, name, email, password_hash, garmin_linked, garmin_email, libre_linked, libre_email, date_of_birth, sex, is_active</td>
+              <td class="py-3 text-slate-400 text-xs">id, name, email, password_hash, garmin_linked, garmin_email, libre_linked, libre_email, date_of_birth, sex, epilepsy_mode, is_active</td>
             </tr>
             <tr>
               <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">activities</td>
@@ -678,6 +678,11 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
               <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
               <td class="py-3 text-slate-400 text-xs">date, user_id, model, value, metadata (JSONB) — PK: (date, user_id, model) · Upsert bei jeder Inferenz</td>
             </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">seizure_events</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">id, user_id, occurred_at, duration_seconds, type (focal/generalized/unknown), severity (1–5), notes — Anfallstagebuch (V15)</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -686,7 +691,8 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
         <span class="font-semibold text-slate-200">Migrationen:</span>
         V1–V5 Schema · V6 sync_trigger · V7 app_user (least-privilege) · V8 ml_predictions ·
         V9 glucose/intraday · V10 ml_trigger · V11 activity_rpe · V12 user_profile (date_of_birth, sex) ·
-        V13 running_economy · V14 fix stride length precision (cm statt m)
+        V13 running_economy · V14 fix stride length precision (cm statt m) ·
+        V15 epilepsy_mode + seizure_events
       </div>
     </section>
 
