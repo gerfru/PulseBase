@@ -590,6 +590,14 @@ to `ml_predictions`; this endpoint returns the most recent row per model (within
 | `anomaly_hr` | Z-score of today's resting HR | `is_anomaly: true` when z > 1.5 |
 | `readiness_rf` | Predicted readiness score 0–100 | null when < 30 valid training rows |
 | `correlation_sleep_hrv` | Pearson r (−1 to 1) | Requires ≥ 10 sleep→HRV pairs |
+| `acwr` | Acute-to-Chronic Workload Ratio | `level: "green"\|"amber"\|"red"` based on ATL/CTL |
+| `training_monotony` | Training variation score | `strain`: combined workload×monotony metric |
+| `spo2_trend` | Mean SpO₂ (7d) | `slope`, `trend`, `apnea_flag` if ≥2 nights <90% |
+| `sleep_consistency` | Sleep-wake timing regularity 0–100 | `std_wake_h`, `std_sleep_h`: hours variance |
+| `sleep_score_custom` | Custom sleep quality 0–100 | Replaces Garmin sleep_score on dashboard |
+| `hrv_status_custom` | HRV balance status | `"BALANCED"`, `"UNBALANCED"`, `"LOW"`, `"POOR"` |
+| `intensity_minutes_custom` | Karvonen intensity minutes | `moderate_minutes`, `vigorous_minutes` |
+| `training_effect_custom` | Banister training effect 0–5 | `trimp_today`, `ctl`, `vo2max` estimate |
 
 Returns `{}` if no ML data has been computed yet.
 

@@ -408,6 +408,10 @@ _VALID_METRICS = {
     "sleep-score-custom",
     "intensity-minutes",
     "training-effect",
+    "acwr",
+    "training-monotony",
+    "spo2-trend",
+    "sleep-consistency",
 }
 
 

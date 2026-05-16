@@ -25,6 +25,8 @@ from db import (
     get_sleep_data_7d,
     get_sleep_hrv_pairs,
     get_sleep_resting_hr_pairs,
+    get_sleep_sessions_14d,
+    get_spo2_history,
     get_today_resting_hr,
     get_todays_activity_hr_records,
     get_user_profile,
@@ -44,8 +46,11 @@ from models.energy_metrics import (
 from models.hrv_status import classify_hrv_status
 from models.intensity_minutes import compute_intensity_minutes
 from models.readiness import predict_tomorrow, train_and_save
+from models.sleep_metrics import compute_sleep_consistency
 from models.sleep_score import compute_custom_sleep_score
+from models.spo2_metrics import compute_spo2_trend
 from models.training_effect import compute_banister_trimp, compute_training_effect_today
+from models.training_load import compute_training_monotony
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -153,6 +158,54 @@ async def run_inference(user_id: int, settings: Settings) -> None:
     logger.info(
         f"user={user_id} energy_physical score={phys.get('score')} tsb={phys.get('tsb')}"
     )
+
+    # ── ACWR (Injury Prevention) ────────────────────────────────────────────
+    if phys.get("atl") is not None and phys.get("ctl") is not None:
+        from models.training_load import compute_acwr
+
+        acwr_result = compute_acwr(phys["atl"], phys["ctl"])
+        await save_prediction(
+            user_id, today, "acwr", acwr_result.get("acwr"), acwr_result
+        )
+        logger.info(
+            f"user={user_id} acwr={acwr_result.get('acwr')} level={acwr_result.get('level')}"
+        )
+
+    # ── Training Monotony ───────────────────────────────────────────────────
+    mono_result = compute_training_monotony(act_rows, hrmax, today)
+    if mono_result.get("monotony") is not None:
+        await save_prediction(
+            user_id,
+            today,
+            "training_monotony",
+            mono_result.get("monotony"),
+            mono_result,
+        )
+        logger.info(
+            f"user={user_id} training_monotony={mono_result.get('monotony')} strain={mono_result.get('strain')}"
+        )
+
+    # ── SpO2 Trend ──────────────────────────────────────────────────────────
+    spo2_rows = await get_spo2_history(user_id, days=7)
+    spo2_result = compute_spo2_trend(spo2_rows)
+    if spo2_result.get("mean_spo2") is not None:
+        await save_prediction(
+            user_id, today, "spo2_trend", spo2_result.get("mean_spo2"), spo2_result
+        )
+        logger.info(
+            f"user={user_id} spo2_trend mean={spo2_result.get('mean_spo2')} trend={spo2_result.get('trend')} apnea={spo2_result.get('apnea_flag')}"
+        )
+
+    # ── Sleep Consistency ───────────────────────────────────────────────────
+    sess_rows = await get_sleep_sessions_14d(user_id)
+    cons_result = compute_sleep_consistency(sess_rows)
+    if cons_result.get("score") is not None:
+        await save_prediction(
+            user_id, today, "sleep_consistency", cons_result.get("score"), cons_result
+        )
+        logger.info(
+            f"user={user_id} sleep_consistency score={cons_result.get('score')} std_wake={cons_result.get('std_wake_h')}"
+        )
 
     hrv_hist = await get_hrv_history_for_energy(user_id)
     auton = compute_autonomic_energy(hrv_hist)
