@@ -11,7 +11,7 @@ Status-Symbole: ✅ implementiert · 🟡 machbar mit aktuellen Daten · 🔵 ne
 Garmin-Metriken die aktuell als undokumentierter Firstbeat-Output übernommen werden,
 obwohl wissenschaftlich publizierte Alternativmethoden existieren.
 
-### 1.1 Body Battery — eigenes Energie-Drain-Modell 🟡
+### 1.1 Body Battery — eigenes Energie-Drain-Modell ✅
 
 **Aktuell:** `daily_summary.body_battery_high/low` — Garmin/Firstbeat, keine öffentliche Formel.
 
@@ -40,7 +40,7 @@ Body Battery = min(100, max(0, Vortag + Recovery_Nacht − Drain_Aktivität − 
 
 ---
 
-### 1.2 Stress-Score — eigener HRV-basierter Tagesstress 🟡
+### 1.2 Stress-Score — eigener HRV-basierter Tagesstress ✅
 
 **Aktuell:** `daily_summary.avg_stress` — Garmin/Firstbeat, HRV-basiert aber undokumentiert.
 
@@ -174,7 +174,7 @@ Strain   = Σ(TRIMP₇d) × Monotony
 
 ---
 
-### 2.3 Laufökonomie-Score (Running Economy) 🟡
+### 2.3 Laufökonomie-Score (Running Economy) ✅
 
 **Daten vorhanden (V13):**
 - `avg_ground_contact_time` (ms) — optimal < 240ms
@@ -273,7 +273,7 @@ cv_glucose = σ(glucose_24h) / mean(glucose_24h) × 100   [Coefficient of Variat
 
 ---
 
-### 2.7 HRV Recovery Trajectory 🟡
+### 2.7 HRV Recovery Trajectory ✅
 
 Wie schnell erholt sich HRV nach Trainingsbelastung?
 
@@ -348,7 +348,7 @@ neue `model`-Rows in `ml_predictions`.
 
 ## 4. Features / UX
 
-### 4.1 Wochenrückblick 🟡
+### 4.1 Wochenrückblick ✅
 
 Automatisch generierte Wochenzusammenfassung: Trainingsvolumen, Readiness-Trend,
 schlechteste und beste Nacht, Auffälligkeiten.

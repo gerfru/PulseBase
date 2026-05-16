@@ -110,6 +110,31 @@
         </div>
     </div>
 
+    <!-- SpO₂ Monitoring -->
+    <div class="card">
+        <h2>SpO₂ Monitoring</h2>
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-sm font-medium text-slate-700 dark:text-slate-200">SpO₂-Trend anzeigen</div>
+                <div class="text-xs text-slate-400 mt-0.5">
+                    Zeigt SpO₂-Trend und Apnoe-Flag wenn Garmin-Daten vorhanden.
+                    Nur relevant für Geräte mit Pulsoximeter.
+                </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                <input type="checkbox" id="spo2-toggle" class="sr-only peer"
+                       {% if user.spo2_enabled %}checked{% endif %}>
+                <div class="w-11 h-6 rounded-full transition-colors
+                            bg-slate-300 dark:bg-slate-600
+                            peer-checked:bg-emerald-500
+                            after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                            after:bg-white after:rounded-full after:h-5 after:w-5
+                            after:transition-all peer-checked:after:translate-x-5
+                            after:shadow-sm"></div>
+            </label>
+        </div>
+    </div>
+
     <!-- Garmin Connect -->
     <div class="card">
         <h2>Garmin Connect</h2>

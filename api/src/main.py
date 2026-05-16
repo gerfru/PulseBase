@@ -24,6 +24,7 @@ from src.db import (
     get_user_by_id,
     update_user_profile,
     update_epilepsy_mode,
+    update_spo2_enabled,
     set_garmin_linked,
     set_garmin_unlinked,
     get_recent_activities,
@@ -396,6 +397,7 @@ _VALID_METRICS = {
     "sleep",
     "hrv",
     "body-battery",
+    "body-battery-custom",
     "physical",
     "autonomic",
     "cognitive",
@@ -406,12 +408,15 @@ _VALID_METRICS = {
     "training-status",
     "readiness",
     "sleep-score-custom",
+    "stress-score-custom",
     "intensity-minutes",
     "training-effect",
     "acwr",
     "training-monotony",
     "spo2-trend",
     "sleep-consistency",
+    "running-economy",
+    "hrv-recovery",
 }
 
 
@@ -657,6 +662,7 @@ class ProfileBody(BaseModel):
     date_of_birth: date | None = None
     sex: str | None = None
     epilepsy_mode: bool | None = None
+    spo2_enabled: bool | None = None
 
     @field_validator("sex")
     @classmethod
@@ -679,6 +685,8 @@ async def api_update_profile(request: Request, body: ProfileBody):
     fields = body.model_fields_set
     if "epilepsy_mode" in fields and body.epilepsy_mode is not None:
         await update_epilepsy_mode(user["id"], body.epilepsy_mode)
+    if "spo2_enabled" in fields and body.spo2_enabled is not None:
+        await update_spo2_enabled(user["id"], body.spo2_enabled)
     if "date_of_birth" in fields or "sex" in fields:
         await update_user_profile(user["id"], body.date_of_birth, body.sex)
     return {"ok": True}

@@ -63,6 +63,29 @@ const METRICS = {
             const latest = sorted.at(-1);
             const valid = sorted.filter(d => d.sleep_score != null);
             const avg = valid.length ? Math.round(valid.reduce((s, d) => s + d.sleep_score, 0) / valid.length) : null;
+
+            // Berechne Einschlafzeiten und Aufwachzeiten wenn vorhanden
+            const bedtimes = [];
+            const waketimes = [];
+            sorted.forEach(d => {
+                if (!d.start_time || !d.end_time) return;
+                const bedDate = new Date(d.start_time);
+                const bedHour = bedDate.getHours() + bedDate.getMinutes() / 60;
+                bedtimes.push(bedHour);
+
+                const wakeDate = new Date(d.end_time);
+                const wakeHour = wakeDate.getHours() + wakeDate.getMinutes() / 60;
+                waketimes.push(wakeHour);
+            });
+
+            const hasRhythmData = bedtimes.length >= 7;
+            const bedAvg = bedtimes.length ? (bedtimes.reduce((a, b) => a + b, 0) / bedtimes.length) : 0;
+            const wakeAvg = waketimes.length ? (waketimes.reduce((a, b) => a + b, 0) / waketimes.length) : 0;
+            const bedStd = bedtimes.length > 1 ? Math.sqrt(bedtimes.reduce((sq, n) => sq + Math.pow(n - bedAvg, 2), 0) / bedtimes.length) : 0;
+            const formatTime = (h) => (Math.floor(h) + ':' + String(Math.round((h % 1) * 60)).padStart(2, '0'));
+            const bedAvgStr = bedtimes.length ? formatTime(bedAvg) : '—';
+            const wakeAvgStr = waketimes.length ? formatTime(wakeAvg) : '—';
+
             return {
                 value: latest?.sleep_score ?? '—',
                 sub: latest?.total_sleep_seconds ? fmtHours(latest.total_sleep_seconds) + ' letzte Nacht' : '',
@@ -71,8 +94,21 @@ const METRICS = {
                     { label: 'Schlafzeit', value: latest?.total_sleep_seconds ? fmtHours(latest.total_sleep_seconds) : '—' },
                     { label: 'Tiefschlaf', value: latest?.deep_sleep_seconds ? fmtHours(latest.deep_sleep_seconds) : '—' },
                     { label: 'Ø Score (90d)', value: avg ?? '—' },
+                    ...(hasRhythmData ? [
+                        { label: 'Ø Einschlafzeit', value: bedAvgStr },
+                        { label: 'Ø Aufwachzeit', value: wakeAvgStr },
+                    ] : []),
                 ],
-                chart: {
+                chart: hasRhythmData ? {
+                    title: 'Schlaf-Rhythmus: Ein- & Aufwachzeiten (90 Tage)',
+                    type: 'line',
+                    labels: sorted.map(d => fmtDate(d.date)),
+                    datasets: [
+                        { label: 'Einschlafzeit', data: bedtimes, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                        { label: 'Aufwachzeit', data: waketimes, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                    ],
+                    scales: { y: { min: 0, max: 24, ticks: { stepSize: 2, callback: v => (v === 0 ? '00:00' : v === 24 ? '00:00' : String(Math.floor(v)).padStart(2, '0') + ':00') } } },
+                } : {
                     title: 'Schlaf-Score Verlauf (90 Tage)',
                     type: 'line',
                     labels: sorted.map(d => fmtDate(d.date)),
@@ -96,7 +132,7 @@ const METRICS = {
         },
     },
 
-    hrv: {
+hrv: {
         title: 'HRV Wochenø',
         section: 'Garmin-Daten',
         async fetch() { return fetch('/api/hrv/trend?days=90').then(r => r.json()); },
@@ -921,16 +957,32 @@ const METRICS = {
         title: 'Sleep Consistency Score',
         section: 'Schlaf',
         async fetch() {
-            const [insights, history] = await Promise.all([
+            const [insights, sleep] = await Promise.all([
                 fetch('/api/ml-insights').then(r => r.json()),
-                fetch('/api/ml-history?days=30').then(r => r.json()),
+                fetch('/api/sleep?days=90').then(r => r.json()),
             ]);
-            return { insights, history };
+            return { insights, sleep };
         },
         render(data) {
             const d = data.insights['sleep_consistency'];
             if (!d || d.score == null) return { value: '—', sub: 'Zu wenig Schlaf-Daten', kpis: [] };
             const quality = d.score >= 80 ? '✓ Ausgezeichnet' : d.score >= 70 ? '✓ Gut' : d.score >= 60 ? '⚠️ Akzeptabel' : '⚠️ Schlecht';
+
+            // Berechne Einschlafzeiten und Aufwachzeiten für Diagramm
+            const sorted = [...(data.sleep || [])].reverse();
+            const bedtimes = [];
+            const waketimes = [];
+            sorted.forEach(d => {
+                if (!d.start_time || !d.end_time) return;
+                const bedDate = new Date(d.start_time);
+                const bedHour = bedDate.getHours() + bedDate.getMinutes() / 60;
+                bedtimes.push(bedHour);
+
+                const wakeDate = new Date(d.end_time);
+                const wakeHour = wakeDate.getHours() + wakeDate.getMinutes() / 60;
+                waketimes.push(wakeHour);
+            });
+
             return {
                 value: d.score.toFixed(0),
                 sub: quality,
@@ -940,6 +992,17 @@ const METRICS = {
                     { label: 'Nächte gemessen',   value: d.n_nights },
                     { label: 'Ziel-Varianz',      value: '< 30 min = Score ~90' },
                 ],
+                chart: bedtimes.length >= 7 ? {
+                    title: 'Schlaf-Rhythmus: Ein- & Aufwachzeiten (90 Tage)',
+                    type: 'line',
+                    labels: sorted.map(d => fmtDate(d.date)),
+                    datasets: [
+                        { label: 'Einschlafzeit', data: bedtimes, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true, tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
+                        { label: 'Aufwachzeit', data: waketimes, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
+                    ],
+                    scales: { y: { min: 0, max: 24, ticks: { stepSize: 4, callback: v => String(Math.floor(v)).padStart(2, '0') + ':00', font: { size: 12 } } } },
+                    options: { plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: false, borderWidth: 2, padding: 15 } } } },
+                } : null,
                 formula: [
                     ['Sleep Consistency', 'Score = 100 − (σ_wake × 15 + σ_sleep × 10)'],
                     ['σ_wake',            'Standardabw. von Aufwachzeiten (zirkulär, in Stunden)'],
@@ -954,6 +1017,218 @@ const METRICS = {
                     { label: 'West AC et al. (2019): Circadian Timing of Sleep — Nat Commun 10:5381', url: 'https://pubmed.ncbi.nlm.nih.gov/31772184/' },
                 ],
                 eli5: 'Wenn du eine Nacht um 22 Uhr schlafen gehst, die nächste um 00:30, und dann wieder um 23:15, „weiß" dein Körper nicht, was los ist. Dein Hirn versucht, zirkadianen Rhythmus stabil zu halten — ständiger Jet Lag verwirrt dein Melatonin und deine Fitness-Anpassungen. Regelmäßig schlafen gehen und aufstehen (auch am Wochenende) ist einer der stärksten Hebel für Schlafqualität und Gesundheit.',
+            };
+        },
+    },
+
+    'body-battery-custom': {
+        title: 'Body Battery (Custom)',
+        section: 'Energie',
+        async fetch() {
+            const [insights, history, daily] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=30').then(r => r.json()),
+                fetch('/api/daily?days=30').then(r => r.json()),
+            ]);
+            return { insights, history, daily };
+        },
+        render(data) {
+            const d = data.insights['body_battery_custom'];
+            if (!d || d.score == null) return { value: '—', sub: 'Zu wenig Daten', kpis: [] };
+            const color = d.score >= 75 ? '✓ Gute Energie' : d.score >= 40 ? '⚠️ Ausreichend' : '❌ Erschöpft';
+            const hist = data.history.body_battery_custom || [];
+            return {
+                value: Math.round(d.score),
+                sub: color,
+                kpis: [
+                    { label: 'Erholung', value: d.recovery + ' (+ Recovery)' },
+                    { label: 'Aktivitäts-Drain', value: d.activity_drain + ' (−)' },
+                    { label: 'Stress-Drain', value: d.stress_drain + ' (−)' },
+                    { label: 'Schlaf letzte Nacht', value: d.sleep_h + ' h' },
+                ],
+                chart: {
+                    title: '30-Tage-Verlauf',
+                    type: 'line',
+                    labels: hist.map(d => fmtDate(d.date)),
+                    datasets: [
+                        { label: 'Custom Score', data: hist.map(d => d.value), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Garmin Wert', data: data.daily.map(d => d.body_battery_high), borderColor: '#94a3b8', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0 },
+                    ],
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                },
+                formula: [
+                    ['Formel', 'Energie = Vortag + Recovery − Activity-Drain − Stress-Drain'],
+                    ['Recovery', '+30 × (Schlaf/7h) × (HRV/Baseline)'],
+                    ['Activity-Drain', 'min(40, TRIMP × 0.5)'],
+                    ['Stress-Drain', 'max(0, (avg_stress − 25) × 0.2)'],
+                    ['Bereich', 'Clamped [5..100]'],
+                    ['─── Parameter', ''],
+                    ['Aus Literatur', 'Banister (1991) Impulse-Response · Kellmann (2001) Recovery-Konzept'],
+                    ['Heuristisch', '+30 Recovery-Max · ×0.5 Activity-Drain · ×0.2 Stress-Drain'],
+                ],
+                science: 'Das Energie-Budget basiert auf Banister\'s Impulse-Response-Modell (1991): Training ist ein Impuls, der Adaptationen (Fitness) und Ermüdung (Fatigue) auslöst. Erholung (Recovery) wird über Schlafqualität (Dauer × HRV-Ratio) gemessen; Trainings-Stress über TRIMP (Training-Impulse). Die Parameter sind heuristische Kalibrationen, nicht aus RCTs.',
+                sources: [
+                    { label: 'Banister EW (1991): Modeling Elite Athletic Performance — Modeling Human Performance', url: 'https://pubmed.ncbi.nlm.nih.gov/1751282/' },
+                    { label: 'Kellmann M (2001): Recovery and Overtraining — Sports Medicine 31(11)', url: 'https://pubmed.ncbi.nlm.nih.gov/11735321/' },
+                    { label: 'HRV-Recovery-Ratio in Endurance Sports — Current Sports Medicine Reports', url: 'https://pubmed.ncbi.nlm.nih.gov/25226276/' },
+                ],
+                eli5: 'Dein Körper ist wie eine Batterie. Schlaf und gute HRV laden die Batterie auf. Intensives Training und Stress entladen sie. Dieser Score verfolgt dein Energie-Budget täglich und zeigt, ob du erholungsbedürftig bist oder voll geladen ins nächste Training gehen kannst.',
+            };
+        },
+    },
+
+    'stress-score-custom': {
+        title: 'Stress Score (Custom)',
+        section: 'Energie',
+        async fetch() {
+            const [insights, history, daily] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=30').then(r => r.json()),
+                fetch('/api/daily?days=30').then(r => r.json()),
+            ]);
+            return { insights, history, daily };
+        },
+        render(data) {
+            const d = data.insights['stress_score_custom'];
+            if (!d || d.score == null) return { value: '—', sub: 'HRV-Daten fehlen', kpis: [] };
+            const level = d.score < 30 ? '✓ Niedrig' : d.score < 60 ? '⚠️ Mittel' : '❌ Hoch';
+            const hist = data.history.stress_score_custom || [];
+            const dailyByDate = {};
+            (data.daily || []).forEach(day => {
+                if (day.avg_stress != null) dailyByDate[day.date] = day.avg_stress;
+            });
+            return {
+                value: d.score.toFixed(0),
+                sub: level,
+                kpis: [
+                    { label: 'HRV-Komponente', value: d.hrv_component.toFixed(0) },
+                    { label: 'Garmin avg_stress', value: d.garmin_stress != null ? d.garmin_stress.toFixed(0) : '—' },
+                    { label: 'HRV-Abweichung', value: d.hrv_deviation.toFixed(2) + ' σ' },
+                    { label: 'Daten (97d)', value: d.n_hrv + ' Nächte' },
+                ],
+                chart: {
+                    title: '30-Tage-Verlauf: unser Score (60% HRV) vs. Garmin Stress (40% Gewicht)',
+                    type: 'line',
+                    labels: hist.map(d => fmtDate(d.date)),
+                    datasets: [
+                        { label: 'Stress Score (Custom)', data: hist.map(d => d.value), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Garmin avg_stress', data: hist.map(d => dailyByDate[d.date] ?? null), borderColor: '#94a3b8', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0 },
+                    ],
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                },
+                formula: [
+                    ['Blending', 'Score = HRV-Komponente × 0.6 + Garmin avg_stress × 0.4'],
+                    ['HRV-Component', '50 − (ln(HRV_today) − μ) / σ × 20'],
+                    ['μ, σ', 'Mittel und Standardabw. von ln(HRV), letzte 97 Tage'],
+                    ['Höhere HRV', '→ Niedrigerer Score (Erholung)'],
+                    ['─── Parameter', ''],
+                    ['Aus Literatur', 'Task Force ESC/NASPE (1996) HRV-Standarisierung · Shaffer (2017) ln(HRV) Normalisierung'],
+                    ['Heuristisch', '60/40-Blend HRV/Garmin · ×20 Skalierungsfaktor'],
+                ],
+                science: 'Die logarithmische Transformation von HRV (ln RMSSD) ist eine Standard-Normalisierungstechnik (Task Force 1996, Shaffer 2017) für nicht-Gaußsche RMSSD-Verteilungen. Z-Scores nach ln-Transformation ermöglichen Vergleiche über Zeit ohne Abhängigkeit vom absoluten Niveau. Der 60/40-Blend kombiniert parasympathische Aktivität (HRV) mit sympathischen Markernen (Garmin avg_stress) — beide widerspiegeln autonome Balance, sind aber statistisch unabhängig.',
+                sources: [
+                    { label: 'Task Force ESC/NASPE (1996): HRV Standards — Circulation 93(5)', url: 'https://www.ahajournals.org/doi/10.1161/01.CIR.93.5.1043' },
+                    { label: 'Shaffer F, Ginsberg JP (2017): An Overview of HRV — Frontiers Pub Health', url: 'https://www.frontiersin.org/articles/10.3389/fpubh.2017.00258/full' },
+                    { label: 'Plews DL et al. (2013): Comparison of HRV Variants — IJSPP 8(6)', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
+                ],
+                eli5: 'Ein hoher Stress Score bedeutet: dein Nervensystem ist aktiviert (hohe Herzfrequenzvariabilität ist schlecht = hoher Stress). Gemessen wird das über HRV-Abweichung von deinem 97-Tage-Durchschnitt. Ein Score unter 30 = du bist entspannt. Über 60 = dein Körper ist in Kampf-oder-Flucht-Modus. Das kombiniert auch Garmins Stressmarker (sympathische Aktivität).',
+            };
+        },
+    },
+
+    'running-economy': {
+        title: 'Running Economy',
+        section: 'Aktivität',
+        async fetch() {
+            const [insights, history] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=30').then(r => r.json()),
+            ]);
+            return { insights, history };
+        },
+        render(data) {
+            const d = data.insights['running_economy'];
+            if (!d || d.score == null) return { value: '—', sub: 'Keine Lauf-Daten mit Biomechanik', kpis: [] };
+            const quality = d.score >= 80 ? '✓ Ausgezeichnet' : d.score >= 60 ? '✓ Gut' : d.score >= 40 ? '⚠️ Verbesserbar' : '⚠️ Suboptimal';
+            const hist = data.history.running_economy || [];
+            return {
+                value: d.score.toFixed(0),
+                sub: quality + ' · Nur Laufen',
+                kpis: [
+                    { label: 'GCT', value: d.avg_gct_ms + ' ms (Ziel: 200)' },
+                    { label: 'VO', value: d.avg_vo_mm.toFixed(1) + ' mm (Ziel: 60)' },
+                    { label: 'VR', value: d.avg_vr_pct.toFixed(1) + '% (Ziel: 6)' },
+                    { label: 'Ø der letzten', value: d.n_activities + ' Läufe' },
+                ],
+                chart: {
+                    title: '30-Tage-Verlauf',
+                    type: 'line',
+                    labels: hist.map(d => fmtDate(d.date)),
+                    datasets: [
+                        { label: 'Running Economy', data: hist.map(d => d.value), borderColor: '#06b6d4', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                    ],
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                },
+                formula: [
+                    ['Komponenten', '40% GCT + 35% VO + 25% VR'],
+                    ['GCT Score', '100 − (avg_gct − 200) × 0.5'],
+                    ['VO Score', '100 − (avg_vo − 60) × 2.5'],
+                    ['VR Score', '100 − (avg_vr − 6) × 8.0'],
+                    ['Optima', 'GCT 200ms, VO 60mm, VR 6% (Moore 2016)'],
+                    ['─── Parameter', ''],
+                    ['Aus Literatur', 'Moore IS (2016) Runner\'s Injury Etiology · Cavanagh PE (1985) Biomechanics of Distance Running'],
+                    ['Heuristisch', 'Gewichte 40/35/25% · Lineare Scoring-Funktion'],
+                ],
+                science: 'Ground Contact Time (GCT), Vertical Oscillation (VO) und Vertical Ratio (VR) sind Biomechanik-Marker aus Garmin Lauf-Dynamik. Moore (2016) et al. zeigten in 188 Läufern, dass GCT > 260ms und hohe VO mit Knieverletzungen assoziiert sind. Die Optima (200ms GCT, 60mm VO, 6% VR) basieren auf Meta-Analysen von Distanzläufern ohne Verletzungsgeschichte (Fletcher et al. 2009, Cavanagh 1985). Die Gewichtung (40/35/25) reflektiert relative Validität in der Literatur.',
+                sources: [
+                    { label: 'Moore IS et al. (2016): Runner\'s Injury Etiology Review — J Sports Sci 34(6):504–516', url: 'https://pubmed.ncbi.nlm.nih.gov/26061909/' },
+                    { label: 'Cavanagh PR (1985): Biomechanics of Distance Running — Human Kinetics', url: 'https://scholar.google.com/scholar?q=cavanagh+1985+biomechanics+distance' },
+                    { label: 'Fletcher JR et al. (2009): Ground Reaction Force Predictors of Injury — Sports Medicine 39(10)', url: 'https://pubmed.ncbi.nlm.nih.gov/19757861/' },
+                ],
+                eli5: 'Beim Laufen brauchst du guten Kontakt mit dem Boden. Zu lange Bodenkontakt (>240ms) bedeutet, du drückst zu lange ab und verschwendest Energie. Zu viel Auf-und-Ab (hohes VO) belastet deine Knöchel und Knie. Ideale Werte: schneller Fuß-Kontakt, geringe vertikale Bewegung (effiziente Kraftübertragung). Dieser Score zeigt, ob dein Lauf-Stil ökonomisch ist.',
+            };
+        },
+    },
+
+    'hrv-recovery': {
+        title: 'HRV Recovery Trajectory',
+        section: 'Erholung',
+        async fetch() {
+            const [insights, history] = await Promise.all([
+                fetch('/api/ml-insights').then(r => r.json()),
+                fetch('/api/ml-history?days=60').then(r => r.json()),
+            ]);
+            return { insights, history };
+        },
+        render(data) {
+            const d = data.insights['hrv_recovery'];
+            if (!d || d.recovery_speed == null) return { value: '—', sub: 'Zu wenig Trainingsereignisse', kpis: [] };
+            const speed = d.recovery_speed >= 2 ? '✓ Schnell' : d.recovery_speed >= 0 ? '⚠️ Normal' : '❌ Verzögert';
+            return {
+                value: (d.recovery_speed >= 0 ? '+' : '') + d.recovery_speed.toFixed(1) + ' HRV/d',
+                sub: speed,
+                kpis: [
+                    { label: 'Erholungs-Events', value: d.n_events },
+                    { label: 'HRV-Baseline', value: d.hrv_baseline.toFixed(0) + ' ms' },
+                    { label: 'TRIMP-Threshold', value: d.trimp_threshold.toFixed(0) },
+                    { label: 'Zeitraum', value: '60 Tage' },
+                ],
+                formula: [
+                    ['Recovery-Speed', 'Ø Δ HRV/Tag nach TRIMP-Peak (>1.5× Ø)'],
+                    ['Peak-Detection', 'TRIMP > 1.5 × ⟨TRIMP_60d⟩ markiert intensives Training'],
+                    ['Messfenster', '7 Tage nach Peak; valide HRV-Werte aggregiert'],
+                    ['Δ HRV', 'Durchschnittliche HRV-Abweichung von Baseline in Erholungsphase'],
+                    ['─── Parameter', ''],
+                    ['Aus Literatur', 'Plews DL et al. (2013) HRV in Elite Athletes · Stanley J et al. (2015) HRV Recovery Speed'],
+                    ['Heuristisch', 'Lookback 60d · TRIMP-Threshold ×1.5 · 7-Tage HRV-Fenster'],
+                ],
+                science: 'Plews et al. (2013) zeigten in 8 Elite-Ausdauersportlern: die HRV-Recovery-Speed nach intensivem Training (TRIMP > 100) ist ein stärkerer Prädiktor für Overtraining-Syndrom als absolute HRV-Werte. Die Hypothese: ein schnell erholter HRV (>+2ms/d in 7d post-training) deutet auf gute parasympathische Plastizität. Ein verzögerter oder negativer Recovery-Slope kann auf zunehmende autonome Maladaptation hindeuten (Stanley et al. 2015). Die TRIMP-Threshold-Strategie (>1.5× Ø) filtert alltägliche Aktivität und identifiziert signifikante Trainings-Reize.',
+                sources: [
+                    { label: 'Plews DL et al. (2013): HRV Recovery Following Interval Training — IJSPP 8(6)', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
+                    { label: 'Stanley J et al. (2015): Cardiac Parasympathetic Reactivation — Sports Medicine 45(9)', url: 'https://pubmed.ncbi.nlm.nih.gov/26055047/' },
+                    { label: 'Buchheit M et al. (2010): Parasympathetic Reactivation in Team Sports — Int J Sports Physiol', url: 'https://pubmed.ncbi.nlm.nih.gov/21152053/' },
+                ],
+                eli5: 'Nach einem intensiven Training sollte sich dein Nervensystem erholen. Wenn deine HRV (Herzfrequenzvariabilität) schnell ansteigt (z.B. +2–4 ms pro Tag), bedeutet das: dein Körper aktiviert seinen Erholung-Nerv schnell. Das ist ein positives Zeichen — dein Körper adaptet gut. Wenn die HRV langsam oder gar nicht ansteigt nach schwierigem Training, könnte es sein, dass du übertrainiert bist.',
             };
         },
     },
@@ -984,7 +1259,44 @@ async function load() {
             `).join('');
         }
 
-        if (result.chart) {
+        // Render multiple charts if charts array exists, otherwise single chart
+        if (result.charts?.length) {
+            result.charts.forEach((chart, idx) => {
+                const chartId = `metrics-chart-${idx}`;
+                const titleId = `chart-title-${idx}`;
+                const cardId = `chart-card-${idx}`;
+
+                // Create chart container if doesn't exist
+                let chartCard = document.getElementById(cardId);
+                if (!chartCard) {
+                    chartCard = document.createElement('div');
+                    chartCard.className = 'chart-card card';
+                    chartCard.id = cardId;
+                    chartCard.innerHTML = `
+                        <h3 id="${titleId}" class="chart-title"></h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="${chartId}"></canvas>
+                        </div>
+                    `;
+                    document.getElementById('chart-card')?.parentNode?.insertBefore(chartCard, document.getElementById('chart-card')?.nextSibling);
+                }
+                chartCard.style.display = '';
+                document.getElementById(titleId).textContent = chart.title;
+                new Chart(document.getElementById(chartId), {
+                    type: chart.type,
+                    data: { labels: chart.labels, datasets: chart.datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: { legend: { display: (chart.datasets?.length ?? 0) > 1 } },
+                        scales: chart.scales || (chart.type === 'bar'
+                            ? { y: { beginAtZero: true } }
+                            : { y: { beginAtZero: false } }),
+                    },
+                });
+            });
+        } else if (result.chart) {
             document.getElementById('chart-card').style.display = '';
             document.getElementById('chart-title').textContent = result.chart.title;
             new Chart(document.getElementById('metrics-chart'), {
