@@ -46,24 +46,27 @@
     </div>
     {% endif %}
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pb-12">
+    <!-- ── Hero: immer sichtbar ─────────────────────────────────── -->
+    <div class="px-4 sm:px-6">
+        <div class="card" id="bento-hero"><p class="empty">Lade…</p></div>
+    </div>
 
-        <!-- Metrics Bento -->
-        <div class="col-span-full flex flex-col gap-4">
-            <div class="grid gap-4 grid-cols-1 sm:grid-cols-[1fr_2fr]">
-                <div class="card" id="bento-readiness"><p class="empty">Lade…</p></div>
-                <div class="card" id="bento-garmin"><p class="empty">Lade…</p></div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="card" id="bento-energie"><p class="empty">Lade…</p></div>
-                <div class="card" id="bento-ml"><p class="empty">Lade…</p></div>
-            </div>
-        </div>
+    <!-- ── Tab-Navigation ────────────────────────────────────────── -->
+    <nav class="flex px-4 sm:px-6 mt-5 border-b border-black/[0.07] dark:border-white/[0.07]">
+        <button class="tab-btn active" data-tab="training">Training</button>
+        <button class="tab-btn" data-tab="verlauf">Verlauf</button>
+        <button class="tab-btn" data-tab="erholung">Erholung</button>
+    </nav>
 
-        <!-- ── Training ───────────────────────────────────────────── -->
-        <div class="col-span-full text-[0.68rem] font-bold uppercase tracking-[.12em] text-slate-500 pt-4 pb-1 border-t border-white/[0.07] mt-2">
-            Training
-        </div>
+    <!-- ── Period Nav Bar ──────────────────────────────────────────── -->
+    <div class="nav-bar" id="period-nav">
+        <button class="nav-arrow" id="nav-back" aria-label="Älterer Zeitraum">←</button>
+        <span class="nav-range" id="nav-range"></span>
+        <button class="nav-arrow" id="nav-forward" aria-label="Neuerer Zeitraum" disabled>→</button>
+    </div>
+
+    <!-- ── Tab: Training ─────────────────────────────────────────── -->
+    <div id="tab-training" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12">
 
         <div class="card col-span-full" id="weekly-card">
             <h2>Wochenübersicht</h2>
@@ -76,10 +79,10 @@
             <div id="activities-container"><p class="empty">Lade…</p></div>
         </div>
 
-        <!-- ── Verlauf ────────────────────────────────────────────── -->
-        <div class="col-span-full text-[0.68rem] font-bold uppercase tracking-[.12em] text-slate-500 pt-4 pb-1 border-t border-white/[0.07] mt-2">
-            Verlauf
-        </div>
+    </div>
+
+    <!-- ── Tab: Verlauf ──────────────────────────────────────────── -->
+    <div id="tab-verlauf" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
 
         <div class="card">
             <h2>Schritte</h2>
@@ -117,10 +120,10 @@
             <p class="empty" id="calories-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <!-- ── Erholung ───────────────────────────────────────────── -->
-        <div class="col-span-full text-[0.68rem] font-bold uppercase tracking-[.12em] text-slate-500 pt-4 pb-1 border-t border-white/[0.07] mt-2">
-            Erholung
-        </div>
+    </div>
+
+    <!-- ── Tab: Erholung ─────────────────────────────────────────── -->
+    <div id="tab-erholung" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
 
         <div class="card">
             <h2>Schlaf-Score</h2>
