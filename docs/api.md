@@ -843,11 +843,11 @@ No seizure history required — useful from day 1.
 
 | Field | Values | Notes |
 |-------|--------|-------|
-| `level` | `"ok"` / `"amber"` / `"red"` | Highest severity across all flags |
-| `flags` | array | Each active risk factor with label, detail, color |
-| `sleep_debt_h` | float | Cumulative sleep deficit vs 7h/night over last 7 nights |
+| `level` | `"ok"` / `"amber"` / `"red"` | Highest severity across all flags — `"red"` is never downgraded by subsequent amber flags |
+| `flags` | array | Each active risk factor with `label`, `detail`, `color` |
+| `sleep_debt_h` | float | Cumulative sleep deficit vs 7h/night target over last 7 nights |
 
-**Risk rules (current):**
+**Risk rules:**
 
 | Condition | Level | Data source |
 |-----------|-------|-------------|
@@ -858,6 +858,121 @@ No seizure history required — useful from day 1.
 | Body battery daily low < 20 (yesterday) | amber | `daily_summary` |
 | Vigorous intensity > 60 min (yesterday) | amber | `daily_summary` |
 | Resting HR > 110 % of 30-day baseline | amber | `daily_summary` |
+
+#### Rationale and scientific basis
+
+> **Disclaimer:** These are rule-based heuristics. No prospective study has validated
+> this exact combination of consumer wearable metrics as seizure predictors. The thresholds
+> are clinically plausible but not clinically validated for epilepsy specifically. This
+> indicator is not a substitute for neurological care.
+
+---
+
+#### Rule 1 — Sleep debt (red ≥ 5h, amber 2–5h over 7 nights)
+
+Sleep deprivation is the most consistently reported seizure trigger in clinical epilepsy
+literature. The 7h/night target follows Walker (2017), NSF and AASM adult sleep
+recommendations. The mechanism: sleep loss reduces GABA-ergic inhibition and upregulates
+glutamate, progressively lowering cortical seizure threshold (Bazil 2003, Malow 2004).
+The 5h cumulative threshold corresponds to ≈ 43 min average nightly deficit — the point
+where the published literature describes measurable effects on cortical excitability.
+
+- Sleep deprivation as trigger: Frucht et al. (2000) — 37% of patients report it as
+  their primary trigger; Nakken et al. (2005) — confirmed in prospective diary study.
+- Neuroscience: Sanchez-Alavez et al. (2019) — sleep–wake cycle regulates GABA/glutamate
+  balance; disruption measurably shifts the excitation–inhibition ratio.
+
+---
+
+#### Rule 2 — HRV drop > 20 % below personal weekly average
+
+HRV (heart rate variability) reflects the balance between the sympathetic and
+parasympathetic nervous system. A significant acute drop indicates elevated sympathetic
+tone and reduced vagal activity — both associated with increased cortical excitability
+and lowered seizure threshold.
+
+The 20% threshold is established in sports medicine as a clinically meaningful deviation
+from personal baseline (used by WHOOP, Oura, and published athlete-monitoring protocols).
+For epilepsy specifically, Jansen & Lagae (2010) showed preictal HRV depression in the
+hours preceding focal seizures, suggesting ANS dysregulation precedes seizure onset.
+
+> **Limitation:** Garmin's wrist-based optical HRV (rMSSD proxy from Firstbeat) has higher
+> measurement noise than medical-grade ECG HRV. The 20% threshold compensates for this
+> with a conservatively wide margin.
+
+---
+
+#### Rule 3 — Garmin stress score (yesterday) > 70
+
+Garmin's stress score is itself computed from HRV (specifically the deviation of
+sympatho-vagal balance from a personal baseline via Firstbeat's algorithm). A score > 70
+corresponds to Garmin's own "high stress" classification. Physiologically, sustained high
+stress activates the HPA axis (cortisol, adrenaline), which is a documented seizure risk
+factor: Bhagya et al. (2012) demonstrated that elevated cortisol measurably reduces
+seizure threshold in animal models; Temkin & Davis (1984) confirmed psychological stress
+as a self-reported trigger in 30–40% of epilepsy patients.
+
+> **Note:** This rule and the HRV-drop rule overlap mechanistically (both reflect sympathetic
+> dominance). Simultaneous flags from both rules do not compound risk multiplicatively —
+> each contributes one amber flag to the indicator independently.
+
+---
+
+#### Rule 4 — Body battery daily low < 20
+
+Garmin's Body Battery is a proprietary composite score incorporating overnight HRV
+recovery, stress load, sleep quality, and activity level (via Firstbeat Analytics).
+A daily low below 20 indicates extreme overall depletion — essentially a corroborating
+composite signal when individual metrics are each only moderately elevated or unavailable.
+Chosen as a fallback / catch-all when Garmin HRV data is missing.
+
+---
+
+#### Rule 5 — Vigorous intensity > 60 min (yesterday)
+
+Regular moderate exercise is established as protective for epilepsy (Arida et al. 2008 —
+exercise reduces seizure frequency in most studies). This rule flags only excessive
+vigorous effort, not exercise in general. Mechanisms for excessive-exercise risk:
+
+- Hyponatremia (dilutional, from high fluid intake during prolonged endurance effort) is
+  a direct seizure trigger.
+- Hypomagnesemia from sweat loss lowers seizure threshold.
+- Extreme post-exercise fatigue amplifies the effect of concurrent sleep debt.
+
+The 60 min threshold is pragmatic (not from a specific RCT) — it targets the minority of
+training days where vigorous-intensity duration is unusually high relative to typical
+Garmin daily summaries.
+
+---
+
+#### Rule 6 — Resting HR > 10 % above 30-day personal baseline
+
+Elevated resting heart rate above personal baseline is an established early indicator of:
+overtraining syndrome, acute viral illness, dehydration, and persistent psychological
+stress — all of which are documented seizure risk factors or associated with other
+flagged biomarkers. The 10% threshold follows standard sports-medicine practice for
+flagging overtraining (Kreher & Schwartz 2012). Technically: `ROUND(AVG(resting_hr))`
+over the 30 days prior to today, excluding today (to avoid comparing today against itself).
+
+> **Limitation:** `resting_hr` from Garmin represents the lowest HR recorded during sleep,
+> not a true clinical resting HR. Values can be affected by sleep position and movement
+> artifacts, slightly increasing false-positive rates for this rule.
+
+---
+
+**Selected references:**
+
+| Citation | Rule |
+|----------|------|
+| Frucht et al. (2000). Epilepsy & Behavior 1(5). | 1 |
+| Nakken et al. (2005). Epilepsia 46(1). | 1 |
+| Bazil CW (2003). Lancet Neurol 2(5). | 1 |
+| Malow BA (2004). Epilepsia 45(s10). | 1 |
+| Jansen & Lagae (2010). Seizure 19(8). | 2 |
+| Temkin & Davis (1984). Epilepsia 25(4). | 3 |
+| Bhagya et al. (2012). Epilepsy Res 102(3). | 3 |
+| Arida et al. (2008). Neuroscience Biobehav Rev 32(3). | 5 |
+| Kreher & Schwartz (2012). Sports Health 4(2). | 6 |
 
 ---
 

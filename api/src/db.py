@@ -77,24 +77,23 @@ async def update_user_profile(
     user_id: int,
     date_of_birth: date | None,
     sex: str | None,
-    epilepsy_mode: bool | None = None,
 ) -> None:
     pool = await get_pool()
-    if epilepsy_mode is not None:
-        await pool.execute(
-            "UPDATE users SET date_of_birth = $1, sex = $2, epilepsy_mode = $3 WHERE id = $4",
-            date_of_birth,
-            sex,
-            epilepsy_mode,
-            user_id,
-        )
-    else:
-        await pool.execute(
-            "UPDATE users SET date_of_birth = $1, sex = $2 WHERE id = $3",
-            date_of_birth,
-            sex,
-            user_id,
-        )
+    await pool.execute(
+        "UPDATE users SET date_of_birth = $1, sex = $2 WHERE id = $3",
+        date_of_birth,
+        sex,
+        user_id,
+    )
+
+
+async def update_epilepsy_mode(user_id: int, epilepsy_mode: bool) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET epilepsy_mode = $1 WHERE id = $2",
+        epilepsy_mode,
+        user_id,
+    )
 
 
 async def set_garmin_linked(user_id: int, garmin_email: str) -> None:
@@ -750,7 +749,7 @@ async def get_seizure_risk(user_id: int) -> dict:
                 user_id,
             )
             baseline = hr_baseline_row["baseline"] if hr_baseline_row else None
-            if baseline and resting_hr > baseline * 1.1:
+            if baseline and resting_hr > float(baseline) * 1.1:
                 flags.append(
                     {
                         "label": "Erhöhte Ruheherzfrequenz",

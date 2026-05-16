@@ -122,12 +122,25 @@ function setDays(days) {
 }
 
 // ─── Tab Navigation ────────────────────────────────────────────────────────
+const TABS = ['training', 'verlauf', 'erholung'];
+
+// Maps hash → [tab, canvas-id] for direct chart navigation from external pages
+const CHART_HASHES = {
+    sleep:    ['erholung', 'sleep-chart'],
+    hrv:      ['erholung', 'hrv-trend-chart'],
+    stress:   ['verlauf',  'stress-chart'],
+    battery:  ['verlauf',  'battery-chart'],
+    hr:       ['verlauf',  'hr-chart'],
+    training: ['training', 'training-load-chart'],
+};
+
 function setTab(name) {
     document.querySelectorAll('.tab-panel').forEach(p => { p.style.display = 'none'; });
     document.getElementById('tab-' + name).style.display = '';
     document.querySelectorAll('.tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === name);
     });
+    history.replaceState(null, '', '#' + name);
     setTimeout(() => Object.values(charts).forEach(c => c.resize()), 50);
 }
 
@@ -780,6 +793,18 @@ document.getElementById('activities-container').addEventListener('click', e => {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 updateNavBar();
+const _hash = location.hash.slice(1);
+if (TABS.includes(_hash)) {
+    setTab(_hash);
+} else if (CHART_HASHES[_hash]) {
+    const [_tab, _chartId] = CHART_HASHES[_hash];
+    setTab(_tab);
+    setTimeout(() => {
+        document.getElementById(_chartId)?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+} else {
+    setTab('training');
+}
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadTrainingLoad().catch(() => {});
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
