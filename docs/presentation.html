@@ -386,26 +386,24 @@
               <span class="font-bold text-slate-100">Cognitive Energy (Schlafschuld)</span>
               <span class="badge-type bg-emerald-500/15 text-emerald-300">Regelbasiert</span>
             </div>
-            <p class="text-sm text-slate-400">Akkumulierter Schlafmangel der letzten 7 Tage relativ zum persönlichen Durchschnitt. Schlafschuld baut sich bei &lt;7h/Nacht auf und korreliert mit kognitiver Leistungsminderung.</p>
+            <p class="text-sm text-slate-400">Akkumulierter Schlafmangel der letzten 7 Nächte relativ zum Ziel von 7h/Nacht (NSF-Empfehlung). Qualitätsfaktor entfernt — Garmins Tiefschlaf-Messung per Akzelerometer+HRV zu unzuverlässig für diese Gewichtung.</p>
           </div>
         </div>
         <div class="formula mb-4">
-<span class="c"># Persönlicher Schlaf-Benchmark (90-Tage-Median)</span>
-<span class="k">baseline_h</span> = Median(total_sleep_seconds / 3600, 90d)
-<span class="k">target_h</span>   = max(7.0, baseline_h)      <span class="c">← mind. 7h Ziel</span>
+<span class="c"># Schlafschuld pro Nacht (Ziel 7h — NSF-Empfehlung, untere Grenze für Erwachsene)</span>
+<span class="k">debt_n</span> = max(0, 7.0 − total_sleep_hours_n)
 
-<span class="c"># Schlafschuld-Akkumulation (7-Tage-Fenster)</span>
-<span class="k">debt_today</span> = target_h − sleep_h_gestern
-<span class="k">debt_total</span> = EWM(debt_today, τ=7 Tage)  <span class="c">← gewichteter Schnitt</span>
+<span class="c"># Kumulierte 7-Tage-Schuld</span>
+<span class="k">debt_total</span> = Σ debt_n  für n in [letzte 7 Nächte]
 
 <span class="c"># Score 0–100</span>
-<span class="k">score</span> = max(0, 100 − debt_total × 20)   <span class="c">← −20 Punkte pro Stunde Schulden</span>
+<span class="k">score</span> = max(0, 100 − debt_total × 6)   <span class="c">← −6 Punkte pro Stunde Schulden</span>
+  <span class="c">Beispiel: 7× 6h → 7h Schulden → Score 58</span>
         </div>
         <div class="text-xs text-slate-500">
           <span class="text-slate-300 font-medium">Quellen:</span>
-          Walker (2017) "Why We Sleep" ·
-          Killgore (2010) "Effects of sleep deprivation on cognition" ·
-          Cappuccio et al. (2011) &lt;7h Schlaf ↔ erhöhte kardiovaskuläre Mortalität
+          Borbély AA (1982) "A two process model of sleep regulation" ·
+          National Sleep Foundation (2015) Sleep Duration Recommendations (7–9h Erwachsene)
         </div>
       </div>
 

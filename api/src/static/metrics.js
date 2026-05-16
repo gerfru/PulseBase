@@ -685,7 +685,7 @@ const METRICS = {
                     { label: 'σ-Abweichung',   value: devStr || '—' },
                     { label: 'Baseline Mean',   value: d.baseline_mean  != null ? d.baseline_mean.toFixed(1)  : '—' },
                     { label: 'Baseline Std',    value: d.baseline_std   != null ? d.baseline_std.toFixed(2)   : '—' },
-                    { label: 'HRV heute (ln)',  value: d.hrv_raw_today  != null ? d.hrv_raw_today.toFixed(1)  : '—' },
+                    { label: 'HRV 7T-Mittel (ln)', value: d.hrv_7d_mean != null ? d.hrv_7d_mean.toFixed(1) : '—' },
                 ],
                 chart: hist.length > 3 ? {
                     title: 'HRV Status Verlauf (30 Tage)',
