@@ -58,7 +58,10 @@ function makeChart(id, type, labels, datasets, extra = {}) {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
-            plugins: { legend: { display: datasets.length > 1 } },
+            plugins: {
+                legend: { display: datasets.length > 1 },
+                ...(extra.plugins || {}),
+            },
             scales: scaleDefaults,
         }
     });
@@ -176,20 +179,20 @@ function buildHeroCard() {
     const cog    = energy.energy_cognitive;
 
     const score        = r?.score ?? null;
-    const circumference = 327; // 2π × 52
+    const circumference = 218; // 2π × 52 × (240/360) — Partial Arc 240°
     const fill         = score != null ? Math.round(score / 100 * circumference) : 0;
     const ringColor    = scoreColor(score);
 
     const today     = new Date();
     const dateLabel = today.toLocaleDateString('de-AT', { weekday: 'short', day: 'numeric', month: 'long' });
 
-    // ── SVG Ring ────────────────────────────────────────────────────────────
+    // ── SVG Arc (240°, Öffnung unten — Oura/Whoop-Stil) ─────────────────────
     const svgRing = `<svg viewBox="0 0 120 120" class="readiness-ring">
-        <circle cx="60" cy="60" r="52" fill="none" class="ring-track" stroke-width="8"/>
+        <circle cx="60" cy="60" r="52" fill="none" class="ring-track" stroke-width="8"
+            stroke-dasharray="218 327" transform="rotate(120 60 60)"/>
         <circle cx="60" cy="60" r="52" fill="none"
             stroke="${ringColor}" stroke-width="8" stroke-linecap="round"
-            stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"
-            transform="rotate(-90 60 60)"
+            stroke-dasharray="0 327" transform="rotate(120 60 60)"
             class="readiness-ring-progress" id="hero-ring-progress"/>
         <text x="60" y="56" text-anchor="middle" class="ring-score-text" id="hero-ring-score">0</text>
         <text x="60" y="72" text-anchor="middle" class="ring-label-text">READINESS</text>
@@ -255,7 +258,12 @@ function buildHeroCard() {
         </a>`;
     }
 
-    const tsbStr  = phys?.tsb != null ? (phys.tsb >= 0 ? `TSB +${phys.tsb.toFixed(1)}` : `TSB ${phys.tsb.toFixed(1)}`) : '';
+    let tsbStr = '';
+    if (phys?.tsb != null) {
+        const sign = phys.tsb >= 0 ? '+' : '';
+        tsbStr = `Form ${sign}${phys.tsb.toFixed(1)}`;
+        if (phys?.ctl != null) tsbStr += ` · Fitness ${Math.round(phys.ctl)}`;
+    }
     const devStr  = auton?.deviation != null ? `${auton.deviation >= 0 ? '+' : ''}${auton.deviation.toFixed(1)}σ` : '';
     const debtStr = cog?.debt_hours != null ? `${cog.debt_hours.toFixed(1)}h Schulden` : '';
 
@@ -323,17 +331,18 @@ function buildHeroCard() {
         </div>
         ${chipsSection}`;
 
-    // ── Ring animation ───────────────────────────────────────────────────────
+    // ── Arc animation ────────────────────────────────────────────────────────
     if (score != null) {
         const progress = document.getElementById('hero-ring-progress');
         const scoreEl  = document.getElementById('hero-ring-score');
         requestAnimationFrame(() => {
-            if (progress) progress.style.strokeDashoffset = String(circumference - fill);
-            if (scoreEl) {
+            if (progress || scoreEl) {
                 const t0 = performance.now();
                 (function tick(now) {
                     const p = Math.min((now - t0) / 600, 1);
-                    scoreEl.textContent = Math.round(p * score);
+                    const f = Math.round(p * fill);
+                    if (progress) progress.setAttribute('stroke-dasharray', `${f} 327`);
+                    if (scoreEl) scoreEl.textContent = String(Math.round(p * score));
                     if (p < 1) requestAnimationFrame(tick);
                 })(performance.now());
             }
@@ -592,21 +601,27 @@ async function loadTrainingLoad(days = null) {
     // TRIMP bars: history only
     const trimpData = [...history.map(h => h.trimp), ...forecast.map(() => null)];
 
-    // ATL/CTL/TSB: solid for history, dashed for forecast, connected at today
+    // Ermüdung/Fitness/Form: solid für History, gestrichelt für Forecast
     const bridge = i => [...Array(n - 1).fill(null), history.at(-1)?.[i] ?? null, ...forecast.map(f => f[i])];
     const solid  = i => [...history.map(h => h[i]), ...forecast.map(() => null)];
 
     const datasets = [
-        { type: 'bar',  label: 'TRIMP',  data: trimpData,      backgroundColor: 'rgba(99,102,241,.2)', yAxisID: 'ytrimp', borderRadius: 3 },
-        { type: 'line', label: 'ATL',    data: solid('atl'),   borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
-        { type: 'line', label: 'ATL →',  data: bridge('atl'),  borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
-        { type: 'line', label: 'CTL',    data: solid('ctl'),   borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
-        { type: 'line', label: 'CTL →',  data: bridge('ctl'),  borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
-        { type: 'line', label: 'TSB',    data: solid('tsb'),   borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
-        { type: 'line', label: 'TSB →',  data: bridge('tsb'),  borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'bar',  label: 'Tagesimpuls',   data: trimpData,      backgroundColor: 'rgba(99,102,241,.2)', yAxisID: 'ytrimp', borderRadius: 3 },
+        { type: 'line', label: 'Ermüdung',      data: solid('atl'),   borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'Ermüdung →',    data: bridge('atl'),  borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'line', label: 'Fitness',        data: solid('ctl'),   borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'Fitness →',      data: bridge('ctl'),  borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'line', label: 'Form',           data: solid('tsb'),   borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'Form →',         data: bridge('tsb'),  borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
     ];
 
     makeChart('training-load-chart', 'bar', allLabels, datasets, {
+        plugins: {
+            legend: {
+                display: true,
+                labels: { filter: item => !item.text.includes('→') },
+            },
+        },
         scales: {
             x: {},
             y:      { title: { display: true, text: 'TRIMP' }, position: 'left' },
