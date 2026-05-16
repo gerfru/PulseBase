@@ -11,7 +11,33 @@ from datetime import datetime, timezone
 from models.anomaly import detect_resting_hr_anomaly
 from models.battery_pattern import extract_features
 from models.correlation import compute_sleep_hrv_correlation
+from models.energy_metrics import compute_cognitive_energy
 from models.readiness import predict_tomorrow, prepare_training_data, train_and_save
+
+
+# ── Cognitive Energy ───────────────────────────────────────────────────────
+
+
+def test_cognitive_no_sleep_data():
+    result = compute_cognitive_energy([])
+    assert result["score"] is None
+    assert result["reason"] == "no_sleep_data"
+
+
+def test_cognitive_no_debt():
+    # 7× 8h → keine Schulden → Score 100
+    data = [{"total_h": 8.0} for _ in range(7)]
+    result = compute_cognitive_energy(data)
+    assert result["score"] == 100.0
+    assert result["debt_hours"] == 0.0
+
+
+def test_cognitive_some_debt():
+    # 7× 6h → 7× 1h Schulden = 7h → 100 - 7×6 = 58
+    data = [{"total_h": 6.0} for _ in range(7)]
+    result = compute_cognitive_energy(data)
+    assert result["score"] == pytest.approx(58.0)
+    assert result["debt_hours"] == pytest.approx(7.0)
 
 
 # ── Anomaly Detection ──────────────────────────────────────────────────────
