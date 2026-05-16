@@ -381,12 +381,13 @@ async function load(days, endDate = null) {
     } else { showEmpty('steps'); }
 
     // ── Body Battery ──────────────────────────────────────────────────
-    if (daily.some(d => d.body_battery_high)) {
+    const bbDays = daily.filter(d => d.body_battery_high != null);
+    if (bbDays.length) {
         hideEmpty('battery');
-        makeChart('battery-chart', 'line', labels, [
-            { label: 'Hoch', data: daily.map(d => d.body_battery_high),
+        makeChart('battery-chart', 'line', bbDays.map(d => fmtDate(d.date)), [
+            { label: 'Hoch', data: bbDays.map(d => d.body_battery_high),
               borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
-            { label: 'Niedrig', data: daily.map(d => d.body_battery_low),
+            { label: 'Niedrig', data: bbDays.map(d => d.body_battery_low),
               borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
         ]);
     } else { showEmpty('battery'); }
