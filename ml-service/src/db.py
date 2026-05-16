@@ -468,6 +468,53 @@ async def get_user_profile(user_id: int) -> dict[str, Any]:
     }
 
 
+async def get_today_daily_summary(user_id: int) -> dict[str, Any] | None:
+    row = await _pool_or_raise().fetchrow(
+        """
+        SELECT avg_stress, body_battery_high, body_battery_low
+        FROM daily_summary
+        WHERE user_id = $1
+        ORDER BY date DESC LIMIT 1
+        """,
+        user_id,
+    )
+    return dict(row) if row else None
+
+
+async def get_yesterday_prediction(user_id: int, model: str) -> float | None:
+    row = await _pool_or_raise().fetchrow(
+        """
+        SELECT value FROM ml_predictions
+        WHERE user_id = $1 AND model = $2
+        ORDER BY date DESC LIMIT 1
+        """,
+        user_id,
+        model,
+    )
+    return float(row["value"]) if row and row["value"] is not None else None
+
+
+async def get_running_economy_activities(
+    user_id: int, limit: int = 10
+) -> list[dict[str, Any]]:
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT avg_ground_contact_time, avg_vertical_oscillation,
+               avg_vertical_ratio, avg_stride_length, avg_running_power,
+               DATE(started_at AT TIME ZONE 'UTC') AS activity_date
+        FROM activities
+        WHERE user_id = $1
+          AND sport_type IN ('running', 'trail_running')
+          AND avg_ground_contact_time IS NOT NULL
+        ORDER BY started_at DESC
+        LIMIT $2
+        """,
+        user_id,
+        limit,
+    )
+    return [dict(r) for r in rows]
+
+
 async def save_prediction(
     user_id: int,
     pred_date: date,

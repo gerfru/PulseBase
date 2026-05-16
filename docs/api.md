@@ -598,6 +598,10 @@ to `ml_predictions`; this endpoint returns the most recent row per model (within
 | `hrv_status_custom` | HRV balance status | `"BALANCED"`, `"UNBALANCED"`, `"LOW"`, `"POOR"` |
 | `intensity_minutes_custom` | Karvonen intensity minutes | `moderate_minutes`, `vigorous_minutes` |
 | `training_effect_custom` | Banister training effect 0–5 | `trimp_today`, `ctl`, `vo2max` estimate |
+| `body_battery_custom` | Energy budget score 0–100 | `recovery`, `activity_drain`, `stress_drain`, `sleep_h` |
+| `stress_score_custom` | Stress index 0–100 | Blends HRV deviation (60%) + Garmin avg_stress (40%); low = relaxed |
+| `running_economy` | Running efficiency score 0–100 | `avg_gct_ms`, `avg_vo_mm`, `avg_vr_pct`; running only; null if no runs |
+| `hrv_recovery` | HRV recovery speed post-training | `recovery_speed` (ms/day), `n_events`, `hrv_baseline`, `trimp_threshold` |
 
 Returns `{}` if no ML data has been computed yet.
 

@@ -22,14 +22,17 @@ from db import (
     get_ml_requested_users,
     get_readiness_training_rows,
     get_resting_hr_history,
+    get_running_economy_activities,
     get_sleep_data_7d,
     get_sleep_hrv_pairs,
     get_sleep_resting_hr_pairs,
     get_sleep_sessions_14d,
     get_spo2_history,
+    get_today_daily_summary,
     get_today_resting_hr,
     get_todays_activity_hr_records,
     get_user_profile,
+    get_yesterday_prediction,
     init_pool,
     mark_ml_done,
     save_prediction,
@@ -37,18 +40,22 @@ from db import (
 from models.anomaly import detect_resting_hr_anomaly
 from models.battery_pattern import fit_and_save as battery_fit_and_save
 from models.battery_pattern import predict_today as battery_predict_today
+from models.body_battery import compute_body_battery
 from models.correlation import compute_sleep_hrv_correlation
 from models.energy_metrics import (
     compute_autonomic_energy,
     compute_cognitive_energy,
     compute_physical_energy,
 )
+from models.hrv_recovery import compute_hrv_recovery_trajectory
 from models.hrv_status import classify_hrv_status
 from models.intensity_minutes import compute_intensity_minutes
 from models.readiness import predict_tomorrow, train_and_save
+from models.running_economy import compute_running_economy
 from models.sleep_metrics import compute_sleep_consistency
 from models.sleep_score import compute_custom_sleep_score
 from models.spo2_metrics import compute_spo2_trend
+from models.stress_metrics import compute_stress_score
 from models.training_effect import compute_banister_trimp, compute_training_effect_today
 from models.training_load import compute_training_monotony
 
@@ -220,6 +227,92 @@ async def run_inference(user_id: int, settings: Settings) -> None:
     logger.info(
         f"user={user_id} energy_cognitive score={cog.get('score')} debt={cog.get('debt_hours')}"
     )
+
+    # ── Daily Summary (for Body Battery + Stress) ───────────────────────────
+    daily_today = await get_today_daily_summary(user_id)
+
+    # ── Body Battery Custom ─────────────────────────────────────────────────
+    yesterday_bb = await get_yesterday_prediction(user_id, "body_battery_custom")
+    if yesterday_bb is None and daily_today:
+        yesterday_bb = daily_today.get("body_battery_high")
+    last_night_h = (sleep_h[-1].get("total_h") or 0.0) if sleep_h else 0.0
+    hrv_valid = [v for v in hrv_hist if v is not None]
+    hrv_baseline = (
+        sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0
+    )
+    hrv_last = hrv_valid[-1] if hrv_valid else None
+    today_trimp_rows = [r for r in act_rows if r.get("activity_date") == today]
+    today_trimp = 0.0
+    if (
+        today_trimp_rows
+        and today_trimp_rows[0].get("avg_hr")
+        and today_trimp_rows[0].get("duration_seconds")
+    ):
+        rhr_t = today_trimp_rows[0].get("resting_hr") or 60.0
+        denom_t = hrmax - rhr_t
+        if denom_t > 0:
+            hfr_t = max(0.0, (today_trimp_rows[0]["avg_hr"] - rhr_t) / denom_t)
+            today_trimp = (
+                (today_trimp_rows[0]["duration_seconds"] / 60.0)
+                * hfr_t
+                * (hfr_t * 4 + 1)
+            )
+    bb_result = compute_body_battery(
+        yesterday_bb,
+        last_night_h,
+        hrv_last,
+        hrv_baseline,
+        today_trimp,
+        daily_today.get("avg_stress") if daily_today else None,
+    )
+    if bb_result.get("score") is not None:
+        await save_prediction(
+            user_id, today, "body_battery_custom", bb_result["score"], bb_result
+        )
+        logger.info(
+            f"user={user_id} body_battery_custom score={bb_result['score']} recovery={bb_result['recovery']}"
+        )
+
+    # ── Stress Score Custom ──────────────────────────────────────────────────
+    stress_result = compute_stress_score(
+        hrv_hist, daily_today.get("avg_stress") if daily_today else None
+    )
+    if stress_result.get("score") is not None:
+        await save_prediction(
+            user_id,
+            today,
+            "stress_score_custom",
+            stress_result["score"],
+            stress_result,
+        )
+        logger.info(
+            f"user={user_id} stress_score_custom score={stress_result['score']} dev={stress_result.get('hrv_deviation')}"
+        )
+
+    # ── Running Economy ──────────────────────────────────────────────────────
+    run_rows = await get_running_economy_activities(user_id)
+    re_result = compute_running_economy(run_rows)
+    if re_result.get("score") is not None:
+        await save_prediction(
+            user_id, today, "running_economy", re_result["score"], re_result
+        )
+        logger.info(
+            f"user={user_id} running_economy score={re_result['score']} gct={re_result.get('avg_gct_ms')}"
+        )
+
+    # ── HRV Recovery Trajectory ──────────────────────────────────────────────
+    hrv_rec_result = compute_hrv_recovery_trajectory(hrv_hist, act_rows, hrmax, today)
+    if hrv_rec_result.get("recovery_speed") is not None:
+        await save_prediction(
+            user_id,
+            today,
+            "hrv_recovery",
+            hrv_rec_result["recovery_speed"],
+            hrv_rec_result,
+        )
+        logger.info(
+            f"user={user_id} hrv_recovery speed={hrv_rec_result['recovery_speed']} n={hrv_rec_result['n_events']}"
+        )
 
     # ── Custom Sleep Score (Item 2) ─────────────────────────────────────────
     sleep_row = await get_last_sleep_session(user_id)

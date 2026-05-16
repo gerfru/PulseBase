@@ -19,3 +19,11 @@ document.getElementById('epilepsy-toggle')?.addEventListener('change', async fun
     });
     document.getElementById('epilepsy-link').style.display = e.target.checked ? '' : 'none';
 });
+
+document.getElementById('spo2-toggle')?.addEventListener('change', async function (e) {
+    await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({spo2_enabled: e.target.checked}),
+    });
+});
