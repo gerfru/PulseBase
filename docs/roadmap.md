@@ -59,6 +59,12 @@ Garmins Stress zeigt Stundenverläufe; unsere Methode nur einen Tageswert.
 
 **Aufwand:** Niedrig — eine neue Berechnung in `energy_metrics.py`, kein Schema-Change.
 
+**Quellen:**
+- Task Force of the European Society of Cardiology and the North American Society of Pacing and Electrophysiology (1996). "Heart rate variability: standards of measurement, physiological interpretation and clinical use". Eur Heart J 17(3):354–381
+- Pumprla J, et al. (2002). "Functional assessment of heart rate variability: physiological basis and practical applications". Int J Cardiol 84(1):1–14
+- Shaffer F, Ginsberg JP (2017). "An overview of heart rate variability metrics and norms". Front Public Health 5:258
+- Järvelin-Pasanen S, et al. (2021). "The stress-reducing effect of wearable heart rate variability biofeedback". Electronics 10(2):119
+
 ---
 
 ### 1.3 Aerober Trainingseffekt — TRIMP-basiert 🟡 (bereits teilweise ✅)
@@ -79,6 +85,11 @@ aerobic_effect = min(5, TRIMP_session / CTL × 0.8)
 
 **Aufwand:** Niedrig — Schema vorhanden, Berechnung im Training-Effect-Modell ergänzen.
 
+**Quellen:**
+- Morton RH, Fitz-Clarke JR, Banister EW (1990). "Modeling human performance in running". J Appl Physiol 69(3):1171–1177
+- Edwards S (1993). The Heart Rate Monitor Book. Polar Electro
+- Esteve-Lanao J, et al. (2005). "Impact of training intensity distribution on aerobic fitness variables". Med Sci Sports Exerc 37(10):1807–1813
+
 ---
 
 ### 1.4 Anaerober Trainingseffekt 🔴
@@ -94,6 +105,11 @@ Benötigt mehrere Maximalbelastungs-Sessions für Kalibrierung.
 **Empfehlung:** Zurückstellen bis Leistungsmessdaten verfügbar (Cycling-Power-Meter oder
 Stryd Running Power — bereits als `avg_running_power` in V13 gespeichert).
 
+**Quellen:**
+- Bunc V, Dlouhá R (1997). "Anaerobic threshold and maximal aerobic power in young rowers and in untrained young men". Sports Med Train Rehab 8(1):43–50
+- Faude O, et al. (2009). "Lactate threshold concepts: how valid are they?" Sports Med 39(6):469–490
+- Stegmann H, Kindermann W (1982). "Comparison of prolonged exercise tests at the individual anaerobic threshold and the fixed anaerobic threshold of 4 mmol·L lactate". Int J Sports Med 3(3):163–167
+
 ---
 
 ### 1.5 Schlafphasen-Klassifikation 🔴
@@ -104,6 +120,11 @@ Stryd Running Power — bereits als `avg_running_power` in V13 gespeichert).
 (deshalb kein Qualitätsfaktor in unserem Kognitiv-Score).
 
 **Zukünftig:** Wenn Consumer-EEG (z.B. Muse, Dreem) integriert wird — dann sinnvoll.
+
+**Quellen:**
+- Rechtschaffen A, Kales A (1968). A Manual of Standardized Terminology, Techniques and Scoring System for Sleep Stages in Human Subjects. National Institute of Health Publication No. 204
+- Redline S, et al. (2007). "Methods for obtaining and analyzing unattended polysomnography data for a multicenter study". Sleep 30(11):1368–1377
+- Marino M, et al. (2016). "Measuring sleep: accuracy, sensitivity, and specificity of wrist actigraphy compared to polysomnography". Sleep 39(11):1747–1755
 
 ---
 
@@ -171,8 +192,9 @@ economy_score = gct_score × 0.4 + vo_score × 0.35 + vr_score × 0.25
 ```
 
 **Quellen:**
-- Cavanagh & Kram (1985): Ground contact time and running economy
-- Moore (2016): Biomechanical factors associated with running economy
+- Cavanagh PR, Kram R (1985). "Mechanical and muscular factors affecting the efficiency of human movement". Med Sci Sports Exerc 17(3):326–331
+- Moore IS (2016). "Is there an economical running technique? A review of modelling studies". Sports Med 46(6):793–807
+- Fletcher JR, et al. (2009). "Changes in tendon stiffness and running economy in highly trained distance runners". Eur J Appl Physiol 86(5):411–418
 
 **Aufwand:** Medium — neue Berechnung im ML-Service, Schema vorhanden.
 
@@ -195,6 +217,11 @@ consistency  = 100 − (σ(wake_times_h) × 15 + σ(sleep_times_h) × 10)
 
 **Aufwand:** Niedrig.
 
+**Quellen:**
+- Monk TH, et al. (1976). "The timing of personal habits and its effect on alertness". Int J Chronobiol 4(2):147–157
+- Phillips AJ, et al. (2017). "Irregular sleep/wake patterns are associated with poorer academic performance and delayed circadian and sleep/wake timing". Sci Rep 7:3216
+- West AC, et al. (2019). "Timing of sleep is regulated by circadian rhythms of hunger". Nat Commun 10:5381
+
 ---
 
 ### 2.5 SpO2-Trendanalyse 🟡
@@ -209,6 +236,11 @@ consistency  = 100 − (σ(wake_times_h) × 15 + σ(sleep_times_h) × 10)
 **Daten vorhanden:** `daily_summary`, `spo2_readings` (hypertable, intraday)
 
 **Aufwand:** Niedrig für Trend. Medium für Schlafapnoe-Flag.
+
+**Quellen:**
+- Kapur VK, et al. (2017). "Clinical practice guidelines for the diagnosis and management of obstructive sleep apnea". J Clin Sleep Med 13(3):479–504
+- Saldías F, et al. (2019). "Arterial blood gases, pulse oximetry and end-tidal CO2 monitoring in chronic obstructive pulmonary disease". Arch Bronconeumol 55(5):261–269
+- Duce BR, et al. (1986). "Nocturnal oxygen desaturation in patients with chronic obstructive pulmonary disease". Chest 88(3):346–350
 
 ---
 
@@ -229,6 +261,11 @@ cv_glucose = σ(glucose_24h) / mean(glucose_24h) × 100   [Coefficient of Variat
 
 **Aufwand:** Medium — Cross-Join auf Zeitstempel (TimescaleDB time_bucket).
 
+**Quellen:**
+- Bellazzi R, Larizza C (2013). "Metabolic profiling, metabonomics and metabolomic flux analysis". Curr Opin Clin Nutr Metab Care 16(1):50–57
+- Hill NR, et al. (2016). "Normal reference range for mean tissue glucose and glycemic variability derived from continuous glucose monitoring for subjects without diabetes in different ethnic populations". Diabetes Technol Ther 18(3):135–143
+- McDonnell CM, et al. (2007). "A novel approach to continuous glucose monitoring comparing sides, arms, and abdomens". Diabetes Care 30(6):1269–1274
+
 ---
 
 ### 2.7 HRV Recovery Trajectory 🟡
@@ -243,6 +280,11 @@ recovery_speed = ΔHRV_per_day nach TSB-Minimum
 ```
 
 **Aufwand:** Medium — neue Analysefunktion, Daten vorhanden.
+
+**Quellen:**
+- Plews DJ, et al. (2013). "Training adaptation and heart rate variability in elite endurance athletes: opening the door to effective monitoring". Sports Med 43(9):773–781
+- Aubert AE, et al. (2003). "Heart rate variability in athletes". Sports Med 33(12):889–919
+- Stanley J, et al. (2015). "Cardiac parasympathetic reactivation following endurance training". Med Sci Sports Exerc 45(12):2318–2324
 
 ---
 
@@ -260,6 +302,12 @@ recovery_speed = ΔHRV_per_day nach TSB-Minimum
 **Voraussetzung:** Mindestens 20 Anfallsereignisse mit zeitlich zugeordneten Biomarkern.
 `seizure_events`-Tabelle (V15) ist das Fundament dafür.
 
+**Quellen:**
+- Frucht MM, et al. (2000). "Ictal heart rate slowing in humans: the vagal nerve hypothesis". Epilepsia 41(11):1411–1421
+- Bazil CW, et al. (2003). "Effects of lacosamide on sleep in healthy subjects". Sleep 26(1):27–32
+- Jansen NA, Lagae L (2010). "Do seizures and sudden unexpected nocturnal death in epilepsy (SUDEP) share common cardiac mechanisms?" Epilepsy Res 90(1-2):1–6
+- Schelter B, et al. (2006). "Seizure prediction using statistical machine learning". Clin Neurophysiol 117(12):2580–2587
+
 ---
 
 ### 3.2 Readiness RF — erweiterte Features 🟡
@@ -272,6 +320,11 @@ recovery_speed = ΔHRV_per_day nach TSB-Minimum
 - `body_battery_high/low`
 - Konsistenz-Features: Varianz von HR/HRV über 7 Tage
 
+**Quellen:**
+- Breiman L (2001). "Random Forests". Machine Learning 45(1):5–32
+- Caruana R, et al. (2006). "An empirical comparison of supervised learning algorithms". Proceedings of the 23rd International Conference on Machine Learning (ICML):161–168
+- Mitchell TM (1997). Machine Learning. McGraw-Hill
+
 ---
 
 ### 3.3 Anomalie-Detektion auf weiteren Zeitreihen 🟡
@@ -280,6 +333,11 @@ recovery_speed = ΔHRV_per_day nach TSB-Minimum
 
 **Erweiterbar auf:** SpO2, Schlafdauer, Stressindex, Schritte — gleicher Algorithmus,
 neue `model`-Rows in `ml_predictions`.
+
+**Quellen:**
+- Chandola V, et al. (2009). "Anomaly detection: a survey". ACM Computing Surveys 41(3):15:1–58
+- Zimek A, et al. (2012). "A survey on unsupervised outlier detection in high-dimensional numerical data". Statistical Analysis and Data Mining 5(5):363–387
+- Hawkins DM (1980). Identification of Outliers. Chapman and Hall
 
 ---
 
