@@ -63,6 +63,29 @@ const METRICS = {
             const latest = sorted.at(-1);
             const valid = sorted.filter(d => d.sleep_score != null);
             const avg = valid.length ? Math.round(valid.reduce((s, d) => s + d.sleep_score, 0) / valid.length) : null;
+
+            // Berechne Einschlafzeiten und Aufwachzeiten wenn vorhanden
+            const bedtimes = [];
+            const waketimes = [];
+            sorted.forEach(d => {
+                if (!d.start_time || !d.end_time) return;
+                const bedDate = new Date(d.start_time);
+                const bedHour = bedDate.getHours() + bedDate.getMinutes() / 60;
+                bedtimes.push(bedHour);
+
+                const wakeDate = new Date(d.end_time);
+                const wakeHour = wakeDate.getHours() + wakeDate.getMinutes() / 60;
+                waketimes.push(wakeHour);
+            });
+
+            const hasRhythmData = bedtimes.length >= 7;
+            const bedAvg = bedtimes.length ? (bedtimes.reduce((a, b) => a + b, 0) / bedtimes.length) : 0;
+            const wakeAvg = waketimes.length ? (waketimes.reduce((a, b) => a + b, 0) / waketimes.length) : 0;
+            const bedStd = bedtimes.length > 1 ? Math.sqrt(bedtimes.reduce((sq, n) => sq + Math.pow(n - bedAvg, 2), 0) / bedtimes.length) : 0;
+            const formatTime = (h) => (Math.floor(h) + ':' + String(Math.round((h % 1) * 60)).padStart(2, '0'));
+            const bedAvgStr = bedtimes.length ? formatTime(bedAvg) : '—';
+            const wakeAvgStr = waketimes.length ? formatTime(wakeAvg) : '—';
+
             return {
                 value: latest?.sleep_score ?? '—',
                 sub: latest?.total_sleep_seconds ? fmtHours(latest.total_sleep_seconds) + ' letzte Nacht' : '',
@@ -71,8 +94,21 @@ const METRICS = {
                     { label: 'Schlafzeit', value: latest?.total_sleep_seconds ? fmtHours(latest.total_sleep_seconds) : '—' },
                     { label: 'Tiefschlaf', value: latest?.deep_sleep_seconds ? fmtHours(latest.deep_sleep_seconds) : '—' },
                     { label: 'Ø Score (90d)', value: avg ?? '—' },
+                    ...(hasRhythmData ? [
+                        { label: 'Ø Einschlafzeit', value: bedAvgStr },
+                        { label: 'Ø Aufwachzeit', value: wakeAvgStr },
+                    ] : []),
                 ],
-                chart: {
+                chart: hasRhythmData ? {
+                    title: 'Schlaf-Rhythmus: Ein- & Aufwachzeiten (90 Tage)',
+                    type: 'line',
+                    labels: sorted.map(d => fmtDate(d.date)),
+                    datasets: [
+                        { label: 'Einschlafzeit', data: bedtimes, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                        { label: 'Aufwachzeit', data: waketimes, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                    ],
+                    scales: { y: { min: 0, max: 24, ticks: { stepSize: 2, callback: v => (v === 0 ? '00:00' : v === 24 ? '00:00' : String(Math.floor(v)).padStart(2, '0') + ':00') } } },
+                } : {
                     title: 'Schlaf-Score Verlauf (90 Tage)',
                     type: 'line',
                     labels: sorted.map(d => fmtDate(d.date)),
@@ -96,7 +132,7 @@ const METRICS = {
         },
     },
 
-    hrv: {
+hrv: {
         title: 'HRV Wochenø',
         section: 'Garmin-Daten',
         async fetch() { return fetch('/api/hrv/trend?days=90').then(r => r.json()); },
@@ -921,16 +957,32 @@ const METRICS = {
         title: 'Sleep Consistency Score',
         section: 'Schlaf',
         async fetch() {
-            const [insights, history] = await Promise.all([
+            const [insights, sleep] = await Promise.all([
                 fetch('/api/ml-insights').then(r => r.json()),
-                fetch('/api/ml-history?days=30').then(r => r.json()),
+                fetch('/api/sleep?days=90').then(r => r.json()),
             ]);
-            return { insights, history };
+            return { insights, sleep };
         },
         render(data) {
             const d = data.insights['sleep_consistency'];
             if (!d || d.score == null) return { value: '—', sub: 'Zu wenig Schlaf-Daten', kpis: [] };
             const quality = d.score >= 80 ? '✓ Ausgezeichnet' : d.score >= 70 ? '✓ Gut' : d.score >= 60 ? '⚠️ Akzeptabel' : '⚠️ Schlecht';
+
+            // Berechne Einschlafzeiten und Aufwachzeiten für Diagramm
+            const sorted = [...(data.sleep || [])].reverse();
+            const bedtimes = [];
+            const waketimes = [];
+            sorted.forEach(d => {
+                if (!d.start_time || !d.end_time) return;
+                const bedDate = new Date(d.start_time);
+                const bedHour = bedDate.getHours() + bedDate.getMinutes() / 60;
+                bedtimes.push(bedHour);
+
+                const wakeDate = new Date(d.end_time);
+                const wakeHour = wakeDate.getHours() + wakeDate.getMinutes() / 60;
+                waketimes.push(wakeHour);
+            });
+
             return {
                 value: d.score.toFixed(0),
                 sub: quality,
@@ -940,6 +992,17 @@ const METRICS = {
                     { label: 'Nächte gemessen',   value: d.n_nights },
                     { label: 'Ziel-Varianz',      value: '< 30 min = Score ~90' },
                 ],
+                chart: bedtimes.length >= 7 ? {
+                    title: 'Schlaf-Rhythmus: Ein- & Aufwachzeiten (90 Tage)',
+                    type: 'line',
+                    labels: sorted.map(d => fmtDate(d.date)),
+                    datasets: [
+                        { label: 'Einschlafzeit', data: bedtimes, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true, tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
+                        { label: 'Aufwachzeit', data: waketimes, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
+                    ],
+                    scales: { y: { min: 0, max: 24, ticks: { stepSize: 4, callback: v => String(Math.floor(v)).padStart(2, '0') + ':00', font: { size: 12 } } } },
+                    options: { plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: false, borderWidth: 2, padding: 15 } } } },
+                } : null,
                 formula: [
                     ['Sleep Consistency', 'Score = 100 − (σ_wake × 15 + σ_sleep × 10)'],
                     ['σ_wake',            'Standardabw. von Aufwachzeiten (zirkulär, in Stunden)'],
@@ -1018,17 +1081,22 @@ const METRICS = {
         title: 'Stress Score (Custom)',
         section: 'Energie',
         async fetch() {
-            const [insights, history] = await Promise.all([
+            const [insights, history, daily] = await Promise.all([
                 fetch('/api/ml-insights').then(r => r.json()),
                 fetch('/api/ml-history?days=30').then(r => r.json()),
+                fetch('/api/daily?days=30').then(r => r.json()),
             ]);
-            return { insights, history };
+            return { insights, history, daily };
         },
         render(data) {
             const d = data.insights['stress_score_custom'];
             if (!d || d.score == null) return { value: '—', sub: 'HRV-Daten fehlen', kpis: [] };
             const level = d.score < 30 ? '✓ Niedrig' : d.score < 60 ? '⚠️ Mittel' : '❌ Hoch';
             const hist = data.history.stress_score_custom || [];
+            const dailyByDate = {};
+            (data.daily || []).forEach(day => {
+                if (day.avg_stress != null) dailyByDate[day.date] = day.avg_stress;
+            });
             return {
                 value: d.score.toFixed(0),
                 sub: level,
@@ -1039,11 +1107,12 @@ const METRICS = {
                     { label: 'Daten (97d)', value: d.n_hrv + ' Nächte' },
                 ],
                 chart: {
-                    title: '30-Tage-Verlauf',
+                    title: '30-Tage-Verlauf: unser Score (60% HRV) vs. Garmin Stress (40% Gewicht)',
                     type: 'line',
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Stress Score', data: hist.map(d => d.value), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Stress Score (Custom)', data: hist.map(d => d.value), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Garmin avg_stress', data: hist.map(d => dailyByDate[d.date] ?? null), borderColor: '#94a3b8', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0 },
                     ],
                     scales: { y: { beginAtZero: true, max: 100 } },
                 },
@@ -1190,7 +1259,44 @@ async function load() {
             `).join('');
         }
 
-        if (result.chart) {
+        // Render multiple charts if charts array exists, otherwise single chart
+        if (result.charts?.length) {
+            result.charts.forEach((chart, idx) => {
+                const chartId = `metrics-chart-${idx}`;
+                const titleId = `chart-title-${idx}`;
+                const cardId = `chart-card-${idx}`;
+
+                // Create chart container if doesn't exist
+                let chartCard = document.getElementById(cardId);
+                if (!chartCard) {
+                    chartCard = document.createElement('div');
+                    chartCard.className = 'chart-card card';
+                    chartCard.id = cardId;
+                    chartCard.innerHTML = `
+                        <h3 id="${titleId}" class="chart-title"></h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="${chartId}"></canvas>
+                        </div>
+                    `;
+                    document.getElementById('chart-card')?.parentNode?.insertBefore(chartCard, document.getElementById('chart-card')?.nextSibling);
+                }
+                chartCard.style.display = '';
+                document.getElementById(titleId).textContent = chart.title;
+                new Chart(document.getElementById(chartId), {
+                    type: chart.type,
+                    data: { labels: chart.labels, datasets: chart.datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: { legend: { display: (chart.datasets?.length ?? 0) > 1 } },
+                        scales: chart.scales || (chart.type === 'bar'
+                            ? { y: { beginAtZero: true } }
+                            : { y: { beginAtZero: false } }),
+                    },
+                });
+            });
+        } else if (result.chart) {
             document.getElementById('chart-card').style.display = '';
             document.getElementById('chart-title').textContent = result.chart.title;
             new Chart(document.getElementById('metrics-chart'), {

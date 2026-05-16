@@ -232,7 +232,7 @@ async def get_sleep_sessions(
     end = end_date if end_date is not None else date.today()
     rows = await pool.fetch(
         """
-        SELECT date(start_time) AS date, sleep_score, total_sleep_seconds,
+        SELECT date(start_time) AS date, start_time, end_time, sleep_score, total_sleep_seconds,
                deep_sleep_seconds, light_sleep_seconds, rem_sleep_seconds, awake_seconds
         FROM sleep_sessions
         WHERE user_id = $1

@@ -170,38 +170,136 @@ function scoreColor(score) {
 
 async function buildWeeklyReview() {
     try {
-        const weekly = await fetch('/api/weekly?weeks=2').then(r => r.json());
-        if (!weekly || weekly.length < 2) return;
-        const [thisWeek, lastWeek] = weekly.slice(-2).reverse();
-        const d = thisWeek;
-        if (!d) return;
-
-        const weekLabel = `KW ${String(d.week).padStart(2, '0')} · ${d.start_date?.slice(5,10).replace('-', '.') || '?'} – ${d.end_date?.slice(5,10).replace('-', '.') || '?'}`;
-        const actDelta = lastWeek ? d.activity_count - lastWeek.activity_count : 0;
-        const actTrend = actDelta > 0 ? '↑' : actDelta < 0 ? '↓' : '→';
-        const kmDelta = lastWeek ? d.total_km - lastWeek.total_km : 0;
-        const kmPct = lastWeek && lastWeek.total_km > 0 ? ((kmDelta / lastWeek.total_km) * 100).toFixed(0) : 0;
-        const kmTrend = kmDelta > 0 ? '↑' : kmDelta < 0 ? '↓' : '→';
-
-        const reviewHtml = `
-        <div style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
-            <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">${weekLabel}</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div>
-                    <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Aktivitäten</div>
-                    <div style="font-size: 1.25rem; font-weight: bold;">${d.activity_count} ${actTrend}</div>
-                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">vs. ${lastWeek ? lastWeek.activity_count : '?'} Vorwoche</div>
-                </div>
-                <div>
-                    <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Distanz</div>
-                    <div style="font-size: 1.25rem; font-weight: bold;">${Math.round(d.total_km)} km ${kmTrend}</div>
-                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${kmPct > 0 ? '+' : ''}${kmPct}%</div>
-                </div>
-            </div>
-        </div>`;
-
         const card = document.getElementById('weekly-card');
-        if (card) {
+        if (!card) return;
+
+        // Clear any existing review widget
+        const existingReview = card.querySelector('[data-weekly-review]');
+        if (existingReview) existingReview.remove();
+
+        // Fetch weekly data (2 extra weeks for comparison)
+        const numWeeks = Math.ceil((currentDays / 7) * 2) + 1;
+        const weekly = await fetch(`/api/weekly?weeks=${numWeeks}`).then(r => r.json());
+        if (!weekly || weekly.length === 0) return;
+
+        let reviewHtml = '';
+
+        // 7 days: single week vs. previous week
+        if (currentDays === 7) {
+            const [thisWeek, lastWeek] = weekly.slice(-2).reverse();
+            if (!thisWeek) return;
+            const d = thisWeek;
+            const weekLabel = `KW ${String(d.week).padStart(2, '0')} · ${d.start_date?.slice(5,10).replace('-', '.') || '?'} – ${d.end_date?.slice(5,10).replace('-', '.') || '?'}`;
+            const actDelta = lastWeek ? d.activity_count - lastWeek.activity_count : 0;
+            const actTrend = actDelta > 0 ? '↑' : actDelta < 0 ? '↓' : '→';
+            const kmDelta = lastWeek ? d.total_km - lastWeek.total_km : 0;
+            const kmPct = lastWeek && lastWeek.total_km > 0 ? ((kmDelta / lastWeek.total_km) * 100).toFixed(0) : 0;
+            const kmTrend = kmDelta > 0 ? '↑' : kmDelta < 0 ? '↓' : '→';
+
+            reviewHtml = `
+            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
+                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">${weekLabel}</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Aktivitäten</div>
+                        <div style="font-size: 1.25rem; font-weight: bold;">${d.activity_count} ${actTrend}</div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">vs. ${lastWeek ? lastWeek.activity_count : '?'} Vorwoche</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Distanz</div>
+                        <div style="font-size: 1.25rem; font-weight: bold;">${Math.round(d.total_km)} km ${kmTrend}</div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${kmPct > 0 ? '+' : ''}${kmPct}%</div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        // 14 days: two weeks comparison
+        else if (currentDays === 14) {
+            const [week2, week1] = weekly.slice(-2).reverse();
+            if (!week1 || !week2) return;
+            const w1_act = week1.activity_count, w1_km = week1.total_km;
+            const w2_act = week2.activity_count, w2_km = week2.total_km;
+            const act_delta = w2_act - w1_act, act_trend = act_delta > 0 ? '↑' : act_delta < 0 ? '↓' : '→';
+            const km_delta = w2_km - w1_km, km_pct = w1_km > 0 ? ((km_delta / w1_km) * 100).toFixed(0) : 0;
+            const km_trend = km_delta > 0 ? '↑' : km_delta < 0 ? '↓' : '→';
+
+            reviewHtml = `
+            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
+                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.75rem;">Zwei Wochen</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div style="padding: 0.75rem; background: rgba(100,200,255,.1); border-radius: 0.375rem;">
+                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Woche 1</div>
+                        <div style="font-size: 1rem; font-weight: bold;">${w1_act} Akt. · ${Math.round(w1_km)} km</div>
+                    </div>
+                    <div style="padding: 0.75rem; background: rgba(100,200,255,.2); border-radius: 0.375rem;">
+                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Woche 2</div>
+                        <div style="font-size: 1rem; font-weight: bold;">${w2_act} Akt. · ${Math.round(w2_km)} km</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: space-between;">
+                    <div><div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Δ Aktivitäten</div><div style="font-size: 1rem; font-weight: bold;">${act_delta > 0 ? '+' : ''}${act_delta} ${act_trend}</div></div>
+                    <div><div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Δ Distanz</div><div style="font-size: 1rem; font-weight: bold;">${km_delta > 0 ? '+' : ''}${km_pct}% ${km_trend}</div></div>
+                </div>
+            </div>`;
+        }
+        // 30 days: split into two periods
+        else if (currentDays === 30) {
+            const p2 = weekly.slice(-1)[0];
+            const p1 = weekly.slice(-2, -1)[0];
+            if (!p1 || !p2) return;
+            const agg_p1 = { act: p1.activity_count, km: p1.total_km };
+            const agg_p2 = { act: p2.activity_count, km: p2.total_km };
+            // Simple aggregate (in real scenario, would sum weeks)
+            const actSum = weekly.reduce((s, w) => s + (w.activity_count || 0), 0);
+            const kmSum = weekly.reduce((s, w) => s + (w.total_km || 0), 0);
+
+            reviewHtml = `
+            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
+                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.75rem;">Monat im Überblick</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Gesamt</div>
+                        <div style="font-size: 1.25rem; font-weight: bold;">${actSum} Aktivitäten</div>
+                        <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6);">${Math.round(kmSum)} km Distanz</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Durchschnitt pro Woche</div>
+                        <div style="font-size: 1.25rem; font-weight: bold;">${Math.round(actSum / 4)} Akt.</div>
+                        <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6);">${Math.round(kmSum / 4)} km/Wo.</div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        // 90+ days: monthly breakdown
+        else {
+            const actSum = weekly.reduce((s, w) => s + (w.activity_count || 0), 0);
+            const kmSum = weekly.reduce((s, w) => s + (w.total_km || 0), 0);
+            const weeks = weekly.length;
+
+            reviewHtml = `
+            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
+                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.75rem;">Jahresübersicht (${weeks} Wochen)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                    <div style="padding: 0.75rem; background: rgba(255,255,255,.05); border-radius: 0.375rem;">
+                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Gesamt</div>
+                        <div style="font-size: 1.125rem; font-weight: bold;">${actSum}</div>
+                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Aktivitäten</div>
+                    </div>
+                    <div style="padding: 0.75rem; background: rgba(255,255,255,.05); border-radius: 0.375rem;">
+                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Distanz</div>
+                        <div style="font-size: 1.125rem; font-weight: bold;">${Math.round(kmSum)}</div>
+                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">km</div>
+                    </div>
+                    <div style="padding: 0.75rem; background: rgba(255,255,255,.05); border-radius: 0.375rem;">
+                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Ø/Woche</div>
+                        <div style="font-size: 1.125rem; font-weight: bold;">${Math.round(kmSum / weeks)}</div>
+                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">km</div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        if (reviewHtml) {
             const chartWrap = card.querySelector('.chart-wrap');
             if (chartWrap) {
                 chartWrap.insertAdjacentHTML('beforebegin', reviewHtml);
