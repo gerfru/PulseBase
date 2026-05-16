@@ -532,7 +532,55 @@ async function loadWeekly(weeks = 12, endDate = null) {
     makeChart('weekly-chart', 'bar', labels, datasets, { scales });
 }
 
-// ── Toast ──────────────────────────────────────────────────────────────────
+async function loadTrainingLoad() {
+    const data = await fetch('/api/training-load').then(r => r.json());
+    if (!data.history?.length) { showEmpty('training-load'); return; }
+    hideEmpty('training-load');
+
+    const history = data.history;
+    const forecast = data.forecast || [];
+    const n = history.length;
+    const allLabels = [...history.map(h => fmtDate(h.date)), ...forecast.map(f => fmtDate(f.date))];
+
+    // TRIMP bars: history only
+    const trimpData = [...history.map(h => h.trimp), ...forecast.map(() => null)];
+
+    // ATL/CTL/TSB: solid for history, dashed for forecast, connected at today
+    const bridge = i => [...Array(n - 1).fill(null), history.at(-1)?.[i] ?? null, ...forecast.map(f => f[i])];
+    const solid  = i => [...history.map(h => h[i]), ...forecast.map(() => null)];
+
+    const datasets = [
+        { type: 'bar',  label: 'TRIMP',  data: trimpData,      backgroundColor: 'rgba(99,102,241,.2)', yAxisID: 'ytrimp', borderRadius: 3 },
+        { type: 'line', label: 'ATL',    data: solid('atl'),   borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'ATL →',  data: bridge('atl'),  borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'line', label: 'CTL',    data: solid('ctl'),   borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'CTL →',  data: bridge('ctl'),  borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'line', label: 'TSB',    data: solid('tsb'),   borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'TSB →',  data: bridge('tsb'),  borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+    ];
+
+    makeChart('training-load-chart', 'bar', allLabels, datasets, {
+        scales: {
+            x: {},
+            y:      { title: { display: true, text: 'TRIMP' }, position: 'left' },
+            ytrimp: { position: 'right', grid: { drawOnChartArea: false }, display: false },
+        },
+    });
+
+    const t = data.today;
+    const atlEl = document.getElementById('tl-atl');
+    const ctlEl = document.getElementById('tl-ctl');
+    const tsbEl = document.getElementById('tl-tsb');
+    if (atlEl && t.atl != null) atlEl.textContent = t.atl;
+    if (ctlEl && t.ctl != null) ctlEl.textContent = t.ctl;
+    if (tsbEl && t.tsb != null) {
+        const sign = t.tsb > 0 ? '+' : '';
+        tsbEl.textContent = sign + t.tsb;
+        tsbEl.style.color = t.tsb > 5 ? 'var(--green)' : t.tsb < -5 ? 'var(--red)' : 'var(--amber)';
+    }
+}
+
+// ── Toast ─────��──────────────────────────────────────────��─────────────────
 let _toastTimer = null;
 function showToast(msg, type = '') {
     const el = document.getElementById('toast');
@@ -615,6 +663,7 @@ async function pollSyncStatus() {
                 updateNavBar();
                 load(currentDays);
                 loadWeekly(Math.max(4, Math.ceil(currentDays / 7)));
+                loadTrainingLoad().catch(() => {});
                 loadReadiness();
                 loadEnergyMetrics().catch(() => {});
                 _mlPollTimer = setTimeout(pollMlStatus, 5000);
@@ -672,6 +721,7 @@ document.getElementById('activities-container').addEventListener('click', e => {
 updateNavBar();
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadWeekly().catch(() => showToast('Wochendaten konnten nicht geladen werden', 'error'));
+loadTrainingLoad().catch(() => {});
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
 loadMlInsights().catch(() => {});
 loadEnergyMetrics().catch(() => {});
