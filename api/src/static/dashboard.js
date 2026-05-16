@@ -274,9 +274,13 @@ function buildHeroCard() {
         const cls = hrvSt.status === 'BALANCED' ? 'chip-green' : hrvSt.status === 'POOR' ? 'chip-red' : 'chip-amber';
         chips.push(`<span class="hero-chip ${cls}">${esc(hrvSt.status)}</span>`);
     }
-    if (anomaly?.z_score != null) {
-        const cls = anomaly.is_anomaly ? 'chip-red' : '';
-        chips.push(`<span class="hero-chip ${cls}">z ${anomaly.z_score.toFixed(2)} ${anomaly.is_anomaly ? '⚠' : '✓'}</span>`);
+    if (anomaly?.z_score != null && anomaly?.baseline_mean != null) {
+        const todayHr = last?.resting_hr
+            ?? Math.round(anomaly.baseline_mean + anomaly.z_score * (anomaly.baseline_std ?? 3));
+        const devBpm  = Math.round(todayHr - anomaly.baseline_mean);
+        const sign    = devBpm > 0 ? '+' : '';
+        const cls     = anomaly.is_anomaly ? 'chip-red' : devBpm > 0 ? 'chip-amber' : '';
+        chips.push(`<span class="hero-chip ${cls}">Ruhepuls ${sign}${devBpm} bpm${anomaly.is_anomaly ? ' ⚠' : ''}</span>`);
     }
     if (rf?.value != null) {
         const s   = Math.round(rf.value);

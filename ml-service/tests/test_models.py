@@ -11,8 +11,37 @@ from datetime import datetime, timezone
 from models.anomaly import detect_resting_hr_anomaly
 from models.battery_pattern import extract_features
 from models.correlation import compute_sleep_hrv_correlation
-from models.energy_metrics import compute_cognitive_energy
+from models.energy_metrics import compute_autonomic_energy, compute_cognitive_energy
 from models.readiness import predict_tomorrow, prepare_training_data, train_and_save
+
+
+# ── Autonomic Energy ───────────────────────────────────────────────────────
+
+
+def test_autonomic_insufficient_data():
+    result = compute_autonomic_energy([50.0] * 5)
+    assert result["score"] is None
+    assert result["reason"] == "insufficient_hrv_data"
+
+
+def test_autonomic_single_day_fallback():
+    # 7–13 Punkte → Fallback auf Einzeltag (kein 7-Tage-Rolling möglich)
+    data = [50.0] * 10
+    result = compute_autonomic_energy(data)
+    assert result["score"] is not None
+    assert 0 <= result["score"] <= 100
+    assert "hrv_7d_mean" in result
+
+
+def test_autonomic_rolling_mean():
+    # >=14 Punkte → 7-Tage-Rolling-Mean
+    # Baseline bei niedrigerem HRV, aktuelle Woche deutlich höher → Score > 50
+    baseline = [40.0] * 10
+    current = [55.0] * 7
+    result = compute_autonomic_energy(baseline + current)
+    assert result["score"] is not None
+    assert result["score"] > 55
+    assert "hrv_7d_mean" in result
 
 
 # ── Cognitive Energy ───────────────────────────────────────────────────────

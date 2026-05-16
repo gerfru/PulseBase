@@ -252,7 +252,7 @@ async def get_hrmax(user_id: int) -> float:
 
 
 async def get_hrv_history_for_energy(
-    user_id: int, days: int = 90
+    user_id: int, days: int = 97
 ) -> list[float | None]:
     cutoff = date.today() - timedelta(days=days)
     rows = await _pool_or_raise().fetch(

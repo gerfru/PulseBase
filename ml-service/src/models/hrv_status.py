@@ -36,5 +36,5 @@ def classify_hrv_status(hrv_history: list[float | None]) -> dict[str, Any]:
         "deviation": result["deviation"],
         "baseline_mean": result["baseline_mean"],
         "baseline_std": result["baseline_std"],
-        "hrv_raw_today": result["hrv_raw_today"],
+        "hrv_7d_mean": result["hrv_7d_mean"],
     }
