@@ -20,6 +20,9 @@ production database — always add a new migration file.
 | `V7__app_user.sql` | Creates least-privilege `garmin_app` DB user |
 | `V8__ml_predictions.sql` | Creates `ml_predictions` table for ML model outputs |
 | `V9__libre_glucose.sql` | Adds `libre_linked`/`libre_email` to `users`; creates `glucose_readings` hypertable |
+| `V10__sync_ml_status.sql` | Adds `ml_requested`, `last_ml_at`, `sync_requested`, `last_sync_at` to `users` |
+| `V11__body_battery.sql` | Creates `body_battery_intraday` hypertable |
+| `V12__user_profile.sql` | Adds `date_of_birth DATE`, `sex TEXT` to `users` (required for Banister TRIMP) |
 
 ---
 
@@ -39,6 +42,8 @@ production database — always add a new migration file.
 | `authelia_username` | `TEXT UNIQUE` | Unused (Authelia removed) |
 | `libre_linked` | `BOOLEAN DEFAULT false` | LibreLinkUp account connected (V9) |
 | `libre_email` | `TEXT` | LibreLinkUp email (V9) |
+| `date_of_birth` | `DATE` | Used for age calculation + Banister TRIMP (V12) |
+| `sex` | `TEXT CHECK (sex IN ('m','f','diverse'))` | Required for Banister TRIMP coefficients (V12) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 ---

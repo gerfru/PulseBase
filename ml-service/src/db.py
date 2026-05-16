@@ -360,6 +360,76 @@ async def get_latest_features(user_id: int) -> dict[str, Any]:
     return dict(row) if row else {}
 
 
+async def get_last_sleep_session(user_id: int) -> dict[str, Any] | None:
+    row = await _pool_or_raise().fetchrow(
+        """
+        SELECT total_sleep_seconds, deep_sleep_seconds, light_sleep_seconds,
+               rem_sleep_seconds, awake_seconds
+        FROM sleep_sessions
+        WHERE user_id = $1
+          AND DATE(start_time AT TIME ZONE 'UTC') >= CURRENT_DATE - 2
+        ORDER BY start_time DESC
+        LIMIT 1
+        """,
+        user_id,
+    )
+    return dict(row) if row else None
+
+
+async def get_today_hrv(user_id: int) -> float | None:
+    row = await _pool_or_raise().fetchrow(
+        "SELECT hrv_last_night FROM hrv_daily WHERE user_id = $1 AND date = CURRENT_DATE",
+        user_id,
+    )
+    return float(row["hrv_last_night"]) if row and row["hrv_last_night"] else None
+
+
+async def get_todays_activity_hr_records(
+    user_id: int,
+) -> tuple[list[int], float | None]:
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT ar.heart_rate
+        FROM activity_records ar
+        JOIN activities a ON a.id = ar.activity_id
+        WHERE a.user_id = $1
+          AND DATE(a.started_at AT TIME ZONE 'UTC') = CURRENT_DATE
+          AND ar.heart_rate IS NOT NULL
+          AND ar.heart_rate > 0
+        ORDER BY ar.time
+        """,
+        user_id,
+    )
+    hr_records = [int(r["heart_rate"]) for r in rows]
+    rhr_row = await _pool_or_raise().fetchrow(
+        "SELECT resting_hr FROM daily_summary WHERE user_id = $1 AND date = CURRENT_DATE",
+        user_id,
+    )
+    resting_hr = (
+        float(rhr_row["resting_hr"]) if rhr_row and rhr_row["resting_hr"] else None
+    )
+    return hr_records, resting_hr
+
+
+async def get_user_profile(user_id: int) -> dict[str, Any]:
+    row = await _pool_or_raise().fetchrow(
+        """
+        SELECT date_of_birth, sex,
+               DATE_PART('year', AGE(date_of_birth))::int AS age
+        FROM users WHERE id = $1
+        """,
+        user_id,
+    )
+    if not row or not row["sex"] or not row["date_of_birth"]:
+        return {"has_profile": False, "age": None, "sex": None}
+    return {
+        "has_profile": True,
+        "age": int(row["age"]),
+        "sex": row["sex"],
+        "date_of_birth": str(row["date_of_birth"]),
+    }
+
+
 async def save_prediction(
     user_id: int,
     pred_date: date,
