@@ -23,6 +23,7 @@ from src.db import (
     get_user_by_email,
     get_user_by_id,
     update_user_profile,
+    update_epilepsy_mode,
     set_garmin_linked,
     set_garmin_unlinked,
     get_recent_activities,
@@ -671,9 +672,11 @@ class ProfileBody(BaseModel):
 @app.patch("/api/profile")
 async def api_update_profile(request: Request, body: ProfileBody):
     user = await require_user(request)
-    await update_user_profile(
-        user["id"], body.date_of_birth, body.sex, body.epilepsy_mode
-    )
+    fields = body.model_fields_set
+    if "epilepsy_mode" in fields and body.epilepsy_mode is not None:
+        await update_epilepsy_mode(user["id"], body.epilepsy_mode)
+    if "date_of_birth" in fields or "sex" in fields:
+        await update_user_profile(user["id"], body.date_of_birth, body.sex)
     return {"ok": True}
 
 
