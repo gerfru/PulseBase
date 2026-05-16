@@ -69,9 +69,20 @@
     <div id="tab-training" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12">
 
         <div class="card col-span-full" id="weekly-card">
-            <h2>Wochenübersicht</h2>
+            <h2>Trainingsübersicht</h2>
             <div class="chart-wrap"><canvas id="weekly-chart"></canvas></div>
             <p class="empty" id="weekly-empty" style="display:none">Noch keine Daten</p>
+        </div>
+
+        <div class="card col-span-full">
+            <h2>Training Load <span class="text-sm font-normal text-slate-400 ml-1">ATL · CTL · TSB</span></h2>
+            <div class="flex gap-6 mb-3 text-sm">
+                <span>Ermüdung&nbsp;<strong id="tl-atl">—</strong></span>
+                <span>Fitness&nbsp;<strong id="tl-ctl">—</strong></span>
+                <span>Form&nbsp;<strong id="tl-tsb" class="font-bold">—</strong></span>
+            </div>
+            <div class="chart-wrap"><canvas id="training-load-chart"></canvas></div>
+            <p class="empty" id="training-load-empty" style="display:none">Noch keine Aktivitätsdaten</p>
         </div>
 
         <div class="card col-span-full">

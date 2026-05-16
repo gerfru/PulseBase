@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -44,7 +45,11 @@ from src.db import (
     get_glucose_stats,
     request_sync,
     get_sync_status,
+    get_training_load_inputs,
+    get_activity_hrmax,
+    get_user_sex,
 )
+from src.training_load import build_training_load
 from src.garmin.client import GarminClient
 
 logging.basicConfig(level=logging.INFO)
@@ -519,7 +524,7 @@ async def api_training_status(request: Request):
 @app.get("/api/weekly")
 async def api_weekly(
     request: Request,
-    weeks: int = Query(default=12, ge=1, le=52),
+    weeks: int = Query(default=12, ge=1, le=56),
     end_date: date | None = Query(default=None),
 ):
     user = await require_user(request)
@@ -536,6 +541,26 @@ async def api_readiness(request: Request):
 async def api_energy(request: Request):
     user = await require_user(request)
     return await get_energy_metrics(user["id"])
+
+
+@app.get("/api/training-load")
+async def api_training_load(
+    request: Request,
+    lookback_days: int = Query(default=None, ge=1, le=365),
+):
+    user = await require_user(request)
+    rows, hrmax, sex = await asyncio.gather(
+        get_training_load_inputs(user["id"]),
+        get_activity_hrmax(user["id"]),
+        get_user_sex(user["id"]),
+    )
+    return build_training_load(
+        rows,
+        hrmax,
+        sex,
+        lookback_days if lookback_days is not None else settings.trimp_lookback_days,
+        settings.trimp_forecast_days,
+    )
 
 
 @app.get("/ml/anomaly")

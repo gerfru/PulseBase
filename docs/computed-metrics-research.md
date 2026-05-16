@@ -356,18 +356,19 @@ Process C — Zirkadianer Rhythmus (24h-Oszillation):
   A ≈ 0.97 (Amplitude), φ ≈ 14h (Peak bei ~14:00 Uhr, Tal bei ~02:00–04:00)
 ```
 
-**Einfache praktische Berechnung aus Schlafdaten:**
+**Implementiert in PulseBase (`ml-service/src/models/energy_metrics.py`):**
 ```python
 # Schlafschuld (kumulierter Schlafmangel):
-OPTIMAL_SLEEP = 8.0  # Stunden
-sleep_debt_today = max(0, OPTIMAL_SLEEP − total_sleep_hours)
-sleep_debt_7d    = Σ max(0, OPTIMAL_SLEEP − sleep_hours_i) for i in last 7 days
+# Ziel 7h: NSF-Empfehlung, untere Grenze für Erwachsene (vorher 8h)
+# Qualitätsfaktor entfernt: Garmins Tiefschlaf-Messung (Akzelerometer+HRV) zu unzuverlässig
+OPTIMAL_SLEEP = 7.0  # Stunden — NSF-Empfehlung 7–9h, 7h als Mindest-Ziel
+sleep_debt_7d = Σ max(0, OPTIMAL_SLEEP − sleep_hours_i) for i in last 7 days
 
-# Kognitiver Score nach dem Aufwachen (t=0):
+# Kognitiver Score:
 cognitive_base = max(0, 100 − sleep_debt_7d × 6)   # 6 Punkte je Stunde kumulierter Schuld
+# Beispiel: 7× 6h → 7h Schulden → Score 58
 
-# Sleep Inertia: 30 Minuten post-wake Einschränkung (~15% Degradierung, linear normalisierend)
-# Nach 30 min vollständig abgeklungen — für Werte nach Aufwachen relevant
+# Nicht implementiert: Sleep Inertia, Process C (Zirkadian) — braucht Einschlaf-/Aufwachzeiten
 ```
 
 **SAFTE/FAST-Modell (US Army, 2004) als Erweiterung:**

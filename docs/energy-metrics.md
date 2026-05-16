@@ -167,40 +167,27 @@ berechnet — kein proprietärer Garmin-Score, sondern die Rohmessung aus der DB
 **Formel:**
 
 ```
-# Qualitätsfaktor Tiefschlaf (Zielanteil 20% — National Sleep Foundation)
-quality = max(0.5, min(1.0, deep_ratio / 0.20))
-# Falls kein deep_sleep-Datum: quality = 1.0 (rückwärtskompatibel)
-
-# Effektive Schlafstunden (qualitätsjustiert)
-effective_hours = total_sleep_hours × quality
-
-# Schlafschuld pro Nacht
-debt_n = max(0, 8.0 − effective_hours_n)
+# Schlafschuld pro Nacht (Ziel 7h — NSF-Empfehlung, untere Grenze für Erwachsene)
+# Qualitätsfaktor entfernt: Garmins Tiefschlaf-Messung (Akzelerometer+HRV) zu unzuverlässig
+debt_n = max(0, 7.0 − total_sleep_hours_n)
 
 # Kumulierte 7-Tage-Schuld
 total_debt = Σ debt_n  für n in [letzte 7 Nächte]
 
 # Score
 score = clip(100 − total_debt × 6, 0, 100)
-# Kalibrierung: 6 Punkte / Stunde Schulden → bei ~17h Schulden = Score 0
+# Kalibrierung: 6 Punkte / Stunde Schulden → bei ~16.7h Schulden = Score 0
 ```
-
-**Beispiel Qualitätsfaktor:**
-
-| Tiefschlaf-Anteil | Quality | Effektive Stunden (bei 8h gesamt) |
-|-------------------|---------|-----------------------------------|
-| 20 % (Ziel)       | 1.00    | 8,0 h                             |
-| 10 %              | 0.50    | 4,0 h → 4h Schulden               |
-| 0 % (kein Datum)  | 1.00    | 8,0 h (kein Abzug — Fallback)     |
 
 **Beispielwerte:**
 
 | Schlafmuster | Schlafschuld | Score |
 |-------------|-------------|-------|
 | 7× 8h | 0h | 100 |
-| 7× 7h | 7h | 58 |
-| 7× 6h | 14h | 16 |
-| 3× 8h + 4× 6h | 8h | 52 |
+| 7× 7h | 0h | 100 |
+| 7× 6h | 7h | 58 |
+| 7× 5h | 14h | 16 |
+| 3× 8h + 4× 6h | 4h | 76 |
 
 ---
 

@@ -465,11 +465,25 @@ html.dark       .hero-vital:hover { background: rgba(255,255,255,.05); }
 html:not(.dark) .hero-vital:hover { background: rgba(0,0,0,.04); }
 .hero-vital-val   { font-size: 1.05rem; font-weight: 700; color: var(--text); }
 .hero-vital-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 1px; }
+.hero-vital-derived { display: inline-block; margin-top: 5px; font-size: .68rem; font-weight: 600;
+  padding: 2px 7px; border-radius: 99px; border: 1px solid transparent; }
+.hero-derived-meta { font-weight: 400; opacity: .65; }
+html.dark       .hero-vital-derived      { background: rgba(255,255,255,.06); color: var(--muted); border-color: rgba(255,255,255,.08); }
+html:not(.dark) .hero-vital-derived      { background: rgba(0,0,0,.04);       color: var(--muted); border-color: rgba(0,0,0,.07); }
+.sub-green { background: rgba(34,197,94,.15)  !important; color: #86efac !important; border-color: rgba(34,197,94,.25) !important; }
+.sub-amber { background: rgba(234,179,8,.15)  !important; color: #fde68a !important; border-color: rgba(234,179,8,.25) !important; }
+.sub-red   { background: rgba(239,68,68,.15)  !important; color: #fca5a5 !important; border-color: rgba(239,68,68,.25) !important; }
+html:not(.dark) .sub-green { background: #dcfce7 !important; color: #166534 !important; border-color: rgba(34,197,94,.4)  !important; }
+html:not(.dark) .sub-amber { background: #fef9c3 !important; color: #854d0e !important; border-color: rgba(234,179,8,.4)  !important; }
+html:not(.dark) .sub-red   { background: #fee2e2 !important; color: #991b1b !important; border-color: rgba(239,68,68,.4)  !important; }
 
 /* Status chips */
-.hero-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-top: var(--sp-3);
-  border-top: 1px solid rgba(255,255,255,.06); margin-top: var(--sp-2); }
-html:not(.dark) .hero-chips { border-top-color: rgba(0,0,0,.07); }
+.hero-chips-wrap { margin-top: var(--sp-3); padding-top: var(--sp-3);
+  border-top: 1px solid rgba(255,255,255,.06); }
+html:not(.dark) .hero-chips-wrap { border-top-color: rgba(0,0,0,.07); }
+.hero-chips-label { display: block; font-size: .65rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted); opacity: .6; margin-bottom: var(--sp-2); }
+.hero-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .hero-chip { font-size: .72rem; font-weight: 600; padding: 3px 10px; border-radius: 99px; border: 1px solid transparent; }
 html.dark       .hero-chip { background: rgba(255,255,255,.06); color: var(--muted); border-color: rgba(255,255,255,.08); }
 html:not(.dark) .hero-chip { background: rgba(0,0,0,.04); color: var(--muted); border-color: rgba(0,0,0,.07); }

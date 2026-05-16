@@ -63,24 +63,34 @@ def compute_autonomic_energy(
     # Quelle: https://help.elitehrv.com/article/57-the-1-10-relative-balance-score
     # Begründung log: RMSSD ist rechtsschief verteilt → log-Transformation normalisiert
     # Individuelle σ-Baseline statt Absolutwert (Marco Altini, HRV4Training)
-    # hrv_history muss ORDER BY date ASC kommen; letzter Wert = heute
+    # 7-Tage-Rolling-Mean statt Einzeltag (Plews et al. 2013; HRV4Training):
+    #   RMSSD schwankt täglich 20–30% durch Messartefakte → Wochenmittel ist robuster
+    # hrv_history muss ORDER BY date ASC kommen; letzte 7 Werte = aktuelle Woche
+    _WINDOW = 7
     raw = [math.log(v) * 20 for v in hrv_history if v is not None and v > 0]
     if len(raw) < 7:
         return {"score": None, "reason": "insufficient_hrv_data"}
 
-    today_raw = raw[-1]
-    baseline = raw[:-1]
+    if len(raw) >= 14:
+        current_window = raw[-_WINDOW:]
+        baseline = raw[:-_WINDOW]
+        current_mean = sum(current_window) / len(current_window)
+    else:
+        # Fallback für neue User (<14 Datenpunkte): Einzeltag wie bisher
+        current_mean = raw[-1]
+        baseline = raw[:-1]
+
     n = len(baseline)
     mean = sum(baseline) / n
     std = max(1.0, math.sqrt(sum((x - mean) ** 2 for x in baseline) / n))
-    dev = (today_raw - mean) / std
+    dev = (current_mean - mean) / std
 
     return {
         "score": round(_clip(50 + dev * 15), 1),
         "deviation": round(dev, 2),
         "baseline_mean": round(mean, 2),
         "baseline_std": round(std, 2),
-        "hrv_raw_today": round(today_raw, 2),
+        "hrv_7d_mean": round(current_mean, 2),
     }
 
 
@@ -89,11 +99,8 @@ def compute_cognitive_energy(
 ) -> dict[str, Any]:
     # Algorithmus: Borbély Two-Process Model (Process S — homöostatischer Schlafdruck)
     # Quelle: Borbély AA (1982) A two process model of sleep regulation. Hum Neurobiol 1(3):195-204
-    # Process S wird primär durch SWS (Tiefschlaf) entladen, nicht reine Schlafdauer.
-    # Qualitätsfaktor: deep_ratio / 0.20 (Zielanteil Tiefschlaf für Erwachsene, Empfehlung NSF)
-    # Fallback quality=1.0 wenn keine Tiefschlaf-Daten (rückwärtskompatibel)
-    _TARGET_DEEP_RATIO = 0.20
-
+    # Qualitätsfaktor entfernt: Garmins Tiefschlaf-Messung (Akzelerometer+HRV) zu unzuverlässig
+    # Ziel 7h: NSF-Empfehlung 7–9h, 7h als untere Grenze für Erwachsene (vorher 8h)
     debt = 0.0
     days_used = 0
     for d in sleep_data_7d:
@@ -101,12 +108,7 @@ def compute_cognitive_energy(
         if total is None:
             continue
         days_used += 1
-        deep = d.get("deep_h")
-        if deep is not None and total > 0:
-            quality = max(0.5, min(1.0, (deep / total) / _TARGET_DEEP_RATIO))
-        else:
-            quality = 1.0
-        debt += max(0.0, 8.0 - total * quality)
+        debt += max(0.0, 7.0 - total)
 
     if days_used == 0:
         return {"score": None, "reason": "no_sleep_data"}

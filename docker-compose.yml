@@ -74,6 +74,8 @@ services:
       DB_APP_PASSWORD: ${DB_APP_PASSWORD}
       SESSION_SECRET: ${SESSION_SECRET}
       HTTPS_ONLY: ${HTTPS_ONLY:-true}
+      TRIMP_LOOKBACK_DAYS: ${TRIMP_LOOKBACK_DAYS:-7}
+      TRIMP_FORECAST_DAYS: ${TRIMP_FORECAST_DAYS:-7}
     volumes:
       - garmin-tokens:/app/tokens
     depends_on:
@@ -106,6 +108,7 @@ services:
       DB_APP_PASSWORD: ${DB_APP_PASSWORD}
       SYNC_HOUR: ${SYNC_HOUR:-6}
       SYNC_LOOKBACK_DAYS: ${SYNC_LOOKBACK_DAYS:-30}
+      SYNC_DAILY_DAYS: ${SYNC_DAILY_DAYS:-2}
     volumes:
       - garmin-tokens:/app/tokens
     networks:

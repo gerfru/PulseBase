@@ -171,12 +171,12 @@ async def set_ml_requested(user_id: int, repo: TimescaleRepository) -> None:
         )
 
 
-async def process_sync_requests(repo: TimescaleRepository) -> None:
+async def process_sync_requests(repo: TimescaleRepository, daily_days: int = 2) -> None:
     users = await get_sync_requested_users(repo)
     for user in users:
         logger.info(f"Manueller Sync: {user['name']}")
         try:
-            await sync_user(user, repo, days=2)
+            await sync_user(user, repo, days=daily_days)
         except Exception as e:
             logger.error(f"Manueller Sync Fehler {user['name']}: {e}", exc_info=True)
         finally:
@@ -210,13 +210,13 @@ async def main() -> None:
     scheduler.add_job(
         sync_all_users,
         CronTrigger(hour=settings.sync_hour, minute=0),
-        args=[repo, 2],
+        args=[repo, settings.sync_daily_days],
     )
     scheduler.add_job(
         process_sync_requests,
         "interval",
         minutes=1,
-        args=[repo],
+        args=[repo, settings.sync_daily_days],
     )
     scheduler.add_job(
         sync_all_libre,
