@@ -466,21 +466,32 @@ async def api_activities(
     request: Request,
     days: int = Query(default=7, ge=1, le=365),
     limit: int = Query(default=500, ge=1, le=500),
+    end_date: date | None = Query(default=None),
 ):
     user = await require_user(request)
-    return await get_recent_activities(user["id"], limit=limit, days=days)
+    return await get_recent_activities(
+        user["id"], limit=limit, days=days, end_date=end_date
+    )
 
 
 @app.get("/api/daily")
-async def api_daily(request: Request, days: int = Query(default=30, ge=1, le=365)):
+async def api_daily(
+    request: Request,
+    days: int = Query(default=30, ge=1, le=365),
+    end_date: date | None = Query(default=None),
+):
     user = await require_user(request)
-    return await get_daily_summaries(user["id"], days=days)
+    return await get_daily_summaries(user["id"], days=days, end_date=end_date)
 
 
 @app.get("/api/sleep")
-async def api_sleep(request: Request, days: int = Query(default=14, ge=1, le=365)):
+async def api_sleep(
+    request: Request,
+    days: int = Query(default=14, ge=1, le=365),
+    end_date: date | None = Query(default=None),
+):
     user = await require_user(request)
-    return await get_sleep_sessions(user["id"], limit=days)
+    return await get_sleep_sessions(user["id"], days=days, end_date=end_date)
 
 
 @app.get("/api/hrv")
@@ -490,9 +501,13 @@ async def api_hrv(request: Request):
 
 
 @app.get("/api/hrv/trend")
-async def api_hrv_trend(request: Request, days: int = Query(default=30, ge=1, le=365)):
+async def api_hrv_trend(
+    request: Request,
+    days: int = Query(default=30, ge=1, le=365),
+    end_date: date | None = Query(default=None),
+):
     user = await require_user(request)
-    return await get_hrv_trend(user["id"], days=days)
+    return await get_hrv_trend(user["id"], days=days, end_date=end_date)
 
 
 @app.get("/api/training-status")
@@ -505,9 +520,10 @@ async def api_training_status(request: Request):
 async def api_weekly(
     request: Request,
     weeks: int = Query(default=12, ge=1, le=52),
+    end_date: date | None = Query(default=None),
 ):
     user = await require_user(request)
-    return await get_weekly_stats(user["id"], weeks=weeks)
+    return await get_weekly_stats(user["id"], weeks=weeks, end_date=end_date)
 
 
 @app.get("/api/readiness")
@@ -569,9 +585,13 @@ async def api_ml_insights(request: Request):
 
 
 @app.get("/api/ml-history")
-async def api_ml_history(request: Request, days: int = Query(default=30, ge=1, le=365)):
+async def api_ml_history(
+    request: Request,
+    days: int = Query(default=30, ge=1, le=365),
+    end_date: date | None = Query(default=None),
+):
     user = await require_user(request)
-    return await get_ml_history(user["id"], days)
+    return await get_ml_history(user["id"], days, end_date=end_date)
 
 
 @app.post("/api/sync")
