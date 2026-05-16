@@ -160,7 +160,7 @@ function renderEconomy(a) {
         rows.push(econRow('Vertikale Oszillation', a.avg_vertical_oscillation.toFixed(1) + ' cm',
             '< 8 cm optimal', econColor(a.avg_vertical_oscillation, 8, 10)));
     if (a.avg_stride_length)
-        rows.push(econRow('Schrittlänge', a.avg_stride_length.toFixed(2) + ' m', '', null));
+        rows.push(econRow('Schrittlänge', (a.avg_stride_length / 100).toFixed(2) + ' m', '', null));
     if (a.avg_vertical_ratio)
         rows.push(econRow('Vertikales Verhältnis', a.avg_vertical_ratio.toFixed(1) + ' %',
             '< 8 % optimal', econColor(a.avg_vertical_ratio, 8, 10)));
