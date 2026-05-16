@@ -104,7 +104,7 @@ function shiftPeriod(delta) {
     currentOffset = Math.max(0, currentOffset + delta);
     updateNavBar();
     load(currentDays, getEndDate()).catch(() => {});
-    loadWeekly(Math.max(4, Math.ceil(currentDays / 7)), getEndDate()).catch(() => {});
+    loadTrainingLoad(currentDays).catch(() => {});
 }
 
 function setDays(days) {
@@ -115,7 +115,7 @@ function setDays(days) {
     });
     updateNavBar();
     load(days);
-    loadWeekly(Math.max(4, Math.ceil(days / 7))).catch(() => {});
+    loadTrainingLoad(days).catch(() => {});
 }
 
 // ─── Tab Navigation ────────────────────────────────────────────────────────
@@ -195,11 +195,48 @@ function buildHeroCard() {
         <text x="60" y="72" text-anchor="middle" class="ring-label-text">READINESS</text>
     </svg>`;
 
+    // ── Derived values (needed by ring + vitals) ────────────────────────────
+    const last    = daily.length ? daily[daily.length - 1] : null;
+    const anomaly = ml.anomaly_hr;
+    const rf      = ml.readiness_rf;
+    const hrvSt   = ml.hrv_status_custom;
+    const im      = ml.intensity_minutes_custom;
+
+    const _hrvLabel = { BALANCED: 'Erholt', UNBALANCED: 'Leicht gedämpft', LOW: 'Niedrig', POOR: 'Stark gedämpft' };
+
+    // HRV-Balance sub-value
+    let hrvSubVal = null, hrvSubCls = '';
+    if (hrvSt?.status != null) {
+        hrvSubVal = _hrvLabel[hrvSt.status] ?? hrvSt.status;
+        hrvSubCls = hrvSt.status === 'BALANCED' ? 'sub-green' : hrvSt.status === 'POOR' ? 'sub-red' : 'sub-amber';
+    }
+
+    // Ruhepuls deviation sub-value
+    let hrSubVal = null, hrSubCls = '';
+    if (anomaly?.z_score != null && anomaly?.baseline_mean != null) {
+        const todayHr = last?.resting_hr
+            ?? Math.round(anomaly.baseline_mean + anomaly.z_score * (anomaly.baseline_std ?? 3));
+        const devBpm  = Math.round(todayHr - anomaly.baseline_mean);
+        const sign    = devBpm > 0 ? '+' : '';
+        hrSubVal = `${sign}${devBpm} bpm vs. Ø${anomaly.is_anomaly ? ' ⚠' : ''}`;
+        hrSubCls = anomaly.is_anomaly ? 'sub-red' : devBpm > 0 ? 'sub-amber' : '';
+    }
+
+    // ML prediction for tomorrow
+    const rfScore = rf?.value != null ? Math.round(rf.value) : null;
+    const rfSubCls = rfScore != null ? (rfScore >= 75 ? 'sub-green' : rfScore >= 50 ? 'sub-amber' : 'sub-red') : '';
+
+    // ── Ring Section ─────────────────────────────────────────────────────────
+    const rfTag = rfScore != null
+        ? `<span class="hero-vital-derived ${rfSubCls}">~${rfScore}<span class="hero-derived-meta"> · ML · Morgen</span></span>`
+        : '';
+
     const ringSection = `<div class="hero-ring-section">
         ${svgRing}
         <div class="hero-ring-meta">
             <span class="hero-ring-status">${esc(r?.label ?? '—')}</span>
             <a class="hero-ring-link" href="/metrics/readiness">→ Details</a>
+            ${rfTag}
         </div>
     </div>`;
 
@@ -229,7 +266,6 @@ function buildHeroCard() {
     </div>`;
 
     // ── Vitals Strip ────────────────────────────────────────────────────────
-    const last   = daily.length ? daily[daily.length - 1] : null;
     const stepsVal = last?.steps != null ? last.steps.toLocaleString('de-AT') : '—';
     const hrVal    = last?.resting_hr != null ? last.resting_hr + ' bpm' : '—';
     const hrvVal   = hrv?.hrv_weekly_avg != null ? hrv.hrv_weekly_avg + 'ms' : '—';
@@ -244,55 +280,34 @@ function buildHeroCard() {
         sleepVal = sleep[0]?.sleep_score ?? '—';
     }
 
+    function vitalTile(val, label, href, subVal = null, subCls = '', subMeta = '') {
+        const sub = subVal != null
+            ? `<span class="hero-vital-derived ${subCls}">${esc(String(subVal))}${subMeta ? `<span class="hero-derived-meta"> · ${subMeta}</span>` : ''}</span>`
+            : '';
+        return `<a class="hero-vital" href="${href}">
+            <span class="hero-vital-val">${val}</span>
+            <span class="hero-vital-label">${esc(label)}</span>
+            ${sub}
+        </a>`;
+    }
+
     const vitalsSection = `<div class="hero-vitals">
-        <a class="hero-vital" href="/metrics/steps">
-            <span class="hero-vital-val">${stepsVal}</span>
-            <span class="hero-vital-label">Schritte</span>
-        </a>
-        <a class="hero-vital" href="/metrics/sleep">
-            <span class="hero-vital-val">${sleepVal}</span>
-            <span class="hero-vital-label">Schlaf-Score</span>
-        </a>
-        <a class="hero-vital" href="/metrics/hrv">
-            <span class="hero-vital-val">${hrvVal}</span>
-            <span class="hero-vital-label">HRV Wochenø</span>
-        </a>
-        <a class="hero-vital" href="/metrics/hr-zscore">
-            <span class="hero-vital-val">${hrVal}</span>
-            <span class="hero-vital-label">Ruhepuls</span>
-        </a>
+        ${vitalTile(stepsVal, 'Schritte', '/metrics/steps')}
+        ${vitalTile(sleepVal, 'Schlaf-Score', '/metrics/sleep')}
+        ${vitalTile(hrvVal,  'HRV Wochenø',  '/metrics/hrv',       hrvSubVal, hrvSubCls, 'Balance')}
+        ${vitalTile(hrVal,   'Ruhepuls',      '/metrics/hr-zscore', hrSubVal,  hrSubCls,  'vs. Ø')}
     </div>`;
 
-    // ── Status Chips ────────────────────────────────────────────────────────
-    const anomaly = ml.anomaly_hr;
-    const rf      = ml.readiness_rf;
-    const hrvSt   = ml.hrv_status_custom;
-    const im      = ml.intensity_minutes_custom;
-    const chips   = [];
-
-    if (hrvSt?.status != null) {
-        const cls = hrvSt.status === 'BALANCED' ? 'chip-green' : hrvSt.status === 'POOR' ? 'chip-red' : 'chip-amber';
-        chips.push(`<span class="hero-chip ${cls}">${esc(hrvSt.status)}</span>`);
-    }
-    if (anomaly?.z_score != null && anomaly?.baseline_mean != null) {
-        const todayHr = last?.resting_hr
-            ?? Math.round(anomaly.baseline_mean + anomaly.z_score * (anomaly.baseline_std ?? 3));
-        const devBpm  = Math.round(todayHr - anomaly.baseline_mean);
-        const sign    = devBpm > 0 ? '+' : '';
-        const cls     = anomaly.is_anomaly ? 'chip-red' : devBpm > 0 ? 'chip-amber' : '';
-        chips.push(`<span class="hero-chip ${cls}">Ruhepuls ${sign}${devBpm} bpm${anomaly.is_anomaly ? ' ⚠' : ''}</span>`);
-    }
-    if (rf?.value != null) {
-        const s   = Math.round(rf.value);
-        const cls = s >= 75 ? 'chip-green' : s >= 50 ? 'chip-amber' : 'chip-red';
-        chips.push(`<span class="hero-chip ${cls}">Prognose ↓${s}</span>`);
-    }
+    // ── Intensität (einziger verbleibender Einblick) ─────────────────────────
+    let chipsSection = '';
     if (im?.moderate_minutes != null) {
         const total = im.moderate_minutes + (im.vigorous_minutes || 0) * 2;
-        chips.push(`<span class="hero-chip">Intensität ${total}min</span>`);
+        chipsSection = `<div class="hero-chips-wrap">
+            <div class="hero-chips">
+                <span class="hero-chip">Intensität: ${total} Min/Woche</span>
+            </div>
+        </div>`;
     }
-
-    const chipsSection = chips.length ? `<div class="hero-chips">${chips.join('')}</div>` : '';
 
     // ── Assemble ────────────────────────────────────────────────────────────
     el.innerHTML = `<div class="hero-header">
@@ -368,6 +383,61 @@ async function load(days, endDate = null) {
                 <td>${a.avg_hr ? a.avg_hr + ' bpm' : '—'}</td>
             </tr>`).join('')}</tbody>
         </table></div>`;
+    }
+
+    // ── Trainingsübersicht (täglich) ─────────────────────────────────
+    {
+        const RUN_TYPES   = new Set(['running','trail_running','hiking','walking']);
+        const RIDE_TYPES  = new Set(['cycling','indoor_cycling']);
+        const dayMap = {};
+        for (const a of activities) {
+            const key = String(a.started_at).slice(0, 10);
+            if (!dayMap[key]) dayMap[key] = { run_km: 0, ride_km: 0, other_h: 0 };
+            const km = (a.distance_meters || 0) / 1000;
+            const h  = (a.duration_seconds || 0) / 3600;
+            const st = a.sport_type || '';
+            if (RUN_TYPES.has(st))       dayMap[key].run_km  += km;
+            else if (RIDE_TYPES.has(st)) dayMap[key].ride_km += km;
+            else                         dayMap[key].other_h += h;
+        }
+
+        // Full date range — always include every day (empty = rest day)
+        function _isoDate(dt) {
+            return [dt.getFullYear(), String(dt.getMonth()+1).padStart(2,'0'), String(dt.getDate()).padStart(2,'0')].join('-');
+        }
+        const endDt = endDate
+            ? (([y,m,d]) => new Date(y, m-1, d))(endDate.split('-').map(Number))
+            : new Date(new Date().toDateString());
+        const startDt = new Date(endDt);
+        startDt.setDate(startDt.getDate() - days + 1);
+
+        const actLabels = [], runKm = [], rideKm = [], otherH = [];
+        for (let dt = new Date(startDt); dt <= endDt; dt.setDate(dt.getDate() + 1)) {
+            const key = _isoDate(dt);
+            const v = dayMap[key] || { run_km: 0, ride_km: 0, other_h: 0 };
+            actLabels.push(fmtDate(key));
+            runKm.push(+(v.run_km.toFixed(1)));
+            rideKm.push(+(v.ride_km.toFixed(1)));
+            otherH.push(+(v.other_h.toFixed(1)));
+        }
+
+        const hasRun   = runKm.some(v => v > 0);
+        const hasRide  = rideKm.some(v => v > 0);
+        const hasOther = otherH.some(v => v > 0);
+
+        if (hasRun || hasRide || hasOther) {
+            hideEmpty('weekly');
+            const actDatasets = [];
+            if (hasRun)   actDatasets.push({ label: 'Ausdauer',  data: runKm,  backgroundColor: 'rgba(99,102,241,.75)',  stack: 'km', borderRadius: 3 });
+            if (hasRide)  actDatasets.push({ label: 'Radfahren', data: rideKm, backgroundColor: 'rgba(245,158,11,.75)', stack: 'km', borderRadius: 3 });
+            if (hasOther) actDatasets.push({ label: 'Sonstiges', data: otherH, backgroundColor: 'rgba(16,185,129,.65)', stack: 'st', borderRadius: 3, yAxisID: 'yh' });
+            const actScales = hasOther
+                ? { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' }, position: 'left' }, yh: { stacked: true, title: { display: true, text: 'h' }, position: 'right', grid: { drawOnChartArea: false } } }
+                : { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } };
+            makeChart('weekly-chart', 'bar', actLabels, actDatasets, { scales: actScales });
+        } else {
+            showEmpty('weekly');
+        }
     }
 
     const labels = daily.map(d => fmtDate(d.date));
@@ -507,33 +577,10 @@ async function loadEnergyMetrics() {
     buildHeroCard();
 }
 
-async function loadWeekly(weeks = 12, endDate = null) {
-    const ed   = endDate ? `&end_date=${endDate}` : '';
-    const data = await fetch(`/api/weekly?weeks=${weeks}${ed}`).then(r => r.json());
-    if (!data.length || !data.some(w => w.total_km || w.other_hours)) {
-        showEmpty('weekly'); return;
-    }
-    hideEmpty('weekly');
-    const labels = data.map(w => {
-        const [y, mo, d] = String(w.week).slice(0, 10).split('-').map(Number);
-        return new Date(y, mo - 1, d).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' });
-    });
-    const hasStrength = data.some(w => w.other_hours);
-    const datasets = [
-        { label: 'Ausdauer',  data: data.map(w => w.run_km  || 0), backgroundColor: 'rgba(99,102,241,.75)',  stack: 'km', borderRadius: 3 },
-        { label: 'Radfahren', data: data.map(w => w.ride_km || 0), backgroundColor: 'rgba(245,158,11,.75)', stack: 'km', borderRadius: 3 },
-    ];
-    if (hasStrength) {
-        datasets.push({ label: 'Strength Training', data: data.map(w => w.other_hours || 0), backgroundColor: 'rgba(16,185,129,.65)', stack: 'st', borderRadius: 3, yAxisID: 'yh' });
-    }
-    const scales = hasStrength
-        ? { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' }, position: 'left' }, yh: { stacked: true, title: { display: true, text: 'h' }, position: 'right', grid: { drawOnChartArea: false } } }
-        : { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } };
-    makeChart('weekly-chart', 'bar', labels, datasets, { scales });
-}
 
-async function loadTrainingLoad() {
-    const data = await fetch('/api/training-load').then(r => r.json());
+async function loadTrainingLoad(days = null) {
+    const qs   = days != null ? `?lookback_days=${days}` : '';
+    const data = await fetch(`/api/training-load${qs}`).then(r => r.json());
     if (!data.history?.length) { showEmpty('training-load'); return; }
     hideEmpty('training-load');
 
@@ -662,8 +709,7 @@ async function pollSyncStatus() {
                 currentOffset = 0;
                 updateNavBar();
                 load(currentDays);
-                loadWeekly(Math.max(4, Math.ceil(currentDays / 7)));
-                loadTrainingLoad().catch(() => {});
+                loadTrainingLoad(currentDays).catch(() => {});
                 loadReadiness();
                 loadEnergyMetrics().catch(() => {});
                 _mlPollTimer = setTimeout(pollMlStatus, 5000);
@@ -720,7 +766,6 @@ document.getElementById('activities-container').addEventListener('click', e => {
 // ── Init ───────────────────────────────────────────────────────────────────
 updateNavBar();
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
-loadWeekly().catch(() => showToast('Wochendaten konnten nicht geladen werden', 'error'));
 loadTrainingLoad().catch(() => {});
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
 loadMlInsights().catch(() => {});

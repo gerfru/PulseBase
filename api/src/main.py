@@ -544,7 +544,10 @@ async def api_energy(request: Request):
 
 
 @app.get("/api/training-load")
-async def api_training_load(request: Request):
+async def api_training_load(
+    request: Request,
+    lookback_days: int = Query(default=None, ge=1, le=365),
+):
     user = await require_user(request)
     rows, hrmax, sex = await asyncio.gather(
         get_training_load_inputs(user["id"]),
@@ -555,7 +558,7 @@ async def api_training_load(request: Request):
         rows,
         hrmax,
         sex,
-        settings.trimp_lookback_days,
+        lookback_days if lookback_days is not None else settings.trimp_lookback_days,
         settings.trimp_forecast_days,
     )
 
