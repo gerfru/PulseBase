@@ -106,7 +106,7 @@
         <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4 max-w-sm mx-auto mb-4 text-center">
           <div class="text-xs text-indigo-300 mb-1">Persistenz</div>
           <div class="font-semibold text-indigo-200">TimescaleDB</div>
-          <div class="text-xs text-slate-500 mt-1">PostgreSQL 16 · Hypertables · Flyway V1–V12</div>
+          <div class="text-xs text-slate-500 mt-1">PostgreSQL 16 · Hypertables · Flyway V1–V14</div>
         </div>
 
         <div class="flex gap-4 justify-center mb-4">
@@ -621,7 +621,7 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
     <!-- ── Datenbankschema ──────────────────────────────────────────────── -->
     <section id="schema" class="mb-20">
       <h2 class="text-2xl font-bold mb-2">Datenbankschema</h2>
-      <p class="text-slate-400 text-sm mb-8">TimescaleDB auf PostgreSQL 16. Migrationen V1–V12 via Flyway. Hypertables für hochfrequente Zeitreihendaten.</p>
+      <p class="text-slate-400 text-sm mb-8">TimescaleDB auf PostgreSQL 16. Migrationen V1–V14 via Flyway. Hypertables für hochfrequente Zeitreihendaten.</p>
 
       <div class="overflow-x-auto">
         <table class="w-full text-sm border-collapse">
@@ -641,7 +641,7 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
             <tr>
               <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">activities</td>
               <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
-              <td class="py-3 text-slate-400 text-xs">id, user_id, started_at, sport_type, duration_seconds, distance_meters, avg_hr, calories, aerobic_effect, anaerobic_effect</td>
+              <td class="py-3 text-slate-400 text-xs">id, user_id, started_at, sport_type, duration_seconds, distance_meters, avg_hr, calories, aerobic_effect, anaerobic_effect, user_rpe, avg_ground_contact_time, avg_vertical_oscillation, avg_stride_length, avg_vertical_ratio, avg_running_power</td>
             </tr>
             <tr>
               <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">daily_summary</td>
@@ -685,7 +685,8 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
       <div class="mt-6 bg-slate-900/40 border border-white/[0.06] rounded-xl p-4 text-sm text-slate-400">
         <span class="font-semibold text-slate-200">Migrationen:</span>
         V1–V5 Schema · V6 sync_trigger · V7 app_user (least-privilege) · V8 ml_predictions ·
-        V9 glucose/intraday · V10 libre_link · V11 training_status · V12 user_profile (date_of_birth, sex)
+        V9 glucose/intraday · V10 ml_trigger · V11 activity_rpe · V12 user_profile (date_of_birth, sex) ·
+        V13 running_economy · V14 fix stride length precision (cm statt m)
       </div>
     </section>
 

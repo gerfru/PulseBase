@@ -20,9 +20,11 @@ production database — always add a new migration file.
 | `V7__app_user.sql` | Creates least-privilege `garmin_app` DB user |
 | `V8__ml_predictions.sql` | Creates `ml_predictions` table for ML model outputs |
 | `V9__libre_glucose.sql` | Adds `libre_linked`/`libre_email` to `users`; creates `glucose_readings` hypertable |
-| `V10__sync_ml_status.sql` | Adds `ml_requested`, `last_ml_at`, `sync_requested`, `last_sync_at` to `users` |
-| `V11__body_battery.sql` | Creates `body_battery_intraday` hypertable |
+| `V10__ml_trigger.sql` | Adds `ml_requested`, `last_ml_at` to `users` for on-demand ML trigger |
+| `V11__activity_rpe.sql` | Adds `user_rpe SMALLINT` to `activities` (Foster RPE 1–10) |
 | `V12__user_profile.sql` | Adds `date_of_birth DATE`, `sex TEXT` to `users` (required for Banister TRIMP) |
+| `V13__running_economy.sql` | Adds running dynamics columns to `activities` (ground contact time, vertical oscillation, stride length, vertical ratio, running power) |
+| `V14__fix_stride_length_precision.sql` | Widens `avg_stride_length` to `NUMERIC(6,1)` — Garmin returns cm, not meters |
 
 ---
 
@@ -69,6 +71,12 @@ production database — always add a new migration file.
 | `avg_speed_kmh` | `FLOAT` | |
 | `aerobic_effect` | `FLOAT` | Garmin aerobic training effect 1–5 (V5) |
 | `anaerobic_effect` | `FLOAT` | Garmin anaerobic training effect 1–5 (V5) |
+| `user_rpe` | `SMALLINT CHECK (1–10)` | User-entered RPE via Foster method (V11) |
+| `avg_ground_contact_time` | `INTEGER` | Ground contact time in ms, running only (V13) |
+| `avg_vertical_oscillation` | `NUMERIC(4,1)` | Vertical oscillation in cm, running only (V13) |
+| `avg_stride_length` | `NUMERIC(6,1)` | Stride length in cm, running only (V13/V14) |
+| `avg_vertical_ratio` | `NUMERIC(4,1)` | Vertical ratio %, running only (V13) |
+| `avg_running_power` | `INTEGER` | Running power in W, requires sensor (V13) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 Index: `(user_id, started_at DESC)`
