@@ -88,8 +88,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com; "
-            "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
             "frame-ancestors 'none'; "
@@ -112,6 +112,9 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
+
+
+DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt()).decode()
 
 
 async def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
@@ -183,14 +186,18 @@ async def login(
     password: str = Form(),
 ):
     user = await get_user_by_email(email)
-    if not user or not verify_password(password, user.get("password_hash") or ""):
+    password_hash = user.get("password_hash") if user else DUMMY_HASH
+    valid = verify_password(password, password_hash)
+    if not user or not valid:
         return templates.TemplateResponse(
             request,
             "login.html",
             {"error": "E-Mail oder Passwort falsch."},
             status_code=400,
         )
-    request.session["user_id"] = user["id"]
+    user_id = user["id"]
+    request.session.clear()
+    request.session["user_id"] = str(user_id)
     return RedirectResponse("/", status_code=303)
 
 
@@ -233,7 +240,9 @@ async def register(
             {"error": "Diese E-Mail ist bereits registriert."},
             status_code=400,
         )
-    request.session["user_id"] = user["id"]
+    user_id = user["id"]
+    request.session.clear()
+    request.session["user_id"] = str(user_id)
     return RedirectResponse("/", status_code=303)
 
 
