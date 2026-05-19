@@ -20,6 +20,17 @@ TEST_USER = {
     "email": "test@example.com",
     "garmin_linked": False,
     "garmin_email": None,
+    "epilepsy_mode": False,
+    "spo2_enabled": False,
+    "date_of_birth": None,
+    "sex": None,
+}
+
+TEST_USER_EPILEPSY = {**TEST_USER, "epilepsy_mode": True}
+TEST_USER_GARMIN = {
+    **TEST_USER,
+    "garmin_linked": True,
+    "garmin_email": "test@garmin.com",
 }
 
 

@@ -100,7 +100,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # pragma: no cover
     await get_pool()
     logger.info("DB pool initialized")
     yield
