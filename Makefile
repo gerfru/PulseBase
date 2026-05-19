@@ -1,4 +1,4 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy
+.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build
 
 network:
 	docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
@@ -100,3 +100,15 @@ setup-user:
 	@echo "  https://garmin.local/register"
 	@echo "Garmin verknüpfen:"
 	@echo "  https://garmin.local/garmin/link"
+
+tailwind-build:
+	@echo "=== Tailwind CLI Build ==="
+	@OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+	ARCH=$$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/'); \
+	curl -fsSL "https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.19/tailwindcss-$$OS-$$ARCH" \
+	  -o /tmp/tailwindcss-cli && chmod +x /tmp/tailwindcss-cli && \
+	cd api && /tmp/tailwindcss-cli -c tailwind.config.js \
+	  -i src/static/input.css \
+	  -o src/static/tailwind.min.css \
+	  --minify
+	@echo "Done: api/src/static/tailwind.min.css"
