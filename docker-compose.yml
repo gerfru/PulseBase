@@ -1,7 +1,7 @@
 services:
 
   db:
-    image: timescale/timescaledb:2.17.2-pg16@sha256:4e459e217f00cbb09920c34d245501e63427e6767a495de57ce76823ff280f12
+    image: timescale/timescaledb:2.26.4-pg16@sha256:15e00162766bd6f0019afaad4e57b850dcf882de5909bd7633899eebd4c03d57
     container_name: garmin-db
     restart: unless-stopped
     environment:
@@ -19,7 +19,7 @@ services:
       retries: 5
 
   flyway:
-    image: flyway/flyway:10@sha256:43592cc125eb0594d9b013e8dced2fa67d473c091abaa5dec03b22f49e682949
+    image: flyway/flyway:latest@sha256:20aa05a629aa11d4b1211c6622baca9e0b90d603f64a6dc15e8da6547f3754fb
     container_name: garmin-flyway
     command: migrate
     volumes:
