@@ -186,7 +186,7 @@ async def login(
     password: str = Form(),
 ):
     user = await get_user_by_email(email)
-    password_hash = user.get("password_hash") if user else DUMMY_HASH
+    password_hash: str = user["password_hash"] if user else DUMMY_HASH
     valid = verify_password(password, password_hash)
     if not user or not valid:
         return templates.TemplateResponse(
