@@ -107,24 +107,29 @@ starts Traefik alongside PulseBase. This is the fallback, not the default.
 
 ---
 
-## CSS: Tailwind CDN + custom style.css
+## CSS: Tailwind CLI Build + custom style.css
 
-Templates use **Tailwind CSS** (CDN Play Script, no build step required for dev) for layout,
-spacing, and color utilities. A companion `api/src/static/style.css` (~600 lines) handles
-only the classes that JavaScript generates dynamically at runtime (`.card`, `.badge-*`,
-`.metric-tile-*`, `.toast`, `.hero-grid`, `.hero-chip`, `.nav-bar`, etc.) — these cannot be
-inlined because they are constructed in dashboard.js/activity.js/metrics.js via string
-concatenation.
+Templates use **Tailwind CSS** for layout, spacing, and color utilities. A companion
+`api/src/static/style.css` handles only the classes that JavaScript generates dynamically
+at runtime (`.card`, `.badge-*`, `.metric-tile-*`, `.toast`, etc.) — these cannot be
+purged by the CLI because they are constructed in JS via string concatenation.
+
+**Build:**
+Tailwind CLI standalone binary (no Node.js) generates `api/src/static/tailwind.min.css`
+from `input.css` + `api/tailwind.config.js`. Run after any template changes:
+
+```bash
+make tailwind-build
+```
+
+The output (`tailwind.min.css`, ~19 KB) is committed and served as a static file.
+No CDN, no runtime script, no build step in Docker.
 
 **Light / Dark theme:**
-- `theme-init.js` runs before Tailwind CDN to set `.dark` on `<html>` from `localStorage`
+- `theme-init.js` runs before the stylesheet to set `.dark` on `<html>` from `localStorage`
   (key `pb-theme`) — prevents FOUC
 - `tailwind.config.js` sets `darkMode: 'class'`; all templates use `dark:` variants
 - Toggle switch in Settings page writes to `localStorage` and toggles the class live
-
-**Production (Phase 5 — pending):**
-Tailwind CLI standalone binary (no Node.js) in the `api` Dockerfile generates a minified
-`style.css` from `input.css`, replacing the CDN script. Not yet implemented.
 
 **Sport type display:**
 `subActivityType.typeKey` is read before `activityType.typeKey` so activities like

@@ -1,7 +1,7 @@
 services:
 
   db:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.17.2-pg16@sha256:4e459e217f00cbb09920c34d245501e63427e6767a495de57ce76823ff280f12
     container_name: garmin-db
     restart: unless-stopped
     environment:
@@ -19,7 +19,7 @@ services:
       retries: 5
 
   flyway:
-    image: flyway/flyway:latest
+    image: flyway/flyway:10@sha256:43592cc125eb0594d9b013e8dced2fa67d473c091abaa5dec03b22f49e682949
     container_name: garmin-flyway
     command: migrate
     volumes:
@@ -39,7 +39,7 @@ services:
       - internal
 
   traefik:
-    image: traefik:v3
+    image: traefik:v3.3.4@sha256:cc11989f418e2cfe5e60fc40c92c1813be847f58eda15eced7d5ac890255ad9e
     container_name: garmin-traefik
     restart: unless-stopped
     profiles:
