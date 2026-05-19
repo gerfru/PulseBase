@@ -1,4 +1,4 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build
+.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-e2e test-coverage
 
 network:
 	docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
@@ -112,3 +112,29 @@ tailwind-build:
 	  -o src/static/tailwind.min.css \
 	  --minify
 	@echo "Done: api/src/static/tailwind.min.css"
+
+test: ## Unit + Integration aller 3 Services (kein Docker nötig)
+	cd api && .venv/bin/pytest tests/ -v --ignore=tests/e2e
+	cd sync-service && .venv/bin/pytest tests/ -v
+	cd ml-service && .venv/bin/pytest tests/ -v
+
+test-env-up: ## Test-Stack auf Port 8001 starten
+	docker compose -f docker-compose.test.yml up -d --wait
+
+test-env-down: ## Test-Stack stoppen
+	docker compose -f docker-compose.test.yml down
+
+test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren (test-env-up vorher)
+	docker exec garmin-db pg_dump \
+	  -U $$(grep ^DB_USER .env | cut -d= -f2) garmin \
+	  | docker exec -i garmin-db-test psql \
+	  -U $$(grep ^DB_USER .env | cut -d= -f2) garmin_test
+
+test-e2e: ## Playwright E2E gegen Test-Stack (test-env-up + test-seed vorher)
+	cd api && .venv/bin/playwright install chromium --with-deps --quiet
+	cd api && .venv/bin/pytest tests/e2e/ -v
+
+test-coverage: ## Coverage-Report (Terminal + HTML unter api/htmlcov/index.html)
+	cd api && .venv/bin/pytest tests/ --ignore=tests/e2e \
+	  --cov=src --cov-report=term-missing --cov-report=html:htmlcov
+	@echo "→ open api/htmlcov/index.html"

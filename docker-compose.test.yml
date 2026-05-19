@@ -1,0 +1,69 @@
+services:
+
+  db-test:
+    image: timescale/timescaledb:2.26.4-pg16@sha256:15e00162766bd6f0019afaad4e57b850dcf882de5909bd7633899eebd4c03d57
+    container_name: garmin-db-test
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: garmin_test
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d garmin_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  flyway-test:
+    image: flyway/flyway:latest@sha256:20aa05a629aa11d4b1211c6622baca9e0b90d603f64a6dc15e8da6547f3754fb
+    container_name: garmin-flyway-test
+    command: migrate
+    volumes:
+      - ./db/migrations:/flyway/sql
+    environment:
+      - FLYWAY_URL=jdbc:postgresql://db-test:5432/garmin_test
+      - FLYWAY_USER=${DB_USER}
+      - FLYWAY_PASSWORD=${DB_PASSWORD}
+      - FLYWAY_CONNECT_RETRIES=10
+      - FLYWAY_MIXED=true
+      - FLYWAY_PLACEHOLDERS_DB_APP_USER=${DB_APP_USER}
+      - FLYWAY_PLACEHOLDERS_DB_APP_PASSWORD=${DB_APP_PASSWORD}
+    depends_on:
+      db-test:
+        condition: service_healthy
+    networks:
+      - test-internal
+
+  api-test:
+    build: ./api
+    container_name: garmin-api-test
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      DB_HOST: db-test
+      DB_PORT: 5432
+      DB_NAME: garmin_test
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      HTTPS_ONLY: "false"
+    depends_on:
+      flyway-test:
+        condition: service_completed_successfully
+    networks:
+      - test-internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  test-internal:
+    driver: bridge

@@ -110,6 +110,7 @@ jobs:
 
   test:
     name: Tests
+    needs: typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -118,7 +119,7 @@ jobs:
           python-version: "3.12"
       - name: pytest api
         working-directory: api
-        run: pip install -e ".[dev]" && pytest -v
+        run: pip install -e ".[dev]" && pytest -v --ignore=tests/e2e
       - name: pytest sync-service
         working-directory: sync-service
         run: pip install -e ".[dev]" && pytest -v
