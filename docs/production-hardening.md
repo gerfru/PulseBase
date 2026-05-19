@@ -344,6 +344,30 @@ Renovate (nach Einrichten von `renovate.json`, s. Fix 4) verwaltet alles:
 
 Strategie: devDeps Patch → Automerge. Major → manueller Review. Docker → Digest-Update = Automerge, Tag-Update = manuell.
 
+**⚠️ Sonderfall TimescaleDB-Upgrades:**
+Ein reines Image-Tag-Update reicht nicht — PostgreSQL lädt die `.so`-Library der alten
+Version aus den Datenbankdateien und startet nicht, wenn die neue Image-Version nicht passt.
+
+Ablauf für ein TimescaleDB-Minor-Upgrade (z.B. 2.26.4 → 2.27.x):
+```bash
+# 1. Backup machen (Pflicht!)
+make backup   # oder manuell: docker exec garmin-db pg_dump -U garmin garmin | gzip > backup.sql.gz
+
+# 2. Image in docker-compose.yml auf neue Version + Digest updaten
+
+# 3. DB-Container neu starten
+docker compose up -d db
+
+# 4. Extension updaten
+make db SQL="ALTER EXTENSION timescaledb UPDATE;"
+
+# 5. Verify
+make db SQL="SELECT extversion FROM pg_extension WHERE extname = 'timescaledb';"
+```
+
+Für **Major-Upgrades** (z.B. pg16 → pg17) ist ein `pg_upgrade` oder Dump+Restore nötig —
+nie nur das Image tauschen.
+
 ### 5.4 Incident Response (Minimalplan)
 
 | Schritt | Aktion |
