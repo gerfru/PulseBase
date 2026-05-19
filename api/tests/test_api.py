@@ -29,12 +29,43 @@ async def test_register_page(client):
 @pytest.mark.parametrize(
     "path",
     [
+        # HTML pages
+        "/",
         "/dashboard",
+        "/settings",
+        "/garmin/link",
+        "/libre/link",
+        "/metrics/steps",
+        "/metrics/body-battery",
+        "/activity/1",
+        "/epilepsy",
+        # Core JSON API
         "/api/activities",
-        "/api/readiness",
-        "/api/ml-insights",
+        "/api/activities/1",
+        "/api/daily",
         "/api/sleep",
         "/api/hrv",
+        "/api/hrv/trend",
+        "/api/training-status",
+        "/api/weekly",
+        "/api/readiness",
+        "/api/energy",
+        "/api/training-load",
+        # ML endpoints
+        "/ml/anomaly",
+        "/ml/readiness",
+        "/ml/correlations",
+        "/ml/battery",
+        "/api/ml-insights",
+        "/api/ml-history",
+        # Sync + status
+        "/api/sync-status",
+        "/api/ml-status",
+        # Epilepsy / glucose
+        "/api/seizures",
+        "/api/seizures/risk",
+        "/api/glucose",
+        "/api/glucose/stats",
     ],
 )
 async def test_unauthenticated_redirects_to_login(client, path):
