@@ -1,0 +1,86 @@
+from .pool import Settings, get_pool
+from .users import (
+    create_user,
+    get_user_by_email,
+    get_user_by_id,
+    get_user_sex,
+    get_ml_status,
+    get_sync_status,
+    request_sync,
+    set_garmin_linked,
+    set_garmin_unlinked,
+    set_libre_linked,
+    set_libre_unlinked,
+    update_epilepsy_mode,
+    update_spo2_enabled,
+    update_user_profile,
+)
+from .activities import (
+    get_activity_detail,
+    get_activity_hrmax,
+    get_recent_activities,
+    get_training_load_inputs,
+    set_activity_rpe,
+)
+from .health import (
+    get_daily_summaries,
+    get_energy_metrics,
+    get_hrv_trend,
+    get_latest_hrv,
+    get_latest_training_status,
+    get_readiness,
+    get_sleep_sessions,
+    get_weekly_stats,
+)
+from .ml import (
+    get_ml_history,
+    get_ml_insights,
+)
+from .glucose import (
+    get_glucose_recent,
+    get_glucose_stats,
+)
+from .seizures import (
+    get_seizure_risk,
+    get_seizures,
+    save_seizure,
+)
+
+__all__ = [
+    "Settings",
+    "get_pool",
+    "create_user",
+    "get_user_by_email",
+    "get_user_by_id",
+    "get_user_sex",
+    "get_ml_status",
+    "get_sync_status",
+    "request_sync",
+    "set_garmin_linked",
+    "set_garmin_unlinked",
+    "set_libre_linked",
+    "set_libre_unlinked",
+    "update_epilepsy_mode",
+    "update_spo2_enabled",
+    "update_user_profile",
+    "get_activity_detail",
+    "get_activity_hrmax",
+    "get_recent_activities",
+    "get_training_load_inputs",
+    "set_activity_rpe",
+    "get_daily_summaries",
+    "get_energy_metrics",
+    "get_hrv_trend",
+    "get_latest_hrv",
+    "get_latest_training_status",
+    "get_readiness",
+    "get_sleep_sessions",
+    "get_weekly_stats",
+    "get_ml_history",
+    "get_ml_insights",
+    "get_glucose_recent",
+    "get_glucose_stats",
+    "get_seizure_risk",
+    "get_seizures",
+    "save_seizure",
+]

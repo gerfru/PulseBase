@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import date, timedelta
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -57,119 +58,102 @@ from models.sleep_score import compute_custom_sleep_score
 from models.spo2_metrics import compute_spo2_trend
 from models.stress_metrics import compute_stress_score
 from models.training_effect import compute_banister_trimp, compute_training_effect_today
-from models.training_load import compute_training_monotony
+from models.training_load import compute_acwr, compute_training_monotony
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 
-async def run_inference(user_id: int, settings: Settings) -> None:
-    """Run all inference models in order: anomaly → correlations (3×) → readiness RF →
-    battery pattern → energy metrics (physical/autonomic/cognitive).
+def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -> float:
+    """TRIMP for a given date using HRF² formula; returns 0 when data is missing."""
+    rows = [r for r in act_rows if r.get("activity_date") == target]
+    if not rows or not rows[0].get("avg_hr") or not rows[0].get("duration_seconds"):
+        return 0.0
+    row = rows[0]
+    rhr = row.get("resting_hr") or 60.0
+    denom = hrmax - rhr
+    if denom <= 0:
+        return 0.0
+    hfr = max(0.0, (row["avg_hr"] - rhr) / denom)
+    return (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
 
-    RF readiness falls back silently when no trained model exists yet (< 30 training rows).
-    Battery pattern is skipped when today has < 6 body battery readings.
-    All results are written to ml_predictions; existing rows for today are overwritten.
-    """
-    # Anomaly detection
+
+async def _run_anomaly(user_id: int, today: date) -> None:
     history = await get_resting_hr_history(user_id)
     today_hr = await get_today_resting_hr(user_id)
     anomaly = detect_resting_hr_anomaly(history, today_hr)
-    await save_prediction(
-        user_id, date.today(), "anomaly_hr", anomaly.get("z_score"), anomaly
-    )
+    await save_prediction(user_id, today, "anomaly_hr", anomaly.get("z_score"), anomaly)
     logger.info(
         f"user={user_id} anomaly z={anomaly.get('z_score')} is_anomaly={anomaly.get('is_anomaly')}"
     )
 
-    # Sleep → HRV correlation
-    pairs = await get_sleep_hrv_pairs(user_id)
-    if pairs:
-        sleep_scores, hrv_vals = zip(*pairs)
-        corr = compute_sleep_hrv_correlation(list(sleep_scores), list(hrv_vals))
-        await save_prediction(
-            user_id, date.today(), "correlation_sleep_hrv", corr.get("r"), corr
-        )
-        logger.info(
-            f"user={user_id} correlation_sleep_hrv r={corr.get('r')} n={corr.get('n')}"
-        )
 
-    # Sleep → Resting HR correlation
-    pairs_srhr = await get_sleep_resting_hr_pairs(user_id)
-    if pairs_srhr:
-        xs, ys = zip(*pairs_srhr)
+async def _run_correlations(user_id: int, today: date) -> None:
+    correlation_tasks = [
+        (get_sleep_hrv_pairs(user_id), "correlation_sleep_hrv"),
+        (get_sleep_resting_hr_pairs(user_id), "correlation_sleep_rhr"),
+        (get_bb_resting_hr_pairs(user_id), "correlation_bb_rhr"),
+    ]
+    for coro, model_key in correlation_tasks:
+        pairs = await coro
+        if not pairs:
+            continue
+        xs, ys = zip(*pairs)
         corr = compute_sleep_hrv_correlation(list(xs), list(ys))
-        await save_prediction(
-            user_id, date.today(), "correlation_sleep_rhr", corr.get("r"), corr
-        )
-        logger.info(
-            f"user={user_id} correlation_sleep_rhr r={corr.get('r')} n={corr.get('n')}"
-        )
+        await save_prediction(user_id, today, model_key, corr.get("r"), corr)
+        logger.info(f"user={user_id} {model_key} r={corr.get('r')} n={corr.get('n')}")
 
-    # Body Battery → Resting HR correlation
-    pairs_bbrhr = await get_bb_resting_hr_pairs(user_id)
-    if pairs_bbrhr:
-        xs, ys = zip(*pairs_bbrhr)
-        corr = compute_sleep_hrv_correlation(list(xs), list(ys))
-        await save_prediction(
-            user_id, date.today(), "correlation_bb_rhr", corr.get("r"), corr
-        )
-        logger.info(
-            f"user={user_id} correlation_bb_rhr r={corr.get('r')} n={corr.get('n')}"
-        )
 
-    # Readiness prediction (uses pre-trained model if available)
+async def _run_readiness(user_id: int, today: date, settings: Settings) -> None:
     model_path = settings.model_dir / f"readiness_rf_{user_id}.joblib"
     features = await get_latest_features(user_id)
     predicted = predict_tomorrow(features, model_path)
-    if predicted is not None:
-        pred_meta = {
-            "confidence_low": predicted["confidence_low"],
-            "confidence_high": predicted["confidence_high"],
-        }
-        # Save for today (ensures dashboard always shows fresh value after every run)
-        await save_prediction(
-            user_id, date.today(), "readiness_rf", predicted["score"], pred_meta
-        )
-        # Save for tomorrow (forward-looking: how will I feel tomorrow?)
-        await save_prediction(
-            user_id,
-            date.today() + timedelta(days=1),
-            "readiness_rf",
-            predicted["score"],
-            pred_meta,
-        )
-        logger.info(
-            f"user={user_id} predicted tomorrow readiness={predicted['score']} "
-            f"CI=[{predicted['confidence_low']}, {predicted['confidence_high']}]"
-        )
+    if predicted is None:
+        return
+    pred_meta = {
+        "confidence_low": predicted["confidence_low"],
+        "confidence_high": predicted["confidence_high"],
+    }
+    await save_prediction(user_id, today, "readiness_rf", predicted["score"], pred_meta)
+    await save_prediction(
+        user_id,
+        today + timedelta(days=1),
+        "readiness_rf",
+        predicted["score"],
+        pred_meta,
+    )
+    logger.info(
+        f"user={user_id} predicted tomorrow readiness={predicted['score']} "
+        f"CI=[{predicted['confidence_low']}, {predicted['confidence_high']}]"
+    )
 
-    # Body battery pattern classification
+
+async def _run_battery_pattern(user_id: int, today: date, settings: Settings) -> None:
     today_bb = await get_body_battery_today(user_id)
     bp = battery_predict_today(today_bb, str(settings.model_dir), user_id)
-    if bp is not None:
-        await save_prediction(
-            user_id, date.today(), "battery_pattern", float(bp["cluster"]), bp
-        )
-        logger.info(
-            f"user={user_id} battery_pattern={bp['pattern']} cluster={bp['cluster']}"
-        )
+    if bp is None:
+        return
+    await save_prediction(user_id, today, "battery_pattern", float(bp["cluster"]), bp)
+    logger.info(
+        f"user={user_id} battery_pattern={bp['pattern']} cluster={bp['cluster']}"
+    )
 
-    # ── Energy Metrics ──────────────────────────────────────────────────────
-    today = date.today()
 
-    act_rows = await get_activity_trimp_inputs(user_id)
-    hrmax = await get_hrmax(user_id)
+async def _run_energy_metrics(
+    user_id: int,
+    today: date,
+    act_rows: list[dict[str, Any]],
+    hrmax: float,
+    hrv_hist: list,
+    sleep_h: list,
+) -> None:
     phys = compute_physical_energy(act_rows, hrmax, today)
     await save_prediction(user_id, today, "energy_physical", phys.get("score"), phys)
     logger.info(
         f"user={user_id} energy_physical score={phys.get('score')} tsb={phys.get('tsb')}"
     )
 
-    # ── ACWR (Injury Prevention) ────────────────────────────────────────────
     if phys.get("atl") is not None and phys.get("ctl") is not None:
-        from models.training_load import compute_acwr
-
         acwr_result = compute_acwr(phys["atl"], phys["ctl"])
         await save_prediction(
             user_id, today, "acwr", acwr_result.get("acwr"), acwr_result
@@ -178,7 +162,6 @@ async def run_inference(user_id: int, settings: Settings) -> None:
             f"user={user_id} acwr={acwr_result.get('acwr')} level={acwr_result.get('level')}"
         )
 
-    # ── Training Monotony ───────────────────────────────────────────────────
     mono_result = compute_training_monotony(act_rows, hrmax, today)
     if mono_result.get("monotony") is not None:
         await save_prediction(
@@ -192,7 +175,43 @@ async def run_inference(user_id: int, settings: Settings) -> None:
             f"user={user_id} training_monotony={mono_result.get('monotony')} strain={mono_result.get('strain')}"
         )
 
-    # ── SpO2 Trend ──────────────────────────────────────────────────────────
+    auton = compute_autonomic_energy(hrv_hist)
+    await save_prediction(user_id, today, "energy_autonomic", auton.get("score"), auton)
+    logger.info(
+        f"user={user_id} energy_autonomic score={auton.get('score')} dev={auton.get('deviation')}"
+    )
+
+    cog = compute_cognitive_energy(sleep_h)
+    await save_prediction(user_id, today, "energy_cognitive", cog.get("score"), cog)
+    logger.info(
+        f"user={user_id} energy_cognitive score={cog.get('score')} debt={cog.get('debt_hours')}"
+    )
+
+
+async def _run_training_effect(
+    user_id: int,
+    today: date,
+    act_rows: list[dict[str, Any]],
+    hrmax: float,
+    resting_hr_today: float | None,
+) -> None:
+    profile = await get_user_profile(user_id)
+    if not profile.get("has_profile"):
+        return
+    btr = compute_banister_trimp(act_rows, profile["sex"], hrmax)
+    rhr_for_vo2 = resting_hr_today or 60.0
+    te = compute_training_effect_today(
+        btr["trimp_today"], btr["ctl"], rhr_for_vo2, hrmax
+    )
+    await save_prediction(
+        user_id, today, "training_effect_custom", te.get("score"), {**btr, **te}
+    )
+    logger.info(
+        f"user={user_id} training_effect_custom effect={te.get('effect')} trimp={btr.get('trimp_today')}"
+    )
+
+
+async def _run_sleep_and_spo2(user_id: int, today: date) -> None:
     spo2_rows = await get_spo2_history(user_id, days=7)
     spo2_result = compute_spo2_trend(spo2_rows)
     if spo2_result.get("mean_spo2") is not None:
@@ -203,7 +222,6 @@ async def run_inference(user_id: int, settings: Settings) -> None:
             f"user={user_id} spo2_trend mean={spo2_result.get('mean_spo2')} trend={spo2_result.get('trend')} apnea={spo2_result.get('apnea_flag')}"
         )
 
-    # ── Sleep Consistency ───────────────────────────────────────────────────
     sess_rows = await get_sleep_sessions_14d(user_id)
     cons_result = compute_sleep_consistency(sess_rows)
     if cons_result.get("score") is not None:
@@ -214,93 +232,22 @@ async def run_inference(user_id: int, settings: Settings) -> None:
             f"user={user_id} sleep_consistency score={cons_result.get('score')} std_wake={cons_result.get('std_wake_h')}"
         )
 
-    hrv_hist = await get_hrv_history_for_energy(user_id)
-    auton = compute_autonomic_energy(hrv_hist)
-    await save_prediction(user_id, today, "energy_autonomic", auton.get("score"), auton)
-    logger.info(
-        f"user={user_id} energy_autonomic score={auton.get('score')} dev={auton.get('deviation')}"
-    )
-
-    sleep_h = await get_sleep_data_7d(user_id)
-    cog = compute_cognitive_energy(sleep_h)
-    await save_prediction(user_id, today, "energy_cognitive", cog.get("score"), cog)
-    logger.info(
-        f"user={user_id} energy_cognitive score={cog.get('score')} debt={cog.get('debt_hours')}"
-    )
-
-    # ── Daily Summary (for Body Battery + Stress) ───────────────────────────
-    daily_today = await get_today_daily_summary(user_id)
-
-    # ── Body Battery Custom ─────────────────────────────────────────────────
-    yesterday_bb = await get_yesterday_prediction(user_id, "body_battery_custom")
-    if yesterday_bb is None and daily_today:
-        yesterday_bb = daily_today.get("body_battery_high")
-    last_night_h = (sleep_h[-1].get("total_h") or 0.0) if sleep_h else 0.0
-    hrv_valid = [v for v in hrv_hist if v is not None]
-    hrv_baseline = (
-        sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0
-    )
-    hrv_last = hrv_valid[-1] if hrv_valid else None
-    today_trimp_rows = [r for r in act_rows if r.get("activity_date") == today]
-    today_trimp = 0.0
-    if (
-        today_trimp_rows
-        and today_trimp_rows[0].get("avg_hr")
-        and today_trimp_rows[0].get("duration_seconds")
-    ):
-        rhr_t = today_trimp_rows[0].get("resting_hr") or 60.0
-        denom_t = hrmax - rhr_t
-        if denom_t > 0:
-            hfr_t = max(0.0, (today_trimp_rows[0]["avg_hr"] - rhr_t) / denom_t)
-            today_trimp = (
-                (today_trimp_rows[0]["duration_seconds"] / 60.0)
-                * hfr_t
-                * (hfr_t * 4 + 1)
-            )
-    bb_result = compute_body_battery(
-        yesterday_bb,
-        last_night_h,
-        hrv_last,
-        hrv_baseline,
-        today_trimp,
-        daily_today.get("avg_stress") if daily_today else None,
-    )
-    if bb_result.get("score") is not None:
-        await save_prediction(
-            user_id, today, "body_battery_custom", bb_result["score"], bb_result
-        )
+    sleep_row = await get_last_sleep_session(user_id)
+    if sleep_row:
+        ss = compute_custom_sleep_score(sleep_row)
+        await save_prediction(user_id, today, "sleep_score_custom", ss.get("score"), ss)
         logger.info(
-            f"user={user_id} body_battery_custom score={bb_result['score']} recovery={bb_result['recovery']}"
+            f"user={user_id} sleep_score_custom score={ss.get('score')} total_h={ss.get('total_h')}"
         )
 
-    # ── Stress Score Custom ──────────────────────────────────────────────────
-    stress_result = compute_stress_score(
-        hrv_hist, daily_today.get("avg_stress") if daily_today else None
-    )
-    if stress_result.get("score") is not None:
-        await save_prediction(
-            user_id,
-            today,
-            "stress_score_custom",
-            stress_result["score"],
-            stress_result,
-        )
-        logger.info(
-            f"user={user_id} stress_score_custom score={stress_result['score']} dev={stress_result.get('hrv_deviation')}"
-        )
 
-    # ── Running Economy ──────────────────────────────────────────────────────
-    run_rows = await get_running_economy_activities(user_id)
-    re_result = compute_running_economy(run_rows)
-    if re_result.get("score") is not None:
-        await save_prediction(
-            user_id, today, "running_economy", re_result["score"], re_result
-        )
-        logger.info(
-            f"user={user_id} running_economy score={re_result['score']} gct={re_result.get('avg_gct_ms')}"
-        )
-
-    # ── HRV Recovery Trajectory ──────────────────────────────────────────────
+async def _run_hrv_and_recovery(
+    user_id: int,
+    today: date,
+    hrv_hist: list,
+    act_rows: list[dict[str, Any]],
+    hrmax: float,
+) -> None:
     hrv_rec_result = compute_hrv_recovery_trajectory(hrv_hist, act_rows, hrmax, today)
     if hrv_rec_result.get("recovery_speed") is not None:
         await save_prediction(
@@ -314,16 +261,6 @@ async def run_inference(user_id: int, settings: Settings) -> None:
             f"user={user_id} hrv_recovery speed={hrv_rec_result['recovery_speed']} n={hrv_rec_result['n_events']}"
         )
 
-    # ── Custom Sleep Score (Item 2) ─────────────────────────────────────────
-    sleep_row = await get_last_sleep_session(user_id)
-    if sleep_row:
-        ss = compute_custom_sleep_score(sleep_row)
-        await save_prediction(user_id, today, "sleep_score_custom", ss.get("score"), ss)
-        logger.info(
-            f"user={user_id} sleep_score_custom score={ss.get('score')} total_h={ss.get('total_h')}"
-        )
-
-    # ── Custom HRV Status (Item 3) ──────────────────────────────────────────
     hrv_status = classify_hrv_status(hrv_hist)
     if hrv_status.get("status") is not None:
         await save_prediction(
@@ -333,8 +270,71 @@ async def run_inference(user_id: int, settings: Settings) -> None:
             f"user={user_id} hrv_status_custom status={hrv_status.get('status')} dev={hrv_status.get('deviation')}"
         )
 
-    # ── Custom Intensity Minutes (Item 1) ───────────────────────────────────
-    hr_records, resting_hr_today = await get_todays_activity_hr_records(user_id)
+
+async def _run_body_battery_and_stress(
+    user_id: int,
+    today: date,
+    act_rows: list[dict[str, Any]],
+    hrmax: float,
+    hrv_hist: list,
+    sleep_h: list,
+    daily_today: dict | None,
+) -> None:
+    yesterday_bb = await get_yesterday_prediction(user_id, "body_battery_custom")
+    if yesterday_bb is None and daily_today:
+        yesterday_bb = daily_today.get("body_battery_high")
+    last_night_h = (sleep_h[-1].get("total_h") or 0.0) if sleep_h else 0.0
+    hrv_valid = [v for v in hrv_hist if v is not None]
+    hrv_baseline = (
+        sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0
+    )
+    hrv_last = hrv_valid[-1] if hrv_valid else None
+
+    bb_result = compute_body_battery(
+        yesterday_bb,
+        last_night_h,
+        hrv_last,
+        hrv_baseline,
+        _compute_trimp(act_rows, hrmax, today),
+        daily_today.get("avg_stress") if daily_today else None,
+    )
+    if bb_result.get("score") is not None:
+        await save_prediction(
+            user_id, today, "body_battery_custom", bb_result["score"], bb_result
+        )
+        logger.info(
+            f"user={user_id} body_battery_custom score={bb_result['score']} recovery={bb_result['recovery']}"
+        )
+
+    stress_result = compute_stress_score(
+        hrv_hist, daily_today.get("avg_stress") if daily_today else None
+    )
+    if stress_result.get("score") is not None:
+        await save_prediction(
+            user_id, today, "stress_score_custom", stress_result["score"], stress_result
+        )
+        logger.info(
+            f"user={user_id} stress_score_custom score={stress_result['score']} dev={stress_result.get('hrv_deviation')}"
+        )
+
+
+async def _run_running_and_intensity(
+    user_id: int,
+    today: date,
+    hrmax: float,
+    hr_records: list,
+    resting_hr_today: float | None,
+) -> None:
+    run_rows = await get_running_economy_activities(user_id)
+    re_result = compute_running_economy(run_rows)
+    if re_result.get("score") is not None:
+        await save_prediction(
+            user_id, today, "running_economy", re_result["score"], re_result
+        )
+        logger.info(
+            f"user={user_id} running_economy score={re_result['score']} gct={re_result.get('avg_gct_ms')}"
+        )
+
     if hr_records and resting_hr_today is not None:
         im = compute_intensity_minutes(hr_records, resting_hr_today, hrmax)
         await save_prediction(
@@ -344,20 +344,31 @@ async def run_inference(user_id: int, settings: Settings) -> None:
             f"user={user_id} intensity_minutes_custom mod={im.get('moderate_minutes')} vig={im.get('vigorous_minutes')}"
         )
 
-    # ── Banister TRIMP + Training Effect (Item 6) ───────────────────────────
-    profile = await get_user_profile(user_id)
-    if profile.get("has_profile"):
-        btr = compute_banister_trimp(act_rows, profile["sex"], hrmax)
-        rhr_for_vo2 = resting_hr_today or 60.0
-        te = compute_training_effect_today(
-            btr["trimp_today"], btr["ctl"], rhr_for_vo2, hrmax
-        )
-        await save_prediction(
-            user_id, today, "training_effect_custom", te.get("score"), {**btr, **te}
-        )
-        logger.info(
-            f"user={user_id} training_effect_custom effect={te.get('effect')} trimp={btr.get('trimp_today')}"
-        )
+
+async def run_inference(user_id: int, settings: Settings) -> None:
+    """Orchestrate all ML inference models for one user. All results written to ml_predictions."""
+    today = date.today()
+    act_rows = await get_activity_trimp_inputs(user_id)
+    hrmax = await get_hrmax(user_id)
+    hrv_hist = await get_hrv_history_for_energy(user_id)
+    sleep_h = await get_sleep_data_7d(user_id)
+    daily_today = await get_today_daily_summary(user_id)
+    hr_records, resting_hr_today = await get_todays_activity_hr_records(user_id)
+
+    await _run_anomaly(user_id, today)
+    await _run_correlations(user_id, today)
+    await _run_readiness(user_id, today, settings)
+    await _run_battery_pattern(user_id, today, settings)
+    await _run_energy_metrics(user_id, today, act_rows, hrmax, hrv_hist, sleep_h)
+    await _run_training_effect(user_id, today, act_rows, hrmax, resting_hr_today)
+    await _run_sleep_and_spo2(user_id, today)
+    await _run_hrv_and_recovery(user_id, today, hrv_hist, act_rows, hrmax)
+    await _run_body_battery_and_stress(
+        user_id, today, act_rows, hrmax, hrv_hist, sleep_h, daily_today
+    )
+    await _run_running_and_intensity(
+        user_id, today, hrmax, hr_records, resting_hr_today
+    )
 
 
 async def run_training(user_id: int, settings: Settings) -> None:
@@ -383,7 +394,6 @@ async def run_training(user_id: int, settings: Settings) -> None:
             f"user={user_id} insufficient data for RF training ({len(rows)} rows)"
         )
 
-    # Battery pattern k-means training
     history = await get_body_battery_history(user_id)
     bp_trained = battery_fit_and_save(history, str(settings.model_dir), user_id)
     if bp_trained:

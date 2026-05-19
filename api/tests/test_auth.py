@@ -1,3 +1,4 @@
+import asyncpg
 import bcrypt
 from unittest.mock import AsyncMock, patch
 
@@ -13,7 +14,9 @@ _USER_WITH_HASH = {**TEST_USER, "password_hash": _TEST_HASH}
 
 
 async def test_login_success_redirects(client):
-    with patch("src.main.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)):
+    with patch(
+        "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
+    ):
         r = await client.post(
             "/login",
             data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
@@ -23,7 +26,9 @@ async def test_login_success_redirects(client):
 
 
 async def test_login_success_sets_session(client):
-    with patch("src.main.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)):
+    with patch(
+        "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
+    ):
         r = await client.post(
             "/login",
             data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
@@ -36,7 +41,7 @@ async def test_login_success_sets_session(client):
 
 
 async def test_register_success_redirects(client):
-    with patch("src.main.create_user", AsyncMock(return_value={"id": 42})):
+    with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
         r = await client.post(
             "/register",
             data={
@@ -51,7 +56,10 @@ async def test_register_success_redirects(client):
 
 
 async def test_register_duplicate_email_returns_400(client):
-    with patch("src.main.create_user", AsyncMock(side_effect=Exception("duplicate"))):
+    with patch(
+        "src.routes.auth.create_user",
+        AsyncMock(side_effect=asyncpg.UniqueViolationError()),
+    ):
         r = await client.post(
             "/register",
             data={
