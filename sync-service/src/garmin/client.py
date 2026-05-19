@@ -23,7 +23,10 @@ class GarminClient:
             try:
                 self._client.login(self.token_dir)
                 logger.info(f"Login via Token: {self.email}")
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "Token-Login fehlgeschlagen (%s), versuche frischen Login", exc
+                )
                 self._client.login()
                 self._client.garth.dump(self.token_dir)
                 logger.info(f"Frischer Login: {self.email}")

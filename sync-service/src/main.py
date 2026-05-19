@@ -27,6 +27,81 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
+async def _sync_activities(
+    client: GarminClient,
+    repo: TimescaleRepository,
+    user_id: int,
+    start: date,
+    end: date,
+) -> None:
+    for raw in client.get_activities(start, end):
+        garmin_id = raw.get("activityId")
+        if not garmin_id:
+            continue
+        activity = map_activity(raw, user_id)
+        activity_db_id = await repo.save_activity(activity)
+        if activity_db_id and not await repo.records_exist(activity_db_id):
+            details = client.get_activity_details(garmin_id)
+            activity.records = map_records(details)
+            if activity.records:
+                await repo.bulk_insert_records(activity_db_id, activity.records)
+
+
+async def _sync_day(
+    client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
+) -> None:
+    """Sync all daily metrics for one date; each failure is logged but doesn't stop others."""
+    try:
+        summary_raw = client.get_daily_summary(current)
+        await repo.upsert_daily(map_summary(summary_raw, user_id, current))
+    except Exception as e:
+        logger.warning(f"Daily summary {current} fehlgeschlagen: {e}")
+
+    try:
+        sleep_raw = client.get_sleep(current)
+        session = map_sleep(sleep_raw, user_id)
+        if (
+            session
+            and session.garmin_sleep_id
+            and not await repo.sleep_exists(session.garmin_sleep_id)
+        ):
+            await repo.save_sleep(session)
+    except Exception as e:
+        logger.warning(f"Sleep {current} fehlgeschlagen: {e}")
+
+    try:
+        hrv_raw = client.get_hrv(current)
+        hrv = map_hrv(hrv_raw, user_id, current)
+        if hrv:
+            await repo.upsert_hrv(hrv)
+    except Exception as e:
+        logger.warning(f"HRV {current} fehlgeschlagen: {e}")
+
+    try:
+        bb_raw = client.get_body_battery(current)
+        await repo.bulk_insert(
+            "body_battery_intraday", user_id, map_body_battery(bb_raw, user_id)
+        )
+    except Exception as e:
+        logger.warning(f"Body Battery {current} fehlgeschlagen: {e}")
+
+    try:
+        stress_raw = client.get_stress(current)
+        await repo.bulk_insert(
+            "stress_intraday", user_id, map_stress(stress_raw, user_id)
+        )
+    except Exception as e:
+        logger.warning(f"Stress {current} fehlgeschlagen: {e}")
+
+    try:
+        ts_raw = client.get_training_status(current)
+        status = map_training_status(ts_raw)
+        if status:
+            await repo.upsert_training_status(user_id, current, status)
+    except Exception as e:
+        logger.warning(f"Training status {current} fehlgeschlagen: {e}")
+
+
 async def sync_user(user: dict, repo: TimescaleRepository, days: int = 1) -> None:
     logger.info(f"Sync gestartet: {user['name']} ({days} Tage)")
     client = GarminClient(
@@ -39,69 +114,11 @@ async def sync_user(user: dict, repo: TimescaleRepository, days: int = 1) -> Non
     end = date.today()
     start = end - timedelta(days=days)
 
-    raw_activities = client.get_activities(start, end)
-    for raw in raw_activities:
-        garmin_id = raw.get("activityId")
-        if not garmin_id:
-            continue
-        activity = map_activity(raw, user["id"])
-        activity_db_id = await repo.save_activity(activity)
-        if activity_db_id and not await repo.records_exist(activity_db_id):
-            details = client.get_activity_details(garmin_id)
-            activity.records = map_records(details)
-            if activity.records:
-                await repo.bulk_insert_records(activity_db_id, activity.records)
+    await _sync_activities(client, repo, user["id"], start, end)
 
     current = start
     while current <= end:
-        try:
-            summary_raw = client.get_daily_summary(current)
-            await repo.upsert_daily(map_summary(summary_raw, user["id"], current))
-        except Exception as e:
-            logger.warning(f"Daily summary {current} fehlgeschlagen: {e}")
-
-        try:
-            sleep_raw = client.get_sleep(current)
-            session = map_sleep(sleep_raw, user["id"])
-            if (
-                session
-                and session.garmin_sleep_id
-                and not await repo.sleep_exists(session.garmin_sleep_id)
-            ):
-                await repo.save_sleep(session)
-        except Exception as e:
-            logger.warning(f"Sleep {current} fehlgeschlagen: {e}")
-
-        try:
-            hrv_raw = client.get_hrv(current)
-            hrv = map_hrv(hrv_raw, user["id"], current)
-            if hrv:
-                await repo.upsert_hrv(hrv)
-        except Exception as e:
-            logger.warning(f"HRV {current} fehlgeschlagen: {e}")
-
-        try:
-            bb_raw = client.get_body_battery(current)
-            readings = map_body_battery(bb_raw, user["id"])
-            await repo.bulk_insert("body_battery_intraday", user["id"], readings)
-        except Exception as e:
-            logger.warning(f"Body Battery {current} fehlgeschlagen: {e}")
-
-        try:
-            stress_raw = client.get_stress(current)
-            readings = map_stress(stress_raw, user["id"])
-            await repo.bulk_insert("stress_intraday", user["id"], readings)
-        except Exception as e:
-            logger.warning(f"Stress {current} fehlgeschlagen: {e}")
-
-        try:
-            ts_raw = client.get_training_status(current)
-            status = map_training_status(ts_raw)
-            if status:
-                await repo.upsert_training_status(user["id"], current, status)
-        except Exception as e:
-            logger.warning(f"Training status {current} fehlgeschlagen: {e}")
-
+        await _sync_day(client, repo, user["id"], current)
         current += timedelta(days=1)
 
     client.save_token()

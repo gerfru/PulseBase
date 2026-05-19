@@ -25,6 +25,15 @@ class TimescaleRepository(
     HRVRepository,
     IntradayRepository,
 ):
+    """asyncpg-backed implementation of all sync repositories against TimescaleDB.
+
+    Each method acquires a connection from the pool independently — there is no
+    cross-method transaction. Callers that need atomicity must manage their own
+    connection/transaction outside this class.
+    `bulk_insert` validates the table name against an allowlist before interpolating
+    it into SQL (the only dynamic SQL in this class).
+    """
+
     def __init__(self, db_url: str) -> None:
         self._db_url = db_url
         self._pool: asyncpg.Pool | None = None

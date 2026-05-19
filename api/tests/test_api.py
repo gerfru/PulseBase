@@ -78,7 +78,7 @@ async def test_unauthenticated_redirects_to_login(client, path):
 
 
 async def test_login_wrong_credentials_returns_400(client):
-    with patch("src.main.get_user_by_email", AsyncMock(return_value=None)):
+    with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=None)):
         r = await client.post(
             "/login",
             data={
@@ -120,8 +120,8 @@ async def test_register_short_password_returns_400(client):
 
 async def test_readiness_authenticated(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.get_readiness", AsyncMock(return_value={"score": 75})),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_readiness", AsyncMock(return_value={"score": 75})),
     ):
         r = await client.get("/api/readiness")
     assert r.status_code == 200
@@ -129,8 +129,8 @@ async def test_readiness_authenticated(client):
 
 async def test_activities_authenticated(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.get_recent_activities", AsyncMock(return_value=[])),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_recent_activities", AsyncMock(return_value=[])),
     ):
         r = await client.get("/api/activities")
     assert r.status_code == 200
@@ -138,8 +138,8 @@ async def test_activities_authenticated(client):
 
 async def test_activity_detail_not_found(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.get_activity_detail", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_activity_detail", AsyncMock(return_value=None)),
     ):
         r = await client.get("/api/activities/999")
     assert r.status_code == 404
@@ -148,8 +148,8 @@ async def test_activity_detail_not_found(client):
 
 async def test_ml_insights_authenticated(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.get_ml_insights", AsyncMock(return_value={})),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_ml_insights", AsyncMock(return_value={})),
     ):
         r = await client.get("/api/ml-insights")
     assert r.status_code == 200
@@ -162,9 +162,9 @@ async def test_ml_status_unauthenticated(client):
 
 async def test_ml_status_authenticated(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch(
-            "src.main.get_ml_status",
+            "src.routes.api.get_ml_status",
             AsyncMock(return_value={"pending": False, "last_ml_at": None}),
         ),
     ):

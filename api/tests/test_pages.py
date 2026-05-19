@@ -8,7 +8,7 @@ from tests.conftest import TEST_USER, TEST_USER_EPILEPSY
 
 
 async def test_root_redirects_to_dashboard(client):
-    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get("/")
     assert r.status_code == 303
     assert r.headers["location"] == "/dashboard"
@@ -27,7 +27,7 @@ async def test_root_redirects_to_dashboard(client):
     ],
 )
 async def test_authenticated_page_returns_200(client, path):
-    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get(path)
     assert r.status_code == 200
 
@@ -45,7 +45,7 @@ async def test_authenticated_page_returns_200(client, path):
     ],
 )
 async def test_ml_pages_return_200(client, path):
-    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get(path)
     assert r.status_code == 200
 
@@ -68,13 +68,13 @@ async def test_ml_pages_return_200(client, path):
     ],
 )
 async def test_metrics_valid_name_returns_200(client, name):
-    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get(f"/metrics/{name}")
     assert r.status_code == 200
 
 
 async def test_metrics_invalid_name_redirects_to_dashboard(client):
-    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get("/metrics/not-a-real-metric")
     assert r.status_code == 303
     assert r.headers["location"] == "/dashboard"
@@ -85,8 +85,8 @@ async def test_metrics_invalid_name_redirects_to_dashboard(client):
 
 async def test_activity_page_not_found_redirects_to_dashboard(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.get_activity_detail", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.pages.get_activity_detail", AsyncMock(return_value=None)),
     ):
         r = await client.get("/activity/999")
     assert r.status_code == 303
@@ -105,8 +105,11 @@ async def test_activity_page_renders_when_found(client):
         "records": [],
     }
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.get_activity_detail", AsyncMock(return_value=mock_activity)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.pages.get_activity_detail",
+            AsyncMock(return_value=mock_activity),
+        ),
     ):
         r = await client.get("/activity/1")
     assert r.status_code == 200
@@ -116,13 +119,13 @@ async def test_activity_page_renders_when_found(client):
 
 
 async def test_epilepsy_page_without_mode_redirects_to_settings(client):
-    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get("/epilepsy")
     assert r.status_code == 303
     assert r.headers["location"] == "/settings"
 
 
 async def test_epilepsy_page_with_mode_returns_200(client):
-    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.get("/epilepsy")
     assert r.status_code == 200
