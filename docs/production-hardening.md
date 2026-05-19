@@ -383,10 +383,10 @@ nie nur das Image tauschen.
 ## 6. Release-Checkliste
 
 ### Pre-Release: Code
-- [ ] Session-Fixation-Fix (`request.session.clear()` vor Login)
-- [ ] Account-Enumeration-Schutz (Dummy-bcrypt)
-- [ ] CDN-URLs entfernt, alle Assets unter `/static/vendor/`
-- [ ] Docker Images auf Semver+Digest gepinnt
+- [x] Session-Fixation-Fix (`request.session.clear()` vor Login)
+- [x] Account-Enumeration-Schutz (Dummy-bcrypt)
+- [x] CDN-URLs entfernt, alle Assets unter `/static/vendor/`
+- [x] Docker Images auf Semver+Digest gepinnt
 - [ ] `renovate.json` erstellt, GitHub App aktiviert
 
 ### Pre-Release: Legal
