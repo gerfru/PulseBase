@@ -46,7 +46,17 @@ def extract_features(records: list[dict[str, Any]]) -> dict[str, float] | None:
 
 
 def _assign_pattern_labels(kmeans: KMeans) -> dict[int, str]:
-    """Map cluster IDs to semantic labels based on cluster centers."""
+    """Map cluster IDs to semantic labels based on cluster centers.
+
+    Labels are German because they are stored in ml_predictions.meta and surfaced
+    directly in the dashboard UI — renaming requires a DB migration.
+      stabil_hoch  — high, stable energy throughout the day
+      erholung     — low start, rising curve (recovery day)
+      erschoepft   — overall low or rapidly draining battery (overreached/fatigued)
+
+    Assignment heuristic: highest AUC + below-median daily_range → stabil_hoch;
+    highest evening-minus-morning delta → erholung; remainder → erschoepft.
+    """
     centers = kmeans.cluster_centers_
     # Features order: morning_avg, evening_avg, daily_range, auc, n_dips
     aucs = centers[:, 3]

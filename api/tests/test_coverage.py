@@ -15,7 +15,7 @@ from tests.conftest import TEST_USER
 
 
 def test_get_real_ip_uses_x_forwarded_for():
-    from src.main import _get_real_ip
+    from src.deps import _get_real_ip
 
     class FakeRequest:
         headers = {"X-Forwarded-For": "1.2.3.4, 5.6.7.8"}
@@ -28,7 +28,7 @@ def test_get_real_ip_uses_x_forwarded_for():
 
 
 async def test_rate_limit_exceeded_handler_returns_429():
-    from src.main import _rate_limit_exceeded_handler
+    from src.deps import _rate_limit_exceeded_handler
 
     r = await _rate_limit_exceeded_handler(MagicMock(), MagicMock())
     assert r.status_code == 429
@@ -39,23 +39,23 @@ async def test_rate_limit_exceeded_handler_returns_429():
 
 
 async def test_require_user_user_not_found_raises_needs_login():
-    from src.main import require_user, NeedsLogin
+    from src.deps import require_user, NeedsLogin
 
     class FakeRequest:
         session = {"user_id": 99}
 
-    with patch("src.main.get_user_by_id", AsyncMock(return_value=None)):
+    with patch("src.deps.get_user_by_id", AsyncMock(return_value=None)):
         with pytest.raises(NeedsLogin):
             await require_user(FakeRequest())
 
 
 async def test_require_user_returns_user_when_found():
-    from src.main import require_user
+    from src.deps import require_user
 
     class FakeRequest:
         session = {"user_id": 1}
 
-    with patch("src.main.get_user_by_id", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.get_user_by_id", AsyncMock(return_value=TEST_USER)):
         result = await require_user(FakeRequest())
     assert result == TEST_USER
 
@@ -68,9 +68,9 @@ async def test_garmin_link_success_redirects(client):
     mock_gc.connect = MagicMock()
 
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.GarminClient", return_value=mock_gc),
-        patch("src.main.set_garmin_linked", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.garmin.GarminClient", return_value=mock_gc),
+        patch("src.routes.garmin.set_garmin_linked", AsyncMock(return_value=None)),
     ):
         r = await client.post(
             "/garmin/link",
@@ -102,8 +102,8 @@ async def test_libre_link_success_redirects(client):
     fake = _make_fake_libre()
     with (
         patch.dict(sys.modules, {"libre.client": fake}),
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.set_libre_linked", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.libre.set_libre_linked", AsyncMock(return_value=None)),
     ):
         r = await client.post(
             "/libre/link",
@@ -123,7 +123,7 @@ async def test_libre_link_auth_error_returns_400(client):
     )
     with (
         patch.dict(sys.modules, {"libre.client": fake}),
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
     ):
         r = await client.post(
             "/libre/link",
@@ -139,7 +139,7 @@ async def test_libre_link_generic_error_returns_400(client):
     fake = _make_fake_libre(authenticate_side_effect=Exception("network error"))
     with (
         patch.dict(sys.modules, {"libre.client": fake}),
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
     ):
         r = await client.post(
             "/libre/link",
@@ -156,8 +156,8 @@ async def test_libre_link_generic_error_returns_400(client):
 
 async def test_libre_unlink_removes_existing_token_dir(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.set_libre_unlinked", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.libre.set_libre_unlinked", AsyncMock(return_value=None)),
         patch("pathlib.Path.exists", return_value=True),
         patch("shutil.rmtree"),
     ):
@@ -170,8 +170,8 @@ async def test_libre_unlink_removes_existing_token_dir(client):
 
 async def test_profile_update_valid_sex(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.update_user_profile", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.update_user_profile", AsyncMock(return_value=None)),
     ):
         r = await client.patch("/api/profile", json={"sex": "m"})
     assert r.status_code == 200
@@ -180,8 +180,8 @@ async def test_profile_update_valid_sex(client):
 
 async def test_profile_update_valid_dob(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.update_user_profile", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.update_user_profile", AsyncMock(return_value=None)),
     ):
         r = await client.patch("/api/profile", json={"date_of_birth": "1990-06-15"})
     assert r.status_code == 200
@@ -189,8 +189,8 @@ async def test_profile_update_valid_dob(client):
 
 async def test_profile_update_spo2_enabled(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.update_spo2_enabled", AsyncMock(return_value=None)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.update_spo2_enabled", AsyncMock(return_value=None)),
     ):
         r = await client.patch("/api/profile", json={"spo2_enabled": True})
     assert r.status_code == 200
@@ -201,8 +201,8 @@ async def test_profile_update_spo2_enabled(client):
 
 async def test_seizure_valid_severity(client):
     with (
-        patch("src.main.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.main.save_seizure", AsyncMock(return_value=1)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.save_seizure", AsyncMock(return_value=1)),
     ):
         r = await client.post(
             "/api/seizures",
