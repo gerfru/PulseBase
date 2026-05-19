@@ -22,6 +22,10 @@ def compute_physical_energy(
     today: date,
     window_days: int = 50,
 ) -> dict[str, Any]:
+    """TSB-based readiness score (0–100) from ATL/CTL EWM over `window_days`.
+
+    Returns: score, atl, ctl, tsb, hrmax — or {score: None, reason} when no data.
+    """
     # Algorithmus: Edwards TRIMP (Sally Edwards, 1993) + Banister Fitness-Fatigue-Modell (1991)
     # Quelle: https://www.trainingimpulse.com/edwards-trimp
     # HRr (Heart Rate Reserve Fraction) statt absoluter HR-Zonen — physiologisch präziser
@@ -59,6 +63,10 @@ def compute_physical_energy(
 def compute_autonomic_energy(
     hrv_history: list[float | None],
 ) -> dict[str, Any]:
+    """Z-score of current 7-day HRV mean against personal baseline, scaled to 0–100.
+
+    Returns: score, deviation (σ units), baseline_mean/std, hrv_7d_mean — or {score: None, reason}.
+    """
     # Algorithmus: Ithlete / Elite HRV Score — ln(RMSSD) × 20 Normierung
     # Quelle: https://help.elitehrv.com/article/57-the-1-10-relative-balance-score
     # Begründung log: RMSSD ist rechtsschief verteilt → log-Transformation normalisiert
@@ -97,6 +105,10 @@ def compute_autonomic_energy(
 def compute_cognitive_energy(
     sleep_data_7d: list[dict[str, float | None]],
 ) -> dict[str, Any]:
+    """Cumulative sleep debt score over 7 nights, scaled to 0–100 (100 = no debt).
+
+    Returns: score, debt_hours (sum of nightly shortfalls vs 7h), days_used — or {score: None, reason}.
+    """
     # Algorithmus: Borbély Two-Process Model (Process S — homöostatischer Schlafdruck)
     # Quelle: Borbély AA (1982) A two process model of sleep regulation. Hum Neurobiol 1(3):195-204
     # Qualitätsfaktor entfernt: Garmins Tiefschlaf-Messung (Akzelerometer+HRV) zu unzuverlässig
