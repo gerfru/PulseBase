@@ -19,7 +19,7 @@ services:
       retries: 5
 
   flyway:
-    image: flyway/flyway:latest@sha256:20aa05a629aa11d4b1211c6622baca9e0b90d603f64a6dc15e8da6547f3754fb
+    image: flyway/flyway:latest@sha256:3a6be8355102c0a45fb1b869615beea8510fd0dc44ffc48d5583808a1b00c19f
     container_name: garmin-flyway
     command: migrate
     volumes:
