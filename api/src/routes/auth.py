@@ -13,6 +13,7 @@ from src.db import (
     increment_failed_login,
     lock_user_until,
     reset_failed_login,
+    set_email_verified,
     update_password,
 )
 from src.deps import (
@@ -29,6 +30,8 @@ router = APIRouter()
 
 _RESET_SALT = "password-reset"
 _RESET_MAX_AGE = 3600
+_VERIFY_SALT = "email-verify"
+_VERIFY_MAX_AGE = 86400  # 24 hours
 _MAX_ATTEMPTS = 5
 _LOCKOUT_MINUTES = 15
 
@@ -49,44 +52,94 @@ def _verify_reset_token(token: str) -> int | None:
         return None
 
 
-async def _send_lockout_email(to_email: str) -> None:
+def _make_verify_token(user_id: int) -> str:
+    return URLSafeTimedSerializer(settings.session_secret).dumps(
+        user_id, salt=_VERIFY_SALT
+    )
+
+
+def _verify_email_token(token: str) -> int | None:
+    try:
+        user_id = URLSafeTimedSerializer(settings.session_secret).loads(
+            token, salt=_VERIFY_SALT, max_age=_VERIFY_MAX_AGE
+        )
+        return int(user_id)
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+async def _send_lockout_email(to_email: str) -> bool:
     if not settings.resend_api_key:
         logger.warning("lockout mail skipped — RESEND_API_KEY not set")
-        return
+        return False
     resend_client.api_key = settings.resend_api_key
-    resend_client.Emails.send(
-        {
-            "from": settings.resend_from_email,
-            "to": to_email,
-            "subject": "PulseBase — Konto vorübergehend gesperrt",
-            "html": (
-                "<p>Dein Konto wurde nach mehreren fehlgeschlagenen Login-Versuchen "
-                f"für {_LOCKOUT_MINUTES} Minuten gesperrt.</p>"
-                "<p>Falls du das nicht warst, ändere bitte dein Passwort über "
-                f"<a href='{settings.app_base_url}/auth/reset-request'>"
-                "Passwort zurücksetzen</a>.</p>"
-            ),
-        }
-    )
+    try:
+        resend_client.Emails.send(
+            {
+                "from": settings.resend_from_email,
+                "to": to_email,
+                "subject": "PulseBase — Konto vorübergehend gesperrt",
+                "html": (
+                    "<p>Dein Konto wurde nach mehreren fehlgeschlagenen Login-Versuchen "
+                    f"für {_LOCKOUT_MINUTES} Minuten gesperrt.</p>"
+                    "<p>Falls du das nicht warst, ändere bitte dein Passwort über "
+                    f"<a href='{settings.app_base_url}/auth/reset-request'>"
+                    "Passwort zurücksetzen</a>.</p>"
+                ),
+            }
+        )
+        return True
+    except Exception:
+        logger.exception("lockout mail failed for %s", to_email)
+        return False
 
 
-async def _send_reset_email(to_email: str, token: str) -> None:
+async def _send_reset_email(to_email: str, token: str) -> bool:
     if not settings.resend_api_key:
         logger.warning("reset mail skipped — RESEND_API_KEY not set, token: %s", token)
-        return
+        return False
     resend_client.api_key = settings.resend_api_key
     url = f"{settings.app_base_url}/auth/reset/{token}"
-    resend_client.Emails.send(
-        {
-            "from": settings.resend_from_email,
-            "to": to_email,
-            "subject": "PulseBase — Passwort zurücksetzen",
-            "html": (
-                f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
-                f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
-            ),
-        }
-    )
+    try:
+        resend_client.Emails.send(
+            {
+                "from": settings.resend_from_email,
+                "to": to_email,
+                "subject": "PulseBase — Passwort zurücksetzen",
+                "html": (
+                    f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
+                    f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
+                ),
+            }
+        )
+        return True
+    except Exception:
+        logger.exception("reset mail failed for %s, token: %s", to_email, token)
+        return False
+
+
+async def _send_verify_email(to_email: str, token: str) -> bool:
+    if not settings.resend_api_key:
+        logger.warning("verify mail skipped — RESEND_API_KEY not set, token: %s", token)
+        return False
+    resend_client.api_key = settings.resend_api_key
+    url = f"{settings.app_base_url}/auth/verify/{token}"
+    try:
+        resend_client.Emails.send(
+            {
+                "from": settings.resend_from_email,
+                "to": to_email,
+                "subject": "PulseBase — E-Mail-Adresse bestätigen",
+                "html": (
+                    "<p>Klicke auf diesen Link um deine E-Mail-Adresse zu bestätigen "
+                    f"(gültig 24 Stunden):</p><p><a href='{url}'>{url}</a></p>"
+                ),
+            }
+        )
+        return True
+    except Exception:
+        logger.exception("verify mail failed for %s, token: %s", to_email, token)
+        return False
 
 
 @router.get("/login")
@@ -140,6 +193,17 @@ async def login(
             status_code=400,
         )
 
+    if not user["email_verified_at"]:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "error": "Bitte bestätige zuerst deine E-Mail-Adresse.",
+                "show_resend": True,
+            },
+            status_code=400,
+        )
+
     await reset_failed_login(user["id"])
     request.session.clear()
     request.session["user_id"] = str(user["id"])
@@ -185,15 +249,55 @@ async def register(
             {"error": "Diese E-Mail ist bereits registriert."},
             status_code=400,
         )
-    request.session.clear()
-    request.session["user_id"] = str(user["id"])
-    return RedirectResponse("/", status_code=303)
+    token = _make_verify_token(user["id"])
+    sent = await _send_verify_email(email, token)
+    return RedirectResponse(
+        "/login?verify=sent" if sent else "/login?verify=failed", status_code=303
+    )
 
 
 @router.post("/logout")
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
+
+
+@router.get("/auth/resend-verify")
+async def resend_verify_form(request: Request):
+    return templates.TemplateResponse(request, "verify_pending.html")
+
+
+@router.post("/auth/resend-verify")
+@limiter.limit("3/hour")
+async def resend_verify(request: Request, email: str = Form()):
+    user = await get_user_by_email(email)
+    sent = False
+    if user and not user["email_verified_at"]:
+        token = _make_verify_token(user["id"])
+        sent = await _send_verify_email(email, token)
+    if user and not user["email_verified_at"] and not sent:
+        ctx = {
+            "warning": "E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen."
+        }
+    else:
+        ctx = {
+            "info": "Falls diese E-Mail registriert und unbestätigt ist, erhältst du in Kürze einen Link."
+        }
+    return templates.TemplateResponse(request, "verify_pending.html", ctx)
+
+
+@router.get("/auth/verify/{token}")
+async def verify_email(request: Request, token: str):
+    user_id = _verify_email_token(token)
+    if not user_id:
+        return templates.TemplateResponse(
+            request,
+            "verify_pending.html",
+            {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
+            status_code=400,
+        )
+    await set_email_verified(user_id)
+    return RedirectResponse("/login?verified=1", status_code=303)
 
 
 @router.get("/auth/reset-request")
