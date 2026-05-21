@@ -1092,6 +1092,17 @@ async def test_reset_failed_login_executes_update():
     assert "locked_until" in call_args[0]
 
 
+async def test_set_email_verified_executes_update():
+    from src.db.users import set_email_verified
+
+    pool = _pool_mock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await set_email_verified(1)
+    pool.execute.assert_awaited_once()
+    assert "email_verified_at" in pool.execute.call_args[0][0]
+    assert pool.execute.call_args[0][1] == 1
+
+
 async def test_update_password_executes_query():
     from src.db.users import update_password
 

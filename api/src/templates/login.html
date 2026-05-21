@@ -10,8 +10,20 @@
             {% if request.query_params.get("reset") %}
             <div class="mb-4 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-sm">Passwort erfolgreich geändert. Bitte einloggen.</div>
             {% endif %}
+            {% if request.query_params.get("verify") == "sent" %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-300 text-sm">Bestätigungslink gesendet. Bitte überprüfe dein Postfach.</div>
+            {% endif %}
+            {% if request.query_params.get("verify") == "failed" %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/25 text-amber-300 text-sm">Konto erstellt, aber die Bestätigungs-E-Mail konnte nicht gesendet werden. <a href="/auth/resend-verify" class="underline">Erneut anfordern</a>.</div>
+            {% endif %}
+            {% if request.query_params.get("verified") %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-sm">E-Mail bestätigt! Bitte einloggen.</div>
+            {% endif %}
             {% if error %}
             <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">{{ error }}</div>
+            {% endif %}
+            {% if show_resend %}
+            <p class="mt-2 text-sm text-slate-400">Keine Mail erhalten? <a href="/auth/resend-verify" class="text-emerald-400 hover:underline">Erneut senden</a></p>
             {% endif %}
 
             <form method="post" action="/login" class="flex flex-col gap-4">

@@ -130,7 +130,7 @@ Datenschutzerklärung, nicht vorausgewählt).
 |---------|----------|--------|
 | Konto löschen (alle Daten) | `DELETE /account` | 📋 |
 | Daten exportieren (JSON) | `GET /account/export` | 📋 |
-| E-Mail-Verifikation | Nach Register → Bestätigungs-Mail | 📋 |
+| E-Mail-Verifikation | Nach Register → Bestätigungs-Mail | ✅ |
 | Passwort-Reset | `POST /auth/reset-request` + Token-Mail | ✅ |
 
 **Konto-Löschung — umfasst (atomar in einer Transaktion):**
@@ -191,16 +191,15 @@ docker exec garmin-sync env | grep SESSION_SECRET   # → leer
 docker exec garmin-api env | grep SESSION_SECRET    # → vorhanden
 ```
 
-### 3.3 E-Mail-Verifikation bei Registrierung
+### 3.3 E-Mail-Verifikation bei Registrierung ✅
 
-```sql
--- In users-Tabelle ergänzen:
-ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMPTZ;
-```
+Migration `V18__email_verification.sql` ergänzt `email_verified_at TIMESTAMPTZ`; bestehende
+User werden per Backfill sofort verifiziert.
 
 Ablauf: Register → Token-Mail → `/auth/verify/{token}` → `email_verified_at` setzen.
-Login sperren bis verifiziert (klare Fehlermeldung + Resend-Link).
-Gleiches Token-System wie Password-Reset.
+Login sperrt nicht-verifizierte Accounts (klare Fehlermeldung + Resend-Link `/auth/resend-verify`).
+Gleiches Token-System wie Password-Reset (anderer Salt → kein Token-Reuse), 24h TTL.
+Resend-Endpoint non-leaking (immer 200), Rate Limit 3/h.
 
 ### 3.4 Account-Lockout ✅
 
@@ -432,7 +431,7 @@ nie nur das Image tauschen.
 
 ### Post-Launch (erste 4 Wochen)
 - [x] Password-Reset-Flow live
-- [ ] E-Mail-Verifikation bei Registrierung
+- [x] E-Mail-Verifikation bei Registrierung
 - [ ] Account-Löschung (`DELETE /account`) live
 - [ ] Daten-Export (`GET /account/export`) live
 - [ ] Fernet-Verschlüsselung für Token-Volume aktiv
