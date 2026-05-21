@@ -24,7 +24,7 @@ async def get_user_by_email(email: str) -> dict | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT id, name, email, password_hash, garmin_linked, garmin_email,"
-        " failed_login_attempts, locked_until FROM users WHERE email = $1",
+        " failed_login_attempts, locked_until, email_verified_at FROM users WHERE email = $1",
         email,
     )
     return dict(row) if row else None
@@ -145,6 +145,14 @@ async def reset_failed_login(user_id: int) -> None:
     pool = await get_pool()
     await pool.execute(
         "UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1",
+        user_id,
+    )
+
+
+async def set_email_verified(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET email_verified_at = NOW() WHERE id = $1",
         user_id,
     )
 
