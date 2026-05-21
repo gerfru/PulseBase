@@ -197,7 +197,7 @@ Wichtig: bandit und mypy als `pass_filenames: false` mit absoluten Pfaden vom Pr
 
 | Tabelle | Wichtige Spalten |
 |---------|-----------------|
-| `users` | `id`, `name`, `email`, `password_hash`, `garmin_linked`, `garmin_email`, `is_active` |
+| `users` | `id`, `name`, `email`, `password_hash`, `failed_login_attempts`, `locked_until`, `garmin_linked`, `garmin_email`, `is_active` |
 | `activities` | `started_at` (nicht start_time!), `sport_type`, `duration_seconds`, `distance_meters`, `avg_hr` (nicht avg_heart_rate!), `calories` (nicht total_calories!), `aerobic_effect`, `anaerobic_effect` |
 | `daily_summary` | `date`, `steps` (nicht total_steps!), `resting_hr`, `body_battery_high`, `body_battery_low` |
 | `sleep_sessions` | `start_time`, `sleep_score`, `total_sleep_seconds` (nicht duration_seconds!) |

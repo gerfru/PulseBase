@@ -32,8 +32,14 @@ Rate-limited to 10 requests/minute per IP.
 | `email` | string | yes |
 | `password` | string | yes |
 
-On success: redirects to `/`.
+On success: redirects to `/`. Failed-attempt counter resets to 0.
+
 On failure: re-renders login form with error message (HTTP 400).
+
+**Account lockout:** After 5 consecutive failed attempts the account is locked for 15 minutes.
+While locked, all login attempts return 400 with a "Account gesperrt" message regardless of password.
+A notification email is sent to the user's address at the moment of lockout.
+The lock expires automatically; no admin action needed.
 
 ### `GET /register`
 

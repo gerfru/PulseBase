@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from .pool import get_pool
 
@@ -23,7 +23,8 @@ async def create_user(name: str, email: str, password_hash: str) -> dict:
 async def get_user_by_email(email: str) -> dict | None:
     pool = await get_pool()
     row = await pool.fetchrow(
-        "SELECT id, name, email, password_hash, garmin_linked, garmin_email FROM users WHERE email = $1",
+        "SELECT id, name, email, password_hash, garmin_linked, garmin_email,"
+        " failed_login_attempts, locked_until FROM users WHERE email = $1",
         email,
     )
     return dict(row) if row else None
@@ -119,6 +120,31 @@ async def update_password(user_id: int, password_hash: str) -> None:
     await pool.execute(
         "UPDATE users SET password_hash = $1 WHERE id = $2",
         password_hash,
+        user_id,
+    )
+
+
+async def increment_failed_login(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = $1",
+        user_id,
+    )
+
+
+async def lock_user_until(user_id: int, until: datetime) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET locked_until = $1 WHERE id = $2",
+        until,
+        user_id,
+    )
+
+
+async def reset_failed_login(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1",
         user_id,
     )
 

@@ -202,17 +202,21 @@ Ablauf: Register → Token-Mail → `/auth/verify/{token}` → `email_verified_a
 Login sperren bis verifiziert (klare Fehlermeldung + Resend-Link).
 Gleiches Token-System wie Password-Reset.
 
-### 3.4 Account-Lockout (ergänzendes Brute-Force-Schutz)
+### 3.4 Account-Lockout ✅
 
-Aktuell: IP-basiertes Rate Limiting via slowapi. Zusätzlich account-basiert:
+IP-basiertes Rate Limiting (slowapi) + konto-basierter Lockout (OWASP-konform, Schwellenwert 3–5).
 
 ```sql
-ALTER TABLE users ADD COLUMN failed_login_attempts INT NOT NULL DEFAULT 0;
-ALTER TABLE users ADD COLUMN locked_until TIMESTAMPTZ;
+-- V17__account_lockout.sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts SMALLINT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
 ```
 
-Logik: Nach 10 Fehlversuchen → 15min Sperre. Sperre zurücksetzen bei erfolgreichem Login.
-Vorteil: schützt auch gegen verteilte Angriffe von verschiedenen IPs auf ein Konto.
+Logik: 5 Fehlversuche → 15min Sperre + Resend-E-Mail an Nutzer. Sperre zurücksetzen bei
+erfolgreichem Login. Auto-Unlock nach Ablauf (kein manueller Eingriff).
+
+**DoS-Hinweis:** Fixer Lockout kann vom Angreifer ausgenutzt werden (gezieltes Sperren fremder Konten).
+Mitigation: E-Mail-Benachrichtigung informiert echten Nutzer sofort; `locked_until` läuft automatisch ab.
 
 ### 3.5 Audit-Logging
 
@@ -404,7 +408,7 @@ nie nur das Image tauschen.
 - [x] Account-Enumeration-Schutz (Dummy-bcrypt)
 - [x] CDN-URLs entfernt, alle Assets unter `/static/vendor/`
 - [x] Docker Images auf Semver+Digest gepinnt
-- [ ] `renovate.json` erstellt, GitHub App aktiviert
+- [x] `renovate.json` erstellt, GitHub App aktiviert
 
 ### Pre-Release: Legal
 - [ ] Datenschutzerklärung live unter `/privacy`
@@ -432,7 +436,7 @@ nie nur das Image tauschen.
 - [ ] Account-Löschung (`DELETE /account`) live
 - [ ] Daten-Export (`GET /account/export`) live
 - [ ] Fernet-Verschlüsselung für Token-Volume aktiv
-- [ ] Account-Lockout nach Fehlversuchen
+- [x] Account-Lockout nach Fehlversuchen
 
 ---
 
