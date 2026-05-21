@@ -436,7 +436,7 @@ nie nur das Image tauschen.
 - [ ] Account-Löschung (`DELETE /account`) live
 - [ ] Daten-Export (`GET /account/export`) live
 - [ ] Fernet-Verschlüsselung für Token-Volume aktiv
-- [ ] Account-Lockout nach Fehlversuchen
+- [x] Account-Lockout nach Fehlversuchen
 
 ---
 
