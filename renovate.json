@@ -2,13 +2,20 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "pinDigests": true,
-  "docker-compose": {
-    "enabled": true
-  },
   "packageRules": [
     {
-      "matchDepTypes": ["devDependencies"],
+      "matchManagers": ["pep621"],
       "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["docker-compose"],
+      "matchUpdateTypes": ["digest"],
       "automerge": true
     }
   ]
