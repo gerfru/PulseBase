@@ -1054,6 +1054,44 @@ def test_settings_db_url_format():
     assert url.endswith("@db:5432/garmin")
 
 
+async def test_increment_failed_login_executes_update():
+    from src.db.users import increment_failed_login
+
+    pool = _pool_mock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await increment_failed_login(1)
+    pool.execute.assert_awaited_once()
+    assert "failed_login_attempts" in pool.execute.call_args[0][0]
+
+
+async def test_lock_user_until_executes_update():
+    from datetime import datetime, timezone
+
+    from src.db.users import lock_user_until
+
+    pool = _pool_mock()
+    until = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await lock_user_until(1, until)
+    pool.execute.assert_awaited_once()
+    call_args = pool.execute.call_args[0]
+    assert "locked_until" in call_args[0]
+    assert call_args[1] == until
+    assert call_args[2] == 1
+
+
+async def test_reset_failed_login_executes_update():
+    from src.db.users import reset_failed_login
+
+    pool = _pool_mock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await reset_failed_login(1)
+    pool.execute.assert_awaited_once()
+    call_args = pool.execute.call_args[0]
+    assert "failed_login_attempts" in call_args[0]
+    assert "locked_until" in call_args[0]
+
+
 async def test_update_password_executes_query():
     from src.db.users import update_password
 
