@@ -17,22 +17,33 @@
 ```bash
 git clone https://github.com/gerfru/PulseBase.git
 cd PulseBase
-cp .env.example .env
+cp env/.env.example env/.env
+cp env/.env.api.example env/.env.api
+cp env/.env.sync.example env/.env.sync
+cp env/.env.ml.example env/.env.ml
 ```
 
-Edit `.env`:
+Edit `env/.env` (shared DB credentials):
 
 ```bash
 DB_USER=garmin
 DB_PASSWORD=<strong password>
 DB_APP_USER=garmin_app
 DB_APP_PASSWORD=<strong password>
-
-SESSION_SECRET=   # see step 2
-
 HOST_IP=garmin.home.lab
+```
+
+Edit `env/.env.sync`:
+
+```bash
 SYNC_HOUR=6
 SYNC_LOOKBACK_DAYS=30
+SYNC_DAILY_DAYS=2
+```
+
+Edit `env/.env.ml`:
+
+```bash
 ML_INFER_HOUR=7   # hour (UTC) for daily ML inference; training runs Sunday 3:00
 ```
 
@@ -44,7 +55,7 @@ ML_INFER_HOUR=7   # hour (UTC) for daily ML inference; training runs Sunday 3:00
 make gen-secrets
 ```
 
-Copy the output value into `.env` at `SESSION_SECRET`.
+Copy the output value into `env/.env.api` at `SESSION_SECRET`.
 
 ---
 
@@ -130,7 +141,8 @@ No manual action needed after initial setup.
 | `make logs-analytics` | Live logs from the ML analytics service |
 | `make status` | Show container status |
 | `make db` | Open a psql shell on the database |
-| `make gen-secrets` | Generate a random SESSION_SECRET value |
+| `make gen-secrets` | Generate a random SESSION_SECRET value (put in `env/.env.api`) |
+| `make secure-env` | Set `chmod 600` on all env files |
 
 ---
 
