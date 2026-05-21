@@ -404,7 +404,7 @@ nie nur das Image tauschen.
 - [x] Account-Enumeration-Schutz (Dummy-bcrypt)
 - [x] CDN-URLs entfernt, alle Assets unter `/static/vendor/`
 - [x] Docker Images auf Semver+Digest gepinnt
-- [ ] `renovate.json` erstellt, GitHub App aktiviert
+- [x] `renovate.json` erstellt, GitHub App aktiviert
 
 ### Pre-Release: Legal
 - [ ] Datenschutzerklärung live unter `/privacy`
