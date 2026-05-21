@@ -183,6 +183,16 @@ make logs-sync   # look for errors
 make db          # then: SELECT count(*) FROM activities WHERE user_id = 1;
 ```
 
+**Account locked after failed logins:**
+After 5 failed attempts the account is locked for 15 minutes (auto-unlock). To unlock immediately:
+```bash
+make db
+```
+Then in psql:
+```sql
+UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE email = 'your@email.com';
+```
+
 **Reset everything (nuclear option):**
 ```bash
 make reset
