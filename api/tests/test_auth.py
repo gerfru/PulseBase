@@ -1,6 +1,6 @@
 import asyncpg
 import bcrypt
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from tests.conftest import TEST_USER
 
@@ -107,6 +107,24 @@ async def test_reset_request_valid_email_returns_200(client):
     with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)):
         r = await client.post("/auth/reset-request", data={"email": TEST_USER["email"]})
     assert r.status_code == 200
+
+
+async def test_reset_request_sends_email_when_api_key_set(client):
+    with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)):
+        with patch("src.routes.auth.settings") as mock_settings:
+            mock_settings.session_secret = (
+                "test-secret-key-for-testing-only!"  # pragma: allowlist secret
+            )
+            mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+            mock_settings.resend_from_email = "noreply@example.com"
+            mock_settings.app_base_url = "https://example.com"
+            with patch("src.routes.auth.resend_client") as mock_resend:
+                mock_resend.Emails.send = MagicMock()
+                r = await client.post(
+                    "/auth/reset-request", data={"email": TEST_USER["email"]}
+                )
+    assert r.status_code == 200
+    mock_resend.Emails.send.assert_called_once()
 
 
 # ── Password reset — reset form ───────────────────────────────────────────────
