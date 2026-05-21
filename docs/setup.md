@@ -91,7 +91,24 @@ Create your account with name, email, and password (min. 8 characters).
 
 ---
 
-## 5. Link Garmin
+## 5. Verify your email
+
+After registering you are redirected to `/login?verify=sent` (or `/login?verify=failed` if
+the email service is not configured).
+
+**If `RESEND_API_KEY` is set:** Check your inbox and click the verification link.
+
+**If `RESEND_API_KEY` is not set (local/homelab):** The token is printed to the API log.
+Copy the token from `make logs-dashboard` and open:
+```
+https://garmin.home.lab/auth/verify/<token>
+```
+
+If the link expires (24h TTL) or never arrived, use `/auth/resend-verify` to request a new one.
+
+---
+
+## 7. Link Garmin
 
 Go to `https://garmin.home.lab/garmin/link` (or click the link on the dashboard).
 
@@ -100,7 +117,7 @@ session token and then deleted from memory — it is never stored anywhere.
 
 ---
 
-## 6. Trigger the first sync
+## 8. Trigger the first sync
 
 ```bash
 make sync
@@ -150,8 +167,9 @@ No manual action needed after initial setup.
 
 1. Open `https://garmin.home.lab/register` in a browser (or incognito window)
 2. Register the new account
-3. Log in and go to `/garmin/link`
-4. Link the second Garmin account
+3. Verify the email (see Step 5 above)
+4. Log in and go to `/garmin/link`
+5. Link the second Garmin account
 
 The sync-service picks up all users with `garmin_linked = true` from the database
 automatically on the next run.

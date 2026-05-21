@@ -34,7 +34,8 @@ Rate-limited to 10 requests/minute per IP.
 
 On success: redirects to `/`. Failed-attempt counter resets to 0.
 
-On failure: re-renders login form with error message (HTTP 400).
+On failure (unverified email): re-renders login form with error + link to `/auth/resend-verify` (HTTP 400).
+On failure (wrong credentials / locked): re-renders login form with error message (HTTP 400).
 
 **Account lockout:** After 5 consecutive failed attempts the account is locked for 15 minutes.
 While locked, all login attempts return 400 with a "Account gesperrt" message regardless of password.
@@ -54,8 +55,34 @@ Renders the registration form.
 | `password` | string | yes | min 8 characters |
 | `password_confirm` | string | yes | must match `password` |
 
-On success: logs the user in and redirects to `/`.
+On success: creates account, sends verification email, redirects to `/login?verify=sent`.
+If email send fails: redirects to `/login?verify=failed` (amber banner with resend link).
 On failure: re-renders form with error message (HTTP 400).
+
+Login is blocked until the email address is verified (see `GET /auth/verify/{token}`).
+
+### `GET /auth/resend-verify`
+
+Renders a form to request a new verification email.
+
+### `POST /auth/resend-verify`
+
+Rate-limited to 3 requests/hour per IP.
+
+| Field | Type | Required |
+|-------|------|----------|
+| `email` | string | yes |
+
+Always returns HTTP 200 (non-leaking — same response whether the email exists or not).
+If the email is registered and not yet verified, a new signed verification link is sent.
+If `RESEND_API_KEY` is not configured, the link is logged to stdout instead.
+
+### `GET /auth/verify/{token}`
+
+Completes email verification. Token is HMAC-signed, 24h TTL (different salt from password-reset tokens).
+
+Returns HTTP 400 if the token is invalid or expired.
+On success: sets `email_verified_at` and redirects to `/login?verified=1`.
 
 ### `GET /auth/reset-request`
 
