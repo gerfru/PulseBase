@@ -24,6 +24,8 @@ TEST_USER = {
     "spo2_enabled": False,
     "date_of_birth": None,
     "sex": None,
+    "failed_login_attempts": 0,
+    "locked_until": None,
 }
 
 TEST_USER_EPILEPSY = {**TEST_USER, "epilepsy_mode": True}
@@ -32,6 +34,13 @@ TEST_USER_GARMIN = {
     "garmin_linked": True,
     "garmin_email": "test@garmin.com",
 }
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    from src.deps import limiter
+
+    limiter._storage.reset()
 
 
 @pytest.fixture

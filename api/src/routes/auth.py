@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 
 import asyncpg
 import resend as resend_client
@@ -6,7 +7,14 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from src.db import create_user, get_user_by_email, update_password
+from src.db import (
+    create_user,
+    get_user_by_email,
+    increment_failed_login,
+    lock_user_until,
+    reset_failed_login,
+    update_password,
+)
 from src.deps import (
     DUMMY_HASH,
     hash_password,
@@ -21,6 +29,8 @@ router = APIRouter()
 
 _RESET_SALT = "password-reset"
 _RESET_MAX_AGE = 3600
+_MAX_ATTEMPTS = 5
+_LOCKOUT_MINUTES = 15
 
 
 def _make_reset_token(user_id: int) -> str:
@@ -37,6 +47,27 @@ def _verify_reset_token(token: str) -> int | None:
         return int(user_id)
     except (BadSignature, SignatureExpired):
         return None
+
+
+async def _send_lockout_email(to_email: str) -> None:
+    if not settings.resend_api_key:
+        logger.warning("lockout mail skipped — RESEND_API_KEY not set")
+        return
+    resend_client.api_key = settings.resend_api_key
+    resend_client.Emails.send(
+        {
+            "from": settings.resend_from_email,
+            "to": to_email,
+            "subject": "PulseBase — Konto vorübergehend gesperrt",
+            "html": (
+                "<p>Dein Konto wurde nach mehreren fehlgeschlagenen Login-Versuchen "
+                f"für {_LOCKOUT_MINUTES} Minuten gesperrt.</p>"
+                "<p>Falls du das nicht warst, ändere bitte dein Passwort über "
+                f"<a href='{settings.app_base_url}/auth/reset-request'>"
+                "Passwort zurücksetzen</a>.</p>"
+            ),
+        }
+    )
 
 
 async def _send_reset_email(to_email: str, token: str) -> None:
@@ -71,15 +102,45 @@ async def login(
     password: str = Form(),
 ):
     user = await get_user_by_email(email)
+
+    if (
+        user
+        and user["locked_until"]
+        and user["locked_until"] > datetime.now(timezone.utc)
+    ):
+        remaining = (
+            int(
+                (user["locked_until"] - datetime.now(timezone.utc)).total_seconds() / 60
+            )
+            + 1
+        )
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "error": f"Account gesperrt. Bitte in {remaining} Minuten erneut versuchen."
+            },
+            status_code=400,
+        )
+
     password_hash: str = user["password_hash"] if user else DUMMY_HASH
     valid = verify_password(password, password_hash)
+
     if not user or not valid:
+        if user:
+            await increment_failed_login(user["id"])
+            if user["failed_login_attempts"] + 1 >= _MAX_ATTEMPTS:
+                until = datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)
+                await lock_user_until(user["id"], until)
+                await _send_lockout_email(user["email"])
         return templates.TemplateResponse(
             request,
             "login.html",
             {"error": "E-Mail oder Passwort falsch."},
             status_code=400,
         )
+
+    await reset_failed_login(user["id"])
     request.session.clear()
     request.session["user_id"] = str(user["id"])
     return RedirectResponse("/", status_code=303)
