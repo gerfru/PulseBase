@@ -104,7 +104,7 @@ make logs-analytics   # Analytics-Service-Logs live
 make logs-sync        # Sync-Service-Logs live
 make logs-all         # Alle Logs zusammen
 make migrate          # DB-Migrationen ausführen
-make db               # psql-Shell (liest DB_APP_USER aus .env)
+make db               # psql-Shell (liest DB_APP_USER aus env/.env)
 ```
 
 ## Verzeichnisstruktur
@@ -226,16 +226,36 @@ GET /activity/{id}           Aktivitäts-Detail (GPS-Karte, Charts)
 GET /garmin/link             Garmin-Account verknüpfen
 ```
 
-## .env Pflichtfelder
+## Env-Files (unter `env/`)
 
+**`env/.env`** — shared, alle Services:
 ```
 DB_USER=garmin
 DB_PASSWORD=
 DB_APP_USER=garmin_app
 DB_APP_PASSWORD=
-SESSION_SECRET=     # make gen-secrets
 HOST_IP=garmin.home.lab
+```
+
+**`env/.env.api`** — nur API:
+```
+SESSION_SECRET=     # make gen-secrets
+HTTPS_ONLY=true
+TRIMP_LOOKBACK_DAYS=7
+TRIMP_FORECAST_DAYS=7
+RESEND_API_KEY=     # optional — leer = Reset-Link nur im Log
+RESEND_FROM_EMAIL=onboarding@resend.dev
+APP_BASE_URL=https://garmin.home.lab
+```
+
+**`env/.env.sync`** — nur sync-service:
+```
 SYNC_HOUR=6
 SYNC_LOOKBACK_DAYS=30
+SYNC_DAILY_DAYS=2
+```
+
+**`env/.env.ml`** — nur ml-service:
+```
 ML_INFER_HOUR=7
 ```

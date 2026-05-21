@@ -131,7 +131,7 @@ Datenschutzerklärung, nicht vorausgewählt).
 | Konto löschen (alle Daten) | `DELETE /account` | 📋 |
 | Daten exportieren (JSON) | `GET /account/export` | 📋 |
 | E-Mail-Verifikation | Nach Register → Bestätigungs-Mail | 📋 |
-| Passwort-Reset | `POST /auth/reset-request` + Token-Mail | 📋 |
+| Passwort-Reset | `POST /auth/reset-request` + Token-Mail | ✅ |
 
 **Konto-Löschung — umfasst (atomar in einer Transaktion):**
 `users`, `activities`, `activity_records`, `daily_summary`, `sleep_sessions`,
@@ -152,29 +152,46 @@ Token-Files in `/app/tokens/{user_id}/`
 
 ## 3. Security-Features Backlog
 
-### 3.1 Password-Reset-Flow
+### 3.1 Password-Reset-Flow ✅
 
-```sql
--- Neue Migration: VXX__password_reset.sql
-CREATE TABLE password_reset_tokens (
-    token       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    expires_at  TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '1 hour',
-    used_at     TIMESTAMPTZ
-);
-```
+Implementiert via stateless `itsdangerous.URLSafeTimedSerializer` (kein DB-Schema-Change,
+1-Stunde TTL, HMAC-signiert mit `SESSION_SECRET`). E-Mail-Versand via Resend (3.000 Mails/Mo kostenlos).
 
 ```
-POST /auth/reset-request  → Token generieren, Mail senden (Resend/Postmark Free Tier)
-GET  /auth/reset/{token}  → Formular anzeigen (Token-Validierung)
-POST /auth/reset/{token}  → Passwort setzen, Token als used markieren
+GET  /auth/reset-request  → Formular anzeigen
+POST /auth/reset-request  → Token generieren, Mail senden (non-leaking: immer 200)
+GET  /auth/reset/{token}  → Formular anzeigen (Token-Validierung, 400 wenn ungültig/abgelaufen)
+POST /auth/reset/{token}  → Passwort setzen, Redirect zu /login?reset=1
 ```
 
-E-Mail senden via `aiosmtplib` (SMTP) oder Transactional E-Mail API:
-- **Resend** — 3.000 Mails/Mo kostenlos, einfachste API
-- **Postmark** — 100 Mails/Mo kostenlos, besonders gute Deliverability
+Konfiguration in `env/.env.api`:
+```bash
+RESEND_API_KEY=re_...          # leer lassen = Reset-Link nur im Log (kein Mailversand)
+RESEND_FROM_EMAIL=onboarding@resend.dev
+APP_BASE_URL=https://garmin.home.lab
+```
 
-### 3.2 E-Mail-Verifikation bei Registrierung
+### 3.2 Per-Service Secrets Isolation ✅
+
+Jeder Service lädt nur die Secrets, die er tatsächlich braucht (Least-Privilege).
+Umsetzung via native Docker Compose `env_file`-Listen — kein extra Tooling, kein Code-Change.
+
+| File | Service | Enthält |
+|------|---------|---------|
+| `env/.env` | alle | DB_USER/PASSWORD, DB_APP_USER/PASSWORD, HOST_IP |
+| `env/.env.api` | api | SESSION_SECRET, HTTPS_ONLY, TRIMP_*, RESEND_*, APP_BASE_URL |
+| `env/.env.sync` | sync-service | SYNC_HOUR, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS |
+| `env/.env.ml` | ml-service | ML_INFER_HOUR |
+
+Dateiberechtigungen: `make secure-env` setzt `chmod 600` auf alle Secret-Files.
+
+Verifikation:
+```bash
+docker exec garmin-sync env | grep SESSION_SECRET   # → leer
+docker exec garmin-api env | grep SESSION_SECRET    # → vorhanden
+```
+
+### 3.3 E-Mail-Verifikation bei Registrierung
 
 ```sql
 -- In users-Tabelle ergänzen:
@@ -185,7 +202,7 @@ Ablauf: Register → Token-Mail → `/auth/verify/{token}` → `email_verified_a
 Login sperren bis verifiziert (klare Fehlermeldung + Resend-Link).
 Gleiches Token-System wie Password-Reset.
 
-### 3.3 Account-Lockout (ergänzendes Brute-Force-Schutz)
+### 3.4 Account-Lockout (ergänzendes Brute-Force-Schutz)
 
 Aktuell: IP-basiertes Rate Limiting via slowapi. Zusätzlich account-basiert:
 
@@ -197,7 +214,7 @@ ALTER TABLE users ADD COLUMN locked_until TIMESTAMPTZ;
 Logik: Nach 10 Fehlversuchen → 15min Sperre. Sperre zurücksetzen bei erfolgreichem Login.
 Vorteil: schützt auch gegen verteilte Angriffe von verschiedenen IPs auf ein Konto.
 
-### 3.4 Audit-Logging
+### 3.5 Audit-Logging
 
 Events die geloggt werden sollten:
 - Login (success/fail, IP, User-Agent)
@@ -213,7 +230,7 @@ structlog.get_logger().warning("auth.login.fail", email=email, ip=ip)
 
 **Alternativ (auditierbar):** Tabelle `audit_log(id BIGSERIAL, user_id INT, event TEXT, ip INET, ua TEXT, created_at TIMESTAMPTZ)`.
 
-### 3.5 Garmin Token Encryption at Rest
+### 3.6 Garmin Token Encryption at Rest
 
 **Aktuell:** Plaintext-Token-Files im Docker-Volume.
 
@@ -410,7 +427,7 @@ nie nur das Image tauschen.
 - [ ] Kontakt-E-Mail in Datenschutzerklärung + Impressum
 
 ### Post-Launch (erste 4 Wochen)
-- [ ] Password-Reset-Flow live
+- [x] Password-Reset-Flow live
 - [ ] E-Mail-Verifikation bei Registrierung
 - [ ] Account-Löschung (`DELETE /account`) live
 - [ ] Daten-Export (`GET /account/export`) live

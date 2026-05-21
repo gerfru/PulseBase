@@ -1054,6 +1054,20 @@ def test_settings_db_url_format():
     assert url.endswith("@db:5432/garmin")
 
 
+async def test_update_password_executes_query():
+    from src.db.users import update_password
+
+    pool = _pool_mock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await update_password(1, "hashed")  # pragma: allowlist secret
+
+    pool.execute.assert_awaited_once()
+    call_args = pool.execute.call_args[0]
+    assert "password_hash" in call_args[0].lower()
+    assert call_args[1] == "hashed"  # pragma: allowlist secret
+    assert call_args[2] == 1
+
+
 async def test_get_pool_creates_pool_when_none():
     import src.db.pool as pool_module
 

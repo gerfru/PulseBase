@@ -51,6 +51,40 @@ Renders the registration form.
 On success: logs the user in and redirects to `/`.
 On failure: re-renders form with error message (HTTP 400).
 
+### `GET /auth/reset-request`
+
+Renders the password reset request form.
+
+### `POST /auth/reset-request`
+
+Rate-limited to 3 requests/hour per IP.
+
+| Field | Type | Required |
+|-------|------|----------|
+| `email` | string | yes |
+
+Always returns HTTP 200 with a confirmation message (non-leaking — same response whether
+the email exists or not). If the email is registered, a signed reset link is sent via
+Resend. If `RESEND_API_KEY` is not configured, the link is logged to stdout instead.
+
+### `GET /auth/reset/{token}`
+
+Renders the new password form. Token is a time-limited HMAC-signed value (1 hour TTL).
+
+Returns HTTP 400 if the token is invalid or expired.
+
+### `POST /auth/reset/{token}`
+
+Rate-limited to 5 requests/hour per IP.
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `password` | string | yes | min 8 characters |
+| `password_confirm` | string | yes | must match `password` |
+
+On success: updates the password and redirects to `/login?reset=1`.
+On failure: re-renders form with error message (HTTP 400).
+
 ---
 
 ## Protected Pages (session required)
