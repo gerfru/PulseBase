@@ -1,7 +1,7 @@
 services:
 
   db-test:
-    image: timescale/timescaledb:2.26.4-pg16@sha256:15e00162766bd6f0019afaad4e57b850dcf882de5909bd7633899eebd4c03d57
+    image: timescale/timescaledb:2.27.1-pg16@sha256:87f39af0a38cb42e4add367d9dfad2087a53fe5c9b24b5bc0dc66bd204b0665f
     container_name: garmin-db-test
     restart: unless-stopped
     ports:
