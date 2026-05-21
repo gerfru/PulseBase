@@ -114,6 +114,15 @@ async def set_libre_unlinked(user_id: int) -> None:
             )
 
 
+async def update_password(user_id: int, password_hash: str) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET password_hash = $1 WHERE id = $2",
+        password_hash,
+        user_id,
+    )
+
+
 async def get_user_sex(user_id: int) -> str:
     pool = await get_pool()
     row = await pool.fetchrow("SELECT sex FROM users WHERE id = $1", user_id)

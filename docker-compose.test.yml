@@ -42,15 +42,13 @@ services:
     restart: unless-stopped
     ports:
       - "8001:8000"
+    env_file:
+      - env/.env
+      - env/.env.api
     environment:
       DB_HOST: db-test
       DB_PORT: 5432
       DB_NAME: garmin_test
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_APP_USER: ${DB_APP_USER}
-      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
-      SESSION_SECRET: ${SESSION_SECRET}
       HTTPS_ONLY: "false"
     depends_on:
       flyway-test:
