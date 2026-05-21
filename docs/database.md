@@ -26,6 +26,9 @@ production database — always add a new migration file.
 | `V13__running_economy.sql` | Adds running dynamics columns to `activities` (ground contact time, vertical oscillation, stride length, vertical ratio, running power) |
 | `V14__fix_stride_length_precision.sql` | Widens `avg_stride_length` to `NUMERIC(6,1)` — Garmin returns cm, not meters |
 | `V15__epilepsy.sql` | Adds `epilepsy_mode BOOLEAN` to `users`; creates `seizure_events` table |
+| `V16__spo2.sql` | Adds `spo2_enabled BOOLEAN` to `users` |
+| `V17__account_lockout.sql` | Adds `failed_login_attempts SMALLINT`, `locked_until TIMESTAMPTZ` to `users` |
+| `V18__email_verification.sql` | Adds `email_verified_at TIMESTAMPTZ` to `users`; backfills existing users |
 
 ---
 
@@ -48,6 +51,10 @@ production database — always add a new migration file.
 | `date_of_birth` | `DATE` | Used for age calculation + Banister TRIMP (V12) |
 | `sex` | `TEXT CHECK (sex IN ('m','f','diverse'))` | Required for Banister TRIMP coefficients (V12) |
 | `epilepsy_mode` | `BOOLEAN DEFAULT false` | Enables seizure diary + risk indicator (V15) |
+| `spo2_enabled` | `BOOLEAN DEFAULT false` | SpO2 tracking opt-in (V16) |
+| `failed_login_attempts` | `SMALLINT DEFAULT 0` | Brute-force counter; resets on success (V17) |
+| `locked_until` | `TIMESTAMPTZ` | Account locked until this time after 5 failures (V17) |
+| `email_verified_at` | `TIMESTAMPTZ` | Set on first email verification; NULL = unverified (V18) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 ---

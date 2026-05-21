@@ -82,6 +82,7 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 - HTTPS via Caddy (homelab-gateway) or Traefik (standalone) — self-signed cert, accept browser warning once
 - Rate limiting on login (10 requests/minute per IP)
 - Account lockout after 5 failed login attempts (15-minute automatic lockout + email notification)
+- Email verification required after registration (signed token, 24h TTL, resend endpoint)
 - Query parameter validation on all API endpoints
 - Passwords stored as bcrypt hashes
 - Session via signed cookie (httpOnly, secure)
