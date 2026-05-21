@@ -39,7 +39,10 @@ Two levels — pick what you need:
 Requires [homelab-gateway](https://github.com/gerfru/homelab-gateway) running for `garmin.home.lab` DNS + HTTPS.
 
 ```bash
-cp .env.example .env        # fill in DB_PASSWORD and SESSION_SECRET (make gen-secrets)
+cp env/.env.example env/.env          # fill in DB credentials
+cp env/.env.api.example env/.env.api  # fill in SESSION_SECRET (make gen-secrets)
+cp env/.env.sync.example env/.env.sync
+cp env/.env.ml.example env/.env.ml
 make up                     # build + start all services
 # → https://garmin.home.lab/register  (accept self-signed cert warning once)
 # → https://garmin.home.lab/garmin/link
@@ -71,7 +74,8 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 | `make logs-sync` | Live sync-service logs |
 | `make status` | Container status |
 | `make db` | Open psql shell |
-| `make gen-secrets` | Generate SESSION_SECRET |
+| `make gen-secrets` | Generate SESSION_SECRET (put in `env/.env.api`) |
+| `make secure-env` | Set `chmod 600` on all env files |
 
 ## Security
 
