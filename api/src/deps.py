@@ -51,7 +51,7 @@ async def require_user(request: Request) -> dict:
     user_id = request.session.get("user_id")
     if not user_id:
         raise NeedsLogin()
-    user = await get_user_by_id(user_id)
+    user = await get_user_by_id(int(user_id))
     if not user:
         raise NeedsLogin()
     return user
