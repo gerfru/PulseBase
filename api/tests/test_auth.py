@@ -17,10 +17,11 @@ async def test_login_success_redirects(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
-        r = await client.post(
-            "/login",
-            data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
-        )
+        with patch("src.routes.auth.reset_failed_login", AsyncMock()):
+            r = await client.post(
+                "/login",
+                data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
+            )
     assert r.status_code == 303
     assert r.headers["location"] == "/"
 
@@ -29,15 +30,52 @@ async def test_login_success_sets_session(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
-        r = await client.post(
-            "/login",
-            data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
-        )
+        with patch("src.routes.auth.reset_failed_login", AsyncMock()):
+            r = await client.post(
+                "/login",
+                data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
+            )
     assert r.status_code == 303
     assert "session" in r.cookies or r.headers.get("set-cookie", "")
 
 
 # ── Register success ──────────────────────────────────────────────────────────
+
+
+async def test_login_form_returns_200(client):
+    r = await client.get("/login")
+    assert r.status_code == 200
+
+
+async def test_register_form_returns_200(client):
+    r = await client.get("/register")
+    assert r.status_code == 200
+
+
+async def test_register_password_mismatch_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "user@example.com",
+            "password": "password123",  # pragma: allowlist secret
+            "password_confirm": "different99",  # pragma: allowlist secret
+        },
+    )
+    assert r.status_code == 400
+
+
+async def test_register_password_too_short_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "user@example.com",
+            "password": "short",  # pragma: allowlist secret
+            "password_confirm": "short",  # pragma: allowlist secret
+        },
+    )
+    assert r.status_code == 400
 
 
 async def test_register_success_redirects(client):
@@ -199,3 +237,105 @@ async def test_reset_password_invalid_token_returns_400(client):
         },
     )
     assert r.status_code == 400
+
+
+# ── Account lockout ───────────────────────────────────────────────────────────
+
+
+async def test_lockout_email_skipped_when_no_api_key(client):
+    with patch("src.routes.auth.settings") as mock_settings:
+        mock_settings.resend_api_key = ""
+        from src.routes.auth import _send_lockout_email
+
+        await _send_lockout_email("victim@example.com")
+    # No exception and no Emails.send call — test passes by not raising
+
+
+async def test_lockout_email_sends_when_api_key_set(client):
+    with patch("src.routes.auth.settings") as mock_settings:
+        mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+        mock_settings.resend_from_email = "noreply@example.com"
+        mock_settings.app_base_url = "https://example.com"
+        with patch("src.routes.auth.resend_client") as mock_resend:
+            mock_resend.Emails.send = MagicMock()
+            from src.routes.auth import _send_lockout_email
+
+            await _send_lockout_email("victim@example.com")
+    mock_resend.Emails.send.assert_called_once()
+    call_kwargs = mock_resend.Emails.send.call_args[0][0]
+    assert call_kwargs["to"] == "victim@example.com"
+    assert "gesperrt" in call_kwargs["subject"]
+
+
+async def test_login_locked_account_returns_400(client):
+    from datetime import datetime, timedelta, timezone
+
+    locked_user = {
+        **_USER_WITH_HASH,
+        "failed_login_attempts": 5,
+        "locked_until": datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    with patch(
+        "src.routes.auth.get_user_by_email", AsyncMock(return_value=locked_user)
+    ):
+        r = await client.post(
+            "/login",
+            data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
+        )
+    assert r.status_code == 400
+    assert "gesperrt" in r.text
+
+
+async def test_login_failed_increments_counter(client):
+    with patch(
+        "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
+    ):
+        with patch("src.routes.auth.increment_failed_login", AsyncMock()) as mock_inc:
+            r = await client.post(
+                "/login",
+                data={
+                    "email": TEST_USER["email"],
+                    "password": "wrongpassword",  # pragma: allowlist secret
+                },
+            )
+    assert r.status_code == 400
+    mock_inc.assert_awaited_once_with(TEST_USER["id"])
+
+
+async def test_login_triggers_lockout_on_max_attempts(client):
+    almost_locked = {
+        **_USER_WITH_HASH,
+        "failed_login_attempts": 4,
+        "locked_until": None,
+    }
+    with patch(
+        "src.routes.auth.get_user_by_email", AsyncMock(return_value=almost_locked)
+    ):
+        with patch("src.routes.auth.increment_failed_login", AsyncMock()):
+            with patch("src.routes.auth.lock_user_until", AsyncMock()) as mock_lock:
+                with patch(
+                    "src.routes.auth._send_lockout_email", AsyncMock()
+                ) as mock_mail:
+                    r = await client.post(
+                        "/login",
+                        data={
+                            "email": TEST_USER["email"],
+                            "password": "wrongpassword",  # pragma: allowlist secret
+                        },
+                    )
+    assert r.status_code == 400
+    mock_lock.assert_awaited_once()
+    mock_mail.assert_awaited_once_with(TEST_USER["email"])
+
+
+async def test_login_success_resets_counter(client):
+    with patch(
+        "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
+    ):
+        with patch("src.routes.auth.reset_failed_login", AsyncMock()) as mock_reset:
+            r = await client.post(
+                "/login",
+                data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
+            )
+    assert r.status_code == 303
+    mock_reset.assert_awaited_once_with(TEST_USER["id"])
