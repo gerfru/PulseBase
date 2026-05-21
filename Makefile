@@ -1,73 +1,78 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-e2e test-coverage
+.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-e2e test-coverage secure-env
+
+DC := docker compose --env-file env/.env
 
 network:
 	docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
 
 up: network
-	docker compose up -d --build
+	$(DC) up -d --build
 
 up-standalone: network
-	docker compose --profile standalone up -d --build
+	$(DC) --profile standalone up -d --build
 
 down:
-	docker compose down
+	$(DC) down
 
 clean:
-	docker compose down -v --remove-orphans
+	$(DC) down -v --remove-orphans
 
 reset:
-	docker compose down --remove-orphans
+	$(DC) down --remove-orphans
 	docker volume rm garmin-dev_timescale-data garmin-dev_garmin-tokens 2>/dev/null || true
 	@echo "=== Volumes geloescht — Datenbank wird neu aufgesetzt ==="
-	docker compose up flyway
-	docker compose up -d --build
+	$(DC) up flyway
+	$(DC) up -d --build
 
 dashboard: network
-	docker compose build api && docker compose up -d api
+	$(DC) build api && $(DC) up -d api
 
 analytics: network
-	docker compose build ml-service && docker compose up -d ml-service
+	$(DC) build ml-service && $(DC) up -d ml-service
 
 sync: network
-	docker compose build sync-service && docker compose up -d --force-recreate sync-service
+	$(DC) build sync-service && $(DC) up -d --force-recreate sync-service
 
 logs-dashboard:
-	docker compose logs -f api
+	$(DC) logs -f api
 
 logs-analytics:
-	docker compose logs -f ml-service
+	$(DC) logs -f ml-service
 
 logs-sync:
-	docker compose logs -f sync-service
+	$(DC) logs -f sync-service
 
 logs-all:
-	docker compose logs -f
+	$(DC) logs -f
 
 migrate:
-	docker compose up flyway
+	$(DC) up flyway
 
 backfill-energy:
-	docker compose exec ml-service python /app/src/backfill_energy.py
+	$(DC) exec ml-service python /app/src/backfill_energy.py
 
 status:
-	docker compose ps
+	$(DC) ps
 
 db:
-	@export $$(grep -v '^#' .env | xargs) 2>/dev/null; \
+	@export $$(grep -v '^#' env/.env | xargs) 2>/dev/null; \
 	if [ -n "$(SQL)" ]; then \
-		docker compose exec -T db psql -U $${DB_APP_USER} -d garmin -c "$(SQL)"; \
+		$(DC) exec -T db psql -U $${DB_APP_USER} -d garmin -c "$(SQL)"; \
 	elif [ -t 0 ]; then \
-		docker compose exec db psql -U $${DB_APP_USER} -d garmin; \
+		$(DC) exec db psql -U $${DB_APP_USER} -d garmin; \
 	else \
-		docker compose exec -T db psql -U $${DB_APP_USER} -d garmin; \
+		$(DC) exec -T db psql -U $${DB_APP_USER} -d garmin; \
 	fi
 
 gen-secrets:
-	@echo "Folgende Werte in .env eintragen:"
+	@echo "Folgende Werte in env/.env.api eintragen:"
 	@echo ""
 	@echo "SESSION_SECRET=$$(openssl rand -hex 32)"
 	@echo ""
 	@echo "RSA Key wird nicht mehr benötigt."
+
+secure-env:
+	chmod 600 env/.env env/.env.api env/.env.sync env/.env.ml
 
 setup:
 	@echo "=== Erstmalige Einrichtung ==="
@@ -119,16 +124,16 @@ test: ## Unit + Integration aller 3 Services (kein Docker nötig)
 	cd ml-service && .venv/bin/pytest tests/ -v
 
 test-env-up: ## Test-Stack auf Port 8001 starten
-	docker compose -f docker-compose.test.yml up -d --wait
+	$(DC) -f docker-compose.test.yml up -d --wait
 
 test-env-down: ## Test-Stack stoppen
-	docker compose -f docker-compose.test.yml down
+	$(DC) -f docker-compose.test.yml down
 
 test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren (test-env-up vorher)
 	docker exec garmin-db pg_dump \
-	  -U $$(grep ^DB_USER .env | cut -d= -f2) garmin \
+	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin \
 	  | docker exec -i garmin-db-test psql \
-	  -U $$(grep ^DB_USER .env | cut -d= -f2) garmin_test
+	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin_test
 
 test-e2e: ## Playwright E2E gegen Test-Stack (test-env-up + test-seed vorher)
 	cd api && .venv/bin/playwright install chromium --with-deps --quiet

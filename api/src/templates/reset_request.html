@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Passwort zurücksetzen{% endblock %}
+{% block content %}
+<div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-100 mb-1">PulseBase</h1>
+    <p class="text-slate-400 text-sm mb-8">Passwort zurücksetzen</p>
+
+    <div class="w-full max-w-sm">
+        <div class="card">
+            {% if error %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">{{ error }}</div>
+            {% endif %}
+            {% if info %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-sm">{{ info }}</div>
+            {% endif %}
+
+            {% if not info %}
+            <form method="post" action="/auth/reset-request" class="flex flex-col gap-4">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-300 mb-1.5">E-Mail</label>
+                    <input type="email" id="email" name="email" required autofocus autocomplete="email"
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors">
+                </div>
+                <button type="submit"
+                        class="mt-1 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors">
+                    Link anfordern
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        <p class="mt-5 text-center text-sm text-slate-400">
+            <a href="/login" class="text-emerald-400 hover:underline">Zurück zum Login</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

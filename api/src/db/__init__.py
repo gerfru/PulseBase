@@ -12,6 +12,7 @@ from .users import (
     set_libre_linked,
     set_libre_unlinked,
     update_epilepsy_mode,
+    update_password,
     update_spo2_enabled,
     update_user_profile,
 )
@@ -61,6 +62,7 @@ __all__ = [
     "set_libre_linked",
     "set_libre_unlinked",
     "update_epilepsy_mode",
+    "update_password",
     "update_spo2_enabled",
     "update_user_profile",
     "get_activity_detail",

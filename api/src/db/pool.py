@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     https_only: bool = True
     trimp_lookback_days: int = 7
     trimp_forecast_days: int = 7
+    resend_api_key: str = ""
+    resend_from_email: str = "onboarding@resend.dev"
+    app_base_url: str = "https://garmin.home.lab"
 
     @property
     def db_url(self) -> str:

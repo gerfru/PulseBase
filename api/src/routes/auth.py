@@ -1,20 +1,61 @@
 import logging
 
 import asyncpg
+import resend as resend_client
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from src.db import create_user, get_user_by_email
+from src.db import create_user, get_user_by_email, update_password
 from src.deps import (
     DUMMY_HASH,
     hash_password,
     limiter,
+    settings,
     templates,
     verify_password,
 )
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+_RESET_SALT = "password-reset"
+_RESET_MAX_AGE = 3600
+
+
+def _make_reset_token(user_id: int) -> str:
+    return URLSafeTimedSerializer(settings.session_secret).dumps(
+        user_id, salt=_RESET_SALT
+    )
+
+
+def _verify_reset_token(token: str) -> int | None:
+    try:
+        user_id = URLSafeTimedSerializer(settings.session_secret).loads(
+            token, salt=_RESET_SALT, max_age=_RESET_MAX_AGE
+        )
+        return int(user_id)
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+async def _send_reset_email(to_email: str, token: str) -> None:
+    if not settings.resend_api_key:
+        logger.warning("reset mail skipped — RESEND_API_KEY not set, token: %s", token)
+        return
+    resend_client.api_key = settings.resend_api_key
+    url = f"{settings.app_base_url}/auth/reset/{token}"
+    resend_client.Emails.send(
+        {
+            "from": settings.resend_from_email,
+            "to": to_email,
+            "subject": "PulseBase — Passwort zurücksetzen",
+            "html": (
+                f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
+                f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
+            ),
+        }
+    )
 
 
 @router.get("/login")
@@ -92,3 +133,70 @@ async def register(
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
+
+
+@router.get("/auth/reset-request")
+async def reset_request_form(request: Request):
+    return templates.TemplateResponse(request, "reset_request.html")
+
+
+@router.post("/auth/reset-request")
+@limiter.limit("3/hour")
+async def reset_request(request: Request, email: str = Form()):
+    user = await get_user_by_email(email)
+    if user:
+        token = _make_reset_token(user["id"])
+        await _send_reset_email(email, token)
+    return templates.TemplateResponse(
+        request,
+        "reset_request.html",
+        {
+            "info": "Falls diese E-Mail registriert ist, erhältst du in Kürze einen Link."
+        },
+    )
+
+
+@router.get("/auth/reset/{token}")
+async def reset_password_form(request: Request, token: str):
+    if not _verify_reset_token(token):
+        return templates.TemplateResponse(
+            request,
+            "reset_request.html",
+            {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
+            status_code=400,
+        )
+    return templates.TemplateResponse(request, "reset_password.html", {"token": token})
+
+
+@router.post("/auth/reset/{token}")
+@limiter.limit("5/hour")
+async def reset_password(
+    request: Request,
+    token: str,
+    password: str = Form(),
+    password_confirm: str = Form(),
+):
+    user_id = _verify_reset_token(token)
+    if not user_id:
+        return templates.TemplateResponse(
+            request,
+            "reset_request.html",
+            {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
+            status_code=400,
+        )
+    if password != password_confirm:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"token": token, "error": "Passwörter stimmen nicht überein."},
+            status_code=400,
+        )
+    if len(password) < 8:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"token": token, "error": "Passwort muss mindestens 8 Zeichen haben."},
+            status_code=400,
+        )
+    await update_password(user_id, hash_password(password))
+    return RedirectResponse("/login?reset=1", status_code=303)
