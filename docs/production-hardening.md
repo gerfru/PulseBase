@@ -235,18 +235,22 @@ structlog.get_logger().warning("auth.login.fail", email=email, ip=ip)
 
 **Alternativ (auditierbar):** Tabelle `audit_log(id BIGSERIAL, user_id INT, event TEXT, ip INET, ua TEXT, created_at TIMESTAMPTZ)`.
 
-### 3.6 Garmin Token Encryption at Rest
+### 3.6 Garmin & LibreLink Token Encryption at Rest ✅
 
-**Aktuell:** Plaintext-Token-Files im Docker-Volume.
+**Implementiert:** Tokens werden Fernet-verschlüsselt als `BYTEA` in der DB gespeichert (`user_tokens`-Tabelle, V20-Migration). Kein Docker-Volume mehr nötig.
 
-**Fix (kurzfristig):** Fernet-Verschlüsselung mit Key aus Env:
-```python
-from cryptography.fernet import Fernet
-# Einmalig: FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-# → in .env + .env.example ergänzen
-fernet = Fernet(settings.fernet_key.encode())
-encrypted = fernet.encrypt(token_data.encode())   # Schreiben
-decrypted = fernet.decrypt(encrypted_data).decode()  # Lesen
+**Architektur:**
+- `FERNET_KEY` in `env/.env.api` und `env/.env.sync` (gleicher Wert, 32-byte URL-safe base64)
+- Generieren: `make gen-secrets`
+- Startup-Validation: API und Sync-Service prüfen Key beim Start (Warning wenn leer, ValueError wenn ungültig)
+- `ON DELETE CASCADE` — Token wird beim Konto-Löschen automatisch mitgelöscht
+- Transparente Migration: bestehende Token-Files werden beim ersten Sync in die DB migriert
+
+**Cleanup nach Migration:**
+```bash
+# Wenn alle User einmal synced haben, kann das Token-Volume entfernt werden:
+# 1. Verifizieren: SELECT user_id, service, length(token_data), updated_at FROM user_tokens;
+# 2. Token-Volume aus docker-compose.yml entfernen
 ```
 
 **Langfristig:** ⏳ Garmin OAuth2 via Garmin Health API Developer Program — dann kein
@@ -417,7 +421,7 @@ nie nur das Image tauschen.
 - [ ] Impressum live unter `/imprint` (Route ✅, Inhalt: [Name]/[Adresse] Platzhalter füllen)
 - [x] Barrierefreiheitserklärung live unter `/accessibility` (BFSG seit Juni 2025, Footer-Link vorhanden)
 - [x] Einwilligungs-Checkboxen bei Registrierung: Gesundheitsdaten (Art. 9) + Nutzungsbedingungen + Altersbestätigung ≥16 (Art. 8) + Consent-Audit-Log (user_consents, V19)
-- [ ] Gesundheitsdaten-Disclaimer auf Dashboard ("Keine medizinische Beratung")
+- [x] Gesundheitsdaten-Disclaimer auf Dashboard (dashboard.html:171)
 
 ### Pre-Release: Infrastruktur
 - [ ] Server in EU (Hetzner Nürnberg oder Helsinki)
@@ -437,7 +441,7 @@ nie nur das Image tauschen.
 - [x] E-Mail-Verifikation bei Registrierung
 - [x] Account-Löschung (`POST /account/delete`) live (DSGVO Art. 17, ASVS V2.4.1 Passwort-Bestätigung)
 - [x] Daten-Export (`GET /account/export`) live (DSGVO Art. 20, ohne password_hash)
-- [ ] Fernet-Verschlüsselung für Token-Volume aktiv
+- [x] Fernet-Verschlüsselung für Token-Storage aktiv (DB, V20)
 - [x] Account-Lockout nach Fehlversuchen
 
 ---

@@ -1,10 +1,22 @@
 import logging
+import tempfile
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 import src.deps as _deps
-from src.db import set_garmin_linked, set_garmin_unlinked
+from src.crypto import (
+    fernet_decrypt,
+    fernet_encrypt,
+    restore_token_dir,
+    serialize_token_dir,
+)
+from src.db import (
+    get_user_token,
+    save_user_token,
+    set_garmin_linked,
+    set_garmin_unlinked,
+)
 from src.garmin.client import GarminClient
 
 logger = logging.getLogger(__name__)
@@ -24,14 +36,34 @@ async def garmin_link(
     garmin_password: str = Form(),
 ):
     user = await _deps.require_user(request)
+    settings = _deps.settings
     try:
-        client = GarminClient(
-            email=garmin_email,
-            password=garmin_password,
-            token_dir=f"/app/tokens/{user['id']}",
-        )
-        client.connect()
-        del garmin_password
+        with tempfile.TemporaryDirectory() as tmpdir:
+            existing = await get_user_token(user["id"], "garmin")
+            if existing:
+                raw = (
+                    fernet_decrypt(existing, settings.fernet_key)
+                    if settings.fernet_key
+                    else existing
+                )
+                restore_token_dir(raw, tmpdir)
+
+            client = GarminClient(
+                email=garmin_email,
+                password=garmin_password,
+                token_dir=tmpdir,
+            )
+            client.connect()
+            del garmin_password
+
+            serialized = serialize_token_dir(tmpdir)
+            blob = (
+                fernet_encrypt(serialized, settings.fernet_key)
+                if settings.fernet_key
+                else serialized
+            )
+            await save_user_token(user["id"], "garmin", blob)
+
         await set_garmin_linked(user["id"], garmin_email)
         logger.info("Garmin verknüpft für User %s", user["id"])
         return RedirectResponse("/?linked=1", status_code=303)

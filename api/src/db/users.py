@@ -115,6 +115,10 @@ async def set_libre_unlinked(user_id: int) -> None:
                 "DELETE FROM glucose_readings WHERE user_id = $1",
                 user_id,
             )
+            await conn.execute(
+                "DELETE FROM user_tokens WHERE user_id = $1 AND service = 'libre'",
+                user_id,
+            )
 
 
 async def update_password(user_id: int, password_hash: str) -> None:
@@ -224,6 +228,31 @@ async def delete_user(user_id: int) -> None:
     token_dir = Path(f"/app/tokens/{user_id}")
     if token_dir.exists():
         shutil.rmtree(token_dir)
+
+
+async def get_user_token(user_id: int, service: str) -> bytes | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT token_data FROM user_tokens WHERE user_id = $1 AND service = $2",
+        user_id,
+        service,
+    )
+    return bytes(row["token_data"]) if row else None
+
+
+async def save_user_token(user_id: int, service: str, token_data: bytes) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        """
+        INSERT INTO user_tokens (user_id, service, token_data)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, service) DO UPDATE
+            SET token_data = $3, updated_at = NOW()
+        """,
+        user_id,
+        service,
+        token_data,
+    )
 
 
 async def save_consent(

@@ -1,3 +1,4 @@
+import json
 import logging
 import shutil
 from pathlib import Path
@@ -6,7 +7,8 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 import src.deps as _deps
-from src.db import set_libre_linked, set_libre_unlinked
+from src.crypto import fernet_encrypt
+from src.db import save_user_token, set_libre_linked, set_libre_unlinked
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -28,12 +30,20 @@ async def libre_link(
     from libre.client import authenticate as libre_authenticate
 
     user = await _deps.require_user(request)
+    settings = _deps.settings
     try:
-        libre_authenticate(
+        client = libre_authenticate(
             libre_email,
             libre_password,
             token_dir=f"/app/tokens/{user['id']}/libre",
         )
+        token_json = json.dumps({"token": client.token}).encode()
+        blob = (
+            fernet_encrypt(token_json, settings.fernet_key)
+            if settings.fernet_key
+            else token_json
+        )
+        await save_user_token(user["id"], "libre", blob)
         await set_libre_linked(user["id"], libre_email)
         logger.info("LibreLinkUp verknüpft für User %s", user["id"])
         return RedirectResponse("/dashboard", status_code=303)

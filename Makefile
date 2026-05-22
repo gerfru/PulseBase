@@ -68,8 +68,9 @@ gen-secrets:
 	@echo "Folgende Werte in env/.env.api eintragen:"
 	@echo ""
 	@echo "SESSION_SECRET=$$(openssl rand -hex 32)"
+	@echo "FERNET_KEY=$$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
 	@echo ""
-	@echo "RSA Key wird nicht mehr benötigt."
+	@echo "FERNET_KEY auch in env/.env.sync eintragen (gleicher Wert)."
 
 secure-env:
 	chmod 600 env/.env env/.env.api env/.env.sync env/.env.ml
