@@ -57,8 +57,10 @@ Renders the registration form.
 | `password` | string | yes | min 12 characters (ASVS V2.1.1 / NIST SP 800-63B) |
 | `password_confirm` | string | yes | must match `password` |
 | `consent_health` | checkbox | yes | explicit consent for health data processing (DSGVO Art. 9) |
+| `consent_terms` | checkbox | yes | acceptance of Terms of Service |
+| `consent_age` | checkbox | yes | age self-declaration (≥ 16 years, DSGVO Art. 8) |
 
-On success: creates account, logs health data consent to `user_consents`, sends verification email, redirects to `/login?verify=sent`.
+On success: creates account, logs all three consents (`health_data`, `terms`, `age_16plus`) to `user_consents`, sends verification email, redirects to `/login?verify=sent`.
 If email send fails: redirects to `/login?verify=failed` (amber banner with resend link).
 On failure: re-renders form with error message (HTTP 400).
 
@@ -75,6 +77,10 @@ Renders the terms of service (`terms.html`). No session required.
 ### `GET /imprint`
 
 Renders the legal imprint (`imprint.html`). No session required.
+
+### `GET /accessibility`
+
+Renders the accessibility statement (`accessibility.html`). No session required.
 
 ### `GET /auth/resend-verify`
 
