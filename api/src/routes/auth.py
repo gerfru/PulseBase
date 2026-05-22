@@ -19,6 +19,7 @@ from src.db import (
 )
 from src.deps import (
     DUMMY_HASH,
+    _get_real_ip,
     hash_password,
     limiter,
     settings,
@@ -168,6 +169,11 @@ async def login(
             )
             + 1
         )
+        logger.warning(
+            "auth.login.fail reason=locked user_id=%s ip=%s",
+            user["id"],
+            _get_real_ip(request),
+        )
         return templates.TemplateResponse(
             request,
             "login.html",
@@ -187,6 +193,11 @@ async def login(
                 until = datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)
                 await lock_user_until(user["id"], until)
                 await _send_lockout_email(user["email"])
+        logger.warning(
+            "auth.login.fail reason=bad_credentials email=%s ip=%s",
+            email,
+            _get_real_ip(request),
+        )
         return templates.TemplateResponse(
             request,
             "login.html",
@@ -195,6 +206,11 @@ async def login(
         )
 
     if not user["email_verified_at"]:
+        logger.warning(
+            "auth.login.fail reason=unverified user_id=%s ip=%s",
+            user["id"],
+            _get_real_ip(request),
+        )
         return templates.TemplateResponse(
             request,
             "login.html",
@@ -208,6 +224,9 @@ async def login(
     await reset_failed_login(user["id"])
     request.session.clear()
     request.session["user_id"] = str(user["id"])
+    logger.info(
+        "auth.login.success user_id=%s ip=%s", user["id"], _get_real_ip(request)
+    )
     return RedirectResponse("/", status_code=303)
 
 
@@ -286,6 +305,9 @@ async def register(
     await save_consent(user["id"], "health_data", True, ip)
     await save_consent(user["id"], "terms", True, ip)
     await save_consent(user["id"], "age_16plus", True, ip)
+    logger.info(
+        "auth.register.success user_id=%s ip=%s", user["id"], _get_real_ip(request)
+    )
     token = _make_verify_token(user["id"])
     sent = await _send_verify_email(email, token)
     return RedirectResponse(
@@ -401,4 +423,5 @@ async def reset_password(
             status_code=400,
         )
     await update_password(user_id, hash_password(password))
+    logger.info("auth.password_reset.success user_id=%s", user_id)
     return RedirectResponse("/login?reset=1", status_code=303)

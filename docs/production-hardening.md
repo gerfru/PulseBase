@@ -148,7 +148,7 @@ Token-Files in `/app/tokens/{user_id}/`
 | Garmin Gesundheitsdaten (HRV, Schlaf) | Garmin Connect API | Analyse, ML | bis Konto-Löschung | Nein |
 | Glukosedaten | LibreLink API | Analyse | bis Konto-Löschung | Nein |
 | Login-Session | Starlette SessionMiddleware | Auth | 14 Tage inaktiv | Nein |
-| Garmin Auth-Token | Docker Volume (verschlüsselt, siehe 3.5) | Sync | bis Garmin-Konto getrennt | Nein |
+| Garmin Auth-Token + LibreLink Token | user_tokens DB-Tabelle (Fernet-verschlüsselt, V20) | Sync | bis Konto getrennt | Nein |
 
 ---
 
@@ -181,8 +181,8 @@ Umsetzung via native Docker Compose `env_file`-Listen — kein extra Tooling, ke
 | File | Service | Enthält |
 |------|---------|---------|
 | `env/.env` | alle | DB_USER/PASSWORD, DB_APP_USER/PASSWORD, HOST_IP |
-| `env/.env.api` | api | SESSION_SECRET, HTTPS_ONLY, TRIMP_*, RESEND_*, APP_BASE_URL |
-| `env/.env.sync` | sync-service | SYNC_HOUR, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS |
+| `env/.env.api` | api | SESSION_SECRET, HTTPS_ONLY, TRIMP_*, RESEND_*, APP_BASE_URL, FERNET_KEY |
+| `env/.env.sync` | sync-service | SYNC_HOUR, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, FERNET_KEY |
 | `env/.env.ml` | ml-service | ML_INFER_HOUR |
 
 Dateiberechtigungen: `make secure-env` setzt `chmod 600` auf alle Secret-Files.
@@ -321,12 +321,6 @@ mkdir -p "$BACKUP_DIR"
 
 # PostgreSQL-Dump
 docker exec garmin-db pg_dump -U garmin garmin | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
-
-# Token-Volume (verschlüsselt — Fernet ist Pflicht bevor dieser Backup nützlich ist)
-docker run --rm \
-  -v garmin_garmin-tokens:/data:ro \
-  -v "$BACKUP_DIR:/backup" \
-  busybox tar czf "/backup/tokens_$DATE.tar.gz" /data
 
 # Offsite-Upload (Backblaze B2, rclone konfigurieren: rclone config → b2)
 rclone copy "$BACKUP_DIR" b2:pulsebase-backups --include "*$DATE*"
