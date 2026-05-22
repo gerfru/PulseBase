@@ -364,6 +364,16 @@ schlechteste und beste Nacht, Auffälligkeiten.
 Integration z.B. mit Open Food Facts API. Kalorien × Energiebedarf-Modell.
 Relevant für Glukose-Analyse (Carb-Timing vor/nach Training).
 
+### 4.4 Rechtliche Seiten vervollständigen 🟡
+
+Platzhalter in `privacy.html`, `terms.html`, `imprint.html` mit echten Inhalten befüllen:
+Verantwortlicher (Name, Adresse, E-Mail), Kontaktdaten für Datenschutzanfragen (Art. 15–22 DSGVO).
+
+### 4.5 Settings-Seite aufräumen 🟡
+
+UI-Überarbeitung der `/settings`-Seite: klarere Sektionsstruktur, Danger Zone visuell
+stärker abgesetzt, Export- und Profil-Bereich übersichtlicher gruppieren.
+
 ---
 
 ## 5. Datenquellen
