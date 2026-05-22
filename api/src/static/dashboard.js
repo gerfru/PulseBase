@@ -150,6 +150,36 @@ const _heroData = {
     trainingStatus: null, energy: null, ml: null,
 };
 
+let _evidence = {};
+
+async function loadEvidence() {
+    try {
+        _evidence = await fetch('/api/evidence').then(r => r.json());
+    } catch (_) {}
+}
+
+function openEvidenceDialog(key) {
+    const e = _evidence[key];
+    if (!e) return;
+    const levelLabel = { meta: '🟢 Meta-Analyse', replicated: '🟡 Repliziert', model: '🔵 Eigenmodell' }[e.level] ?? e.level;
+    const refs = (e.refs || []).map(r => `<li class="ml-3 list-disc">${esc(r)}</li>`).join('');
+    const body = `
+        <p class="mb-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${e.level === 'meta' ? 'bg-green-700/50 text-green-300' : e.level === 'replicated' ? 'bg-amber-700/50 text-amber-300' : 'bg-sky-700/50 text-sky-300'}">${levelLabel}</span></p>
+        <p class="mb-3">${esc(e.summary)}</p>
+        ${refs ? `<ul class="mb-3 text-xs text-slate-400 space-y-0.5">${refs}</ul>` : ''}
+        ${e.limitations ? `<p class="text-xs text-slate-500 border-t border-slate-700 pt-2"><strong class="text-slate-400">Einschränkungen:</strong> ${esc(e.limitations)}</p>` : ''}
+        <p class="text-xs text-slate-600 mt-3 border-t border-slate-700 pt-2">Methode validiert · Personalisierte Kalibrierung · Kein Ersatz für medizinische Diagnostik</p>`;
+    openFormulaDialog(e.name || key, body, '#');
+}
+
+function evBadge(key) {
+    const e = _evidence[key];
+    if (!e) return '';
+    const cls = e.level === 'meta' ? 'ev-meta' : e.level === 'replicated' ? 'ev-rep' : 'ev-model';
+    const short = e.level === 'meta' ? 'M' : e.level === 'replicated' ? 'R' : 'E';
+    return `<button class="ev-badge ${cls}" onclick="event.preventDefault();event.stopPropagation();openEvidenceDialog('${key}')" title="${esc(e.label)}: ${esc(e.name)}">${short}</button>`;
+}
+
 function esc(s) {
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -406,15 +436,16 @@ function buildHeroCard() {
     </div>`;
 
     // ── Energy Rows ─────────────────────────────────────────────────────────
-    function energyRow(rowScore, label, sub, metric, isAlert) {
+    function energyRow(rowScore, label, sub, metric, isAlert, evKey) {
         const s     = rowScore != null ? Math.round(rowScore) : null;
         const color = scoreColor(s);
         const pfx   = isAlert ? '⚠ ' : '';
         const cls   = isAlert ? ' hero-energy-row-alert' : '';
+        const badge = evKey ? evBadge(evKey) : '';
         return `<a class="hero-energy-row${cls}" href="/metrics/${metric}">
             <span class="hero-energy-dot" style="background:${color}"></span>
             <span class="hero-energy-val">${pfx}${s ?? '—'}</span>
-            <span class="hero-energy-label">${esc(label)}</span>
+            <span class="hero-energy-label">${esc(label)}${badge}</span>
             <span class="hero-energy-sub">${esc(sub)}</span>
             <span class="hero-energy-arrow">↗</span>
         </a>`;
@@ -430,9 +461,9 @@ function buildHeroCard() {
     const debtStr = cog?.debt_hours != null ? `${cog.debt_hours.toFixed(1)}h Schulden` : '';
 
     const energySection = `<div class="hero-energy-section">
-        ${energyRow(phys?.score,  'Physisch', tsbStr,  'physical')}
-        ${energyRow(auton?.score, 'Autonom',  devStr,  'autonomic')}
-        ${energyRow(cog?.score,   'Kognitiv', debtStr, 'cognitive', (cog?.score ?? 100) < 30)}
+        ${energyRow(phys?.score,  'Physisch', tsbStr,  'physical',  false,                    'energy_physical')}
+        ${energyRow(auton?.score, 'Autonom',  devStr,  'autonomic', false,                    'energy_autonomic')}
+        ${energyRow(cog?.score,   'Kognitiv', debtStr, 'cognitive', (cog?.score ?? 100) < 30, 'energy_cognitive')}
     </div>`;
 
     // ── Vitals Strip ────────────────────────────────────────────────────────
@@ -450,7 +481,7 @@ function buildHeroCard() {
         sleepVal = sleep[0]?.sleep_score ?? '—';
     }
 
-    function vitalTile(val, label, href, subVal = null, subCls = '', subMeta = '') {
+    function vitalTile(val, label, href, subVal = null, subCls = '', subMeta = '', badge = '') {
         const sub = subVal != null
             ? `<span class="hero-vital-derived ${subCls}">${esc(String(subVal))}${subMeta ? `<span class="hero-derived-meta"> · ${subMeta}</span>` : ''}</span>`
             : '';
@@ -458,7 +489,7 @@ function buildHeroCard() {
         const hrefAttr = href ? ` href="${href}"` : '';
         return `<${tag} class="hero-vital"${hrefAttr}>
             <span class="hero-vital-val">${val}</span>
-            <span class="hero-vital-label">${esc(label)}</span>
+            <span class="hero-vital-label">${esc(label)}${badge}</span>
             ${sub}
         </${tag}>`;
     }
@@ -473,8 +504,8 @@ function buildHeroCard() {
     const vitalsSection = `<div class="hero-vitals">
         ${vitalTile(stepsVal, 'Schritte')}
         ${vitalTile(sleepVal, 'Schlaf-Score', ml.sleep_score_custom ? '/metrics/sleep-score-custom' : '/metrics/sleep')}
-        ${vitalTile(hrvVal,  'HRV Wochenø',  '/metrics/hrv',       hrvSubVal, hrvSubCls, 'Balance')}
-        ${vitalTile(hrVal,   'Ruhepuls',      '/metrics/hr-zscore', hrSubVal,  hrSubCls,  'vs. Ø')}
+        ${vitalTile(hrvVal,  'HRV Wochenø',  '/metrics/hrv',       hrvSubVal, hrvSubCls, 'Balance', evBadge('energy_autonomic'))}
+        ${vitalTile(hrVal,   'Ruhepuls',     '/metrics/hr-zscore', hrSubVal,  hrSubCls,  'vs. Ø',   evBadge('anomaly_hr'))}
         ${spo2Tile}
     </div>`;
 
@@ -492,7 +523,7 @@ function buildHeroCard() {
     if (acwr?.acwr != null) {
         const acolor = acwr.level === 'red' ? 'chip-red' : acwr.level === 'amber' ? 'chip-amber' : 'chip-green';
         chips.push(`<a href="/metrics/acwr" class="hero-chip ${acolor}" style="text-decoration:none">
-            ACWR: ${acwr.acwr.toFixed(2)} · ${acwr.level === 'red' ? '⚠️ Risiko' : acwr.level === 'amber' ? '⚠️ Erhöht' : '✓ OK'}
+            ACWR: ${acwr.acwr.toFixed(2)} · ${acwr.level === 'red' ? '⚠️ Risiko' : acwr.level === 'amber' ? '⚠️ Erhöht' : '✓ OK'}${evBadge('acwr')}
         </a>`);
     }
 
@@ -501,7 +532,7 @@ function buildHeroCard() {
     if (mono?.monotony != null) {
         const warnIcon = mono.monotony > 2.0 ? '⚠️' : '';
         chips.push(`<a href="/metrics/training-monotony" class="hero-chip chip-${mono.monotony > 2.0 ? 'red' : 'amber'}" style="text-decoration:none">
-            Monotony: ${mono.monotony.toFixed(2)} ${warnIcon}
+            Monotony: ${mono.monotony.toFixed(2)} ${warnIcon}${evBadge('training_monotony')}
         </a>`);
     }
 
@@ -510,7 +541,7 @@ function buildHeroCard() {
     if (cons?.score != null) {
         const ccolor = cons.score >= 80 ? 'chip-green' : cons.score >= 70 ? 'chip-amber' : 'chip-red';
         chips.push(`<a href="/metrics/sleep-consistency" class="hero-chip ${ccolor}" style="text-decoration:none">
-            Schlafrhythmus: ${Math.round(cons.score)}
+            Schlafrhythmus: ${Math.round(cons.score)}${evBadge('sleep_consistency')}
         </a>`);
     }
 
@@ -519,7 +550,7 @@ function buildHeroCard() {
     if (bb?.score != null) {
         const bbcolor = bb.score >= 75 ? 'chip-green' : bb.score >= 40 ? 'chip-amber' : 'chip-red';
         chips.push(`<a href="/metrics/body-battery-custom" class="hero-chip ${bbcolor}" style="text-decoration:none">
-            Energie: ${Math.round(bb.score)}% · ↑${bb.recovery} ↓${bb.activity_drain}
+            Energie: ${Math.round(bb.score)}% · ↑${bb.recovery} ↓${bb.activity_drain}${evBadge('body_battery_custom')}
         </a>`);
     }
 
@@ -528,7 +559,7 @@ function buildHeroCard() {
     if (ss?.score != null) {
         const sscolor = ss.score < 30 ? 'chip-green' : ss.score < 60 ? 'chip-amber' : 'chip-red';
         chips.push(`<a href="/metrics/stress-score-custom" class="hero-chip ${sscolor}" style="text-decoration:none">
-            Stress: ${Math.round(ss.score)}
+            Stress: ${Math.round(ss.score)}${evBadge('stress_score_custom')}
         </a>`);
     }
 
@@ -1018,6 +1049,7 @@ if (TABS.includes(_hash)) {
 } else {
     setTab('training');
 }
+loadEvidence().catch(() => {});
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadTrainingLoad().catch(() => {});
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
