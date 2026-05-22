@@ -126,3 +126,21 @@ async def ml_battery_page(request: Request):
         "ml_insights.html",
         {"user": user, "section": "battery", "title": "Body Battery Muster"},
     )
+
+
+# ── Public legal pages (no session required) ──────────────────────────────────
+
+
+@router.get("/privacy")
+async def privacy(request: Request):
+    return _deps.templates.TemplateResponse(request, "privacy.html")
+
+
+@router.get("/terms")
+async def terms(request: Request):
+    return _deps.templates.TemplateResponse(request, "terms.html")
+
+
+@router.get("/imprint")
+async def imprint(request: Request):
+    return _deps.templates.TemplateResponse(request, "imprint.html")

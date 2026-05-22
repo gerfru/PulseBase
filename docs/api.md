@@ -15,6 +15,8 @@ if missing.
 The JSON API endpoints (`/api/*`) also require a valid session — they return a redirect
 to `/login` if called without one (not a 401 JSON response).
 
+Sessions expire after **1 hour of inactivity** (`max_age=3600`, ASVS V8.2.2).
+
 ---
 
 ## Public Routes
@@ -50,16 +52,29 @@ Renders the registration form.
 
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
-| `name` | string | yes | |
-| `email` | string | yes | must be unique |
-| `password` | string | yes | min 8 characters |
+| `name` | string | yes | 1–100 characters |
+| `email` | string | yes | must be unique; normalized to lowercase + trimmed |
+| `password` | string | yes | min 12 characters (ASVS V2.1.1 / NIST SP 800-63B) |
 | `password_confirm` | string | yes | must match `password` |
+| `consent_health` | checkbox | yes | explicit consent for health data processing (DSGVO Art. 9) |
 
-On success: creates account, sends verification email, redirects to `/login?verify=sent`.
+On success: creates account, logs health data consent to `user_consents`, sends verification email, redirects to `/login?verify=sent`.
 If email send fails: redirects to `/login?verify=failed` (amber banner with resend link).
 On failure: re-renders form with error message (HTTP 400).
 
 Login is blocked until the email address is verified (see `GET /auth/verify/{token}`).
+
+### `GET /privacy`
+
+Renders the privacy policy (`privacy.html`). No session required.
+
+### `GET /terms`
+
+Renders the terms of service (`terms.html`). No session required.
+
+### `GET /imprint`
+
+Renders the legal imprint (`imprint.html`). No session required.
 
 ### `GET /auth/resend-verify`
 
@@ -112,7 +127,7 @@ Rate-limited to 5 requests/hour per IP.
 
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
-| `password` | string | yes | min 8 characters |
+| `password` | string | yes | min 12 characters |
 | `password_confirm` | string | yes | must match `password` |
 
 On success: updates the password and redirects to `/login?reset=1`.
@@ -222,6 +237,52 @@ Renders the correlations detail page. Shows all three Pearson correlations
 
 Renders the body battery pattern detail page. Shows today's cluster assignment
 with feature breakdown table.
+
+### `POST /account/delete`
+
+Rate-limited to 3 requests/hour per IP (ASVS V4.1.1).
+
+Re-authentication required before deletion (DSGVO Art. 17 / ASVS V2.4.1):
+
+| Field | Type | Required |
+|-------|------|----------|
+| `email` | string | yes — must match the account's email |
+| `password` | string | yes — current account password |
+
+On success: deletes the account and all associated data (activities, sleep, HRV, glucose,
+seizure events, daily summaries, ML predictions, Garmin tokens on disk) atomically in a
+single DB transaction. Session is cleared. Redirects to `/login?deleted=1`.
+
+On failure (wrong email or password): re-renders settings page with error (HTTP 400).
+
+### `GET /account/export`
+
+Rate-limited to 10 requests/hour per IP (ASVS V4.1.1 / DSGVO Art. 20).
+
+Returns a JSON file containing all personal data for the authenticated user.
+
+**Response headers:**
+- `Content-Type: application/json`
+- `Content-Disposition: attachment; filename=pulsebase-export.json`
+
+**Response body:**
+
+```json
+{
+  "exported_at": "2026-05-22T14:00:00+00:00",
+  "schema_version": "1.0",
+  "user": { "id": 1, "name": "...", "email": "...", "created_at": "...", ... },
+  "activities": [...],
+  "sleep_sessions": [...],
+  "hrv_daily": [...],
+  "daily_summary": [...],
+  "seizure_events": [...],
+  "glucose_readings": [...]
+}
+```
+
+Sensitive fields excluded from export: `password_hash`, `failed_login_attempts`,
+`locked_until` (ASVS V8.3.4).
 
 ---
 

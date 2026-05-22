@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Nutzungsbedingungen{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-10 pb-16">
+    <div class="flex items-center gap-4 mb-6">
+        <a href="javascript:history.back()"
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+            ← Zurück
+        </a>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Nutzungsbedingungen</h1>
+    </div>
+
+    <div class="card flex flex-col gap-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">1. Zweck</h2>
+            <p>PulseBase ist eine selbst gehostete Anwendung zur persönlichen Visualisierung von Fitness- und Gesundheitsdaten. Die App richtet sich ausschließlich an Privatpersonen für den eigenen Gebrauch.</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">2. Kein Medizinprodukt</h2>
+            <p>PulseBase ist kein Medizinprodukt im Sinne der EU-MDR. Die dargestellten Daten — einschließlich Readiness-Score, HRV-Analyse, Anomalieerkennung und Anfallsrisiko-Indikator — dienen ausschließlich der persönlichen Information und ersetzen in keinem Fall ärztliche Diagnose, Beratung oder Behandlung. Bei gesundheitlichen Beschwerden wende dich an medizinisches Fachpersonal.</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">3. Haftungsausschluss</h2>
+            <p>Der Betreiber haftet nicht für Schäden, die durch die Nutzung oder Nichtnutzung der dargestellten Informationen entstehen. Die Nutzung erfolgt auf eigene Verantwortung.</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">4. Pflichten des Nutzers</h2>
+            <p>Du bist für die Sicherheit deines Kontos und die Geheimhaltung deines Passworts verantwortlich. Die App darf ausschließlich für legale Zwecke genutzt werden.</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">5. Änderungen</h2>
+            <p>Diese Nutzungsbedingungen können jederzeit geändert werden. Bei wesentlichen Änderungen erfolgt eine Benachrichtigung.</p>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

@@ -87,7 +87,8 @@ Open `https://garmin.home.lab/register` in a browser.
 The browser will show a certificate warning (self-signed cert from Caddy) — accept it
 once and it won't appear again for this subdomain.
 
-Create your account with name, email, and password (min. 8 characters).
+Create your account with name, email, and password (min. 12 characters).
+Check the health data consent checkbox (required — DSGVO Art. 9).
 
 ---
 

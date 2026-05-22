@@ -58,8 +58,9 @@ async def test_register_password_mismatch_returns_400(client):
         data={
             "name": "User",
             "email": "user@example.com",
-            "password": "password123",  # pragma: allowlist secret
-            "password_confirm": "different99",  # pragma: allowlist secret
+            "password": "longerpassword1",  # pragma: allowlist secret
+            "password_confirm": "longerpassword2",  # pragma: allowlist secret
+            "consent_health": "on",
         },
     )
     assert r.status_code == 400
@@ -73,6 +74,7 @@ async def test_register_password_too_short_returns_400(client):
             "email": "user@example.com",
             "password": "short",  # pragma: allowlist secret
             "password_confirm": "short",  # pragma: allowlist secret
+            "consent_health": "on",
         },
     )
     assert r.status_code == 400
@@ -81,15 +83,17 @@ async def test_register_password_too_short_returns_400(client):
 async def test_register_redirects_to_verify_pending(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
         with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
-            r = await client.post(
-                "/register",
-                data={
-                    "name": "New User",
-                    "email": "new@example.com",
-                    "password": "newpassword1",  # pragma: allowlist secret
-                    "password_confirm": "newpassword1",  # pragma: allowlist secret
-                },
-            )
+            with patch("src.routes.auth.save_consent", AsyncMock()):
+                r = await client.post(
+                    "/register",
+                    data={
+                        "name": "New User",
+                        "email": "new@example.com",
+                        "password": "newpassword1x",  # pragma: allowlist secret
+                        "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                        "consent_health": "on",
+                    },
+                )
     assert r.status_code == 303
     assert r.headers["location"] == "/login?verify=sent"
 
@@ -97,39 +101,43 @@ async def test_register_redirects_to_verify_pending(client):
 async def test_register_email_failed_redirects_to_verify_failed(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
         with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=False)):
-            r = await client.post(
-                "/register",
-                data={
-                    "name": "New User",
-                    "email": "new@example.com",
-                    "password": "newpassword1",  # pragma: allowlist secret
-                    "password_confirm": "newpassword1",  # pragma: allowlist secret
-                },
-            )
+            with patch("src.routes.auth.save_consent", AsyncMock()):
+                r = await client.post(
+                    "/register",
+                    data={
+                        "name": "New User",
+                        "email": "new@example.com",
+                        "password": "newpassword1x",  # pragma: allowlist secret
+                        "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                        "consent_health": "on",
+                    },
+                )
     assert r.status_code == 303
     assert r.headers["location"] == "/login?verify=failed"
 
 
 async def test_register_sends_verify_email_when_api_key_set(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth.settings") as mock_settings:
-            mock_settings.session_secret = (
-                "test-secret-key-for-testing-only!"  # pragma: allowlist secret
-            )
-            mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
-            mock_settings.resend_from_email = "noreply@example.com"
-            mock_settings.app_base_url = "https://example.com"
-            with patch("src.routes.auth.resend_client") as mock_resend:
-                mock_resend.Emails.send = MagicMock()
-                r = await client.post(
-                    "/register",
-                    data={
-                        "name": "New User",
-                        "email": "new@example.com",
-                        "password": "newpassword1",  # pragma: allowlist secret
-                        "password_confirm": "newpassword1",  # pragma: allowlist secret
-                    },
+        with patch("src.routes.auth.save_consent", AsyncMock()):
+            with patch("src.routes.auth.settings") as mock_settings:
+                mock_settings.session_secret = (
+                    "test-secret-key-for-testing-only!"  # pragma: allowlist secret
                 )
+                mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+                mock_settings.resend_from_email = "noreply@example.com"
+                mock_settings.app_base_url = "https://example.com"
+                with patch("src.routes.auth.resend_client") as mock_resend:
+                    mock_resend.Emails.send = MagicMock()
+                    r = await client.post(
+                        "/register",
+                        data={
+                            "name": "New User",
+                            "email": "new@example.com",
+                            "password": "newpassword1x",  # pragma: allowlist secret
+                            "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                            "consent_health": "on",
+                        },
+                    )
     assert r.status_code == 303
     mock_resend.Emails.send.assert_called_once()
 
@@ -144,8 +152,9 @@ async def test_register_duplicate_email_returns_400(client):
             data={
                 "name": "User",
                 "email": "existing@example.com",
-                "password": "password123",  # pragma: allowlist secret
-                "password_confirm": "password123",  # pragma: allowlist secret
+                "password": "longerpassword1",  # pragma: allowlist secret
+                "password_confirm": "longerpassword1",  # pragma: allowlist secret
+                "consent_health": "on",
             },
         )
     assert r.status_code == 400
@@ -513,3 +522,112 @@ async def test_verify_email_sends_when_api_key_set(client):
     mock_resend.Emails.send.assert_called_once()
     call_kwargs = mock_resend.Emails.send.call_args[0][0]
     assert call_kwargs["to"] == TEST_USER["email"]
+
+
+# ── Registration: consent + email normalization + 12-char minimum ─────────────
+
+
+async def test_register_empty_name_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "   ",
+            "email": "user@example.com",
+            "password": "longerpassword1",  # pragma: allowlist secret
+            "password_confirm": "longerpassword1",  # pragma: allowlist secret
+            "consent_health": "on",
+        },
+    )
+    assert r.status_code == 400
+    assert "Name" in r.text
+
+
+async def test_register_without_consent_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "user@example.com",
+            "password": "longerpassword1",  # pragma: allowlist secret
+            "password_confirm": "longerpassword1",  # pragma: allowlist secret
+        },
+    )
+    assert r.status_code == 400
+    assert "Gesundheitsdaten" in r.text
+
+
+async def test_register_consent_saves_audit_log(client):
+    with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
+        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+            with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
+                await client.post(
+                    "/register",
+                    data={
+                        "name": "New User",
+                        "email": "new@example.com",
+                        "password": "newpassword1x",  # pragma: allowlist secret
+                        "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                        "consent_health": "on",
+                    },
+                )
+    mock_consent.assert_awaited_once()
+    call_args = mock_consent.call_args[0]
+    assert call_args[0] == 42
+    assert call_args[1] == "health_data"
+    assert call_args[2] is True
+
+
+async def test_register_short_password_12_chars_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "user@example.com",
+            "password": "only11chars",  # pragma: allowlist secret
+            "password_confirm": "only11chars",  # pragma: allowlist secret
+            "consent_health": "on",
+        },
+    )
+    assert r.status_code == 400
+    assert "12" in r.text
+
+
+async def test_register_normalizes_email_to_lowercase(client):
+    with patch(
+        "src.routes.auth.create_user", AsyncMock(return_value={"id": 42})
+    ) as mock_create:
+        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+            with patch("src.routes.auth.save_consent", AsyncMock()):
+                await client.post(
+                    "/register",
+                    data={
+                        "name": "New User",
+                        "email": "New@Example.COM",
+                        "password": "newpassword1x",  # pragma: allowlist secret
+                        "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                        "consent_health": "on",
+                    },
+                )
+    call_args = mock_create.call_args[0]
+    assert call_args[1] == "new@example.com"
+
+
+# ── Public legal pages ────────────────────────────────────────────────────────
+
+
+async def test_privacy_page_returns_200(client):
+    r = await client.get("/privacy")
+    assert r.status_code == 200
+    assert "Datenschutz" in r.text
+
+
+async def test_terms_page_returns_200(client):
+    r = await client.get("/terms")
+    assert r.status_code == 200
+    assert "Nutzungsbedingungen" in r.text
+
+
+async def test_imprint_page_returns_200(client):
+    r = await client.get("/imprint")
+    assert r.status_code == 200
+    assert "Impressum" in r.text
