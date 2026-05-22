@@ -67,23 +67,23 @@ Garmins Stress zeigt Stundenverläufe; unsere Methode nur einen Tageswert.
 
 ---
 
-### 1.3 Aerober Trainingseffekt — TRIMP-basiert 🟡 (bereits teilweise ✅)
+### 1.3 Aerober Trainingseffekt — TRIMP-basiert ✅
 
 **Aktuell:** `activities.aerobic_effect` — Garmin EPOC-Modell (Firstbeat).
 
-**Implementiert:** Banister TRIMP im Physical-Energy-Score und Training-Effect-Metrik.
-Noch nicht: Per-Aktivität-Skalierung auf 0–5 wie Garmin.
+**Implementiert:** Banister TRIMP im Physical-Energy-Score und `training_effect_custom`-Modell
+mit 0–5-Skalierung via atan gegen persönliche CTL-Baseline.
 
 ```
 # EPOC-Proxy via Banister TRIMP (Morton et al. 1990)
 TRIMP_session = Dauer × HRr × e^(b × HRr)   [b = 1.92 m / 1.67 f]
 
-# Skalierung auf 0–5 (analog Garmin-Skala)
-aerobic_effect = min(5, TRIMP_session / CTL × 0.8)
-  — < 1 geringe Wirkung, 2–3 verbessernd, > 4 überbelastend
+# Skalierung auf 0–5 via atan gegen CTL-Referenz
+effect = atan(trimp_today / (CTL × 0.5)) × (10 / π)   → capped [0, 5]
 ```
 
-**Aufwand:** Niedrig — Schema vorhanden, Berechnung im Training-Effect-Modell ergänzen.
+**ML-Insights:** `ml_predictions.model = 'training_effect_custom'` mit `effect` (0–5),
+`score` (0–100), `trimp_today`, `ctl`, `vo2max`-Schätzung (Uth 2004).
 
 **Quellen:**
 - Morton RH, Fitz-Clarke JR, Banister EW (1990). "Modeling human performance in running". J Appl Physiol 69(3):1171–1177
@@ -176,13 +176,16 @@ Strain   = Σ(TRIMP₇d) × Monotony
 
 ### 2.3 Laufökonomie-Score (Running Economy) ✅
 
-**Daten vorhanden (V13):**
+**Implementiert:** `ml_predictions.model = 'running_economy'` mit personalisierten Z-Score-Normierungen
+gegen persönliche Lauf-Baseline.
+
+**Daten (V13):**
 - `avg_ground_contact_time` (ms) — optimal < 240ms
 - `avg_vertical_oscillation` (cm) — optimal < 8cm
 - `avg_vertical_ratio` (%) — optimal < 8%
 - `avg_stride_length` (cm)
 
-**Möglicher Score:**
+**Berechnung:**
 
 ```
 # Jede Kennzahl gegen persönliche Baseline und Literatur-Optimum normieren
@@ -197,8 +200,6 @@ economy_score = gct_score × 0.4 + vo_score × 0.35 + vr_score × 0.25
 - Cavanagh PR, Kram R (1985). "Mechanical and muscular factors affecting the efficiency of human movement". Med Sci Sports Exerc 17(3):326–331
 - Moore IS (2016). "Is there an economical running technique? A review of modelling studies". Sports Med 46(6):793–807
 - Fletcher JR, et al. (2009). "Changes in tendon stiffness and running economy in highly trained distance runners". Eur J Appl Physiol 86(5):411–418
-
-**Aufwand:** Medium — neue Berechnung im ML-Service, Schema vorhanden.
 
 ---
 
@@ -348,10 +349,13 @@ neue `model`-Rows in `ml_predictions`.
 
 ## 4. Features / UX
 
-### 4.1 Wochenrückblick ✅
+### 4.1 Wochenrückblick 🟡
 
-Automatisch generierte Wochenzusammenfassung: Trainingsvolumen, Readiness-Trend,
-schlechteste und beste Nacht, Auffälligkeiten.
+Wöchentliches Trainingsvolumen-Chart (`GET /api/weekly` → run_km, ride_km, activity_count,
+total_hours) ist im Dashboard implementiert ✅.
+
+Noch offen: Automatisch generierte Textzusammenfassung mit Readiness-Trend,
+schlechtester/bester Nacht, Auffälligkeiten pro Woche.
 
 ### 4.2 Ziele & Soll-Ist-Vergleich 🟡
 
