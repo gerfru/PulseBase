@@ -1,6 +1,8 @@
 from .pool import Settings, get_pool
 from .users import (
     create_user,
+    delete_user,
+    export_user_data,
     get_user_by_email,
     get_user_by_id,
     get_user_sex,
@@ -10,6 +12,7 @@ from .users import (
     lock_user_until,
     request_sync,
     reset_failed_login,
+    save_consent,
     set_email_verified,
     set_garmin_linked,
     set_garmin_unlinked,
@@ -55,6 +58,9 @@ __all__ = [
     "Settings",
     "get_pool",
     "create_user",
+    "delete_user",
+    "export_user_data",
+    "save_consent",
     "get_user_by_email",
     "get_user_by_id",
     "get_user_sex",

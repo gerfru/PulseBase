@@ -413,7 +413,7 @@ nie nur das Image tauschen.
 - [ ] Datenschutzerklärung live unter `/privacy`
 - [ ] Nutzungsbedingungen live unter `/terms`
 - [ ] Impressum live (Footer oder `/imprint`)
-- [ ] Einwilligungs-Checkbox bei Registrierung (DSGVO Art. 9)
+- [x] Einwilligungs-Checkbox bei Registrierung (DSGVO Art. 9) + Consent-Audit-Log (user_consents)
 - [ ] Gesundheitsdaten-Disclaimer auf Dashboard ("Keine medizinische Beratung")
 
 ### Pre-Release: Infrastruktur
@@ -432,8 +432,8 @@ nie nur das Image tauschen.
 ### Post-Launch (erste 4 Wochen)
 - [x] Password-Reset-Flow live
 - [x] E-Mail-Verifikation bei Registrierung
-- [ ] Account-Löschung (`DELETE /account`) live
-- [ ] Daten-Export (`GET /account/export`) live
+- [x] Account-Löschung (`POST /account/delete`) live (DSGVO Art. 17, ASVS V2.4.1 Passwort-Bestätigung)
+- [x] Daten-Export (`GET /account/export`) live (DSGVO Art. 20, ohne password_hash)
 - [ ] Fernet-Verschlüsselung für Token-Volume aktiv
 - [x] Account-Lockout nach Fehlversuchen
 

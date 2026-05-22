@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Impressum{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-10 pb-16">
+    <div class="flex items-center gap-4 mb-6">
+        <a href="javascript:history.back()"
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+            ← Zurück
+        </a>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Impressum</h1>
+    </div>
+
+    <div class="card flex flex-col gap-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Angaben gemäß § 5 TMG</h2>
+            <p>
+                [Name]<br>
+                [Straße, Hausnummer]<br>
+                [PLZ Ort]
+            </p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Kontakt</h2>
+            <p>E-Mail: [E-Mail]</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Hinweis</h2>
+            <p>Diese Anwendung wird privat betrieben und ist nicht öffentlich zugänglich. Eine Impressumspflicht nach § 5 TMG besteht nur für geschäftsmäßige Telemedien. Dieser Hinweis dient der Vollständigkeit.</p>
+        </section>
+
+    </div>
+</div>
+{% endblock %}
