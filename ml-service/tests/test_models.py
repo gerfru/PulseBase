@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from datetime import datetime, timezone
 
-from models.anomaly import detect_resting_hr_anomaly
+from models.anomaly import detect_metric_anomaly as detect_resting_hr_anomaly
 from models.battery_pattern import extract_features
 from models.correlation import compute_sleep_hrv_correlation
 from models.energy_metrics import compute_autonomic_energy, compute_cognitive_energy
