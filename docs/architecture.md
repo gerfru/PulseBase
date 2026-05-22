@@ -103,7 +103,7 @@ Data synced per user per day:
 
 ```
 LibreLinkUp API (EU endpoint)
-  → pylibrelinkup (token auth, /app/tokens/{user_id}/libre/libre_token.json)
+  → pylibrelinkup (token auth, token loaded from user_tokens DB table)
   → libre/client.py  get_recent_glucose(hours=2)
   → libre/mapper.py  map_reading → {time, user_id, value_mgdl, trend, is_high, is_low}
   → TimescaleRepository.bulk_insert_glucose()
@@ -111,8 +111,7 @@ LibreLinkUp API (EU endpoint)
   → glucose_readings hypertable
 ```
 
-Libre tokens are stored separately from Garmin tokens under the same `garmin-tokens` volume
-at `/app/tokens/{user_id}/libre/libre_token.json`.
+Libre tokens are stored encrypted in the `user_tokens` DB table (same as Garmin tokens).
 
 ### ML Inference (daily at configured hour, default 7:00)
 
@@ -170,8 +169,6 @@ on the `proxy` network.
 | Volume | Content |
 |--------|---------|
 | `timescale-data` | PostgreSQL data directory (persisted) |
-| `garmin-tokens` | Garmin session tokens per user (`/app/tokens/{user_id}/`) |
 | `ml-models` | Serialized scikit-learn models (`joblib`) for ML inference |
 
-Tokens are shared between `api` and `sync-service` via the same named volume.
-ML models are written by `ml-service` and read back on the next inference run.
+Session tokens (Garmin, LibreLink) are stored Fernet-encrypted in the `user_tokens` DB table — no separate Docker volume required. ML models are written by `ml-service` and read back on the next inference run.
