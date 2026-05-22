@@ -88,7 +88,10 @@ The browser will show a certificate warning (self-signed cert from Caddy) — ac
 once and it won't appear again for this subdomain.
 
 Create your account with name, email, and password (min. 12 characters).
-Check the health data consent checkbox (required — DSGVO Art. 9).
+Check all three consent checkboxes (required):
+- Health data processing (DSGVO Art. 9)
+- Terms of Service
+- Age confirmation ≥ 16 years (DSGVO Art. 8)
 
 ---
 
