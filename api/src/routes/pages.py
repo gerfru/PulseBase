@@ -33,6 +33,7 @@ _VALID_METRICS = {
     "sleep-consistency",
     "running-economy",
     "hrv-recovery",
+    "recovery",
 }
 
 
