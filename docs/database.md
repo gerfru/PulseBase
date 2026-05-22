@@ -30,6 +30,7 @@ production database — always add a new migration file.
 | `V17__account_lockout.sql` | Adds `failed_login_attempts SMALLINT`, `locked_until TIMESTAMPTZ` to `users` |
 | `V18__email_verification.sql` | Adds `email_verified_at TIMESTAMPTZ` to `users`; backfills existing users |
 | `V19__user_consents.sql` | Creates `user_consents` audit table for DSGVO Art. 5(2) accountability |
+| `V20__user_tokens.sql` | Creates `user_tokens` table for Fernet-encrypted Garmin/LibreLink session tokens |
 
 ---
 
@@ -222,6 +223,23 @@ Audit log for user consent (DSGVO Art. 5(2) — Rechenschaftspflicht). Added in 
 | `privacy_policy_version` | `TEXT NOT NULL DEFAULT 'v1.0'` | Policy version the user consented to |
 
 UNIQUE on `(user_id, consent_type)` — upserted on re-registration via `ON CONFLICT DO UPDATE`.
+
+---
+
+### `user_tokens`
+
+Fernet-encrypted session tokens for third-party service accounts. Added in V20.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | `INT → users(id) ON DELETE CASCADE` | Token deleted automatically when user account is deleted |
+| `service` | `TEXT CHECK (service IN ('garmin', 'libre'))` | |
+| `token_data` | `BYTEA NOT NULL` | Fernet-encrypted JSON blob (filename-agnostic serialization of garth token dir) |
+| `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | Set on every upsert |
+
+PRIMARY KEY on `(user_id, service)` — upserted on every successful connect/sync via `ON CONFLICT DO UPDATE`.
+
+Tokens are encrypted with `FERNET_KEY` (AES-128-CBC + HMAC-SHA256). If `FERNET_KEY` is not set, tokens are stored unencrypted with a startup warning. The same key must be set in both `env/.env.api` and `env/.env.sync`.
 
 ---
 

@@ -58,9 +58,11 @@ no Prisma. Reasons:
 ## Garmin passwords never stored
 
 When a user links their Garmin account, the password is used once to fetch a session
-token, then explicitly deleted from memory (`del garmin_password`). Only the token is
-persisted in `/app/tokens/{user_id}/` (Docker volume). The sync-service authenticates
-with the stored token on every run.
+token, then explicitly deleted from memory (`del garmin_password`). The token is
+serialized as a filename-agnostic JSON blob, Fernet-encrypted, and stored as `BYTEA`
+in the `user_tokens` table. The sync-service loads and decrypts it on every run,
+using a tmpdir for garth's file-based auth — the decrypted bytes never leave RAM beyond
+the OS-managed tmpdir.
 
 ---
 
