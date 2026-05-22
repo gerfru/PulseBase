@@ -61,6 +61,8 @@ async def test_register_password_mismatch_returns_400(client):
             "password": "longerpassword1",  # pragma: allowlist secret
             "password_confirm": "longerpassword2",  # pragma: allowlist secret
             "consent_health": "on",
+            "consent_terms": "on",
+            "consent_age": "on",
         },
     )
     assert r.status_code == 400
@@ -75,6 +77,8 @@ async def test_register_password_too_short_returns_400(client):
             "password": "short",  # pragma: allowlist secret
             "password_confirm": "short",  # pragma: allowlist secret
             "consent_health": "on",
+            "consent_terms": "on",
+            "consent_age": "on",
         },
     )
     assert r.status_code == 400
@@ -92,6 +96,8 @@ async def test_register_redirects_to_verify_pending(client):
                         "password": "newpassword1x",  # pragma: allowlist secret
                         "password_confirm": "newpassword1x",  # pragma: allowlist secret
                         "consent_health": "on",
+                        "consent_terms": "on",
+                        "consent_age": "on",
                     },
                 )
     assert r.status_code == 303
@@ -110,6 +116,8 @@ async def test_register_email_failed_redirects_to_verify_failed(client):
                         "password": "newpassword1x",  # pragma: allowlist secret
                         "password_confirm": "newpassword1x",  # pragma: allowlist secret
                         "consent_health": "on",
+                        "consent_terms": "on",
+                        "consent_age": "on",
                     },
                 )
     assert r.status_code == 303
@@ -136,6 +144,8 @@ async def test_register_sends_verify_email_when_api_key_set(client):
                             "password": "newpassword1x",  # pragma: allowlist secret
                             "password_confirm": "newpassword1x",  # pragma: allowlist secret
                             "consent_health": "on",
+                            "consent_terms": "on",
+                            "consent_age": "on",
                         },
                     )
     assert r.status_code == 303
@@ -155,6 +165,8 @@ async def test_register_duplicate_email_returns_400(client):
                 "password": "longerpassword1",  # pragma: allowlist secret
                 "password_confirm": "longerpassword1",  # pragma: allowlist secret
                 "consent_health": "on",
+                "consent_terms": "on",
+                "consent_age": "on",
             },
         )
     assert r.status_code == 400
@@ -536,6 +548,8 @@ async def test_register_empty_name_returns_400(client):
             "password": "longerpassword1",  # pragma: allowlist secret
             "password_confirm": "longerpassword1",  # pragma: allowlist secret
             "consent_health": "on",
+            "consent_terms": "on",
+            "consent_age": "on",
         },
     )
     assert r.status_code == 400
@@ -568,13 +582,15 @@ async def test_register_consent_saves_audit_log(client):
                         "password": "newpassword1x",  # pragma: allowlist secret
                         "password_confirm": "newpassword1x",  # pragma: allowlist secret
                         "consent_health": "on",
+                        "consent_terms": "on",
+                        "consent_age": "on",
                     },
                 )
-    mock_consent.assert_awaited_once()
-    call_args = mock_consent.call_args[0]
-    assert call_args[0] == 42
-    assert call_args[1] == "health_data"
-    assert call_args[2] is True
+    assert mock_consent.await_count == 3
+    consent_types = [call[0][1] for call in mock_consent.call_args_list]
+    assert consent_types == ["health_data", "terms", "age_16plus"]
+    assert all(call[0][0] == 42 for call in mock_consent.call_args_list)
+    assert all(call[0][2] is True for call in mock_consent.call_args_list)
 
 
 async def test_register_short_password_12_chars_returns_400(client):
@@ -586,6 +602,8 @@ async def test_register_short_password_12_chars_returns_400(client):
             "password": "only11chars",  # pragma: allowlist secret
             "password_confirm": "only11chars",  # pragma: allowlist secret
             "consent_health": "on",
+            "consent_terms": "on",
+            "consent_age": "on",
         },
     )
     assert r.status_code == 400
@@ -606,6 +624,8 @@ async def test_register_normalizes_email_to_lowercase(client):
                         "password": "newpassword1x",  # pragma: allowlist secret
                         "password_confirm": "newpassword1x",  # pragma: allowlist secret
                         "consent_health": "on",
+                        "consent_terms": "on",
+                        "consent_age": "on",
                     },
                 )
     call_args = mock_create.call_args[0]
@@ -631,3 +651,80 @@ async def test_imprint_page_returns_200(client):
     r = await client.get("/imprint")
     assert r.status_code == 200
     assert "Impressum" in r.text
+
+
+async def test_accessibility_page_returns_200(client):
+    r = await client.get("/accessibility")
+    assert r.status_code == 200
+    assert "Barrierefreiheit" in r.text
+
+
+async def test_register_without_terms_consent_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "user@example.com",
+            "password": "longerpassword1",  # pragma: allowlist secret
+            "password_confirm": "longerpassword1",  # pragma: allowlist secret
+            "consent_health": "on",
+        },
+    )
+    assert r.status_code == 400
+    assert "Nutzungsbedingungen" in r.text
+
+
+async def test_register_without_age_consent_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "user@example.com",
+            "password": "longerpassword1",  # pragma: allowlist secret
+            "password_confirm": "longerpassword1",  # pragma: allowlist secret
+            "consent_health": "on",
+            "consent_terms": "on",
+        },
+    )
+    assert r.status_code == 400
+    assert "16" in r.text
+
+
+async def test_register_saves_terms_consent_to_db(client):
+    with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
+        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+            with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
+                await client.post(
+                    "/register",
+                    data={
+                        "name": "New User",
+                        "email": "new@example.com",
+                        "password": "newpassword1x",  # pragma: allowlist secret
+                        "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                        "consent_health": "on",
+                        "consent_terms": "on",
+                        "consent_age": "on",
+                    },
+                )
+    consent_types = [call[0][1] for call in mock_consent.call_args_list]
+    assert "terms" in consent_types
+
+
+async def test_register_saves_age_consent_to_db(client):
+    with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
+        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+            with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
+                await client.post(
+                    "/register",
+                    data={
+                        "name": "New User",
+                        "email": "new@example.com",
+                        "password": "newpassword1x",  # pragma: allowlist secret
+                        "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                        "consent_health": "on",
+                        "consent_terms": "on",
+                        "consent_age": "on",
+                    },
+                )
+    consent_types = [call[0][1] for call in mock_consent.call_args_list]
+    assert "age_16plus" in consent_types
