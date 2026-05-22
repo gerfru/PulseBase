@@ -1117,6 +1117,129 @@ async def test_update_password_executes_query():
     assert call_args[2] == 1
 
 
+async def test_delete_user_executes_transaction():
+    from unittest.mock import MagicMock
+
+    from src.db.users import delete_user
+
+    conn = AsyncMock()
+    acquire_ctx = MagicMock()
+    acquire_ctx.__aenter__ = AsyncMock(return_value=conn)
+    acquire_ctx.__aexit__ = AsyncMock(return_value=False)
+    transaction_ctx = MagicMock()
+    transaction_ctx.__aenter__ = AsyncMock(return_value=None)
+    transaction_ctx.__aexit__ = AsyncMock(return_value=False)
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=acquire_ctx)
+    conn.transaction = MagicMock(return_value=transaction_ctx)
+
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await delete_user(1)
+
+    assert conn.execute.call_count == 9
+    deleted_tables = [call[0][0] for call in conn.execute.call_args_list]
+    assert any("users" in q for q in deleted_tables)
+    assert any("activities" in q for q in deleted_tables)
+    assert any("ml_predictions" in q for q in deleted_tables)
+
+
+async def test_save_consent_executes_upsert():
+    from src.db.users import save_consent
+
+    pool = _pool_mock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await save_consent(1, "health_data", True, "127.0.0.1")
+    pool.execute.assert_awaited_once()
+    sql = pool.execute.call_args[0][0]
+    assert "user_consents" in sql
+    assert "ON CONFLICT" in sql
+
+
+async def test_delete_user_removes_token_dir_when_exists():
+    from unittest.mock import MagicMock, patch
+
+    from src.db.users import delete_user
+
+    conn = AsyncMock()
+    acquire_ctx = MagicMock()
+    acquire_ctx.__aenter__ = AsyncMock(return_value=conn)
+    acquire_ctx.__aexit__ = AsyncMock(return_value=False)
+    transaction_ctx = MagicMock()
+    transaction_ctx.__aenter__ = AsyncMock(return_value=None)
+    transaction_ctx.__aexit__ = AsyncMock(return_value=False)
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=acquire_ctx)
+    conn.transaction = MagicMock(return_value=transaction_ctx)
+
+    mock_path = MagicMock()
+    mock_path.exists.return_value = True
+
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        with patch("src.db.users.Path", return_value=mock_path):
+            with patch("src.db.users.shutil.rmtree") as mock_rmtree:
+                await delete_user(42)
+
+    mock_rmtree.assert_called_once_with(mock_path)
+
+
+async def test_export_user_data_raises_when_user_not_found():
+    from unittest.mock import MagicMock
+
+    from src.db.users import export_user_data
+
+    conn = AsyncMock()
+    conn.fetchrow = AsyncMock(return_value=None)
+    acquire_ctx = MagicMock()
+    acquire_ctx.__aenter__ = AsyncMock(return_value=conn)
+    acquire_ctx.__aexit__ = AsyncMock(return_value=False)
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=acquire_ctx)
+
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        with pytest.raises(RuntimeError, match="not found"):
+            await export_user_data(99)
+
+
+async def test_export_user_data_returns_dict():
+    from datetime import datetime, timezone
+    from unittest.mock import MagicMock
+
+    from src.db.users import export_user_data
+
+    user_row = {
+        "id": 1,
+        "name": "Test",
+        "email": "test@example.com",
+        "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        "email_verified_at": datetime(2026, 1, 2, tzinfo=timezone.utc),
+        "date_of_birth": None,
+        "sex": None,
+        "epilepsy_mode": False,
+        "spo2_enabled": False,
+        "garmin_linked": False,
+        "garmin_email": None,
+        "libre_linked": False,
+        "libre_email": None,
+    }
+    conn = AsyncMock()
+    conn.fetchrow = AsyncMock(return_value=user_row)
+    conn.fetch = AsyncMock(return_value=[])
+    acquire_ctx = MagicMock()
+    acquire_ctx.__aenter__ = AsyncMock(return_value=conn)
+    acquire_ctx.__aexit__ = AsyncMock(return_value=False)
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=acquire_ctx)
+
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        result = await export_user_data(1)
+
+    assert result["schema_version"] == "1.0"
+    assert result["user"]["email"] == "test@example.com"
+    assert "password_hash" not in result["user"]
+    assert "activities" in result
+    assert result["activities"] == []
+
+
 async def test_get_pool_creates_pool_when_none():
     import src.db.pool as pool_module
 

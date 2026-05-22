@@ -17,6 +17,13 @@
     <div class="fixed inset-0 -z-10 pointer-events-none dark:hidden block" aria-hidden="true"
          style="background:radial-gradient(ellipse 60% 50% at 10% 10%,rgba(16,185,129,.10) 0%,transparent 70%),radial-gradient(ellipse 50% 60% at 85% 30%,rgba(52,211,153,.07) 0%,transparent 70%),radial-gradient(ellipse 55% 45% at 40% 90%,rgba(5,150,105,.06) 0%,transparent 70%)"></div>
     {% block content %}{% endblock %}
+    <footer class="mt-8 pb-6 text-center text-xs text-slate-500 dark:text-slate-600 space-x-3">
+        <a href="/privacy" class="hover:text-slate-400 transition-colors">Datenschutz</a>
+        <span>·</span>
+        <a href="/terms" class="hover:text-slate-400 transition-colors">Nutzungsbedingungen</a>
+        <span>·</span>
+        <a href="/imprint" class="hover:text-slate-400 transition-colors">Impressum</a>
+    </footer>
     {% block scripts %}{% endblock %}
 </body>
 </html>

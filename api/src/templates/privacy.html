@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Datenschutzerklärung{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-10 pb-16">
+    <div class="flex items-center gap-4 mb-6">
+        <a href="javascript:history.back()"
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+            ← Zurück
+        </a>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Datenschutzerklärung</h1>
+    </div>
+
+    <div class="card flex flex-col gap-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">1. Verantwortlicher</h2>
+            <p>
+                [Name]<br>
+                [Adresse]<br>
+                [E-Mail]
+            </p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">2. Verarbeitete Datenkategorien</h2>
+            <p>PulseBase verarbeitet folgende personenbezogene Daten:</p>
+            <ul class="list-disc ml-5 mt-2 space-y-1">
+                <li>Zugangsdaten: Name, E-Mail-Adresse, Passwort-Hash</li>
+                <li>Gesundheitsdaten (besondere Kategorie gem. Art. 9 DSGVO): Herzfrequenz, Schlafqualität, HRV, Körperbatterie, Stress, ggf. Anfallsdaten und Glukosewerte</li>
+                <li>Aktivitätsdaten: GPS-Tracks, Trainingseinheiten, Leistungsdaten</li>
+                <li>Technische Daten: IP-Adresse (für Einwilligungs-Log), Session-Cookie</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">3. Rechtsgrundlagen</h2>
+            <ul class="list-disc ml-5 space-y-1">
+                <li>Art. 6 Abs. 1 lit. b DSGVO — Vertragserfüllung (Bereitstellung der App-Funktionen)</li>
+                <li>Art. 9 Abs. 2 lit. a DSGVO — Ausdrückliche Einwilligung für Gesundheitsdaten</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">4. Zweck der Verarbeitung</h2>
+            <p>Die Daten werden ausschließlich zur Darstellung persönlicher Gesundheits- und Fitnessdaten im selbst gehosteten Dashboard verwendet. Es findet keine Weitergabe an Dritte statt.</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">5. Speicherort und -dauer</h2>
+            <p>Alle Daten werden lokal auf dem selbst betriebenen Server gespeichert. Eine Übertragung in Drittländer findet nicht statt. Die Daten werden bis zur Kontolöschung gespeichert.</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">6. Betroffenenrechte (Art. 15–22 DSGVO)</h2>
+            <ul class="list-disc ml-5 space-y-1">
+                <li><strong>Auskunft</strong> (Art. 15): Du kannst jederzeit Auskunft über deine gespeicherten Daten anfordern.</li>
+                <li><strong>Berichtigung</strong> (Art. 16): Unrichtige Daten kannst du in den Einstellungen korrigieren.</li>
+                <li><strong>Löschung</strong> (Art. 17): Du kannst dein Konto und alle Daten unter Einstellungen → Konto löschen unwiderruflich löschen.</li>
+                <li><strong>Datenübertragbarkeit</strong> (Art. 20): Du kannst deine Daten als JSON-Datei unter Einstellungen → Daten exportieren herunterladen.</li>
+                <li><strong>Widerruf der Einwilligung</strong> (Art. 7 Abs. 3): Du kannst deine Einwilligung jederzeit widerrufen, indem du dein Konto löschst.</li>
+                <li><strong>Beschwerde</strong> (Art. 77): Du hast das Recht, dich bei der zuständigen Aufsichtsbehörde zu beschweren.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">7. Hinweis zu Gesundheitsdaten</h2>
+            <p>Diese App dient ausschließlich zu Informationszwecken und ersetzt keine medizinische Beratung oder Behandlung. Die angezeigten Daten stellen keine Diagnose dar.</p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">8. Kontakt</h2>
+            <p>Bei Fragen zum Datenschutz wende dich an: [E-Mail]</p>
+        </section>
+
+    </div>
+</div>
+{% endblock %}

@@ -13,6 +13,7 @@ from src.db import (
     increment_failed_login,
     lock_user_until,
     reset_failed_login,
+    save_consent,
     set_email_verified,
     update_password,
 )
@@ -223,7 +224,23 @@ async def register(
     email: str = Form(),
     password: str = Form(),
     password_confirm: str = Form(),
+    consent_health: str = Form(default=""),
 ):
+    if not consent_health:
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": "Bitte stimme der Verarbeitung deiner Gesundheitsdaten zu."},
+            status_code=400,
+        )
+    email = email.lower().strip()
+    if not (1 <= len(name.strip()) <= 100):
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": "Name muss 1–100 Zeichen haben."},
+            status_code=400,
+        )
     if password != password_confirm:
         return templates.TemplateResponse(
             request,
@@ -231,11 +248,11 @@ async def register(
             {"error": "Passwörter stimmen nicht überein."},
             status_code=400,
         )
-    if len(password) < 8:
+    if len(password) < 12:
         return templates.TemplateResponse(
             request,
             "register.html",
-            {"error": "Passwort muss mindestens 8 Zeichen haben."},
+            {"error": "Passwort muss mindestens 12 Zeichen haben."},
             status_code=400,
         )
     try:
@@ -249,6 +266,8 @@ async def register(
             {"error": "Diese E-Mail ist bereits registriert."},
             status_code=400,
         )
+    ip = request.client.host if request.client else None
+    await save_consent(user["id"], "health_data", True, ip)
     token = _make_verify_token(user["id"])
     sent = await _send_verify_email(email, token)
     return RedirectResponse(
@@ -356,11 +375,11 @@ async def reset_password(
             {"token": token, "error": "Passwörter stimmen nicht überein."},
             status_code=400,
         )
-    if len(password) < 8:
+    if len(password) < 12:
         return templates.TemplateResponse(
             request,
             "reset_password.html",
-            {"token": token, "error": "Passwort muss mindestens 8 Zeichen haben."},
+            {"token": token, "error": "Passwort muss mindestens 12 Zeichen haben."},
             status_code=400,
         )
     await update_password(user_id, hash_password(password))

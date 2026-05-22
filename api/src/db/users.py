@@ -1,4 +1,6 @@
-from datetime import date, datetime
+import shutil
+from datetime import date, datetime, timezone
+from pathlib import Path
 
 from .pool import get_pool
 
@@ -196,4 +198,121 @@ async def get_ml_status(user_id: int) -> dict:
         "last_ml_at": row["last_ml_at"].isoformat()
         if row and row["last_ml_at"]
         else None,
+    }
+
+
+async def delete_user(user_id: int) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("DELETE FROM ml_predictions WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM seizure_events WHERE user_id = $1", user_id)
+            await conn.execute(
+                "DELETE FROM glucose_readings WHERE user_id = $1", user_id
+            )
+            await conn.execute("DELETE FROM hrv_daily WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM sleep_sessions WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM daily_summary WHERE user_id = $1", user_id)
+            await conn.execute(
+                "DELETE FROM activity_records WHERE activity_id IN "
+                "(SELECT id FROM activities WHERE user_id = $1)",
+                user_id,
+            )
+            await conn.execute("DELETE FROM activities WHERE user_id = $1", user_id)
+            await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+    # Token cleanup AFTER transaction — FS errors must not roll back the DB deletion
+    token_dir = Path(f"/app/tokens/{user_id}")
+    if token_dir.exists():
+        shutil.rmtree(token_dir)
+
+
+async def save_consent(
+    user_id: int,
+    consent_type: str,
+    accepted: bool,
+    ip_address: str | None,
+    policy_version: str = "v1.0",
+) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        """
+        INSERT INTO user_consents
+            (user_id, consent_type, accepted, ip_address, privacy_policy_version)
+        VALUES ($1, $2, $3, $4::inet, $5)
+        ON CONFLICT (user_id, consent_type) DO UPDATE
+            SET accepted = $3, timestamp = NOW(), ip_address = $4::inet
+        """,
+        user_id,
+        consent_type,
+        accepted,
+        ip_address,
+        policy_version,
+    )
+
+
+async def export_user_data(user_id: int) -> dict:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT id, name, email, created_at, email_verified_at,
+                      date_of_birth, sex, epilepsy_mode, spo2_enabled,
+                      garmin_linked, garmin_email, libre_linked, libre_email
+               FROM users WHERE id = $1""",
+            user_id,
+        )
+        if row is None:
+            raise RuntimeError(f"export_user_data: user {user_id} not found")
+        user = dict(row)
+        activities = [
+            dict(r)
+            for r in await conn.fetch(
+                "SELECT * FROM activities WHERE user_id = $1 ORDER BY started_at",
+                user_id,
+            )
+        ]
+        sleep = [
+            dict(r)
+            for r in await conn.fetch(
+                "SELECT * FROM sleep_sessions WHERE user_id = $1 ORDER BY start_time",
+                user_id,
+            )
+        ]
+        hrv = [
+            dict(r)
+            for r in await conn.fetch(
+                "SELECT * FROM hrv_daily WHERE user_id = $1 ORDER BY date",
+                user_id,
+            )
+        ]
+        daily = [
+            dict(r)
+            for r in await conn.fetch(
+                "SELECT * FROM daily_summary WHERE user_id = $1 ORDER BY date",
+                user_id,
+            )
+        ]
+        seizures = [
+            dict(r)
+            for r in await conn.fetch(
+                "SELECT * FROM seizure_events WHERE user_id = $1 ORDER BY occurred_at",
+                user_id,
+            )
+        ]
+        glucose = [
+            dict(r)
+            for r in await conn.fetch(
+                "SELECT * FROM glucose_readings WHERE user_id = $1 ORDER BY time",
+                user_id,
+            )
+        ]
+    return {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": "1.0",
+        "user": user,
+        "activities": activities,
+        "sleep_sessions": sleep,
+        "hrv_daily": hrv,
+        "daily_summary": daily,
+        "seizure_events": seizures,
+        "glucose_readings": glucose,
     }

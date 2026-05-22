@@ -24,14 +24,24 @@
                 </div>
                 <div>
                     <label for="password" class="block text-sm font-medium text-slate-300 mb-1.5">Passwort</label>
-                    <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password"
+                    <input type="password" id="password" name="password" required minlength="12" autocomplete="new-password"
                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors">
-                    <p class="mt-1.5 text-xs text-slate-500">Mindestens 8 Zeichen</p>
+                    <p class="mt-1.5 text-xs text-slate-500">Mindestens 12 Zeichen</p>
                 </div>
                 <div>
                     <label for="password_confirm" class="block text-sm font-medium text-slate-300 mb-1.5">Passwort bestätigen</label>
-                    <input type="password" id="password_confirm" name="password_confirm" required minlength="8" autocomplete="new-password"
+                    <input type="password" id="password_confirm" name="password_confirm" required minlength="12" autocomplete="new-password"
                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors">
+                </div>
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="consent_health" name="consent_health" value="on" required
+                           class="mt-0.5 accent-emerald-500">
+                    <label for="consent_health" class="text-sm text-slate-400">
+                        Ich stimme der Verarbeitung meiner Gesundheitsdaten (Herzfrequenz, Schlaf, Stress,
+                        ggf. Anfallsdaten, Glukosewerte) gemäß
+                        <a href="/privacy" class="text-emerald-400 hover:underline">Datenschutzerklärung</a>
+                        zu (DSGVO Art. 9). <span class="text-red-400">*</span>
+                    </label>
                 </div>
                 <button type="submit"
                         class="mt-1 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors">
