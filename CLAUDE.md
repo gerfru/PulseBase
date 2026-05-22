@@ -117,13 +117,13 @@ api/src/
 │   ├── users.py      User-Queries (create, get, delete, export, consent, …)
 │   └── pool.py       asyncpg Connection Pool
 ├── routes/
-│   ├── auth.py       /login, /register, /auth/*, /logout (inkl. consent_health, 12-Zeichen-PW)
+│   ├── auth.py       /login, /register, /auth/*, /logout (consent_health/terms/age, 12-Zeichen-PW)
 │   ├── account.py    /account/delete (DSGVO Art. 17), /account/export (DSGVO Art. 20)
-│   └── pages.py      /privacy, /terms, /imprint (öffentlich, keine Session nötig)
+│   └── pages.py      /privacy, /terms, /imprint, /accessibility (öffentlich, keine Session nötig)
 ├── garmin/
 │   ├── __init__.py
 │   └── client.py     Garmin Connect Client (Token-Login)
-└── templates/        Jinja2 Templates (login, register, dashboard, activity, settings, privacy, terms, imprint, …)
+└── templates/        Jinja2 Templates (login, register, dashboard, activity, settings, privacy, terms, imprint, accessibility, …)
 
 sync-service/src/
 ├── main.py           APScheduler + Sync-Loop pro User
@@ -209,7 +209,7 @@ Wichtig: bandit und mypy als `pass_filenames: false` mit absoluten Pfaden vom Pr
 | `daily_summary` | `date`, `steps` (nicht total_steps!), `resting_hr`, `body_battery_high`, `body_battery_low` |
 | `sleep_sessions` | `start_time`, `sleep_score`, `total_sleep_seconds` (nicht duration_seconds!) |
 | `hrv_daily` | `hrv_last_night`, `hrv_weekly_avg` (nicht weekly_avg!), `hrv_status` (nicht status!) |
-| `user_consents` | `user_id`, `consent_type` (`health_data`), `accepted`, `timestamp`, `ip_address`, `privacy_policy_version` — DSGVO Art. 5(2) Audit-Log (V19) |
+| `user_consents` | `user_id`, `consent_type` (`health_data`, `terms`, `age_16plus`), `accepted`, `timestamp`, `ip_address`, `privacy_policy_version` — DSGVO Art. 5(2) Audit-Log (V19) |
 
 ## JSON-API Endpoints (alle session-geschützt)
 
@@ -237,6 +237,7 @@ POST /account/delete         Konto löschen — E-Mail + Passwort nötig (DSGVO 
 GET /privacy                 Datenschutzerklärung (öffentlich)
 GET /terms                   Nutzungsbedingungen (öffentlich)
 GET /imprint                 Impressum (öffentlich)
+GET /accessibility           Barrierefreiheitserklärung (öffentlich, BFSG)
 ```
 
 ## Env-Files (unter `env/`)

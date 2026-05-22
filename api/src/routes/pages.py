@@ -144,3 +144,8 @@ async def terms(request: Request):
 @router.get("/imprint")
 async def imprint(request: Request):
     return _deps.templates.TemplateResponse(request, "imprint.html")
+
+
+@router.get("/accessibility")
+async def accessibility(request: Request):
+    return _deps.templates.TemplateResponse(request, "accessibility.html")
