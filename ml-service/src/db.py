@@ -103,6 +103,113 @@ async def get_today_resting_hr(user_id: int) -> float | None:
     return row["resting_hr"] if row else None
 
 
+async def get_spo2_history_flat(user_id: int, days: int = 31) -> list[float | None]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT avg_spo2 FROM daily_summary
+        WHERE user_id = $1
+          AND date >= $2
+          AND date < CURRENT_DATE
+        ORDER BY date
+        """,
+        user_id,
+        cutoff,
+    )
+    return [r["avg_spo2"] for r in rows]
+
+
+async def get_today_spo2(user_id: int) -> float | None:
+    row = await _pool_or_raise().fetchrow(
+        "SELECT avg_spo2 FROM daily_summary WHERE user_id = $1 AND date = CURRENT_DATE",
+        user_id,
+    )
+    return row["avg_spo2"] if row else None
+
+
+async def get_sleep_duration_history(
+    user_id: int, days: int = 31
+) -> list[float | None]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT DISTINCT ON (sleep_date)
+               DATE(start_time AT TIME ZONE 'UTC') AS sleep_date,
+               total_sleep_seconds
+        FROM sleep_sessions
+        WHERE user_id = $1
+          AND DATE(start_time AT TIME ZONE 'UTC') >= $2
+          AND DATE(start_time AT TIME ZONE 'UTC') < CURRENT_DATE
+        ORDER BY sleep_date, total_sleep_seconds DESC NULLS LAST
+        """,
+        user_id,
+        cutoff,
+    )
+    return [r["total_sleep_seconds"] for r in rows]
+
+
+async def get_today_sleep_duration(user_id: int) -> float | None:
+    row = await _pool_or_raise().fetchrow(
+        """
+        SELECT total_sleep_seconds FROM sleep_sessions
+        WHERE user_id = $1
+          AND DATE(start_time AT TIME ZONE 'UTC') = CURRENT_DATE
+        ORDER BY start_time DESC
+        LIMIT 1
+        """,
+        user_id,
+    )
+    return row["total_sleep_seconds"] if row else None
+
+
+async def get_steps_history(user_id: int, days: int = 31) -> list[float | None]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT steps FROM daily_summary
+        WHERE user_id = $1
+          AND date >= $2
+          AND date < CURRENT_DATE
+        ORDER BY date
+        """,
+        user_id,
+        cutoff,
+    )
+    return [r["steps"] for r in rows]
+
+
+async def get_today_steps(user_id: int) -> float | None:
+    row = await _pool_or_raise().fetchrow(
+        "SELECT steps FROM daily_summary WHERE user_id = $1 AND date = CURRENT_DATE",
+        user_id,
+    )
+    return row["steps"] if row else None
+
+
+async def get_stress_history(user_id: int, days: int = 31) -> list[float | None]:
+    cutoff = date.today() - timedelta(days=days)
+    rows = await _pool_or_raise().fetch(
+        """
+        SELECT avg_stress FROM daily_summary
+        WHERE user_id = $1
+          AND date >= $2
+          AND date < CURRENT_DATE
+        ORDER BY date
+        """,
+        user_id,
+        cutoff,
+    )
+    return [r["avg_stress"] for r in rows]
+
+
+async def get_today_stress(user_id: int) -> float | None:
+    row = await _pool_or_raise().fetchrow(
+        "SELECT avg_stress FROM daily_summary WHERE user_id = $1 AND date = CURRENT_DATE",
+        user_id,
+    )
+    return row["avg_stress"] if row else None
+
+
 async def get_readiness_training_rows(
     user_id: int, days: int = 365
 ) -> list[dict[str, Any]]:
@@ -120,7 +227,8 @@ async def get_readiness_training_rows(
                COALESCE(atrain.anaerobic_effect_daily, 0) AS anaerobic_effect_daily,
                ep.value AS energy_physical_score,
                ea.value AS energy_autonomic_score,
-               ec.value AS energy_cognitive_score
+               ec.value AS energy_cognitive_score,
+               acwr_mp.value AS acwr_ratio
         FROM daily_summary d
         LEFT JOIN hrv_daily h ON h.date = d.date AND h.user_id = d.user_id
         LEFT JOIN sleep_sessions s
@@ -140,6 +248,8 @@ async def get_readiness_training_rows(
                ON ea.date = d.date AND ea.user_id = d.user_id AND ea.model = 'energy_autonomic'
         LEFT JOIN ml_predictions ec
                ON ec.date = d.date AND ec.user_id = d.user_id AND ec.model = 'energy_cognitive'
+        LEFT JOIN ml_predictions acwr_mp
+               ON acwr_mp.date = d.date AND acwr_mp.user_id = d.user_id AND acwr_mp.model = 'acwr'
         WHERE d.user_id = $1
           AND d.date >= $2
         ORDER BY d.date
@@ -383,7 +493,8 @@ async def get_latest_features(user_id: int) -> dict[str, Any]:
         SELECT h.hrv_last_night, h.hrv_status, s.sleep_score,
                d.resting_hr, d.body_battery_high, d.avg_stress,
                COALESCE(atrain.aerobic_effect_daily,   0) AS aerobic_effect_daily,
-               COALESCE(atrain.anaerobic_effect_daily, 0) AS anaerobic_effect_daily
+               COALESCE(atrain.anaerobic_effect_daily, 0) AS anaerobic_effect_daily,
+               acwr_mp.value AS acwr_ratio
         FROM daily_summary d
         LEFT JOIN hrv_daily h ON h.date = d.date AND h.user_id = d.user_id
         LEFT JOIN sleep_sessions s
@@ -397,6 +508,8 @@ async def get_latest_features(user_id: int) -> dict[str, Any]:
             WHERE user_id = $1 AND started_at >= CURRENT_DATE - 3
             GROUP BY 1
         ) atrain ON atrain.activity_date = d.date
+        LEFT JOIN ml_predictions acwr_mp
+               ON acwr_mp.date = d.date AND acwr_mp.user_id = d.user_id AND acwr_mp.model = 'acwr'
         WHERE d.user_id = $1 AND d.date >= CURRENT_DATE - 2
         ORDER BY d.date DESC
         LIMIT 1

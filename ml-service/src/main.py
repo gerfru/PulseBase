@@ -25,12 +25,20 @@ from db import (
     get_resting_hr_history,
     get_running_economy_activities,
     get_sleep_data_7d,
+    get_sleep_duration_history,
     get_sleep_hrv_pairs,
     get_sleep_resting_hr_pairs,
     get_sleep_sessions_14d,
     get_spo2_history,
+    get_spo2_history_flat,
+    get_steps_history,
+    get_stress_history,
     get_today_daily_summary,
     get_today_resting_hr,
+    get_today_sleep_duration,
+    get_today_spo2,
+    get_today_steps,
+    get_today_stress,
     get_todays_activity_hr_records,
     get_user_profile,
     get_yesterday_prediction,
@@ -38,7 +46,7 @@ from db import (
     mark_ml_done,
     save_prediction,
 )
-from models.anomaly import detect_resting_hr_anomaly
+from models.anomaly import detect_metric_anomaly
 from models.battery_pattern import fit_and_save as battery_fit_and_save
 from models.battery_pattern import predict_today as battery_predict_today
 from models.body_battery import compute_body_battery
@@ -81,10 +89,56 @@ def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -
 async def _run_anomaly(user_id: int, today: date) -> None:
     history = await get_resting_hr_history(user_id)
     today_hr = await get_today_resting_hr(user_id)
-    anomaly = detect_resting_hr_anomaly(history, today_hr)
+    anomaly = detect_metric_anomaly(history, today_hr)
     await save_prediction(user_id, today, "anomaly_hr", anomaly.get("z_score"), anomaly)
     logger.info(
-        f"user={user_id} anomaly z={anomaly.get('z_score')} is_anomaly={anomaly.get('is_anomaly')}"
+        f"user={user_id} anomaly_hr z={anomaly.get('z_score')} is_anomaly={anomaly.get('is_anomaly')}"
+    )
+
+
+async def _run_anomaly_spo2(user_id: int, today: date) -> None:
+    history = await get_spo2_history_flat(user_id)
+    today_val = await get_today_spo2(user_id)
+    result = detect_metric_anomaly(history, today_val)
+    await save_prediction(user_id, today, "anomaly_spo2", result.get("z_score"), result)
+    logger.info(
+        f"user={user_id} anomaly_spo2 z={result.get('z_score')} is_anomaly={result.get('is_anomaly')}"
+    )
+
+
+async def _run_anomaly_sleep(user_id: int, today: date) -> None:
+    history = await get_sleep_duration_history(user_id)
+    today_val = await get_today_sleep_duration(user_id)
+    result = detect_metric_anomaly(history, today_val)
+    await save_prediction(
+        user_id, today, "anomaly_sleep_duration", result.get("z_score"), result
+    )
+    logger.info(
+        f"user={user_id} anomaly_sleep z={result.get('z_score')} is_anomaly={result.get('is_anomaly')}"
+    )
+
+
+async def _run_anomaly_steps(user_id: int, today: date) -> None:
+    history = await get_steps_history(user_id)
+    today_val = await get_today_steps(user_id)
+    result = detect_metric_anomaly(history, today_val)
+    await save_prediction(
+        user_id, today, "anomaly_steps", result.get("z_score"), result
+    )
+    logger.info(
+        f"user={user_id} anomaly_steps z={result.get('z_score')} is_anomaly={result.get('is_anomaly')}"
+    )
+
+
+async def _run_anomaly_stress(user_id: int, today: date) -> None:
+    history = await get_stress_history(user_id)
+    today_val = await get_today_stress(user_id)
+    result = detect_metric_anomaly(history, today_val)
+    await save_prediction(
+        user_id, today, "anomaly_stress", result.get("z_score"), result
+    )
+    logger.info(
+        f"user={user_id} anomaly_stress z={result.get('z_score')} is_anomaly={result.get('is_anomaly')}"
     )
 
 
@@ -356,6 +410,10 @@ async def run_inference(user_id: int, settings: Settings) -> None:
     hr_records, resting_hr_today = await get_todays_activity_hr_records(user_id)
 
     await _run_anomaly(user_id, today)
+    await _run_anomaly_spo2(user_id, today)
+    await _run_anomaly_sleep(user_id, today)
+    await _run_anomaly_steps(user_id, today)
+    await _run_anomaly_stress(user_id, today)
     await _run_correlations(user_id, today)
     await _run_readiness(user_id, today, settings)
     await _run_battery_pattern(user_id, today, settings)

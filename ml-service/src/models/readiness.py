@@ -12,6 +12,9 @@ _CANDIDATE_FEATURES = [
     "resting_hr",
     "aerobic_effect_daily",
     "anaerobic_effect_daily",
+    "body_battery_high",
+    "avg_stress",
+    "acwr_ratio",
 ]
 
 
