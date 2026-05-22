@@ -161,7 +161,7 @@ Namespace-Pakete nicht eindeutig und meldet Duplikat-Modul-Fehler (`domain.model
 - **Kein JWT** — Starlette SessionMiddleware (signiertes Cookie, httpOnly, secure)
 - **bcrypt direkt** (nicht passlib) — passlib inkompatibel mit bcrypt>=4.0
 - **Starlette 1.0 TemplateResponse-API** — `TemplateResponse(request, "name.html", ctx)` nicht die alte Form mit `{"request": request}` im Context
-- **Garmin-Passwörter nie speichern** — nur Login-Token in `/app/tokens/{user_id}/`
+- **Garmin-Passwörter nie speichern** — Login-Token Fernet-verschlüsselt in `user_tokens`-Tabelle (V20)
 - **asyncpg direkt** (kein ORM) — alle Queries als Prepared Statements in `db.py`
 
 ## mypy-Quirks

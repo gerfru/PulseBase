@@ -3,7 +3,10 @@ Targeted tests to reach 100% coverage on main.py.
 Covers branches not exercised by the broader test suite.
 """
 
+import base64
+import json
 import sys
+import tempfile
 import types
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -70,6 +73,9 @@ async def test_garmin_link_success_redirects(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch("src.routes.garmin.GarminClient", return_value=mock_gc),
+        patch("src.routes.garmin.get_user_token", AsyncMock(return_value=None)),
+        patch("src.routes.garmin.save_user_token", AsyncMock(return_value=None)),
+        patch("src.routes.garmin.serialize_token_dir", return_value=b"{}"),
         patch("src.routes.garmin.set_garmin_linked", AsyncMock(return_value=None)),
     ):
         r = await client.post(
@@ -94,7 +100,9 @@ def _make_fake_libre(authenticate_side_effect=None):
     if authenticate_side_effect is not None:
         fake.authenticate = MagicMock(side_effect=authenticate_side_effect)
     else:
-        fake.authenticate = MagicMock(return_value=MagicMock())
+        mock_client = MagicMock()
+        mock_client.token = "test-libre-token-abc123"  # pragma: allowlist secret
+        fake.authenticate = MagicMock(return_value=mock_client)
     return fake
 
 
@@ -103,6 +111,7 @@ async def test_libre_link_success_redirects(client):
     with (
         patch.dict(sys.modules, {"libre.client": fake}),
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.libre.save_user_token", AsyncMock(return_value=None)),
         patch("src.routes.libre.set_libre_linked", AsyncMock(return_value=None)),
     ):
         r = await client.post(
@@ -210,3 +219,82 @@ async def test_seizure_valid_severity(client):
         )
     assert r.status_code == 200
     assert r.json()["ok"] is True
+
+
+# ── crypto: fernet round-trip ─────────────────────────────────────────────────
+
+
+def _test_key() -> str:
+    from cryptography.fernet import Fernet
+
+    return Fernet.generate_key().decode()
+
+
+def test_fernet_encrypt_decrypt_roundtrip():
+    from src.crypto import fernet_decrypt, fernet_encrypt
+
+    key = _test_key()
+    plaintext = b"secret token data"
+    assert fernet_decrypt(fernet_encrypt(plaintext, key), key) == plaintext
+
+
+def test_serialize_restore_token_dir_roundtrip():
+    from src.crypto import restore_token_dir, serialize_token_dir
+
+    with tempfile.TemporaryDirectory() as src_dir:
+        (open(f"{src_dir}/oauth2_token.json", "wb")).write(b'{"token":"abc"}')
+
+        blob = serialize_token_dir(src_dir)
+
+        with tempfile.TemporaryDirectory() as dst_dir:
+            restore_token_dir(blob, dst_dir)
+            restored = open(f"{dst_dir}/oauth2_token.json", "rb").read()
+
+    assert restored == b'{"token":"abc"}'
+
+
+def test_serialize_token_dir_empty_dir():
+    from src.crypto import serialize_token_dir
+
+    with tempfile.TemporaryDirectory() as d:
+        blob = serialize_token_dir(d)
+    assert json.loads(blob) == {}
+
+
+# ── garmin_link — existing token loaded from DB ───────────────────────────────
+
+
+async def test_garmin_link_loads_existing_token(client):
+    """When a DB token exists, it is decrypted and restored before re-linking."""
+    from cryptography.fernet import Fernet
+
+    key = Fernet.generate_key().decode()
+    raw_blob = json.dumps(
+        {"oauth2_token.json": base64.b64encode(b"tok").decode()}
+    ).encode()
+    encrypted_blob = Fernet(key.encode()).encrypt(raw_blob)
+
+    mock_gc = MagicMock()
+    mock_gc.connect = MagicMock()
+    mock_settings = MagicMock()
+    mock_settings.fernet_key = key
+
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.garmin.GarminClient", return_value=mock_gc),
+        patch(
+            "src.routes.garmin.get_user_token", AsyncMock(return_value=encrypted_blob)
+        ),
+        patch("src.routes.garmin.save_user_token", AsyncMock(return_value=None)),
+        patch("src.routes.garmin.serialize_token_dir", return_value=b"{}"),
+        patch("src.routes.garmin.set_garmin_linked", AsyncMock(return_value=None)),
+        patch("src.deps.settings", mock_settings),
+    ):
+        r = await client.post(
+            "/garmin/link",
+            data={
+                "garmin_email": "test@garmin.com",
+                "garmin_password": "testpass123",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code == 303

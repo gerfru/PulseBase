@@ -52,6 +52,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):  # pragma: no cover
     await get_pool()
     logger.info("DB pool initialized")
+    if not settings.fernet_key:
+        logger.warning("FERNET_KEY not set — tokens stored unencrypted in DB")
+    else:
+        try:
+            from cryptography.fernet import Fernet
+
+            Fernet(settings.fernet_key.encode())
+        except Exception:
+            raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
     yield
 
 
