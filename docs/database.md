@@ -29,6 +29,7 @@ production database — always add a new migration file.
 | `V16__spo2.sql` | Adds `spo2_enabled BOOLEAN` to `users` |
 | `V17__account_lockout.sql` | Adds `failed_login_attempts SMALLINT`, `locked_until TIMESTAMPTZ` to `users` |
 | `V18__email_verification.sql` | Adds `email_verified_at TIMESTAMPTZ` to `users`; backfills existing users |
+| `V19__user_consents.sql` | Creates `user_consents` audit table for DSGVO Art. 5(2) accountability |
 
 ---
 
@@ -203,6 +204,24 @@ Manual seizure diary entries. Added in V15.
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 Index: `(user_id, occurred_at DESC)`
+
+---
+
+### `user_consents`
+
+Audit log for user consent (DSGVO Art. 5(2) — Rechenschaftspflicht). Added in V19.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `SERIAL PK` | |
+| `user_id` | `INTEGER → users(id) ON DELETE CASCADE` | |
+| `consent_type` | `TEXT NOT NULL` | e.g. `health_data` (Art. 9 explicit consent) |
+| `accepted` | `BOOLEAN NOT NULL` | `true` = consent given |
+| `timestamp` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | When consent was recorded |
+| `ip_address` | `INET` | Request IP at time of consent |
+| `privacy_policy_version` | `TEXT NOT NULL DEFAULT 'v1.0'` | Policy version the user consented to |
+
+UNIQUE on `(user_id, consent_type)` — upserted on re-registration via `ON CONFLICT DO UPDATE`.
 
 ---
 
