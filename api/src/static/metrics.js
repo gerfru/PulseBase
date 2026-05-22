@@ -1232,10 +1232,103 @@ hrv: {
             };
         },
     },
+
+    recovery: {
+        title: 'Erholung — Schlaf & HRV',
+        section: 'NACHT',
+        async fetch() {
+            const [hrv, sleep, insights] = await Promise.all([
+                fetch('/api/hrv/trend?days=90').then(r => r.json()),
+                fetch('/api/sleep?days=90').then(r => r.json()),
+                fetch('/api/ml-insights').then(r => r.json()),
+            ]);
+            return { hrv, sleep, insights };
+        },
+        render(data) {
+            const latestHrv   = data.hrv.at(-1);
+            const sleepSorted = [...(data.sleep || [])].reverse();
+            const latestSleep = sleepSorted.at(-1);
+            const corr        = data.insights['correlation_sleep_hrv'];
+
+            const hrvWeekly  = latestHrv?.hrv_weekly_avg;
+            const hrvNight   = latestHrv?.hrv_last_night;
+            const sleepScore = latestSleep?.sleep_score;
+            const sleepDur   = latestSleep?.total_sleep_seconds;
+            const deepSleep  = latestSleep?.deep_sleep_seconds;
+
+            const validHrv   = data.hrv.filter(d => d.hrv_weekly_avg != null);
+            const avg90Hrv   = validHrv.length
+                ? Math.round(validHrv.reduce((s, d) => s + d.hrv_weekly_avg, 0) / validHrv.length)
+                : null;
+            const validSleep = sleepSorted.filter(d => d.sleep_score != null);
+            const avg90Sleep = validSleep.length
+                ? Math.round(validSleep.reduce((s, d) => s + d.sleep_score, 0) / validSleep.length)
+                : null;
+
+            const corrStr = corr?.r != null
+                ? `r = ${corr.r.toFixed(2)} (${corr.interpretation}, n=${corr.n})`
+                : 'Zu wenig Daten';
+            const corrSub = corr?.p_value != null ? `p = ${corr.p_value}` : '';
+
+            const mainParts = [];
+            if (hrvWeekly != null) mainParts.push(`HRV ${hrvWeekly} ms`);
+            if (sleepScore != null) mainParts.push(`Schlaf ${sleepScore}`);
+
+            return {
+                value: mainParts.join(' · ') || '—',
+                sub: sleepDur ? fmtHours(sleepDur) + ' letzte Nacht' : '',
+                kpis: [
+                    { label: 'HRV Wochenø',     value: hrvWeekly  != null ? hrvWeekly + ' ms'    : '—' },
+                    { label: 'HRV letzte Nacht', value: hrvNight   != null ? hrvNight  + ' ms'    : '—' },
+                    { label: 'Ø HRV (90d)',      value: avg90Hrv   != null ? avg90Hrv  + ' ms'    : '—' },
+                    { label: 'Schlaf-Score',     value: sleepScore != null ? sleepScore           : '—' },
+                    { label: 'Tiefschlaf',       value: deepSleep  != null ? fmtHours(deepSleep)  : '—' },
+                    { label: 'Ø Score (90d)',     value: avg90Sleep != null ? avg90Sleep           : '—' },
+                    { label: 'Schlaf → HRV',     value: corrStr },
+                    ...(corrSub ? [{ label: 'p-Wert', value: corrSub }] : []),
+                ],
+                charts: [
+                    {
+                        title: 'HRV-Verlauf (90 Tage)',
+                        type: 'line',
+                        labels: data.hrv.map(d => fmtDate(d.date)),
+                        datasets: [
+                            { label: 'Letzte Nacht', data: data.hrv.map(d => d.hrv_last_night ?? null), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                            { label: 'Wochenø',      data: data.hrv.map(d => d.hrv_weekly_avg ?? null), borderColor: '#86efac', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0, borderWidth: 1.5 },
+                        ],
+                    },
+                    {
+                        title: 'Schlaf-Score Verlauf (90 Tage)',
+                        type: 'line',
+                        labels: sleepSorted.map(d => fmtDate(d.date)),
+                        datasets: [
+                            { label: 'Schlaf-Score', data: sleepSorted.map(d => d.sleep_score ?? null), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                        ],
+                        scales: { y: { min: 0, max: 100 } },
+                    },
+                ],
+                formula: [
+                    ['HRV (RMSSD)', 'Root Mean Square of Successive Differences — nächtliche Messung via PPG'],
+                    ['Wochenø',     'Arithmetisches Mittel der letzten 7 Nächte'],
+                    ['Schlaf-Score','Garmin Composite-Score 0–100 (Dauer + Phasen + HRV während Schlaf)'],
+                    ['Korrelation', 'Pearson r: Schlaf-Score(N) → HRV_letzte_Nacht(N+1), min. 10 Paare'],
+                    ['Interpretation', 'r ≥ 0.7 stark · r ≥ 0.4 moderat · r ≥ 0.2 schwach'],
+                ],
+                science: 'HRV wird während des Schlafs gemessen — der parasympathische Vagotonus ist nachts maximal aktiv und gibt den präzisesten Erholungsmarker. Tiefschlaf (NREM-SWS) ist die Phase höchster HRV und größter physischer Regeneration: Wachstumshormon-Peak, Gewebereparatur, Glykogen-Resynthese. Die Korrelation Schlaf-Score(N) → HRV(N+1) testet, ob besserer Schlaf tatsächlich am nächsten Tag eine höhere HRV produziert — ein kausaler Pfad, der durch RCTs zu Schlafhygiene-Interventionen gestützt wird (Besedovsky et al., 2019). Plews et al. (2013) zeigten, dass nächtliche RMSSD der robusteste Einzelmarker für Erholungsstatus bei Ausdauersportlern ist.',
+                sources: [
+                    { label: 'Task Force ESC/NASPE (1996): HRV Standards of Measurement — Circulation', url: 'https://www.ahajournals.org/doi/10.1161/01.CIR.93.5.1043' },
+                    { label: 'Plews et al. (2013): HRV in Elite Endurance Athletes — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
+                    { label: 'Besedovsky et al. (2019): Sleep and Immune Function — Pflügers Archiv', url: 'https://pubmed.ncbi.nlm.nih.gov/30689000/' },
+                    { label: 'Cappuccio et al. (2011): Sleep Duration and All-Cause Mortality — Sleep', url: 'https://pubmed.ncbi.nlm.nih.gov/21300732/' },
+                ],
+                eli5: 'Dein Herz wird nachts vom Erholungsnerv (Parasympathikus) kontrolliert — je tiefer du schläfst, desto stärker ist dieser Nerv aktiv, desto höher ist deine HRV. Tiefschlaf ist die Phase, wo dein Körper wirklich repariert: Muskeln, Immunsystem, Energiereserven. Die Korrelation zeigt, ob bei dir persönlich guter Schlaf am nächsten Tag tatsächlich eine höhere HRV produziert — das ist dein persönlicher Schlaf-Erholungs-Zusammenhang.',
+            };
+        },
+    },
 };
 
 async function load() {
-    const name = location.pathname.split('/').pop();
+    const name = location.pathname.split('/').filter(Boolean).at(-1);
     const def = METRICS[name];
     if (!def) { location.href = '/dashboard'; return; }
 
