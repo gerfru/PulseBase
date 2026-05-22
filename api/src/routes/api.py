@@ -6,6 +6,8 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 
+from src.evidence_catalog import EVIDENCE
+
 from src.db import (
     get_activity_detail,
     get_daily_summaries,
@@ -333,3 +335,11 @@ async def api_glucose_stats(
 ):
     user = await _deps.require_user(request)
     return await get_glucose_stats(user["id"], days)
+
+
+# ── Evidence Catalog ──────────────────────────────────────────────────────────
+
+
+@router.get("/api/evidence")
+async def api_evidence():
+    return EVIDENCE

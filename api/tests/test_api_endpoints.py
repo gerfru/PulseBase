@@ -335,3 +335,12 @@ async def test_glucose_stats_returns_200(client):
     ):
         r = await client.get("/api/glucose/stats")
     assert r.status_code == 200
+
+
+async def test_evidence_returns_catalog(client):
+    r = await client.get("/api/evidence")
+    assert r.status_code == 200
+    data = r.json()
+    assert "acwr" in data
+    assert data["acwr"]["level"] == "meta"
+    assert "refs" in data["acwr"]
