@@ -115,10 +115,12 @@ EU-Pflichten: DSGVO (seit 2018), BFSG/EU Accessibility Act (seit Juni 2025).
 ### 2.1 Pflichtdokumente (vor erstem fremden User)
 
 - **Datenschutzerklärung** (`/privacy`): Welche Daten, Zweck, Speicherdauer, Drittanbieter
-  (Garmin Connect API, LibreLink API), Recht auf Auskunft/Löschung/Export, Kontakt
+  (Garmin Connect API, LibreLink API), Recht auf Auskunft/Löschung/Export, Kontakt, Cookie-Hinweis
 - **Nutzungsbedingungen** (`/terms`): Haftungsausschluss (keine medizinische Beratung!),
-  Mindestalter 18, Konsequenzen bei Missbrauch
+  Mindestalter 16 (DSGVO Art. 8), Konsequenzen bei Missbrauch
 - **Impressum** (DE/AT-Pflicht): Name, Adresse, Kontakt-E-Mail
+- **Barrierefreiheitserklärung** (`/accessibility`): Pflicht nach BFSG (in Kraft seit 28. Juni 2025).
+  [Name]/[E-Mail]-Platzhalter füllen.
 
 Gesundheitsdaten fallen unter Art. 9 DSGVO ("besondere Kategorien") →
 explizite, informierte Einwilligung bei Registrierung erforderlich (Checkbox mit Link zur
@@ -410,10 +412,11 @@ nie nur das Image tauschen.
 - [x] `renovate.json` erstellt, GitHub App aktiviert
 
 ### Pre-Release: Legal
-- [ ] Datenschutzerklärung live unter `/privacy`
-- [ ] Nutzungsbedingungen live unter `/terms`
-- [ ] Impressum live (Footer oder `/imprint`)
-- [x] Einwilligungs-Checkbox bei Registrierung (DSGVO Art. 9) + Consent-Audit-Log (user_consents)
+- [ ] Datenschutzerklärung live unter `/privacy` (Route ✅, Inhalt: [Name]/[E-Mail] Platzhalter füllen)
+- [ ] Nutzungsbedingungen live unter `/terms` (Route ✅, Inhalt: [Name]/[E-Mail] Platzhalter füllen)
+- [ ] Impressum live unter `/imprint` (Route ✅, Inhalt: [Name]/[Adresse] Platzhalter füllen)
+- [x] Barrierefreiheitserklärung live unter `/accessibility` (BFSG seit Juni 2025, Footer-Link vorhanden)
+- [x] Einwilligungs-Checkboxen bei Registrierung: Gesundheitsdaten (Art. 9) + Nutzungsbedingungen + Altersbestätigung ≥16 (Art. 8) + Consent-Audit-Log (user_consents, V19)
 - [ ] Gesundheitsdaten-Disclaimer auf Dashboard ("Keine medizinische Beratung")
 
 ### Pre-Release: Infrastruktur

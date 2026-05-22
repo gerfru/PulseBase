@@ -225,12 +225,28 @@ async def register(
     password: str = Form(),
     password_confirm: str = Form(),
     consent_health: str = Form(default=""),
+    consent_terms: str = Form(default=""),
+    consent_age: str = Form(default=""),
 ):
     if not consent_health:
         return templates.TemplateResponse(
             request,
             "register.html",
             {"error": "Bitte stimme der Verarbeitung deiner Gesundheitsdaten zu."},
+            status_code=400,
+        )
+    if not consent_terms:
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": "Bitte akzeptiere die Nutzungsbedingungen."},
+            status_code=400,
+        )
+    if not consent_age:
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": "Du musst mindestens 16 Jahre alt sein, um PulseBase zu nutzen."},
             status_code=400,
         )
     email = email.lower().strip()
@@ -268,6 +284,8 @@ async def register(
         )
     ip = request.client.host if request.client else None
     await save_consent(user["id"], "health_data", True, ip)
+    await save_consent(user["id"], "terms", True, ip)
+    await save_consent(user["id"], "age_16plus", True, ip)
     token = _make_verify_token(user["id"])
     sent = await _send_verify_email(email, token)
     return RedirectResponse(

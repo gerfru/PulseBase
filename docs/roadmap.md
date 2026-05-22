@@ -370,8 +370,13 @@ Relevant für Glukose-Analyse (Carb-Timing vor/nach Training).
 
 ### 4.4 Rechtliche Seiten vervollständigen 🟡
 
-Platzhalter in `privacy.html`, `terms.html`, `imprint.html` mit echten Inhalten befüllen:
-Verantwortlicher (Name, Adresse, E-Mail), Kontaktdaten für Datenschutzanfragen (Art. 15–22 DSGVO).
+Implementiert: Routen `/privacy`, `/terms`, `/imprint`, `/accessibility` live. Footer-Links auf allen
+Seiten. Consent-Checkboxen bei Registrierung (Gesundheitsdaten Art. 9 + Nutzungsbedingungen + Alter
+≥16 Art. 8) + Audit-Log in `user_consents`. Cookie-Abschnitt in `privacy.html`. Barrierefreiheitserklärung
+gemäß BFSG.
+
+Offen: `[Name]`, `[Adresse]`, `[E-Mail]`-Platzhalter in allen vier Templates mit echten Inhalten
+befüllen (Verantwortlicher, Kontaktdaten für Datenschutzanfragen Art. 15–22 DSGVO).
 
 ### 4.5 Settings-Seite aufräumen 🟡
 

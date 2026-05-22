@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Barrierefreiheitserklärung{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-10 pb-16">
+    <div class="flex items-center gap-4 mb-6">
+        <a href="javascript:history.back()"
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+            ← Zurück
+        </a>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Barrierefreiheitserklärung</h1>
+    </div>
+
+    <div class="card flex flex-col gap-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">1. Geltungsbereich</h2>
+            <p>
+                Diese Erklärung gilt für die Webanwendung PulseBase, betrieben von [Name] ([E-Mail]).
+                Sie erläutert den Stand der Barrierefreiheit gemäß der EU-Richtlinie 2016/2102 und dem
+                Barrierefreiheitsstärkungsgesetz (BFSG, in Kraft seit 28. Juni 2025).
+            </p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">2. Konformitätsstatus</h2>
+            <p>
+                PulseBase ist <strong>teilweise konform</strong> mit den Anforderungen der
+                Web Content Accessibility Guidelines (WCAG) 2.1, Konformitätsstufe AA.
+            </p>
+            <p class="mt-2">Umgesetzte Maßnahmen:</p>
+            <ul class="list-disc ml-5 mt-1 space-y-1">
+                <li>Semantisches HTML mit korrekter Überschriftenhierarchie</li>
+                <li>Kontrastverhältnisse erfüllen WCAG 2.1 AA für Textelemente</li>
+                <li>Formularfelder mit verknüpften <code>&lt;label&gt;</code>-Elementen</li>
+                <li>Fokus-Stile für Tastaturnavigation sichtbar</li>
+                <li>Footer-Links zu Datenschutz, Nutzungsbedingungen, Impressum</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">3. Nicht barrierefreie Inhalte</h2>
+            <ul class="list-disc ml-5 space-y-1">
+                <li>Diagramme (Chart.js) enthalten keine Textalternative für Screenreader — betrifft Dashboard-Charts und Metrik-Seiten</li>
+                <li>GPS-Karte (Leaflet.js) ist nicht vollständig per Tastatur bedienbar</li>
+                <li>Einige Icon-Schaltflächen besitzen noch kein <code>aria-label</code></li>
+            </ul>
+            <p class="mt-2">
+                Diese Einschränkungen werden in künftigen Versionen schrittweise behoben.
+            </p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">4. Rückmeldung und Kontakt</h2>
+            <p>
+                Wenn du Barrierefreiheitsprobleme feststellst oder Inhalte in einer zugänglichen Alternative benötigst,
+                wende dich bitte an: <strong>[E-Mail]</strong>
+            </p>
+            <p class="mt-2">
+                Wir bemühen uns, auf Anfragen innerhalb von 14 Werktagen zu antworten.
+            </p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">5. Durchsetzungsverfahren</h2>
+            <p>
+                Falls du mit unserer Antwort nicht zufrieden bist, kannst du dich an die zuständige
+                Durchsetzungsstelle wenden:
+            </p>
+            <p class="mt-2">
+                <strong>Österreich:</strong> Bundesministerium für Digitalisierung und Wirtschaftsstandort (BMDW),
+                Barrierefreiheitsstelle, <a href="https://www.digitales.oesterreich.gv.at" class="text-emerald-400 hover:underline" target="_blank" rel="noopener">digitales.oesterreich.gv.at</a>
+            </p>
+            <p class="mt-1">
+                <strong>Deutschland:</strong> Überwachungsstelle des Bundes für Barrierefreiheit von
+                Informationstechnik (BFIT-Bund), <a href="https://www.bfit-bund.de" class="text-emerald-400 hover:underline" target="_blank" rel="noopener">bfit-bund.de</a>
+            </p>
+        </section>
+
+        <section>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">6. Erstellungsdatum</h2>
+            <p>Diese Erklärung wurde am 22. Mai 2026 erstellt.</p>
+        </section>
+
+    </div>
+</div>
+{% endblock %}
