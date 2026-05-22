@@ -316,15 +316,13 @@ recovery_speed = ΔHRV_per_day nach TSB-Minimum
 
 ---
 
-### 3.2 Readiness RF — erweiterte Features 🟡
+### 3.2 Readiness RF — erweiterte Features
 
-**Aktuell:** Random Forest auf `[hrv_last_night, sleep_score, resting_hr, aerobic_effect, anaerobic_effect]`
+**Basis ✅:** Random Forest auf `[hrv_last_night, sleep_score, resting_hr, aerobic_effect_daily, anaerobic_effect_daily]`
+(`ml-service/src/models/readiness.py`, Modell-Key `readiness_rf`)
 
-**Erweiterung:**
-- ACWR als Feature (Verletzungsrisiko-Signal)
-- `avg_stress` aus daily_summary
-- `body_battery_high/low`
-- Konsistenz-Features: Varianz von HR/HRV über 7 Tage
+**Erweiterung ✅:** `body_battery_high`, `avg_stress`, `acwr_ratio` als zusätzliche Input-Features
+(Daten im DB-Training-Query bereits vorhanden; ACWR via JOIN auf `ml_predictions`)
 
 **Quellen:**
 - Breiman L (2001). "Random Forests". Machine Learning 45(1):5–32
@@ -333,9 +331,12 @@ recovery_speed = ΔHRV_per_day nach TSB-Minimum
 
 ---
 
-### 3.3 Anomalie-Detektion auf weiteren Zeitreihen 🟡
+### 3.3 Anomalie-Detektion auf weiteren Zeitreihen
 
-**Aktuell:** Z-Score-Anomalie auf `resting_hr`.
+**Basis ✅:** Z-Score-Anomalie auf `resting_hr` (`anomaly_hr`).
+
+**Erweiterung ✅:** SpO2 (`anomaly_spo2`), Schlafdauer (`anomaly_sleep_duration`),
+Schritte (`anomaly_steps`), Stress (`anomaly_stress`) — gleicher Algorithmus, neue Model-Keys.
 
 **Erweiterbar auf:** SpO2, Schlafdauer, Stressindex, Schritte — gleicher Algorithmus,
 neue `model`-Rows in `ml_predictions`.
@@ -422,6 +423,24 @@ als kompakte Zeilen.
 
 **Offen:** Klarere Beschriftung und Erklärbarkeit; ggf. Tooltips oder Verlinkung auf
 Detail-Seiten; visuelle Hervorhebung kritischer Werte.
+
+---
+
+### 4.10 Wissenschaftliche Transparenz in der GUI ✅
+
+**Implementiert:** Jede Berechnung zeigt ein farbiges Evidenz-Badge direkt im Dashboard:
+
+- 🟢 **M** — Meta-Analyse / klinischer Leitlinien-Standard
+- 🟡 **R** — Repliziert (mehrere unabhängige Studien)
+- 🔵 **E** — Eigenmodell (PulseBase-spezifisch, literaturbasiert)
+
+Klick auf Badge öffnet Popover mit Methodenname, Zusammenfassung, Schlüsselreferenzen
+und Einschränkungen. Fester Disclaimer: *„Methode validiert · Personalisierte Kalibrierung ·
+Kein Ersatz für medizinische Diagnostik."*
+
+**Technisch:** `api/src/evidence_catalog.py` → `GET /api/evidence` → `evBadge(key)` in
+`dashboard.js`. Badges an Energy-Rows (Physisch/Autonom/Kognitiv), Vital-Tiles
+(HRV, Ruhepuls) und Chips (ACWR, Monotony, Schlafrhythmus, Energie, Stress).
 
 ---
 

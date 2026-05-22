@@ -6,7 +6,7 @@ _THRESHOLD = 2.0
 _MIN_HISTORY = 7
 
 
-def detect_resting_hr_anomaly(
+def detect_metric_anomaly(
     history: list[float | None],
     today: float | None,
 ) -> dict[str, Any]:
