@@ -427,7 +427,7 @@ html:not(.dark) .formula-row { background: rgba(0,0,0,.04); }
 .ring-track { stroke: rgba(255,255,255,.08); }
 html:not(.dark) .ring-track { stroke: rgba(0,0,0,.08); }
 .ring-score-text { font-size: 28px; font-weight: 800; fill: var(--text); font-family: inherit; dominant-baseline: middle; }
-.ring-label-text { font-size: 8px; font-weight: 700; fill: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-family: inherit; dominant-baseline: middle; }
+.ring-label-text { font-size: 8px; font-weight: 600; fill: var(--muted); letter-spacing: .04em; font-family: inherit; dominant-baseline: middle; }
 .readiness-ring-progress { }
 
 /* Hero ring section */
@@ -522,3 +522,44 @@ html:not(.dark) .nav-arrow:hover:not(:disabled) { background: rgba(0,0,0,.08); c
 html:not(.dark) .ev-meta  { background: #dcfce7; color: #166534; }
 html:not(.dark) .ev-rep   { background: #fef9c3; color: #854d0e; }
 html:not(.dark) .ev-model { background: #e0f2fe; color: #0c4a6e; }
+
+/* ── Hero Grid: Ring fixbreite, Meta rechts zentriert ────────────────────── */
+.hero-grid { grid-template-columns: 160px 1fr; align-items: center; }
+
+/* ── Hero Dots — Zone 1 ──────────────────────────────────────────────────── */
+.hero-dot-row   { display: flex; gap: var(--sp-4); margin-top: var(--sp-2); justify-content: flex-start; }
+.hero-dot-item  { display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; }
+.hero-dot-circle{ width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.hero-dot-label { font-size: .62rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* ── Hero Recommendation — Zone 1 ───────────────────────────────────────── */
+.hero-recommendation { font-size: .78rem; font-weight: 600; margin: var(--sp-2) 0 var(--sp-1); text-align: left; line-height: 1.3; }
+.rec-green { color: var(--green); }
+.rec-amber { color: var(--amber); }
+.rec-red   { color: var(--red);   }
+
+/* ── Meta in rechter Spalte: linksbündig ─────────────────────────────────── */
+.hero-right .hero-ring-meta { align-items: flex-start; }
+
+/* ── Zone-Label (SIGNALE / HEUTE) ────────────────────────────────────────── */
+.hero-zone-label { display: block; font-size: .60rem; font-weight: 700; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; margin-bottom: var(--sp-2); }
+
+/* ── Chip mit Modal-Interaktion ──────────────────────────────────────────── */
+.hero-chip[onclick] { cursor: pointer; }
+
+/* ── Readiness — Component Grid ─────────────────────────────────────────── */
+.readiness-comp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-3);
+}
+@media (max-width: 600px) {
+    .readiness-comp-grid { grid-template-columns: 1fr; }
+}
+.readiness-comp-tile { padding: var(--sp-4); }
+.comp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--sp-2); }
+.comp-label  { font-size: .70rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.comp-weight { font-size: .65rem; color: var(--muted); }
+.comp-score  { font-size: 2.2rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; margin-bottom: var(--sp-1); }
+.comp-detail { font-size: .72rem; color: var(--muted); min-height: 1em; margin-bottom: var(--sp-2); }
+.comp-sparkline { opacity: .75; line-height: 0; }
