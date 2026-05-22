@@ -1033,7 +1033,7 @@ async def test_set_libre_unlinked():
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
         await set_libre_unlinked(1)
 
-    assert conn.execute.call_count == 2
+    assert conn.execute.call_count == 3
 
 
 # ── pool: Settings.db_url property ───────────────────────────────────────────
@@ -1260,3 +1260,38 @@ async def test_get_pool_creates_pool_when_none():
         assert pool_module._pool is mock_pool
     finally:
         pool_module._pool = saved
+
+
+# ── users: get_user_token / save_user_token ───────────────────────────────────
+
+
+async def test_get_user_token_returns_bytes_when_row_exists():
+    from src.db.users import get_user_token
+
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value={"token_data": b"encrypted-blob"})
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        result = await get_user_token(1, "garmin")
+    assert result == b"encrypted-blob"
+
+
+async def test_get_user_token_returns_none_when_no_row():
+    from src.db.users import get_user_token
+
+    pool = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value=None)
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        result = await get_user_token(1, "garmin")
+    assert result is None
+
+
+async def test_save_user_token_executes_upsert():
+    from src.db.users import save_user_token
+
+    pool = AsyncMock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await save_user_token(1, "garmin", b"token-bytes")
+    pool.execute.assert_awaited_once()
+    call_sql = pool.execute.await_args[0][0]
+    assert "ON CONFLICT" in call_sql
+    assert "user_tokens" in call_sql

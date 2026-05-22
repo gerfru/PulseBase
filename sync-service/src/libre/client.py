@@ -51,6 +51,13 @@ def connect(token_dir: str) -> PyLibreLinkUp:
     return client
 
 
+def connect_with_token(token: str) -> PyLibreLinkUp:
+    """Create client directly from a token string (no file I/O)."""
+    client = PyLibreLinkUp(email="", password="")  # nosec B106 — token replaces credentials below
+    client.token = token
+    return client
+
+
 def get_recent_glucose(client: PyLibreLinkUp, hours: int = 2) -> list:
     """Fetch glucose readings from all connections for the last N hours."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
