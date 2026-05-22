@@ -588,71 +588,119 @@ hrv: {
     },
 
     readiness: {
-        title: 'Readiness-Score',
-        section: 'Readiness',
+        title: 'Erholung',
+        section: 'Erholung',
         async fetch() {
             return Promise.all([
                 fetch('/api/readiness').then(r => r.json()),
+                fetch('/api/energy').then(r => r.json()),
                 fetch('/api/ml-history?days=90').then(r => r.json()),
             ]);
         },
-        render([today, history]) {
-            const scoreColors = { 'badge-balanced': '#22c55e', 'badge-unbalanced': '#f59e0b', 'badge-poor': '#ef4444' };
-            const color = scoreColors[today?.cls] || '#64748b';
+        render([today, energy, history]) {
+            const score = today?.score ?? null;
+            const color = score == null ? '#64748b' : score >= 75 ? '#22c55e' : score >= 45 ? '#f59e0b' : '#ef4444';
 
-            const physMap  = Object.fromEntries((history.energy_physical  || []).map(d => [d.date, d.value]));
-            const autonMap = Object.fromEntries((history.energy_autonomic || []).map(d => [d.date, d.value]));
-            const cogMap   = Object.fromEntries((history.energy_cognitive || []).map(d => [d.date, d.value]));
-            const dates    = [...new Set([...Object.keys(physMap), ...Object.keys(autonMap), ...Object.keys(cogMap)])].sort();
-            const scores   = dates.map(date => {
-                const parts = [[physMap[date], 0.35], [autonMap[date], 0.40], [cogMap[date], 0.25]]
-                    .filter(([v]) => v != null);
+            const phys  = energy.energy_physical;
+            const auton = energy.energy_autonomic;
+            const cog   = energy.energy_cognitive;
+            const p = phys?.score  != null ? Math.round(phys.score)  : null;
+            const a = auton?.score != null ? Math.round(auton.score) : null;
+            const c = cog?.score   != null ? Math.round(cog.score)   : null;
+
+            const physHist  = history.energy_physical  || [];
+            const autonHist = history.energy_autonomic || [];
+            const cogHist   = history.energy_cognitive || [];
+            const physMap   = Object.fromEntries(physHist.map(d => [d.date, d.value]));
+            const autonMap  = Object.fromEntries(autonHist.map(d => [d.date, d.value]));
+            const cogMap    = Object.fromEntries(cogHist.map(d => [d.date, d.value]));
+            const dates     = [...new Set([...Object.keys(physMap), ...Object.keys(autonMap), ...Object.keys(cogMap)])].sort();
+            const compositeScores = dates.map(date => {
+                const parts = [[physMap[date], 0.35], [autonMap[date], 0.40], [cogMap[date], 0.25]].filter(([v]) => v != null);
                 if (!parts.length) return null;
                 const tw = parts.reduce((s, [, w]) => s + w, 0);
                 return Math.round(parts.reduce((s, [v, w]) => s + v * w / tw, 0));
             });
 
-            const p = today?.energy_physical  != null ? Math.round(today.energy_physical)  : null;
-            const a = today?.energy_autonomic != null ? Math.round(today.energy_autonomic) : null;
-            const c = today?.energy_cognitive != null ? Math.round(today.energy_cognitive) : null;
+            function sparklineSvg(hist) {
+                const vals = hist.map(d => d.value).filter(v => v != null);
+                if (vals.length < 3) return '';
+                const min = Math.min(...vals), range = Math.max(...vals) - min || 1;
+                const W = 80, H = 28;
+                const pts = hist.map((d, i) => {
+                    if (d.value == null) return null;
+                    const x = (i / Math.max(hist.length - 1, 1)) * W;
+                    const y = H - ((d.value - min) / range) * (H - 4) - 2;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                }).filter(Boolean).join(' ');
+                return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            }
+
+            function compTile(label, weight, scoreVal, detail, hist, textColor) {
+                const sc = scoreVal != null ? scoreVal : '—';
+                const col = scoreVal == null ? 'var(--muted)' : scoreVal >= 75 ? 'var(--green)' : scoreVal >= 45 ? 'var(--amber)' : 'var(--red)';
+                const sp = sparklineSvg(hist);
+                return `<div class="readiness-comp-tile card">
+                    <div class="comp-header">
+                        <span class="comp-label">${label}</span>
+                        <span class="comp-weight">${weight}</span>
+                    </div>
+                    <div class="comp-score" style="color:${col}">${sc}</div>
+                    <div class="comp-detail">${detail}</div>
+                    ${sp ? `<div class="comp-sparkline" style="color:${textColor}">${sp}</div>` : ''}
+                </div>`;
+            }
+
+            const physDetail  = phys?.tsb != null
+                ? `TSB ${phys.tsb >= 0 ? '+' : ''}${phys.tsb.toFixed(1)}`
+                : (p != null ? '' : 'keine Daten');
+            const autonDetail = auton?.deviation != null
+                ? `${auton.deviation >= 0 ? '+' : ''}${auton.deviation.toFixed(2)} σ`
+                : (a != null ? '' : 'keine Daten');
+            const cogDetail   = cog?.debt_hours != null
+                ? `${cog.debt_hours.toFixed(1)}h Schulden`
+                : (c != null ? '' : 'keine Daten');
+
+            const customHtml = `<div class="readiness-comp-grid">
+                ${compTile('Physisch', '35%', p, physDetail, physHist, '#22c55e')}
+                ${compTile('Autonom',  '40%', a, autonDetail, autonHist, '#22c55e')}
+                ${compTile('Kognitiv', '25%', c, cogDetail, cogHist, '#8b5cf6')}
+            </div>`;
 
             return {
-                value: today?.score != null
-                    ? `<span style="color:${color};font-size:4rem;font-weight:800;letter-spacing:-.04em">${today.score}</span>`
+                value: score != null
+                    ? `<span style="color:${color};font-size:4rem;font-weight:800;letter-spacing:-.04em">${score}</span>`
                     : '—',
                 sub: today?.label ?? '',
-                kpis: [
-                    { label: 'Physische Energie (35%)',  value: p != null ? p : '—' },
-                    { label: 'Autonome Energie (40%)',   value: a != null ? a : '—' },
-                    { label: 'Kognitive Energie (25%)',  value: c != null ? c : '—' },
-                ],
-                chart: dates.length > 3 ? {
-                    title: 'Readiness-Verlauf (90 Tage)',
+                kpis: [],
+                customHtml,
+                charts: dates.length > 3 ? [{
+                    title: 'Erholung-Verlauf (90 Tage)',
                     type: 'line',
                     labels: dates.map(fmtDate),
-                    datasets: [{
-                        data: scores,
-                        borderColor: '#6366f1',
-                        backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)',
-                        fill: true, tension: 0.3, pointRadius: 0,
-                    }],
+                    datasets: [
+                        { label: 'Erholung', data: compositeScores, borderColor: '#6366f1', backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)', fill: true, tension: 0.3, pointRadius: 0 },
+                        { label: 'Physisch',  data: dates.map(d => physMap[d]  ?? null), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Autonom',   data: dates.map(d => autonMap[d] ?? null), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Kognitiv',  data: dates.map(d => cogMap[d]   ?? null), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                    ],
                     scales: { y: { min: 0, max: 100 } },
-                } : null,
+                }] : [],
                 formula: [
-                    ['Physische Energie', 'TRIMP-Polynom + Banister ATL/CTL/TSB → Score (0–100) — Gewicht: 35%'],
-                    ['Autonome Energie', 'HRV (RMSSD) ln-normiert, σ-Abweichung von persönlichem Baseline — Gewicht: 40%'],
-                    ['Kognitive Energie', 'Borbély Process S: kumulative Schlafschuld 7d vs. 7h-Ziel — Gewicht: 25%'],
-                    ['Fehlende Komponenten', 'Verbleibende Gewichte werden proportional normiert'],
-                    ['Score', 'Gewichtetes Mittel, geclampt 0–100'],
+                    ['Physische Energie (35%)', 'TRIMP-Polynom + Banister ATL/CTL/TSB → Score (0–100)'],
+                    ['Autonome Energie (40%)',  'HRV (RMSSD) ln-normiert, σ-Abweichung vom persönlichen Baseline (90 Tage)'],
+                    ['Kognitive Energie (25%)', 'Borbély Process S: kumulative Schlafschuld (7d) vs. 7h-Ziel'],
+                    ['Fehlende Komponenten',    'Verbleibende Gewichte werden proportional normiert'],
+                    ['Score',                   'Gewichtetes Mittel, geclampt 0–100'],
                 ],
-                science: 'Der Composite-Readiness-Score integriert drei physiologisch eigenständige Dimensionen: (1) Physische Trainingsbelastung via Banister-Impuls-Antwort-Modell (CTL/ATL/TSB, Zeitkonstanten 42/7 Tage), (2) Autonome Erholungskapazität via HRV-Baseline-Deviation (ln RMSSD, σ-normiert gegen persönliches Baseline-Fenster), (3) Kognitive Kapazität via Borbély-Schlafschuld-Modell (Process S, 7h-Ziel, rein durationsbasiert). Die Gewichtung (35%/40%/25%) reflektiert die prädiktive Stärke von HRV als stärkstem Einzelprädiktor für Leistungsbereitschaft (Saw et al., 2016). Alle Berechnungen sind transparent und formelbasiert — keine proprietären Algorithmen.',
+                science: 'Der Composite-Erholungs-Score integriert drei physiologisch eigenständige Dimensionen: (1) Physische Trainingsbelastung via Banister-Impuls-Antwort-Modell (CTL/ATL/TSB, Zeitkonstanten 42/7 Tage), (2) Autonome Erholungskapazität via HRV-Baseline-Deviation (ln RMSSD, σ-normiert gegen persönliches 90-Tage-Fenster), (3) Kognitive Kapazität via Borbély-Schlafschuld-Modell (Process S, 7h-Ziel). Die Gewichtung (35%/40%/25%) reflektiert die prädiktive Stärke von HRV als stärkstem Einzelprädiktor für Leistungsbereitschaft (Saw et al., 2016). Alle Berechnungen sind transparent und formelbasiert — keine proprietären Algorithmen.',
                 sources: [
                     { label: 'Wikipedia: Fitness–Fatigue Model (Banister 1991)', url: 'https://en.wikipedia.org/wiki/Fitness%E2%80%93fatigue_model' },
                     { label: 'Borbély (1982): Two-Process Model of Sleep Regulation — Human Neurobiology', url: 'https://pubmed.ncbi.nlm.nih.gov/7185792/' },
                     { label: 'Plews et al. (2013): HRV Monitoring in Elite Athletes — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
                     { label: 'Saw et al. (2016): Monitoring Athlete Well-Being — Sports Medicine', url: 'https://pubmed.ncbi.nlm.nih.gov/26412149/' },
                 ],
-                eli5: 'Der Readiness-Score kombiniert drei eigene, transparent berechnete Dimensionen. Physisch: Wie viel Trainingsbelastung steckt noch im System? Autonom: Ist dein Nervensystem (HRV) heute besser oder schlechter erholt als dein persönlicher Normalwert? Kognitiv: Wie viel Schlafschuld hast du angehäuft? Alles ohne Garmin-Blackbox — nur unsere eigenen Formeln.',
+                eli5: 'Der Erholungs-Score kombiniert drei transparent berechnete Dimensionen. Physisch: Wie viel Trainingsbelastung steckt noch im System (Fitness minus Ermüdung)? Autonom: Ist dein Nervensystem (HRV) heute besser oder schlechter erholt als dein persönlicher Normalwert? Kognitiv: Wie viel Schlafschuld hast du angehäuft? Alles ohne Garmin-Blackbox.',
             };
         },
     },
@@ -1232,10 +1280,106 @@ hrv: {
             };
         },
     },
+
+    recovery: {
+        title: 'Erholung — Schlaf & HRV',
+        section: 'NACHT',
+        async fetch() {
+            const [hrv, sleep, insights] = await Promise.all([
+                fetch('/api/hrv/trend?days=90').then(r => r.json()),
+                fetch('/api/sleep?days=90').then(r => r.json()),
+                fetch('/api/ml-insights').then(r => r.json()),
+            ]);
+            return { hrv, sleep, insights };
+        },
+        render(data) {
+            const latestHrv   = data.hrv.at(-1);
+            const sleepSorted = [...(data.sleep || [])].reverse();
+            const latestSleep = sleepSorted.at(-1);
+            const corr        = data.insights['correlation_sleep_hrv'];
+
+            const hrvWeekly  = latestHrv?.hrv_weekly_avg;
+            const hrvNight   = latestHrv?.hrv_last_night;
+            const sleepScore = latestSleep?.sleep_score;
+            const sleepDur   = latestSleep?.total_sleep_seconds;
+            const deepSleep  = latestSleep?.deep_sleep_seconds;
+
+            const validHrv   = data.hrv.filter(d => d.hrv_weekly_avg != null);
+            const avg90Hrv   = validHrv.length
+                ? Math.round(validHrv.reduce((s, d) => s + d.hrv_weekly_avg, 0) / validHrv.length)
+                : null;
+            const validSleep = sleepSorted.filter(d => d.sleep_score != null);
+            const avg90Sleep = validSleep.length
+                ? Math.round(validSleep.reduce((s, d) => s + d.sleep_score, 0) / validSleep.length)
+                : null;
+
+            const corrStr = corr?.r != null
+                ? `r = ${corr.r.toFixed(2)} (${corr.interpretation}, n=${corr.n})`
+                : 'Zu wenig Daten';
+            const corrSub = corr?.p_value != null ? `p = ${corr.p_value}` : '';
+
+            const mainParts = [];
+            if (hrvWeekly != null) mainParts.push(`HRV ${hrvWeekly} ms`);
+            if (sleepScore != null) mainParts.push(`Schlaf ${sleepScore}`);
+
+            return {
+                value: mainParts.join(' · ') || '—',
+                sub: sleepDur ? fmtHours(sleepDur) + ' letzte Nacht' : '',
+                kpis: [
+                    { label: 'HRV Wochenø',     value: hrvWeekly  != null ? hrvWeekly + ' ms'    : '—' },
+                    { label: 'HRV letzte Nacht', value: hrvNight   != null ? hrvNight  + ' ms'    : '—' },
+                    { label: 'Ø HRV (90d)',      value: avg90Hrv   != null ? avg90Hrv  + ' ms'    : '—' },
+                    { label: 'Schlaf-Score',     value: sleepScore != null ? sleepScore           : '—' },
+                    { label: 'Tiefschlaf',       value: deepSleep  != null ? fmtHours(deepSleep)  : '—' },
+                    { label: 'Ø Score (90d)',     value: avg90Sleep != null ? avg90Sleep           : '—' },
+                    { label: 'Schlaf → HRV',     value: corrStr },
+                    ...(corrSub ? [{ label: 'p-Wert', value: corrSub }] : []),
+                ],
+                charts: [
+                    {
+                        title: 'HRV-Verlauf (90 Tage)',
+                        type: 'line',
+                        labels: data.hrv.map(d => fmtDate(d.date)),
+                        datasets: [
+                            { label: 'Letzte Nacht', data: data.hrv.map(d => d.hrv_last_night ?? null), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                            { label: 'Wochenø',      data: data.hrv.map(d => d.hrv_weekly_avg ?? null), borderColor: '#86efac', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0, borderWidth: 1.5 },
+                        ],
+                    },
+                    {
+                        title: 'Schlaf-Score Verlauf (90 Tage)',
+                        type: 'line',
+                        labels: sleepSorted.map(d => fmtDate(d.date)),
+                        datasets: [
+                            { label: 'Schlaf-Score', data: sleepSorted.map(d => d.sleep_score ?? null), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                        ],
+                        scales: { y: { min: 0, max: 100 } },
+                    },
+                ],
+                formula: [
+                    ['HRV (RMSSD)', 'Root Mean Square of Successive Differences — nächtliche Messung via PPG'],
+                    ['Wochenø',     'Arithmetisches Mittel der letzten 7 Nächte'],
+                    ['Schlaf-Score','Garmin Composite-Score 0–100 (Dauer + Phasen + HRV während Schlaf)'],
+                    ['Korrelation', 'Pearson r: Schlaf-Score(N) → HRV_letzte_Nacht(N+1), min. 10 Paare'],
+                    ['Interpretation', 'r ≥ 0.7 stark · r ≥ 0.4 moderat · r ≥ 0.2 schwach'],
+                ],
+                science: 'HRV wird während des Schlafs gemessen — der parasympathische Vagotonus ist nachts maximal aktiv und gibt den präzisesten Erholungsmarker. Tiefschlaf (NREM-SWS) ist die Phase höchster HRV und größter physischer Regeneration: Wachstumshormon-Peak, Gewebereparatur, Glykogen-Resynthese. Die Korrelation Schlaf-Score(N) → HRV(N+1) testet, ob besserer Schlaf tatsächlich am nächsten Tag eine höhere HRV produziert — ein kausaler Pfad, der durch RCTs zu Schlafhygiene-Interventionen gestützt wird (Besedovsky et al., 2019). Plews et al. (2013) zeigten, dass nächtliche RMSSD der robusteste Einzelmarker für Erholungsstatus bei Ausdauersportlern ist.',
+                sources: [
+                    { label: 'Task Force ESC/NASPE (1996): HRV Standards of Measurement — Circulation', url: 'https://www.ahajournals.org/doi/10.1161/01.CIR.93.5.1043' },
+                    { label: 'Plews et al. (2013): HRV in Elite Endurance Athletes — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
+                    { label: 'Besedovsky et al. (2019): Sleep and Immune Function — Pflügers Archiv', url: 'https://pubmed.ncbi.nlm.nih.gov/30689000/' },
+                    { label: 'Cappuccio et al. (2011): Sleep Duration and All-Cause Mortality — Sleep', url: 'https://pubmed.ncbi.nlm.nih.gov/21300732/' },
+                ],
+                eli5: 'Dein Herz wird nachts vom Erholungsnerv (Parasympathikus) kontrolliert — je tiefer du schläfst, desto stärker ist dieser Nerv aktiv, desto höher ist deine HRV. Tiefschlaf ist die Phase, wo dein Körper wirklich repariert: Muskeln, Immunsystem, Energiereserven. Die Korrelation zeigt, ob bei dir persönlich guter Schlaf am nächsten Tag tatsächlich eine höhere HRV produziert — das ist dein persönlicher Schlaf-Erholungs-Zusammenhang.',
+            };
+        },
+    },
 };
 
 async function load() {
-    const name = location.pathname.split('/').pop();
+    const _redirects = { physical: 'readiness', autonomic: 'readiness', cognitive: 'readiness' };
+    const rawName = location.pathname.split('/').filter(Boolean).at(-1);
+    const name = _redirects[rawName] ?? rawName;
+    if (_redirects[rawName]) history.replaceState(null, '', '/metrics/readiness');
     const def = METRICS[name];
     if (!def) { location.href = '/dashboard'; return; }
 
@@ -1249,6 +1393,10 @@ async function load() {
 
         document.getElementById('metric-value').innerHTML = result.value;
         if (result.sub) document.getElementById('metric-sub').textContent = result.sub;
+
+        if (result.customHtml) {
+            document.getElementById('custom-html-block').innerHTML = result.customHtml;
+        }
 
         if (result.kpis?.length) {
             document.getElementById('metrics-kpis').innerHTML = result.kpis.map(k => `
