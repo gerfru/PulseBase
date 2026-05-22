@@ -588,71 +588,119 @@ hrv: {
     },
 
     readiness: {
-        title: 'Readiness-Score',
-        section: 'Readiness',
+        title: 'Erholung',
+        section: 'Erholung',
         async fetch() {
             return Promise.all([
                 fetch('/api/readiness').then(r => r.json()),
+                fetch('/api/energy').then(r => r.json()),
                 fetch('/api/ml-history?days=90').then(r => r.json()),
             ]);
         },
-        render([today, history]) {
-            const scoreColors = { 'badge-balanced': '#22c55e', 'badge-unbalanced': '#f59e0b', 'badge-poor': '#ef4444' };
-            const color = scoreColors[today?.cls] || '#64748b';
+        render([today, energy, history]) {
+            const score = today?.score ?? null;
+            const color = score == null ? '#64748b' : score >= 75 ? '#22c55e' : score >= 45 ? '#f59e0b' : '#ef4444';
 
-            const physMap  = Object.fromEntries((history.energy_physical  || []).map(d => [d.date, d.value]));
-            const autonMap = Object.fromEntries((history.energy_autonomic || []).map(d => [d.date, d.value]));
-            const cogMap   = Object.fromEntries((history.energy_cognitive || []).map(d => [d.date, d.value]));
-            const dates    = [...new Set([...Object.keys(physMap), ...Object.keys(autonMap), ...Object.keys(cogMap)])].sort();
-            const scores   = dates.map(date => {
-                const parts = [[physMap[date], 0.35], [autonMap[date], 0.40], [cogMap[date], 0.25]]
-                    .filter(([v]) => v != null);
+            const phys  = energy.energy_physical;
+            const auton = energy.energy_autonomic;
+            const cog   = energy.energy_cognitive;
+            const p = phys?.score  != null ? Math.round(phys.score)  : null;
+            const a = auton?.score != null ? Math.round(auton.score) : null;
+            const c = cog?.score   != null ? Math.round(cog.score)   : null;
+
+            const physHist  = history.energy_physical  || [];
+            const autonHist = history.energy_autonomic || [];
+            const cogHist   = history.energy_cognitive || [];
+            const physMap   = Object.fromEntries(physHist.map(d => [d.date, d.value]));
+            const autonMap  = Object.fromEntries(autonHist.map(d => [d.date, d.value]));
+            const cogMap    = Object.fromEntries(cogHist.map(d => [d.date, d.value]));
+            const dates     = [...new Set([...Object.keys(physMap), ...Object.keys(autonMap), ...Object.keys(cogMap)])].sort();
+            const compositeScores = dates.map(date => {
+                const parts = [[physMap[date], 0.35], [autonMap[date], 0.40], [cogMap[date], 0.25]].filter(([v]) => v != null);
                 if (!parts.length) return null;
                 const tw = parts.reduce((s, [, w]) => s + w, 0);
                 return Math.round(parts.reduce((s, [v, w]) => s + v * w / tw, 0));
             });
 
-            const p = today?.energy_physical  != null ? Math.round(today.energy_physical)  : null;
-            const a = today?.energy_autonomic != null ? Math.round(today.energy_autonomic) : null;
-            const c = today?.energy_cognitive != null ? Math.round(today.energy_cognitive) : null;
+            function sparklineSvg(hist) {
+                const vals = hist.map(d => d.value).filter(v => v != null);
+                if (vals.length < 3) return '';
+                const min = Math.min(...vals), range = Math.max(...vals) - min || 1;
+                const W = 80, H = 28;
+                const pts = hist.map((d, i) => {
+                    if (d.value == null) return null;
+                    const x = (i / Math.max(hist.length - 1, 1)) * W;
+                    const y = H - ((d.value - min) / range) * (H - 4) - 2;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                }).filter(Boolean).join(' ');
+                return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            }
+
+            function compTile(label, weight, scoreVal, detail, hist, textColor) {
+                const sc = scoreVal != null ? scoreVal : '—';
+                const col = scoreVal == null ? 'var(--muted)' : scoreVal >= 75 ? 'var(--green)' : scoreVal >= 45 ? 'var(--amber)' : 'var(--red)';
+                const sp = sparklineSvg(hist);
+                return `<div class="readiness-comp-tile card">
+                    <div class="comp-header">
+                        <span class="comp-label">${label}</span>
+                        <span class="comp-weight">${weight}</span>
+                    </div>
+                    <div class="comp-score" style="color:${col}">${sc}</div>
+                    <div class="comp-detail">${detail}</div>
+                    ${sp ? `<div class="comp-sparkline" style="color:${textColor}">${sp}</div>` : ''}
+                </div>`;
+            }
+
+            const physDetail  = phys?.tsb != null
+                ? `TSB ${phys.tsb >= 0 ? '+' : ''}${phys.tsb.toFixed(1)}`
+                : (p != null ? '' : 'keine Daten');
+            const autonDetail = auton?.deviation != null
+                ? `${auton.deviation >= 0 ? '+' : ''}${auton.deviation.toFixed(2)} σ`
+                : (a != null ? '' : 'keine Daten');
+            const cogDetail   = cog?.debt_hours != null
+                ? `${cog.debt_hours.toFixed(1)}h Schulden`
+                : (c != null ? '' : 'keine Daten');
+
+            const customHtml = `<div class="readiness-comp-grid">
+                ${compTile('Physisch', '35%', p, physDetail, physHist, '#22c55e')}
+                ${compTile('Autonom',  '40%', a, autonDetail, autonHist, '#22c55e')}
+                ${compTile('Kognitiv', '25%', c, cogDetail, cogHist, '#8b5cf6')}
+            </div>`;
 
             return {
-                value: today?.score != null
-                    ? `<span style="color:${color};font-size:4rem;font-weight:800;letter-spacing:-.04em">${today.score}</span>`
+                value: score != null
+                    ? `<span style="color:${color};font-size:4rem;font-weight:800;letter-spacing:-.04em">${score}</span>`
                     : '—',
                 sub: today?.label ?? '',
-                kpis: [
-                    { label: 'Physische Energie (35%)',  value: p != null ? p : '—' },
-                    { label: 'Autonome Energie (40%)',   value: a != null ? a : '—' },
-                    { label: 'Kognitive Energie (25%)',  value: c != null ? c : '—' },
-                ],
-                chart: dates.length > 3 ? {
-                    title: 'Readiness-Verlauf (90 Tage)',
+                kpis: [],
+                customHtml,
+                charts: dates.length > 3 ? [{
+                    title: 'Erholung-Verlauf (90 Tage)',
                     type: 'line',
                     labels: dates.map(fmtDate),
-                    datasets: [{
-                        data: scores,
-                        borderColor: '#6366f1',
-                        backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)',
-                        fill: true, tension: 0.3, pointRadius: 0,
-                    }],
+                    datasets: [
+                        { label: 'Erholung', data: compositeScores, borderColor: '#6366f1', backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)', fill: true, tension: 0.3, pointRadius: 0 },
+                        { label: 'Physisch',  data: dates.map(d => physMap[d]  ?? null), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Autonom',   data: dates.map(d => autonMap[d] ?? null), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Kognitiv',  data: dates.map(d => cogMap[d]   ?? null), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                    ],
                     scales: { y: { min: 0, max: 100 } },
-                } : null,
+                }] : [],
                 formula: [
-                    ['Physische Energie', 'TRIMP-Polynom + Banister ATL/CTL/TSB → Score (0–100) — Gewicht: 35%'],
-                    ['Autonome Energie', 'HRV (RMSSD) ln-normiert, σ-Abweichung von persönlichem Baseline — Gewicht: 40%'],
-                    ['Kognitive Energie', 'Borbély Process S: kumulative Schlafschuld 7d vs. 7h-Ziel — Gewicht: 25%'],
-                    ['Fehlende Komponenten', 'Verbleibende Gewichte werden proportional normiert'],
-                    ['Score', 'Gewichtetes Mittel, geclampt 0–100'],
+                    ['Physische Energie (35%)', 'TRIMP-Polynom + Banister ATL/CTL/TSB → Score (0–100)'],
+                    ['Autonome Energie (40%)',  'HRV (RMSSD) ln-normiert, σ-Abweichung vom persönlichen Baseline (90 Tage)'],
+                    ['Kognitive Energie (25%)', 'Borbély Process S: kumulative Schlafschuld (7d) vs. 7h-Ziel'],
+                    ['Fehlende Komponenten',    'Verbleibende Gewichte werden proportional normiert'],
+                    ['Score',                   'Gewichtetes Mittel, geclampt 0–100'],
                 ],
-                science: 'Der Composite-Readiness-Score integriert drei physiologisch eigenständige Dimensionen: (1) Physische Trainingsbelastung via Banister-Impuls-Antwort-Modell (CTL/ATL/TSB, Zeitkonstanten 42/7 Tage), (2) Autonome Erholungskapazität via HRV-Baseline-Deviation (ln RMSSD, σ-normiert gegen persönliches Baseline-Fenster), (3) Kognitive Kapazität via Borbély-Schlafschuld-Modell (Process S, 7h-Ziel, rein durationsbasiert). Die Gewichtung (35%/40%/25%) reflektiert die prädiktive Stärke von HRV als stärkstem Einzelprädiktor für Leistungsbereitschaft (Saw et al., 2016). Alle Berechnungen sind transparent und formelbasiert — keine proprietären Algorithmen.',
+                science: 'Der Composite-Erholungs-Score integriert drei physiologisch eigenständige Dimensionen: (1) Physische Trainingsbelastung via Banister-Impuls-Antwort-Modell (CTL/ATL/TSB, Zeitkonstanten 42/7 Tage), (2) Autonome Erholungskapazität via HRV-Baseline-Deviation (ln RMSSD, σ-normiert gegen persönliches 90-Tage-Fenster), (3) Kognitive Kapazität via Borbély-Schlafschuld-Modell (Process S, 7h-Ziel). Die Gewichtung (35%/40%/25%) reflektiert die prädiktive Stärke von HRV als stärkstem Einzelprädiktor für Leistungsbereitschaft (Saw et al., 2016). Alle Berechnungen sind transparent und formelbasiert — keine proprietären Algorithmen.',
                 sources: [
                     { label: 'Wikipedia: Fitness–Fatigue Model (Banister 1991)', url: 'https://en.wikipedia.org/wiki/Fitness%E2%80%93fatigue_model' },
                     { label: 'Borbély (1982): Two-Process Model of Sleep Regulation — Human Neurobiology', url: 'https://pubmed.ncbi.nlm.nih.gov/7185792/' },
                     { label: 'Plews et al. (2013): HRV Monitoring in Elite Athletes — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
                     { label: 'Saw et al. (2016): Monitoring Athlete Well-Being — Sports Medicine', url: 'https://pubmed.ncbi.nlm.nih.gov/26412149/' },
                 ],
-                eli5: 'Der Readiness-Score kombiniert drei eigene, transparent berechnete Dimensionen. Physisch: Wie viel Trainingsbelastung steckt noch im System? Autonom: Ist dein Nervensystem (HRV) heute besser oder schlechter erholt als dein persönlicher Normalwert? Kognitiv: Wie viel Schlafschuld hast du angehäuft? Alles ohne Garmin-Blackbox — nur unsere eigenen Formeln.',
+                eli5: 'Der Erholungs-Score kombiniert drei transparent berechnete Dimensionen. Physisch: Wie viel Trainingsbelastung steckt noch im System (Fitness minus Ermüdung)? Autonom: Ist dein Nervensystem (HRV) heute besser oder schlechter erholt als dein persönlicher Normalwert? Kognitiv: Wie viel Schlafschuld hast du angehäuft? Alles ohne Garmin-Blackbox.',
             };
         },
     },
@@ -1328,7 +1376,10 @@ hrv: {
 };
 
 async function load() {
-    const name = location.pathname.split('/').filter(Boolean).at(-1);
+    const _redirects = { physical: 'readiness', autonomic: 'readiness', cognitive: 'readiness' };
+    const rawName = location.pathname.split('/').filter(Boolean).at(-1);
+    const name = _redirects[rawName] ?? rawName;
+    if (_redirects[rawName]) history.replaceState(null, '', '/metrics/readiness');
     const def = METRICS[name];
     if (!def) { location.href = '/dashboard'; return; }
 
@@ -1342,6 +1393,10 @@ async function load() {
 
         document.getElementById('metric-value').innerHTML = result.value;
         if (result.sub) document.getElementById('metric-sub').textContent = result.sub;
+
+        if (result.customHtml) {
+            document.getElementById('custom-html-block').innerHTML = result.customHtml;
+        }
 
         if (result.kpis?.length) {
             document.getElementById('metrics-kpis').innerHTML = result.kpis.map(k => `

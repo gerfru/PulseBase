@@ -440,7 +440,7 @@ function buildHeroCard() {
     const score        = r?.score ?? null;
     const circumference = 218; // 2π × 52 × (240/360) — Partial Arc 240°
     const fill         = score != null ? Math.round(score / 100 * circumference) : 0;
-    const ringColor    = scoreColor(score);
+    const ringColor    = score == null ? 'var(--muted)' : score >= 75 ? 'var(--green)' : score >= 45 ? 'var(--amber)' : 'var(--red)';
 
     const today     = new Date();
     const dateLabel = today.toLocaleDateString('de-AT', { weekday: 'short', day: 'numeric', month: 'long' });
@@ -454,7 +454,7 @@ function buildHeroCard() {
             stroke-dasharray="0 327" transform="rotate(120 60 60)"
             class="readiness-ring-progress" id="hero-ring-progress"/>
         <text x="60" y="56" text-anchor="middle" class="ring-score-text" id="hero-ring-score">0</text>
-        <text x="60" y="72" text-anchor="middle" class="ring-label-text">READINESS</text>
+        <text x="60" y="72" text-anchor="middle" class="ring-label-text">Erholung</text>
     </svg>`;
 
     // ── Derived values (needed by ring + vitals) ────────────────────────────
@@ -515,7 +515,7 @@ function buildHeroCard() {
     const acwr = ml.acwr;
     if (acwr?.acwr != null) {
         const acolor = acwr.level === 'red' ? 'chip-red' : acwr.level === 'amber' ? 'chip-amber' : 'chip-green';
-        chips.push(`<a href="/metrics/acwr" class="hero-chip ${acolor}" data-chip-modal="acwr">
+        chips.push(`<a href="/metrics/acwr" class="hero-chip ${acolor}">
             Trainingsbelastung: ${acwr.acwr.toFixed(2)} · ${acwr.level === 'red' ? '⚠️ Risiko' : acwr.level === 'amber' ? '⚠️ Erhöht' : '✓ OK'}${evBadge('acwr')}
         </a>`);
     }
@@ -523,7 +523,7 @@ function buildHeroCard() {
     const bb = ml.body_battery_custom;
     if (bb?.score != null) {
         const bbcolor = bb.score >= 75 ? 'chip-green' : bb.score >= 40 ? 'chip-amber' : 'chip-red';
-        chips.push(`<a href="/metrics/body-battery-custom" class="hero-chip ${bbcolor}" data-chip-modal="body_battery_custom">
+        chips.push(`<a href="/metrics/body-battery-custom" class="hero-chip ${bbcolor}">
             Tagesenergie: ${Math.round(bb.score)}% · ↑${bb.recovery} ↓${bb.activity_drain}${evBadge('body_battery_custom')}
         </a>`);
     }
@@ -562,7 +562,6 @@ function buildHeroCard() {
                     <span class="hero-ring-status">${esc(r?.label ?? '—')}</span>
                     ${heroRecommendation(score)}
                     ${energyDots()}
-                    <a class="hero-ring-link" href="/metrics/readiness">→ Details</a>
                     ${rfTag}
                 </div>
             </div>
