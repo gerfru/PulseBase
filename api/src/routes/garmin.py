@@ -17,6 +17,7 @@ from src.db import (
     set_garmin_linked,
     set_garmin_unlinked,
 )
+from src.deps import _get_real_ip
 from src.garmin.client import GarminClient
 
 logger = logging.getLogger(__name__)
@@ -65,11 +66,16 @@ async def garmin_link(
             await save_user_token(user["id"], "garmin", blob)
 
         await set_garmin_linked(user["id"], garmin_email)
-        logger.info("Garmin verknüpft für User %s", user["id"])
+        logger.info(
+            "garmin.link.success user_id=%s ip=%s", user["id"], _get_real_ip(request)
+        )
         return RedirectResponse("/?linked=1", status_code=303)
     except Exception as e:
         logger.error(
-            "Garmin Login fehlgeschlagen für User %s: %s", user["id"], type(e).__name__
+            "garmin.link.fail user_id=%s reason=%s ip=%s",
+            user["id"],
+            type(e).__name__,
+            _get_real_ip(request),
         )
         return _deps.templates.TemplateResponse(
             request,
@@ -83,5 +89,5 @@ async def garmin_link(
 async def garmin_unlink(request: Request):
     user = await _deps.require_user(request)
     await set_garmin_unlinked(user["id"])
-    logger.info("Garmin Verknüpfung entfernt für User %s", user["id"])
+    logger.info("garmin.unlink user_id=%s ip=%s", user["id"], _get_real_ip(request))
     return RedirectResponse("/", status_code=303)

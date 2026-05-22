@@ -73,8 +73,6 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: garmin
-    volumes:
-      - garmin-tokens:/app/tokens
     depends_on:
       flyway:
         condition: service_completed_successfully
@@ -102,8 +100,6 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: garmin
-    volumes:
-      - garmin-tokens:/app/tokens
     networks:
       - internal
 
@@ -126,7 +122,6 @@ services:
 
 volumes:
   timescale-data:
-  garmin-tokens:
   ml-models:
 
 networks:

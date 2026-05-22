@@ -385,6 +385,46 @@ stärker abgesetzt, Export- und Profil-Bereich übersichtlicher gruppieren.
 
 ---
 
+### 4.6 Tagesstatus-Widget überarbeiten 🟡
+
+**Aktuell:** Readiness-Gauge (0–100) + Physical / Autonomic / Kognitiv als drei Einzelwerte
+mit Farb-Dot und Kurztext.
+
+**Offen:** Überarbeitung Darstellung, Gewichtung und Erklärbarkeit der drei Sub-Scores;
+ggf. Drill-Down auf beitragende Metriken.
+
+---
+
+### 4.7 Dashboard-Chips überarbeiten 🟡
+
+**Aktuell:** Fußzeile mit sechs Chips — ACWR, Monotony, Schlafrhythmus, Energie, Stress,
+ML · Morgen.
+
+**Offen:** Layout, Priorität und Interaktivität der Chips überdenken; ggf. weniger Chips
+sichtbar mit Expand-Option, bessere visuelle Hierarchie.
+
+---
+
+### 4.8 Dashboard-Tiles überarbeiten 🟡
+
+**Aktuell:** Vier Tiles — Schritte, Schlaf-Score, HRV Wochenø (mit Status-Text), Ruhepuls
+(mit Δ vs. Ø).
+
+**Offen:** Einheitlicheres Tile-Design, Sparklines oder Mikro-Trend-Charts, bessere
+Kontextualisierung der Vergleichswerte.
+
+---
+
+### 4.9 Rechte Seite (Form / Fitness / Schulden) überarbeiten 🟡
+
+**Aktuell:** Form +1.9 · Fitness 25, HRV-Abweichung (−0.7σ), Schlafschuld (2.2h Schulden)
+als kompakte Zeilen.
+
+**Offen:** Klarere Beschriftung und Erklärbarkeit; ggf. Tooltips oder Verlinkung auf
+Detail-Seiten; visuelle Hervorhebung kritischer Werte.
+
+---
+
 ## 5. Datenquellen
 
 | Quelle | Neue Daten | Aufwand |

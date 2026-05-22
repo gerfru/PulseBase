@@ -12,7 +12,7 @@ from src.db import (
     get_user_by_email,
     get_user_by_id,
 )
-from src.deps import limiter, verify_password
+from src.deps import _get_real_ip, limiter, verify_password
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -52,6 +52,7 @@ async def delete_account(
         return _settings_error(request, user, "Passwort falsch.")
 
     await delete_user(user_id)
+    logger.info("auth.account.delete user_id=%s ip=%s", user_id, _get_real_ip(request))
     request.session.clear()
     return RedirectResponse("/login?deleted=1", status_code=303)
 
