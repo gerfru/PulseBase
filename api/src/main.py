@@ -16,7 +16,7 @@ from src.deps import (
     limiter,
     settings,
 )
-from src.routes import api as api_routes
+from src.routes import account, api as api_routes
 from src.routes import auth, garmin, libre, pages
 
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +69,7 @@ app.add_middleware(
     secret_key=settings.session_secret,
     https_only=settings.https_only,
     same_site="lax",
+    max_age=3600,
 )
 
 
@@ -83,6 +84,7 @@ async def health():
 
 
 app.include_router(auth.router)
+app.include_router(account.router)
 app.include_router(garmin.router)
 app.include_router(libre.router)
 app.include_router(pages.router)

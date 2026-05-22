@@ -111,12 +111,19 @@ make db               # psql-Shell (liest DB_APP_USER aus env/.env)
 
 ```
 api/src/
-├── main.py           Alle Routen (Auth + Dashboard + /api/*)
-├── db.py             Alle DB-Funktionen (asyncpg, kein ORM)
+├── main.py           App-Setup + Router-Registrierung
+├── db/
+│   ├── __init__.py   Re-exports aller DB-Funktionen
+│   ├── users.py      User-Queries (create, get, delete, export, consent, …)
+│   └── pool.py       asyncpg Connection Pool
+├── routes/
+│   ├── auth.py       /login, /register, /auth/*, /logout (inkl. consent_health, 12-Zeichen-PW)
+│   ├── account.py    /account/delete (DSGVO Art. 17), /account/export (DSGVO Art. 20)
+│   └── pages.py      /privacy, /terms, /imprint (öffentlich, keine Session nötig)
 ├── garmin/
 │   ├── __init__.py
 │   └── client.py     Garmin Connect Client (Token-Login)
-└── templates/        Jinja2 Templates (login, register, dashboard, activity, link_garmin)
+└── templates/        Jinja2 Templates (login, register, dashboard, activity, settings, privacy, terms, imprint, …)
 
 sync-service/src/
 ├── main.py           APScheduler + Sync-Loop pro User
@@ -202,6 +209,7 @@ Wichtig: bandit und mypy als `pass_filenames: false` mit absoluten Pfaden vom Pr
 | `daily_summary` | `date`, `steps` (nicht total_steps!), `resting_hr`, `body_battery_high`, `body_battery_low` |
 | `sleep_sessions` | `start_time`, `sleep_score`, `total_sleep_seconds` (nicht duration_seconds!) |
 | `hrv_daily` | `hrv_last_night`, `hrv_weekly_avg` (nicht weekly_avg!), `hrv_status` (nicht status!) |
+| `user_consents` | `user_id`, `consent_type` (`health_data`), `accepted`, `timestamp`, `ip_address`, `privacy_policy_version` — DSGVO Art. 5(2) Audit-Log (V19) |
 
 ## JSON-API Endpoints (alle session-geschützt)
 
@@ -224,6 +232,11 @@ GET /api/ml-insights             ML-Ergebnisse (Anomalie, Korrelation, RF-Progno
 GET /dashboard               Dashboard (Chart.js, fetch)
 GET /activity/{id}           Aktivitäts-Detail (GPS-Karte, Charts)
 GET /garmin/link             Garmin-Account verknüpfen
+GET /account/export          Daten-Export als JSON-Download (DSGVO Art. 20)
+POST /account/delete         Konto löschen — E-Mail + Passwort nötig (DSGVO Art. 17)
+GET /privacy                 Datenschutzerklärung (öffentlich)
+GET /terms                   Nutzungsbedingungen (öffentlich)
+GET /imprint                 Impressum (öffentlich)
 ```
 
 ## Env-Files (unter `env/`)
