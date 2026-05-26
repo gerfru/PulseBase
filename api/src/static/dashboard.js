@@ -174,16 +174,17 @@ function setDays(days) {
 }
 
 // ─── Tab Navigation ────────────────────────────────────────────────────────
-const TABS = ['training', 'verlauf'];
+const TABS = ['heute', 'training', 'verlauf', 'erholung'];
 
 // Maps hash → [tab, canvas-id] for direct chart navigation from external pages
 const CHART_HASHES = {
-    sleep:    ['verlauf', 'sleep-chart'],
-    hrv:      ['verlauf', 'hrv-trend-chart'],
-    stress:   ['verlauf', 'stress-chart'],
-    battery:  ['verlauf', 'battery-chart'],
-    hr:       ['verlauf', 'hr-chart'],
+    sleep:    ['erholung', 'sleep-chart'],
+    hrv:      ['erholung', 'hrv-trend-chart'],
+    stress:   ['verlauf',  'stress-chart'],
+    battery:  ['verlauf',  'battery-chart'],
+    hr:       ['verlauf',  'hr-chart'],
     training: ['training', 'training-load-chart'],
+    intensity: ['training', 'intensity-chart'],
 };
 
 function setTab(name) {
@@ -383,11 +384,19 @@ async function buildWeeklyReview() {
             const kmDelta  = w2.total_km - w1.total_km;
             const kmPct    = w1.total_km > 0 ? (kmDelta / w1.total_km * 100).toFixed(0) : 0;
 
+            // Compact week label: "KW 20" only (no date range — avoids overflow)
+            function kwOnly(weekDateStr) {
+                const mon = new Date(weekDateStr + 'T00:00:00');
+                const t = new Date(mon); t.setDate(t.getDate() + 4 - (t.getDay() || 7));
+                const kw = Math.ceil((((t - new Date(t.getFullYear(), 0, 1)) / 86400000) + 1) / 7);
+                return `KW ${kw}`;
+            }
+
             reviewHtml = `<div data-weekly-review class="wk-review">
-                <div class="wk-header">Zwei Wochen</div>
+                <div class="wk-header">14 Tage im Überblick</div>
                 <div class="wk-kpis">
-                    ${kpi(weekLabel(w1.week), `${w1.activity_count} Akt. · ${Math.round(w1.total_km)} km`, '', null)}
-                    ${kpi(weekLabel(w2.week), `${w2.activity_count} Akt. · ${Math.round(w2.total_km)} km`, '', null)}
+                    ${kpi(kwOnly(w1.week), `${w1.activity_count} Akt.`, `${Math.round(w1.total_km)} km`, null)}
+                    ${kpi(kwOnly(w2.week), `${w2.activity_count} Akt.`, `${Math.round(w2.total_km)} km`, null)}
                     ${kpi('Δ Aktivitäten', `${actDelta > 0 ? '+' : ''}${actDelta}`, '', actDelta)}
                     ${kpi('Δ Distanz', `${kmPct > 0 ? '+' : ''}${kmPct}%`, '', kmDelta)}
                 </div>
@@ -1089,7 +1098,7 @@ if (TABS.includes(_hash)) {
         document.getElementById(_chartId)?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
 } else {
-    setTab('training');
+    setTab('heute');
 }
 loadEvidence().catch(() => {});
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
