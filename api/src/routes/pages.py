@@ -45,14 +45,26 @@ async def index(request: Request):
 @router.get("/dashboard")
 async def dashboard(request: Request):
     user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(request, "dashboard.html", {"user": user})
+    return _deps.templates.TemplateResponse(
+        request, "dashboard.html", {"user": user, "active_page": "dashboard"}
+    )
 
 
 @router.get("/settings")
 async def settings_page(request: Request):
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(
-        request, "settings.html", {"user": user, "today": date.today().isoformat()}
+        request,
+        "settings.html",
+        {"user": user, "today": date.today().isoformat(), "active_page": "settings"},
+    )
+
+
+@router.get("/metrics")
+async def metrics_overview_page(request: Request):
+    user = await _deps.require_user(request)
+    return _deps.templates.TemplateResponse(
+        request, "metrics_overview.html", {"user": user, "active_page": "metrics"}
     )
 
 
@@ -62,7 +74,9 @@ async def metrics_detail_page(request: Request, name: str):
     if name not in _VALID_METRICS:
         return RedirectResponse("/dashboard", status_code=303)
     return _deps.templates.TemplateResponse(
-        request, "metrics.html", {"user": user, "metric_name": name}
+        request,
+        "metrics.html",
+        {"user": user, "metric_name": name, "active_page": "metrics"},
     )
 
 

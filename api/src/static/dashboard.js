@@ -174,15 +174,15 @@ function setDays(days) {
 }
 
 // ─── Tab Navigation ────────────────────────────────────────────────────────
-const TABS = ['training', 'verlauf', 'erholung'];
+const TABS = ['training', 'verlauf'];
 
 // Maps hash → [tab, canvas-id] for direct chart navigation from external pages
 const CHART_HASHES = {
-    sleep:    ['erholung', 'sleep-chart'],
-    hrv:      ['erholung', 'hrv-trend-chart'],
-    stress:   ['verlauf',  'stress-chart'],
-    battery:  ['verlauf',  'battery-chart'],
-    hr:       ['verlauf',  'hr-chart'],
+    sleep:    ['verlauf', 'sleep-chart'],
+    hrv:      ['verlauf', 'hrv-trend-chart'],
+    stress:   ['verlauf', 'stress-chart'],
+    battery:  ['verlauf', 'battery-chart'],
+    hr:       ['verlauf', 'hr-chart'],
     training: ['training', 'training-load-chart'],
 };
 
