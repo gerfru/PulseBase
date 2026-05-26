@@ -230,6 +230,33 @@ Z-score was chosen over more complex methods because:
 
 ---
 
+## Body Battery: Fresh-State model (not Banister accumulation)
+
+**Changed:** May 2026. `ml-service/src/models/body_battery.py` v2.
+
+The original `body_battery_custom` used a linear Banister fitness-fatigue accumulation:
+`score = clamp(prev + recovery − drains, 5, 100)`. At rest, `drains ≈ 0` and `recovery`
+was constant — so the score hit 100 and stayed there indefinitely. Users saw flat plateaus
+at 100 for multi-day rest periods, which contradicted reality.
+
+**Why fresh-state wins:**
+- Banister FFM has fundamental statistical flaws at the individual level (Scientific
+  Reports, 2025, doi:10.1038/s41598-025-88153-7)
+- No wearable manufacturer publishes a clinically validated composite score formula
+  (Wearable Composite Health Scores Require Validation, 2025)
+- Fresh-state `score = 0.30 × prev + 0.70 × fresh − drains` avoids the plateau while
+  preserving multi-day continuity via the 30% inertia term
+
+**Sleep phases are primary, duration secondary (60/40 split):**
+- Deep sleep (SWS) and REM quality are stronger recovery signals than total hours
+  (Walker 2017; Dijk & Czeisler 1995)
+- HRV vs. personal 30-day baseline as recovery indicator (Plews et al. 2013)
+
+**Backfill:** `make backfill-battery` deletes all `body_battery_custom` predictions
+and re-runs the backfill script against full history.
+
+---
+
 ## TimescaleDB for intraday data
 
 Regular PostgreSQL tables would work for daily summaries and activities. Intraday data

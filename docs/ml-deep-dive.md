@@ -18,6 +18,7 @@ Für eine verständliche Erklärung ohne Mathekenntnisse: [eli5.md](eli5.md).
 | `readiness_rf` | Regression | Random Forest | Readiness Score für morgen |
 | `battery_pattern` | Clustering | k-Means | Energie-Tagesmuster |
 | `model_meta_rf` | Metadaten | — | Feature Importances + Trainingsinfos des RF |
+| `body_battery_custom` | Algorithmisch | Fresh-State-Modell | Tagesenergie (Schlafphasen + HRV) |
 
 ---
 
@@ -372,6 +373,7 @@ ON CONFLICT (date, user_id, model) DO UPDATE
 | `hrv_status_custom` | Score 0–100 | `status`, `deviation`, `baseline_mean`, `baseline_std`, `hrv_7d_mean` |
 | `intensity_minutes_custom` | Score 0–100 | `moderate_minutes`, `vigorous_minutes`, `hrmax_used`, `resting_hr_used` |
 | `training_effect_custom` | Score 0–100 | `effect`, `trimp_today`, `ctl`, `atl`, `tsb`, `vo2max`, `sex`, `b_coeff` |
+| `body_battery_custom` | Score 5–100 | `sleep_quality`, `hrv_factor`, `activity_drain`, `stress_drain`, `sleep_h`, `deep_h`, `rem_h`, `prev_score` |
 
 ---
 
@@ -435,6 +437,45 @@ Score = `min(100, (moderate_min + vigorous_min × 2) / 30 × 100)`
 
 ---
 
+### `body_battery_custom` — Fresh-State Energiemodell
+
+**Datei:** `ml-service/src/models/body_battery.py`
+
+Ersetzt Garmins proprietären Body-Battery-Score durch ein transparentes, physiologisch
+begründetes Energiemodell. Löst das Akkumulationsplateau des früheren Banister-FFM-Ansatzes
+(Scientific Reports, 2025: fundamentale statistische Mängel der Methode) ab.
+
+**Schlafqualitätsfaktor** (Phases 60% + Dauer 40%):
+```
+deep_score    = min(1.0, (deep_h / total_h) / 0.20)   # Ziel: 20% Tiefschlaf (Walker 2017)
+rem_score     = min(1.0, (rem_h  / total_h) / 0.25)   # Ziel: 25% REM (Dijk & Czeisler 1995)
+quality       = 0.55 × deep_score + 0.45 × rem_score  # Phasen-Qualität
+sleep_quality = 0.40 × (total_h / 7.5) + 0.60 × quality
+```
+
+**Tagesscore** (Fresh-State-Formel):
+```
+hrv_factor     = min(1.0, hrv_last_night / hrv_baseline)  # Plews et al. 2013
+fresh          = 40 + sleep_quality × 35 + hrv_factor × 25  # max 100 bei Idealwerten
+activity_drain = min(40, today_trimp × 0.5)
+stress_drain   = max(0, (avg_stress − 25) × 0.2)
+score          = clamp(0.30 × prev + 0.70 × fresh − activity_drain − stress_drain, 5, 100)
+```
+
+Verhindert Akkumulationsplateau: Fresh-State (70%) dominiert, Trägheit (30%) verhindert
+tägliche Überschwingungen. Bei guten Werten: `fresh ≈ 100`, `score ≈ 100` unabhängig von
+gestern.
+
+**Input:** `sleep_sessions` (letzte Nacht), `hrv_daily` (letzte Nacht + 30-Tage-Baseline),
+`activities` (heutige TRIMP), `daily_summary.avg_stress`
+**Fallback:** kein `hrv_last_night` → `hrv_factor = 0.5`; keine Schlafphasen → Duration-only
+**Backfill:** `make backfill-battery` — löscht alte `body_battery_custom`-Predictions und rechnet neu
+
+**Wissenschaftlicher Status:** Einzelkomponenten validiert (HRV ✅, Schlafphasen ✅, TRIMP ✅);
+Composite-Aggregation heuristisch — kein Hersteller publiziert klinisch validierte Formel.
+
+---
+
 ### `training_effect_custom` — Banister TRIMP + Training Effect
 
 **Datei:** `ml-service/src/models/training_effect.py`
@@ -472,10 +513,11 @@ effect = atan(TRIMP_heute / (CTL × 0.5)) × (10/π)
 | `hrv_status_custom` | 90 Tage | 7 HRV-Werte |
 | `intensity_minutes_custom` | heute | min. 1 activity_record |
 | `training_effect_custom` | 50 Tage | Profil (sex) gesetzt |
+| `body_battery_custom` | 2 Tage Schlaf + 30 Tage HRV-Baseline | kein Minimum (Fallbacks greifen) |
 
 ---
 
-## 8. Abhängigkeiten
+## 9. Abhängigkeiten
 
 | Library | Version | Verwendung |
 |---------|---------|------------|

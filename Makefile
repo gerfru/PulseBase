@@ -52,7 +52,7 @@ backfill-energy:
 	$(DC) exec ml-service python /app/src/backfill_energy.py
 
 backfill-battery: ## Force-recompute body_battery_custom with new model (deletes old predictions first)
-	$(DC) exec garmin-db psql -U garmin_app garmin \
+	$(DC) exec db psql -U garmin_app garmin \
 	  -c "DELETE FROM ml_predictions WHERE model = 'body_battery_custom';"
 	$(DC) exec ml-service python /app/src/backfill_energy.py
 

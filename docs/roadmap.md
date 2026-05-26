@@ -130,14 +130,19 @@ Stryd Running Power — bereits als `avg_running_power` in V13 gespeichert).
 
 ---
 
-### 1.5 Schlafphasen-Klassifikation 🔴
+### 1.5 Schlafphasen-Klassifikation ⚠️ Teilweise genutzt
 
 **Aktuell:** Garmin-Schlafphasen aus Akzelerometer + optischem HRV.
 
-**Problem:** EEG-Goldstandard nicht verfügbar. Garmin selbst gilt als unzuverlässig
-(deshalb kein Qualitätsfaktor in unserem Kognitiv-Score).
+**Problem:** EEG-Goldstandard nicht verfügbar. Garmin-Phasendaten gelten für den Kognitiv-Score
+weiterhin als zu unzuverlässig — dort zählt nur die Schlafdauer.
 
-**Zukünftig:** Wenn Consumer-EEG (z.B. Muse, Dreem) integriert wird — dann sinnvoll.
+**Neu (Body Battery):** `deep_sleep_seconds` und `rem_sleep_seconds` fließen jetzt in
+`body_battery_custom` ein — als qualitative Schlafqualitäts-Komponente mit expliziten
+Zielwerten (Tiefschlaf 20%, REM 25% der Schlafdauer). Die Unzuverlässigkeit der Garmin-Messung
+ist im Modell durch Fallback auf Dauer-only verankert (wenn Phasendaten fehlen).
+
+**Langfristig:** Consumer-EEG (Muse, Dreem) würde Phasenqualität auf Goldstandard-Niveau heben.
 
 **Quellen:**
 - Rechtschaffen A, Kales A (1968). A Manual of Standardized Terminology, Techniques and Scoring System for Sleep Stages in Human Subjects. National Institute of Health Publication No. 204
