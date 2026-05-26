@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Metriken{% endblock %}
+{% block content %}
+
+<header class="flex items-center justify-between px-4 py-3 mb-2 flex-wrap gap-3">
+    <div class="flex items-baseline gap-3">
+        <a href="/dashboard" class="text-slate-400 hover:text-slate-200 transition-colors text-sm">← Dashboard</a>
+        <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Metriken</h1>
+    </div>
+</header>
+
+<div id="metrics-grid" class="px-4 sm:px-6 pb-12 space-y-6">
+    <p class="empty">Lade…</p>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="/static/colors.js?v={{ v }}"></script>
+<script>
+
+const METRIC_GROUPS = [
+    {
+        label: 'Erholung',
+        items: [
+            { name: 'readiness',    title: 'Erholung',             icon: '🔄', fetch: '/api/readiness',                      val: d => d.score, unit: '', color: 'var(--green)'  },
+            { name: 'autonomic',    title: 'Autonome Energie',      icon: '💚', fetch: '/api/energy',                         val: d => d.energy_autonomic?.score != null ? Math.round(d.energy_autonomic.score) : null, unit: '', color: 'var(--green)' },
+            { name: 'cognitive',    title: 'Kognitive Energie',     icon: '🧠', fetch: '/api/energy',                         val: d => d.energy_cognitive?.score  != null ? Math.round(d.energy_cognitive.score)  : null, unit: '', color: 'var(--violet)' },
+        ]
+    },
+    {
+        label: 'Training',
+        items: [
+            { name: 'physical',         title: 'Physische Energie',    icon: '⚡', fetch: '/api/energy',            val: d => d.energy_physical?.score  != null ? Math.round(d.energy_physical.score)  : null, unit: '', color: 'var(--indigo)' },
+            { name: 'training-status',  title: 'Trainingszustand',     icon: '🏋️', fetch: '/api/training-status',   val: d => d.training_status ?? null, unit: '', color: 'var(--muted)' },
+            { name: 'readiness-rf',     title: 'ML Readiness',         icon: '🤖', fetch: '/api/ml-insights',       val: d => d.readiness_rf?.value != null ? Math.round(d.readiness_rf.value) : null, unit: '', color: 'var(--indigo)' },
+        ]
+    },
+    {
+        label: 'Garmin-Daten',
+        items: [
+            { name: 'hrv',          title: 'HRV Wochenø',          icon: '💓', fetch: '/api/hrv',                            val: d => d.hrv_weekly_avg, unit: ' ms', color: 'var(--green)' },
+            { name: 'sleep',        title: 'Schlaf-Score',         icon: '😴', fetch: '/api/sleep?days=2',                   val: d => d[0]?.sleep_score, unit: '', color: 'var(--violet)' },
+            { name: 'body-battery', title: 'Body Battery',         icon: '🔋', fetch: '/api/daily?days=2',                   val: d => d.at(-1)?.body_battery_high, unit: '', color: 'var(--green)' },
+            { name: 'steps',        title: 'Schritte',             icon: '👟', fetch: '/api/daily?days=2',                   val: d => d.at(-1)?.steps?.toLocaleString('de-AT'), unit: '', color: 'var(--blue)' },
+            { name: 'hr-zscore',    title: 'Ruhepuls Z-Score',     icon: '❤️', fetch: '/api/ml-insights',                   val: d => d.anomaly_hr?.z_score?.toFixed(2), unit: '', color: 'var(--red)' },
+        ]
+    },
+    {
+        label: 'Schlaf',
+        items: [
+            { name: 'sleep-consistency',  title: 'Schlaf-Konsistenz',   icon: '🌙', fetch: '/api/ml-insights', val: d => d.sleep_consistency?.score?.toFixed(0), unit: '', color: 'var(--violet)' },
+            { name: 'sleep-score-custom', title: 'Schlafqualität',      icon: '✨', fetch: '/api/ml-insights', val: d => d.sleep_score_custom?.score != null ? Math.round(d.sleep_score_custom.score) : null, unit: '', color: 'var(--violet)' },
+        ]
+    },
+    {
+        label: 'Aktivität',
+        items: [
+            { name: 'intensity-minutes',  title: 'Intensitätsminuten',  icon: '⏱️', fetch: '/api/ml-insights', val: d => { const im = d.intensity_minutes_custom; return im ? im.moderate_minutes + im.vigorous_minutes * 2 : null; }, unit: ' min', color: 'var(--amber)' },
+            { name: 'training-effect',    title: 'Training Effect',     icon: '📈', fetch: '/api/ml-insights', val: d => d.training_effect_custom?.effect?.toFixed(1), unit: '', color: 'var(--indigo)' },
+            { name: 'training-monotony',  title: 'Training Monotony',   icon: '🔁', fetch: '/api/ml-insights', val: d => d.training_monotony?.monotony?.toFixed(2), unit: '', color: 'var(--amber)' },
+            { name: 'running-economy',    title: 'Running Economy',     icon: '🏃', fetch: '/api/ml-insights', val: d => d.running_economy?.score?.toFixed(0), unit: '', color: 'var(--blue)' },
+        ]
+    },
+    {
+        label: 'HRV & Autonomes System',
+        items: [
+            { name: 'hrv-status',         title: 'HRV Status (Garmin)', icon: '💚', fetch: '/api/hrv',          val: d => d.hrv_status, unit: '', color: 'var(--green)' },
+            { name: 'hrv-status-custom',  title: 'HRV Status (Custom)', icon: '🔬', fetch: '/api/ml-insights',  val: d => d.hrv_status_custom?.status, unit: '', color: 'var(--green)' },
+            { name: 'hrv-recovery',       title: 'HRV Recovery Speed',  icon: '⬆️', fetch: '/api/ml-insights',  val: d => d.hrv_recovery?.recovery_speed?.toFixed(1), unit: ' HRV/d', color: 'var(--green)' },
+            { name: 'spo2-trend',         title: 'SpO₂ Trend',          icon: '🩸', fetch: '/api/ml-insights',  val: d => d.spo2_trend?.mean_spo2?.toFixed(1), unit: ' %', color: 'var(--blue)' },
+            { name: 'stress-score-custom',title: 'Stress Score',        icon: '🧘', fetch: '/api/ml-insights',  val: d => d.stress_score_custom?.score?.toFixed(0), unit: '', color: 'var(--red)' },
+        ]
+    },
+];
+
+function scoreColor(val, name) {
+    if (val == null) return 'var(--muted)';
+    const n = parseFloat(val);
+    if (isNaN(n)) return 'var(--muted)';
+    return n >= 75 ? 'var(--green)' : n >= 45 ? 'var(--amber)' : 'var(--red)';
+}
+
+async function buildGrid() {
+    // Deduplicate fetches
+    const fetchMap = {};
+    METRIC_GROUPS.forEach(g => g.items.forEach(item => {
+        if (!fetchMap[item.fetch]) fetchMap[item.fetch] = fetch(item.fetch).then(r => r.json());
+    }));
+    const cache = {};
+    await Promise.all(Object.entries(fetchMap).map(async ([url, p]) => { try { cache[url] = await p; } catch { cache[url] = null; } }));
+
+    const grid = document.getElementById('metrics-grid');
+    grid.innerHTML = METRIC_GROUPS.map(group => {
+        const tiles = group.items.map(item => {
+            const data = cache[item.fetch];
+            let valStr = '—';
+            try { const v = data != null ? item.val(data) : null; valStr = v != null ? String(v) + item.unit : '—'; } catch {}
+            const color = valStr !== '—' ? scoreColor(valStr, item.name) : 'var(--muted)';
+            return `<a href="/metrics/${item.name}" class="metric-overview-tile card">
+                <span class="metric-overview-icon">${item.icon}</span>
+                <span class="metric-overview-title">${item.title}</span>
+                <span class="metric-overview-val" style="color:${color}">${valStr}</span>
+            </a>`;
+        }).join('');
+        return `<section>
+            <h2 class="metrics-section-heading">${group.label}</h2>
+            <div class="metrics-overview-grid">${tiles}</div>
+        </section>`;
+    }).join('');
+}
+
+buildGrid().catch(e => {
+    document.getElementById('metrics-grid').innerHTML = '<p class="empty">Fehler beim Laden</p>';
+    console.error(e);
+});
+</script>
+<style>
+.metrics-section-heading {
+    font-size: var(--text-sm); font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--muted); margin-bottom: var(--sp-3);
+}
+.metrics-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--sp-3);
+}
+.metric-overview-tile {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: var(--sp-4); text-decoration: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.metric-overview-tile:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.metric-overview-icon { font-size: 1.4rem; line-height: 1; }
+.metric-overview-title { font-size: var(--text-xs); color: var(--muted); font-weight: 600; margin-top: 2px; }
+.metric-overview-val { font-size: var(--text-lg); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
