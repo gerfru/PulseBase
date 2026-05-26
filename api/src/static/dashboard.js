@@ -5,6 +5,14 @@ Chart.defaults.borderColor = isDark ? 'rgba(51,65,85,.6)' : 'rgba(226,232,240,.8
 Chart.defaults.interaction = { mode: 'index', intersect: false };
 Chart.defaults.elements.point.hoverRadius = 4;
 
+// Verbal score labels — Accessibility: Farbe nie als einziger Informationsträger (WCAG 1.4.1)
+function scoreLabel(score, thresholds = [75, 45]) {
+    if (score == null) return '';
+    if (score >= thresholds[0]) return 'Gut';
+    if (score >= thresholds[1]) return 'Ok';
+    return 'Niedrig';
+}
+
 const SPORT_EMOJI = {
     running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
     hiking: '🥾', strength_training: '🏋️', yoga: '🧘',
@@ -452,7 +460,7 @@ function buildHeroCard() {
             stroke-dasharray="0 327" transform="rotate(120 60 60)"
             class="readiness-ring-progress" id="hero-ring-progress"/>
         <text x="60" y="56" text-anchor="middle" class="ring-score-text" id="hero-ring-score">0</text>
-        <text x="60" y="72" text-anchor="middle" class="ring-label-text">Erholung</text>
+        <text x="60" y="72" text-anchor="middle" class="ring-label-text">Erholung${score != null ? ' · ' + scoreLabel(score) : ''}</text>
     </svg>`;
 
     // ── Derived values (needed by ring + vitals) ────────────────────────────
@@ -495,9 +503,11 @@ function buildHeroCard() {
                 : s >= 70 ? 'var(--green)'
                 : s >= 45 ? 'var(--amber)'
                 : 'var(--red)';
+            const sl = scoreLabel(s);
             return `<a href="${esc(href)}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
                 <span class="hero-dot-circle" style="background:${c}"></span>
                 <span class="hero-dot-label">${esc(label)}</span>
+                ${sl ? `<span class="hero-dot-score">${sl}</span>` : ''}
             </a>`;
         }).join('')}</div>`;
     }
@@ -532,6 +542,7 @@ function buildHeroCard() {
         const bbTile = bbScore != null
             ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
                    <span class="hero-heute-val ${bbCls}">${Math.round(bbScore)} %</span>
+                   <span class="hero-heute-score-lbl">${scoreLabel(bbScore)}</span>
                    <span class="hero-heute-label">Energie</span>
                </a>`
             : '';
