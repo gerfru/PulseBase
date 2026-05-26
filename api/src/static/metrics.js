@@ -1069,6 +1069,7 @@ hrv: {
             const hrvFactorPct    = d.hrv_factor    != null ? Math.round(d.hrv_factor    * 100) + ' %' : '—';
             const deepStr  = d.deep_h  != null ? d.deep_h  + ' h' : '—';
             const remStr   = d.rem_h   != null ? d.rem_h   + ' h' : '—';
+            const drainFmt = v => v == null ? '—' : v === 0 ? '0' : '−' + v;
             return {
                 value: Math.round(d.score),
                 sub: color,
@@ -1078,8 +1079,8 @@ hrv: {
                     { label: 'Schlaf letzte Nacht', value: d.sleep_h != null ? d.sleep_h + ' h' : '—' },
                     { label: 'Tiefschlaf', value: deepStr },
                     { label: 'REM-Schlaf', value: remStr },
-                    { label: 'Aktivitäts-Drain', value: d.activity_drain != null ? '−' + d.activity_drain : '—' },
-                    { label: 'Stress-Drain', value: d.stress_drain != null ? '−' + d.stress_drain : '—' },
+                    { label: 'Aktivitäts-Drain', value: drainFmt(d.activity_drain) },
+                    { label: 'Stress-Drain', value: drainFmt(d.stress_drain) },
                     { label: 'Vortag', value: d.prev_score != null ? Math.round(d.prev_score) : '—' },
                 ],
                 chart: {
