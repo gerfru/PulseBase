@@ -2,6 +2,8 @@
 const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
 Chart.defaults.borderColor = isDark ? 'rgba(51,65,85,.6)' : 'rgba(226,232,240,.8)';
+Chart.defaults.interaction = { mode: 'index', intersect: false };
+Chart.defaults.elements.point.hoverRadius = 4;
 
 const SPORT_EMOJI = {
     running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
@@ -43,12 +45,36 @@ function secToH(s) { return s ? +(s / 3600).toFixed(1) : null; }
 
 const charts = {};
 
+// Lazily-evaluated canvas gradient für Area-Charts (Chart.js 3+)
+function makeGradient(hexColor, alphaTop = 0.32, alphaBot = 0.02) {
+    return function(ctx) {
+        const chart = ctx.chart;
+        const { ctx: c, chartArea } = chart;
+        if (!chartArea) return hexColor + '55';
+        const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const m = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
+        g.addColorStop(0, `rgba(${r},${m},${b},${alphaTop})`);
+        g.addColorStop(1, `rgba(${r},${m},${b},${alphaBot})`);
+        return g;
+    };
+}
+
 function makeChart(id, type, labels, datasets, extra = {}) {
     if (charts[id]) charts[id].destroy();
     const canvas = document.getElementById(id);
 
-    const scaleDefaults = extra.scales || {
+    const baseScales = extra.scales || {
         y: { beginAtZero: type === 'bar', stacked: extra.stacked || false }
+    };
+    // Inject X-axis tick limit — max 7 labels regardless of data density
+    const scaleDefaults = {
+        ...baseScales,
+        x: {
+            ...(baseScales.x || {}),
+            ticks: { maxTicksLimit: 7, autoSkip: true, ...(baseScales.x?.ticks || {}) },
+        },
     };
 
     charts[id] = new Chart(canvas, {
@@ -700,9 +726,9 @@ async function load(days, endDate = null) {
         hideEmpty('battery');
         makeChart('battery-chart', 'line', bbDays.map(d => fmtDate(d.date)), [
             { label: 'Hoch', data: bbDays.map(d => d.body_battery_high),
-              borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+              borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
             { label: 'Niedrig', data: bbDays.map(d => d.body_battery_low),
-              borderColor: C.orange, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+              borderColor: C.orange, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
         ]);
     } else { showEmpty('battery'); }
 
@@ -711,7 +737,7 @@ async function load(days, endDate = null) {
         hideEmpty('hr');
         makeChart('hr-chart', 'line', labels,
             [{ label: 'Ruhepuls', data: daily.map(d => d.resting_hr),
-               borderColor: C.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }]);
+               borderColor: C.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }]);
     } else { showEmpty('hr'); }
 
     // ── Stress ────────────────────────────────────────────────────────
@@ -719,7 +745,7 @@ async function load(days, endDate = null) {
         hideEmpty('stress');
         makeChart('stress-chart', 'line', labels,
             [{ label: 'Stress', data: daily.map(d => d.avg_stress),
-               borderColor: C.orange, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+               borderColor: C.orange, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }],
             { scales: { y: { beginAtZero: true, max: 100 } } });
     } else { showEmpty('stress'); }
 
@@ -729,7 +755,7 @@ async function load(days, endDate = null) {
         const datasets = [];
         if (hrvTrend.some(h => h.hrv_last_night)) {
             datasets.push({ label: 'HRV letzte Nacht', data: hrvTrend.map(h => h.hrv_last_night),
-               borderColor: C.indigo, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 });
+               borderColor: C.indigo, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 });
         }
         if (hrvTrend.some(h => h.hrv_weekly_avg)) {
             datasets.push({ label: 'Wochenø', data: hrvTrend.map(h => h.hrv_weekly_avg),
@@ -748,13 +774,13 @@ async function load(days, endDate = null) {
         makeChart('sleep-chart', 'line',
             customSleepHist.map(s => fmtDate(s.date)),
             [{ label: 'Score', data: customSleepHist.map(s => s.value),
-               borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+               borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }],
             { scales: { y: { min: 0, max: 100 } } });
     } else if (sleepSorted.some(s => s.sleep_score != null)) {
         hideEmpty('sleep');
         makeChart('sleep-chart', 'line', sleepLabels,
             [{ label: 'Score', data: sleepSorted.map(s => s.sleep_score ?? null),
-               borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+               borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }],
             { scales: { y: { min: 0, max: 100 } } });
     } else { showEmpty('sleep'); }
 
@@ -842,11 +868,11 @@ async function loadTrainingLoad(days = null) {
 
     const datasets = [
         { type: 'bar',  label: 'Tagesimpuls',   data: trimpData,      backgroundColor: 'rgba(129,140,248,.2)', yAxisID: 'ytrimp', borderRadius: 3 },
-        { type: 'line', label: 'Ermüdung',      data: solid('atl'),   borderColor: C.orange, backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'Ermüdung',      data: solid('atl'),   borderColor: C.orange, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
         { type: 'line', label: 'Ermüdung →',    data: bridge('atl'),  borderColor: C.orange, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
-        { type: 'line', label: 'Fitness',        data: solid('ctl'),   borderColor: C.green, backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'Fitness',        data: solid('ctl'),   borderColor: C.green, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
         { type: 'line', label: 'Fitness →',      data: bridge('ctl'),  borderColor: C.green, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
-        { type: 'line', label: 'Form',           data: solid('tsb'),   borderColor: C.violet, backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
+        { type: 'line', label: 'Form',           data: solid('tsb'),   borderColor: C.violet, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
         { type: 'line', label: 'Form →',         data: bridge('tsb'),  borderColor: C.violet, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
     ];
 
