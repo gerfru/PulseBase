@@ -1065,14 +1065,22 @@ hrv: {
             if (!d || d.score == null) return { value: '—', sub: 'Zu wenig Daten', kpis: [] };
             const color = d.score >= 75 ? '✓ Gute Energie' : d.score >= 40 ? '⚠️ Ausreichend' : '❌ Erschöpft';
             const hist = data.history.body_battery_custom || [];
+            const sleepQualityPct = d.sleep_quality != null ? Math.round(d.sleep_quality * 100) + ' %' : '—';
+            const hrvFactorPct    = d.hrv_factor    != null ? Math.round(d.hrv_factor    * 100) + ' %' : '—';
+            const deepStr  = d.deep_h  != null ? d.deep_h  + ' h' : '—';
+            const remStr   = d.rem_h   != null ? d.rem_h   + ' h' : '—';
             return {
                 value: Math.round(d.score),
                 sub: color,
                 kpis: [
-                    { label: 'Erholung', value: d.recovery + ' (+ Recovery)' },
-                    { label: 'Aktivitäts-Drain', value: d.activity_drain + ' (−)' },
-                    { label: 'Stress-Drain', value: d.stress_drain + ' (−)' },
-                    { label: 'Schlaf letzte Nacht', value: d.sleep_h + ' h' },
+                    { label: 'Schlafqualität', value: sleepQualityPct },
+                    { label: 'HRV-Faktor (vs. Baseline)', value: hrvFactorPct },
+                    { label: 'Schlaf letzte Nacht', value: d.sleep_h != null ? d.sleep_h + ' h' : '—' },
+                    { label: 'Tiefschlaf', value: deepStr },
+                    { label: 'REM-Schlaf', value: remStr },
+                    { label: 'Aktivitäts-Drain', value: d.activity_drain != null ? '−' + d.activity_drain : '—' },
+                    { label: 'Stress-Drain', value: d.stress_drain != null ? '−' + d.stress_drain : '—' },
+                    { label: 'Vortag', value: d.prev_score != null ? Math.round(d.prev_score) : '—' },
                 ],
                 chart: {
                     title: '30-Tage-Verlauf',
@@ -1085,22 +1093,23 @@ hrv: {
                     scales: { y: { beginAtZero: true, max: 100 } },
                 },
                 formula: [
-                    ['Formel', 'Energie = Vortag + Recovery − Activity-Drain − Stress-Drain'],
-                    ['Recovery', '+30 × (Schlaf/7h) × (HRV/Baseline)'],
-                    ['Activity-Drain', 'min(40, TRIMP × 0.5)'],
+                    ['Schlafqualität', '0.40 × (total_h / 7.5) + 0.60 × (0.55 × deep_score + 0.45 × rem_score)'],
+                    ['deep_score', 'min(1, (deep_h / total_h) / 0.20)  — Ziel: 20% Tiefschlaf (Walker 2017)'],
+                    ['rem_score',  'min(1, (rem_h / total_h) / 0.25)   — Ziel: 25% REM (Dijk & Czeisler 1995)'],
+                    ['HRV-Faktor', 'min(1, hrv_last_night / hrv_baseline_30d)  — (Plews et al. 2013)'],
+                    ['Fresh State', '40 + sleep_quality × 35 + hrv_factor × 25  (max 100 bei Idealwerten)'],
+                    ['Score', '0.30 × prev + 0.70 × fresh − activity_drain − stress_drain  (clamped 5–100)'],
+                    ['Aktivitäts-Drain', 'min(40, TRIMP × 0.5)'],
                     ['Stress-Drain', 'max(0, (avg_stress − 25) × 0.2)'],
-                    ['Bereich', 'Clamped [5..100]'],
-                    ['─── Parameter', ''],
-                    ['Aus Literatur', 'Banister (1991) Impulse-Response · Kellmann (2001) Recovery-Konzept'],
-                    ['Heuristisch', '+30 Recovery-Max · ×0.5 Activity-Drain · ×0.2 Stress-Drain'],
                 ],
-                science: 'Das Energie-Budget basiert auf Banister\'s Impulse-Response-Modell (1991): Training ist ein Impuls, der Adaptationen (Fitness) und Ermüdung (Fatigue) auslöst. Erholung (Recovery) wird über Schlafqualität (Dauer × HRV-Ratio) gemessen; Trainings-Stress über TRIMP (Training-Impulse). Die Parameter sind heuristische Kalibrationen, nicht aus RCTs.',
+                science: 'Das Fresh-State-Modell (v2, Mai 2026) ersetzt das frühere Banister-Akkumulationsmodell, das bei mehrtägiger Ruhe zu Plateaus bei 100 führte (Scientific Reports 2025: fundamentale statistische Mängel des FFM). Schlafphasen sind primärer Erholungsindikator: Tiefschlaf (SWS) für physische Erholung, REM für kognitive Erholung (Walker 2017; Dijk & Czeisler 1995). HRV vs. persönliche 30-Tage-Baseline als autonomer Erholungsindikator (Plews et al. 2013). Composite-Aggregation bleibt heuristisch — kein Hersteller veröffentlicht klinisch validierte Formel.',
                 sources: [
-                    { label: 'Banister EW (1991): Modeling Elite Athletic Performance — Modeling Human Performance', url: 'https://pubmed.ncbi.nlm.nih.gov/1751282/' },
-                    { label: 'Kellmann M (2001): Recovery and Overtraining — Sports Medicine 31(11)', url: 'https://pubmed.ncbi.nlm.nih.gov/11735321/' },
-                    { label: 'HRV-Recovery-Ratio in Endurance Sports — Current Sports Medicine Reports', url: 'https://pubmed.ncbi.nlm.nih.gov/25226276/' },
+                    { label: 'Walker M (2017): Why We Sleep — sleep stage targets (Deep ~20%, REM ~25%)', url: 'https://www.simonandschuster.com/books/Why-We-Sleep/Matthew-Walker/9781501144325' },
+                    { label: 'Dijk DJ, Czeisler CA (1995): J Neurosci 15(5):3526–3538 — SWS/REM physiology', url: 'https://pubmed.ncbi.nlm.nih.gov/7536830/' },
+                    { label: 'Plews DJ et al. (2013): Sports Med 43(9):773–781 — HRV vs. baseline', url: 'https://pubmed.ncbi.nlm.nih.gov/23852425/' },
+                    { label: 'Flaws in fitness-fatigue model. Sci Rep (2025)', url: 'https://doi.org/10.1038/s41598-025-88153-7' },
                 ],
-                eli5: 'Dein Körper ist wie eine Batterie. Schlaf und gute HRV laden die Batterie auf. Intensives Training und Stress entladen sie. Dieser Score verfolgt dein Energie-Budget täglich und zeigt, ob du erholungsbedürftig bist oder voll geladen ins nächste Training gehen kannst.',
+                eli5: 'Stell dir deinen Akku vor: Jeden Morgen startest du neu — basierend darauf wie gut du geschlafen hast (Tiefschlaf + REM zählen mehr als bloße Stunden) und wie erholt dein Nervensystem laut HRV ist. Training und Stress verbrauchen Energie. 30% Trägheit vom Vortag verhindert, dass der Wert täglich wild springt.',
             };
         },
     },
