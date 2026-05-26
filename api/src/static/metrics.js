@@ -81,6 +81,7 @@ const METRICS = {
             const latest = sorted.at(-1);
             const valid = sorted.filter(d => d.sleep_score != null);
             const avg = valid.length ? Math.round(valid.reduce((s, d) => s + d.sleep_score, 0) / valid.length) : null;
+            const scoreDelta = valid.length >= 2 ? valid.at(-1).sleep_score - valid.at(-2).sleep_score : null;
 
             // Berechne Einschlafzeiten und Aufwachzeiten wenn vorhanden
             const bedtimes = [];
@@ -108,7 +109,7 @@ const METRICS = {
                 value: latest?.sleep_score ?? '—',
                 sub: latest?.total_sleep_seconds ? fmtHours(latest.total_sleep_seconds) + ' letzte Nacht' : '',
                 kpis: [
-                    { label: 'Letzter Score', value: latest?.sleep_score ?? '—' },
+                    { label: 'Letzter Score', value: latest?.sleep_score ?? '—', delta: scoreDelta },
                     { label: 'Schlafzeit', value: latest?.total_sleep_seconds ? fmtHours(latest.total_sleep_seconds) : '—' },
                     { label: 'Tiefschlaf', value: latest?.deep_sleep_seconds ? fmtHours(latest.deep_sleep_seconds) : '—' },
                     { label: 'Ø Score (90d)', value: avg ?? '—' },
@@ -158,12 +159,14 @@ hrv: {
             const latest = data.at(-1);
             const validW = data.filter(d => d.hrv_weekly_avg);
             const avg90 = validW.length ? Math.round(validW.reduce((s, d) => s + d.hrv_weekly_avg, 0) / validW.length) : null;
+            const validN = data.filter(d => d.hrv_last_night);
+            const nightDelta = validN.length >= 2 ? validN.at(-1).hrv_last_night - validN.at(-2).hrv_last_night : null;
             return {
                 value: latest?.hrv_weekly_avg ? latest.hrv_weekly_avg + ' ms' : '—',
                 sub: latest?.hrv_last_night ? 'Letzte Nacht: ' + latest.hrv_last_night + ' ms' : '',
                 kpis: [
                     { label: 'Wochenø', value: latest?.hrv_weekly_avg ? latest.hrv_weekly_avg + ' ms' : '—' },
-                    { label: 'Letzte Nacht', value: latest?.hrv_last_night ? latest.hrv_last_night + ' ms' : '—' },
+                    { label: 'Letzte Nacht', value: latest?.hrv_last_night ? latest.hrv_last_night + ' ms' : '—', delta: nightDelta },
                     { label: 'Ø 90 Tage', value: avg90 ? avg90 + ' ms' : '—' },
                     { label: 'Status', value: latest?.hrv_status ?? '—' },
                 ],
@@ -201,11 +204,12 @@ hrv: {
             const latest = data.at(-1);
             const valid = data.filter(d => d.body_battery_high);
             const avgHigh = valid.length ? Math.round(valid.reduce((s, d) => s + d.body_battery_high, 0) / valid.length) : null;
+            const bbDelta = valid.length >= 2 ? valid.at(-1).body_battery_high - valid.at(-2).body_battery_high : null;
             return {
                 value: latest?.body_battery_high ?? '—',
                 sub: latest?.body_battery_low != null ? `Tagesminimum: ${latest.body_battery_low}` : '',
                 kpis: [
-                    { label: 'Maximum heute', value: latest?.body_battery_high ?? '—' },
+                    { label: 'Maximum heute', value: latest?.body_battery_high ?? '—', delta: bbDelta },
                     { label: 'Minimum heute', value: latest?.body_battery_low ?? '—' },
                     { label: 'Ø Maximum (90d)', value: avgHigh ?? '—' },
                 ],
@@ -411,6 +415,8 @@ hrv: {
             const zscore = anomaly?.z_score?.toFixed(2) ?? '—';
             const isAnom = anomaly?.is_anomaly;
             const today = daily.at(-1);
+            const validRhr = daily.filter(d => d.resting_hr);
+            const rhrDelta = validRhr.length >= 2 ? validRhr.at(-1).resting_hr - validRhr.at(-2).resting_hr : null;
             return {
                 value: zscore,
                 sub: isAnom ? '⚠ Anomalie erkannt' : (anomaly?.z_score != null ? '✓ Normal' : 'zu wenig Daten'),
@@ -418,7 +424,7 @@ hrv: {
                     { label: 'Z-Score heute (Standardabweichungen vom Ø)', value: zscore },
                     { label: 'Status', value: isAnom ? '⚠ Anomalie' : (anomaly?.z_score != null ? '✓ Normal' : '—') },
                     { label: 'Baseline Ø (30 Tage)', value: anomaly?.baseline_mean ? Math.round(anomaly.baseline_mean) + ' bpm' : '—' },
-                    { label: 'Ruhepuls heute', value: today?.resting_hr ? today.resting_hr + ' bpm' : '—' },
+                    { label: 'Ruhepuls heute', value: today?.resting_hr ? today.resting_hr + ' bpm' : '—', delta: rhrDelta },
                 ],
                 chart: daily.some(d => d.resting_hr) ? {
                     title: 'Ruhepuls-Verlauf (90 Tage)',
@@ -1373,12 +1379,17 @@ async function load() {
         }
 
         if (result.kpis?.length) {
-            document.getElementById('metrics-kpis').innerHTML = result.kpis.map(k => `
-                <div class="metrics-kpi-tile card">
+            document.getElementById('metrics-kpis').innerHTML = result.kpis.map(k => {
+                const d = k.delta;
+                const deltaHtml = d != null && d !== 0
+                    ? `<div class="kpi-delta ${d > 0 ? 'kpi-delta-up' : 'kpi-delta-down'}">${d > 0 ? '↑ +' : '↓ '}${d}</div>`
+                    : '';
+                return `<div class="metrics-kpi-tile card">
                     <div class="metrics-kpi-label">${k.label}</div>
                     <div class="metrics-kpi-value">${k.value}</div>
-                </div>
-            `).join('');
+                    ${deltaHtml}
+                </div>`;
+            }).join('');
         }
 
         // Render multiple charts if charts array exists, otherwise single chart
