@@ -337,7 +337,10 @@ async def _run_body_battery_and_stress(
     yesterday_bb = await get_yesterday_prediction(user_id, "body_battery_custom")
     if yesterday_bb is None and daily_today:
         yesterday_bb = daily_today.get("body_battery_high")
-    last_night_h = (sleep_h[-1].get("total_h") or 0.0) if sleep_h else 0.0
+    last_night = sleep_h[-1] if sleep_h else {}
+    last_night_h = last_night.get("total_h") or 0.0
+    last_night_deep = last_night.get("deep_h")
+    last_night_rem = last_night.get("rem_h")
     hrv_valid = [v for v in hrv_hist if v is not None]
     hrv_baseline = (
         sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0
@@ -347,6 +350,8 @@ async def _run_body_battery_and_stress(
     bb_result = compute_body_battery(
         yesterday_bb,
         last_night_h,
+        last_night_deep,
+        last_night_rem,
         hrv_last,
         hrv_baseline,
         _compute_trimp(act_rows, hrmax, today),
