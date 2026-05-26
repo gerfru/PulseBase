@@ -134,8 +134,11 @@ async def _load_sleep_daily_gaps(user_id: int, pool: asyncpg.Pool) -> dict[str, 
                    )
                    OR NOT EXISTS (
                      SELECT 1 FROM ml_predictions p
-                     WHERE p.user_id = d.user_id AND p.date = d.date
-                       AND p.model IN ('body_battery_custom', 'stress_score_custom')
+                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'body_battery_custom'
+                   )
+                   OR NOT EXISTS (
+                     SELECT 1 FROM ml_predictions p
+                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'stress_score_custom'
                    )
                  )
                ORDER BY d.date""",

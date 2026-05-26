@@ -49,7 +49,13 @@ async def count_energy_gaps(user_id: int) -> int:
               SELECT 1 FROM ml_predictions p
               WHERE p.user_id = d.user_id
                 AND p.date    = d.date
-                AND p.model IN ('body_battery_custom', 'stress_score_custom')
+                AND p.model   = 'body_battery_custom'
+            )
+            OR NOT EXISTS (
+              SELECT 1 FROM ml_predictions p
+              WHERE p.user_id = d.user_id
+                AND p.date    = d.date
+                AND p.model   = 'stress_score_custom'
             )
           )
         """,
