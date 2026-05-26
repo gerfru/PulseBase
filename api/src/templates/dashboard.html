@@ -56,10 +56,14 @@
     </div>
     {% endif %}
 
+    <!-- ── Hero Card (immer sichtbar) ───────────────────────────── -->
+    <div class="px-4 sm:px-6 pt-5">
+        <div class="card" id="bento-hero"><p class="empty">Lade…</p></div>
+    </div>
+
     <!-- ── Tab-Navigation ────────────────────────────────────────── -->
     <nav class="flex px-4 sm:px-6 mt-5 border-b border-black/[0.07] dark:border-white/[0.07]">
-        <button class="tab-btn active" data-tab="heute">Heute</button>
-        <button class="tab-btn" data-tab="training">Training</button>
+        <button class="tab-btn active" data-tab="training">Training</button>
         <button class="tab-btn" data-tab="verlauf">Verlauf</button>
         <button class="tab-btn" data-tab="erholung">Erholung</button>
     </nav>
@@ -69,11 +73,6 @@
         <button class="nav-arrow" id="nav-back" aria-label="Älterer Zeitraum">←</button>
         <span class="nav-range" id="nav-range"></span>
         <button class="nav-arrow" id="nav-forward" aria-label="Neuerer Zeitraum" disabled>→</button>
-    </div>
-
-    <!-- ── Tab: Heute ────────────────────────────────────────────── -->
-    <div id="tab-heute" class="tab-panel px-4 sm:px-6 pt-5 pb-12">
-        <div class="card" id="bento-hero"><p class="empty">Lade…</p></div>
     </div>
 
     <!-- ── Tab: Training ─────────────────────────────────────────── -->

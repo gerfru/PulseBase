@@ -174,7 +174,7 @@ function setDays(days) {
 }
 
 // ─── Tab Navigation ────────────────────────────────────────────────────────
-const TABS = ['heute', 'training', 'verlauf', 'erholung'];
+const TABS = ['training', 'verlauf', 'erholung'];
 
 // Maps hash → [tab, canvas-id] for direct chart navigation from external pages
 const CHART_HASHES = {
@@ -526,17 +526,20 @@ function buildHeroCard() {
         const stressRaw = ml.stress_score_custom?.score;
         // Stress invertieren: hoher Stress-Score = schlechte Erholung → Farbe umkehren
         const stressForColor = stressRaw != null ? (100 - stressRaw) : null;
+        // Stress: eigene Skala konsistent mit Detail-Seite (Niedrig/Moderat/Hoch)
+        const stressLbl = stressRaw == null ? ''
+            : stressRaw < 30 ? 'Niedrig' : stressRaw < 60 ? 'Moderat' : 'Hoch';
         const rows = [
-            { s: auton?.score,   label: 'HRV',    href: '/metrics/autonomic',          spark: sparklineSvg(sparkHrv,   C.green,  52, 20) },
-            { s: cog?.score,     label: 'Schlaf',  href: '/metrics/cognitive',          spark: sparklineSvg(sparkSleep, C.violet, 52, 20) },
-            { s: stressForColor, label: 'Stress',  href: '/metrics/stress-score-custom', spark: '' },
+            { s: auton?.score,   label: 'HRV',    href: '/metrics/autonomic',           spark: sparklineSvg(sparkHrv,   C.green,  52, 20) },
+            { s: cog?.score,     label: 'Schlaf',  href: '/metrics/cognitive',           spark: sparklineSvg(sparkSleep, C.violet, 52, 20) },
+            { s: stressForColor, label: 'Stress',  href: '/metrics/stress-score-custom', spark: '', lbl: stressLbl },
         ];
-        return `<div class="hero-dot-row">${rows.map(({ s, label, href, spark }) => {
+        return `<div class="hero-dot-row">${rows.map(({ s, label, href, spark, lbl }) => {
             const c = s == null ? 'var(--muted)'
                 : s >= 70 ? 'var(--green)'
                 : s >= 45 ? 'var(--amber)'
                 : 'var(--red)';
-            const sl = scoreLabel(s);
+            const sl = lbl !== undefined ? lbl : scoreLabel(s);
             return `<a href="${esc(href)}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
                 <span class="hero-dot-circle" style="background:${c}"></span>
                 ${spark}
@@ -1098,7 +1101,7 @@ if (TABS.includes(_hash)) {
         document.getElementById(_chartId)?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
 } else {
-    setTab('heute');
+    setTab('training');
 }
 loadEvidence().catch(() => {});
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
