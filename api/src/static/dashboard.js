@@ -201,12 +201,6 @@ function scoreColor(score) {
 function openChipModal(chipKey) {
     const ml = _heroData.ml || {};
     const defs = {
-        acwr: {
-            title: 'ACWR — Trainingsbelastung',
-            valueFn: () => { const a = ml.acwr;
-                return a ? `${a.acwr.toFixed(2)} · ${a.level === 'green' ? '✓ Grüne Zone' : a.level === 'amber' ? '⚠️ Erhöht' : '⚠️ Risiko'}` : '—'; },
-            href: '/metrics/acwr', evKey: 'acwr',
-        },
         body_battery_custom: {
             title: 'Tagesenergie',
             valueFn: () => { const b = ml.body_battery_custom;
@@ -270,137 +264,115 @@ async function buildWeeklyReview() {
         const card = document.getElementById('weekly-card');
         if (!card) return;
 
-        // Clear any existing review widget
         const existingReview = card.querySelector('[data-weekly-review]');
         if (existingReview) existingReview.remove();
 
-        // Fetch weekly data (2 extra weeks for comparison)
         const numWeeks = Math.ceil((currentDays / 7) * 2) + 1;
         const weekly = await fetch(`/api/weekly?weeks=${numWeeks}`).then(r => r.json());
         if (!weekly || weekly.length === 0) return;
 
+        // ── Helpers ────────────────────────────────────────────────────────────
+        function weekLabel(weekDateStr) {
+            // weekDateStr is ISO date of the Monday (date_trunc result)
+            const mon = new Date(weekDateStr + 'T00:00:00');
+            const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+            const fmt = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+            // ISO week number
+            const t = new Date(mon); t.setDate(t.getDate() + 4 - (t.getDay() || 7));
+            const kw = Math.ceil((((t - new Date(t.getFullYear(), 0, 1)) / 86400000) + 1) / 7);
+            return `KW ${kw} · ${fmt(mon)} – ${fmt(sun)}`;
+        }
+
+        function trendCls(delta) {
+            return delta > 0 ? 'wk-up' : delta < 0 ? 'wk-down' : 'wk-flat';
+        }
+        function trendArrow(delta) {
+            return delta > 0 ? '↑' : delta < 0 ? '↓' : '→';
+        }
+
+        function kpi(label, value, sub, trendDelta = null) {
+            const cls = trendDelta != null ? trendCls(trendDelta) : '';
+            const arrow = trendDelta != null ? ` <span class="${cls}">${trendArrow(trendDelta)}</span>` : '';
+            return `<div class="wk-kpi">
+                <span class="wk-kpi-lbl">${label}</span>
+                <span class="wk-kpi-val">${value}${arrow}</span>
+                ${sub ? `<span class="wk-kpi-sub">${sub}</span>` : ''}
+            </div>`;
+        }
+
         let reviewHtml = '';
 
-        // 7 days: single week vs. previous week
+        // 7 days: current week vs. previous week
         if (currentDays === 7) {
             const [thisWeek, lastWeek] = weekly.slice(-2).reverse();
             if (!thisWeek) return;
-            const d = thisWeek;
-            const weekLabel = `KW ${String(d.week).padStart(2, '0')} · ${d.start_date?.slice(5,10).replace('-', '.') || '?'} – ${d.end_date?.slice(5,10).replace('-', '.') || '?'}`;
-            const actDelta = lastWeek ? d.activity_count - lastWeek.activity_count : 0;
-            const actTrend = actDelta > 0 ? '↑' : actDelta < 0 ? '↓' : '→';
-            const kmDelta = lastWeek ? d.total_km - lastWeek.total_km : 0;
-            const kmPct = lastWeek && lastWeek.total_km > 0 ? ((kmDelta / lastWeek.total_km) * 100).toFixed(0) : 0;
-            const kmTrend = kmDelta > 0 ? '↑' : kmDelta < 0 ? '↓' : '→';
+            const actDelta = lastWeek ? thisWeek.activity_count - lastWeek.activity_count : null;
+            const kmDelta  = lastWeek ? thisWeek.total_km  - lastWeek.total_km  : null;
+            const kmPct    = lastWeek && lastWeek.total_km > 0
+                ? (kmDelta / lastWeek.total_km * 100).toFixed(0) : null;
+            const actSub = lastWeek ? `vs. ${lastWeek.activity_count} Vorwoche` : '';
+            const kmSub  = kmPct != null ? `${kmPct > 0 ? '+' : ''}${kmPct}%` : '';
 
-            reviewHtml = `
-            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
-                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem;">${weekLabel}</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div>
-                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Aktivitäten</div>
-                        <div style="font-size: 1.25rem; font-weight: bold;">${d.activity_count} ${actTrend}</div>
-                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">vs. ${lastWeek ? lastWeek.activity_count : '?'} Vorwoche</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Distanz</div>
-                        <div style="font-size: 1.25rem; font-weight: bold;">${Math.round(d.total_km)} km ${kmTrend}</div>
-                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">${kmPct > 0 ? '+' : ''}${kmPct}%</div>
-                    </div>
+            reviewHtml = `<div data-weekly-review class="wk-review">
+                <div class="wk-header">${weekLabel(thisWeek.week)}</div>
+                <div class="wk-kpis">
+                    ${kpi('Aktivitäten', thisWeek.activity_count, actSub, actDelta)}
+                    ${kpi('Distanz', `${Math.round(thisWeek.total_km)} km`, kmSub, kmDelta)}
+                    ${kpi('Laufen', `${thisWeek.run_km} km`, '', null)}
+                    ${kpi('Radfahren', `${thisWeek.ride_km} km`, '', null)}
                 </div>
             </div>`;
         }
-        // 14 days: two weeks comparison
+        // 14 days: two weeks side by side
         else if (currentDays === 14) {
-            const [week2, week1] = weekly.slice(-2).reverse();
-            if (!week1 || !week2) return;
-            const w1_act = week1.activity_count, w1_km = week1.total_km;
-            const w2_act = week2.activity_count, w2_km = week2.total_km;
-            const act_delta = w2_act - w1_act, act_trend = act_delta > 0 ? '↑' : act_delta < 0 ? '↓' : '→';
-            const km_delta = w2_km - w1_km, km_pct = w1_km > 0 ? ((km_delta / w1_km) * 100).toFixed(0) : 0;
-            const km_trend = km_delta > 0 ? '↑' : km_delta < 0 ? '↓' : '→';
+            const [w2, w1] = weekly.slice(-2).reverse();
+            if (!w1 || !w2) return;
+            const actDelta = w2.activity_count - w1.activity_count;
+            const kmDelta  = w2.total_km - w1.total_km;
+            const kmPct    = w1.total_km > 0 ? (kmDelta / w1.total_km * 100).toFixed(0) : 0;
 
-            reviewHtml = `
-            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
-                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.75rem;">Zwei Wochen</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                    <div style="padding: 0.75rem; background: rgba(100,200,255,.1); border-radius: 0.375rem;">
-                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Woche 1</div>
-                        <div style="font-size: 1rem; font-weight: bold;">${w1_act} Akt. · ${Math.round(w1_km)} km</div>
-                    </div>
-                    <div style="padding: 0.75rem; background: rgba(100,200,255,.2); border-radius: 0.375rem;">
-                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Woche 2</div>
-                        <div style="font-size: 1rem; font-weight: bold;">${w2_act} Akt. · ${Math.round(w2_km)} km</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 1rem; justify-content: space-between;">
-                    <div><div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Δ Aktivitäten</div><div style="font-size: 1rem; font-weight: bold;">${act_delta > 0 ? '+' : ''}${act_delta} ${act_trend}</div></div>
-                    <div><div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Δ Distanz</div><div style="font-size: 1rem; font-weight: bold;">${km_delta > 0 ? '+' : ''}${km_pct}% ${km_trend}</div></div>
+            reviewHtml = `<div data-weekly-review class="wk-review">
+                <div class="wk-header">Zwei Wochen</div>
+                <div class="wk-kpis">
+                    ${kpi(weekLabel(w1.week), `${w1.activity_count} Akt. · ${Math.round(w1.total_km)} km`, '', null)}
+                    ${kpi(weekLabel(w2.week), `${w2.activity_count} Akt. · ${Math.round(w2.total_km)} km`, '', null)}
+                    ${kpi('Δ Aktivitäten', `${actDelta > 0 ? '+' : ''}${actDelta}`, '', actDelta)}
+                    ${kpi('Δ Distanz', `${kmPct > 0 ? '+' : ''}${kmPct}%`, '', kmDelta)}
                 </div>
             </div>`;
         }
-        // 30 days: split into two periods
+        // 30 days: monthly totals + weekly avg
         else if (currentDays === 30) {
-            const p2 = weekly.slice(-1)[0];
-            const p1 = weekly.slice(-2, -1)[0];
-            if (!p1 || !p2) return;
-            const agg_p1 = { act: p1.activity_count, km: p1.total_km };
-            const agg_p2 = { act: p2.activity_count, km: p2.total_km };
-            // Simple aggregate (in real scenario, would sum weeks)
             const actSum = weekly.reduce((s, w) => s + (w.activity_count || 0), 0);
-            const kmSum = weekly.reduce((s, w) => s + (w.total_km || 0), 0);
+            const kmSum  = weekly.reduce((s, w) => s + (w.total_km  || 0), 0);
+            const wks    = weekly.length || 1;
 
-            reviewHtml = `
-            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
-                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.75rem;">Monat im Überblick</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div>
-                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Gesamt</div>
-                        <div style="font-size: 1.25rem; font-weight: bold;">${actSum} Aktivitäten</div>
-                        <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6);">${Math.round(kmSum)} km Distanz</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 0.25rem;">Durchschnitt pro Woche</div>
-                        <div style="font-size: 1.25rem; font-weight: bold;">${Math.round(actSum / 4)} Akt.</div>
-                        <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6);">${Math.round(kmSum / 4)} km/Wo.</div>
-                    </div>
+            reviewHtml = `<div data-weekly-review class="wk-review">
+                <div class="wk-header">Monat im Überblick</div>
+                <div class="wk-kpis">
+                    ${kpi('Aktivitäten', actSum, `Ø ${(actSum/wks).toFixed(1)}/Woche`)}
+                    ${kpi('Distanz', `${Math.round(kmSum)} km`, `Ø ${Math.round(kmSum/wks)} km/Woche`)}
                 </div>
             </div>`;
         }
-        // 90+ days: monthly breakdown
+        // 90+ days
         else {
             const actSum = weekly.reduce((s, w) => s + (w.activity_count || 0), 0);
-            const kmSum = weekly.reduce((s, w) => s + (w.total_km || 0), 0);
-            const weeks = weekly.length;
+            const kmSum  = weekly.reduce((s, w) => s + (w.total_km  || 0), 0);
+            const wks    = weekly.length || 1;
 
-            reviewHtml = `
-            <div data-weekly-review style="padding: 1rem; border-radius: 0.5rem; background: rgba(0,0,0,0.1); margin-bottom: 1rem;">
-                <div style="font-size: 0.875rem; color: rgba(255,255,255,0.6); margin-bottom: 0.75rem;">Jahresübersicht (${weeks} Wochen)</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
-                    <div style="padding: 0.75rem; background: rgba(255,255,255,.05); border-radius: 0.375rem;">
-                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Gesamt</div>
-                        <div style="font-size: 1.125rem; font-weight: bold;">${actSum}</div>
-                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">Aktivitäten</div>
-                    </div>
-                    <div style="padding: 0.75rem; background: rgba(255,255,255,.05); border-radius: 0.375rem;">
-                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Distanz</div>
-                        <div style="font-size: 1.125rem; font-weight: bold;">${Math.round(kmSum)}</div>
-                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">km</div>
-                    </div>
-                    <div style="padding: 0.75rem; background: rgba(255,255,255,.05); border-radius: 0.375rem;">
-                        <div style="font-size: 0.65rem; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 0.25rem;">Ø/Woche</div>
-                        <div style="font-size: 1.125rem; font-weight: bold;">${Math.round(kmSum / weeks)}</div>
-                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">km</div>
-                    </div>
+            reviewHtml = `<div data-weekly-review class="wk-review">
+                <div class="wk-header">${wks} Wochen im Überblick</div>
+                <div class="wk-kpis">
+                    ${kpi('Aktivitäten', actSum, `Ø ${(actSum/wks).toFixed(1)}/Woche`)}
+                    ${kpi('Distanz', `${Math.round(kmSum)} km`, `Ø ${Math.round(kmSum/wks)} km/Woche`)}
                 </div>
             </div>`;
         }
 
         if (reviewHtml) {
             const chartWrap = card.querySelector('.chart-wrap');
-            if (chartWrap) {
-                chartWrap.insertAdjacentHTML('beforebegin', reviewHtml);
-            }
+            if (chartWrap) chartWrap.insertAdjacentHTML('beforebegin', reviewHtml);
         }
     } catch (e) {
         console.warn('buildWeeklyReview error:', e);
@@ -481,22 +453,79 @@ function buildHeroCard() {
         return `<p class="hero-recommendation ${cls}">${text}</p>`;
     }
 
+    // Dots: die zwei Komponenten des Erholungs-Composite (Autonom + Kognitiv)
+    // plus Stress als Kontext-Signal — spiegelt die neue Composite-Logik wider
     function energyDots() {
+        const stressRaw = ml.stress_score_custom?.score;
+        // Stress invertieren: hoher Stress-Score = schlechte Erholung → Farbe umkehren
+        const stressForColor = stressRaw != null ? (100 - stressRaw) : null;
         const rows = [
-            { s: phys?.score,  label: 'Physisch', m: 'physical'  },
-            { s: auton?.score, label: 'Autonom',  m: 'autonomic' },
-            { s: cog?.score,   label: 'Kognitiv', m: 'cognitive' },
+            { s: auton?.score,    label: 'HRV',    href: '/metrics/autonomic'         },
+            { s: cog?.score,      label: 'Schlaf',  href: '/metrics/cognitive'          },
+            { s: stressForColor,  label: 'Stress',  href: '/metrics/stress-score-custom' },
         ];
-        return `<div class="hero-dot-row">${rows.map(({ s, label, m }) => {
+        return `<div class="hero-dot-row">${rows.map(({ s, label, href }) => {
             const c = s == null ? 'var(--muted)'
                 : s >= 70 ? 'var(--green)'
                 : s >= 45 ? 'var(--amber)'
                 : 'var(--red)';
-            return `<a href="/metrics/${m}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
+            return `<a href="${esc(href)}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
                 <span class="hero-dot-circle" style="background:${c}"></span>
                 <span class="hero-dot-label">${esc(label)}</span>
             </a>`;
         }).join('')}</div>`;
+    }
+
+    // ── Teil 2: Heute möglich ────────────────────────────────────────────────
+    // TSB (Trainingsbelastungskontext) + Body Battery (Energieverfügbarkeit)
+    // → konkrete Empfehlung was heute sinnvoll ist
+    function todayCapacitySection() {
+        const bb   = ml.body_battery_custom;
+        const phys = energy.energy_physical;
+        const bbScore = bb?.score  ?? null;
+        const tsb     = phys?.tsb  ?? null;
+        if (bbScore == null && tsb == null) return '';
+
+        // Empfehlungslogik: BB = Energie heute, TSB = Trainingsbelastungs-Kontext
+        let recText, recCls;
+        const bbLow    = bbScore != null && bbScore < 40;
+        const tsbHeavy = tsb != null && tsb < -30;
+        const tsbMod   = tsb != null && tsb >= -30 && tsb < -15;
+        const tsbFresh = tsb == null || tsb >= -15;
+        const bbGood   = bbScore == null || bbScore >= 60;
+
+        if (bbLow)                     { recText = 'Aktive Erholung — Energie erschöpft';        recCls = 'rec-red';   }
+        else if (tsbHeavy)             { recText = 'Leichtes Training — hohe Trainingsbelastung'; recCls = 'rec-amber'; }
+        else if (bbGood && tsbFresh)   { recText = 'Intensives Training möglich';                 recCls = 'rec-green'; }
+        else if (bbGood && tsbMod)     { recText = 'Normales Training';                           recCls = 'rec-green'; }
+        else                           { recText = 'Leichtes bis moderates Training';              recCls = 'rec-amber'; }
+
+        // Body Battery Tile — dedizierte Farbklassen (kein sub-*, vermeidet Spezifitätskonflikte)
+        const bbCls = bbScore == null ? 'heute-muted'
+            : bbScore >= 75 ? 'heute-green' : bbScore >= 40 ? 'heute-amber' : 'heute-red';
+        const bbTile = bbScore != null
+            ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
+                   <span class="hero-heute-val ${bbCls}">${Math.round(bbScore)} %</span>
+                   <span class="hero-heute-label">Energie</span>
+               </a>`
+            : '';
+
+        // TSB Tile
+        const tsbCls   = tsb == null ? 'heute-muted'
+            : tsb >= -15 ? 'heute-green' : tsb >= -30 ? 'heute-amber' : 'heute-red';
+        const tsbLabel = tsb == null ? '—'
+            : tsb >= -15 ? 'Erholt' : tsb >= -30 ? 'Trainingsphase' : 'Hohe Last';
+        const tsbStr   = tsb != null ? (tsb >= 0 ? `+${tsb.toFixed(1)}` : tsb.toFixed(1)) : '—';
+        const tsbTile  = `<a href="/metrics/physical" class="hero-heute-item">
+            <span class="hero-heute-val ${tsbCls}">TSB ${tsbStr}</span>
+            <span class="hero-heute-label">${esc(tsbLabel)}</span>
+        </a>`;
+
+        return `<div class="hero-heute-section">
+            <span class="hero-zone-label">HEUTE MÖGLICH</span>
+            <div class="hero-heute-row">${bbTile}${tsbTile}</div>
+            <p class="hero-recommendation ${recCls}">${recText}</p>
+        </div>`;
     }
 
     // ── Ring Section ─────────────────────────────────────────────────────────
@@ -507,48 +536,6 @@ function buildHeroCard() {
     const ringSection = `<div class="hero-ring-section">
         ${svgRing}
     </div>`;
-
-    // ── Chips: ACWR + Tagesenergie ──────────────────────────────────────────
-    let chipsSection = '';
-    const chips = [];
-
-    const acwr = ml.acwr;
-    if (acwr?.acwr != null) {
-        const acolor = acwr.level === 'red' ? 'chip-red' : acwr.level === 'amber' ? 'chip-amber' : 'chip-green';
-        chips.push(`<a href="/metrics/acwr" class="hero-chip ${acolor}">
-            Trainingsbelastung: ${acwr.acwr.toFixed(2)} · ${acwr.level === 'red' ? '⚠️ Risiko' : acwr.level === 'amber' ? '⚠️ Erhöht' : '✓ OK'}${evBadge('acwr')}
-        </a>`);
-    }
-
-    const bb = ml.body_battery_custom;
-    if (bb?.score != null) {
-        const bbcolor = bb.score >= 75 ? 'chip-green' : bb.score >= 40 ? 'chip-amber' : 'chip-red';
-        chips.push(`<a href="/metrics/body-battery-custom" class="hero-chip ${bbcolor}">
-            Tagesenergie: ${Math.round(bb.score)}% · ↑${bb.recovery} ↓${bb.activity_drain}${evBadge('body_battery_custom')}
-        </a>`);
-    }
-
-    // Erholung-Chip: HRV + Schlaf kombiniert → /metrics/recovery
-    const recovHrv   = _heroData.hrv?.hrv_weekly_avg;
-    const recovSleep = ml.sleep_score_custom?.score ?? _heroData.sleep?.[0]?.sleep_score;
-    if (recovHrv != null || recovSleep != null) {
-        const sleepNum = recovSleep != null ? Math.round(recovSleep) : null;
-        const rcolor   = sleepNum != null
-            ? (sleepNum >= 75 ? 'chip-green' : sleepNum >= 50 ? 'chip-amber' : 'chip-red')
-            : 'chip-amber';
-        const parts = [];
-        if (recovHrv  != null) parts.push(`HRV ${recovHrv}ms`);
-        if (sleepNum  != null) parts.push(`Schlaf ${sleepNum}`);
-        chips.push(`<a href="/metrics/recovery" class="hero-chip ${rcolor}">
-            Erholung: ${parts.join(' · ')}${evBadge('energy_autonomic')}
-        </a>`);
-    }
-
-    if (chips.length > 0) {
-        chipsSection = `<div class="hero-chips-wrap">
-            <div class="hero-chips">${chips.join('')}</div>
-        </div>`;
-    }
 
     // ── Assemble ────────────────────────────────────────────────────────────
     el.innerHTML = `<div class="hero-header">
@@ -566,7 +553,7 @@ function buildHeroCard() {
                 </div>
             </div>
         </div>
-        ${chipsSection}`;
+        ${todayCapacitySection()}`;
 
     // ── Click delegation (CSP-safe, kein inline onclick) ─────────────────────
     el.addEventListener('click', e => {

@@ -824,13 +824,14 @@ async def test_get_energy_metrics_with_data():
     assert "debt_hours" in result["energy_cognitive"]
 
 
-async def test_get_readiness_bereit():
+async def test_get_readiness_gut_erholt():
+    # Gewichtung: Autonom 60% + Kognitiv 40% (kein TSB mehr)
+    # 85×0.6 + 78×0.4 = 51 + 31.2 = 82.2 → ≥75 "Gut erholt"
     import json
 
     from src.db.health import get_readiness
 
     rows = [
-        {"model": "energy_physical", "value": 80.0, "metadata": json.dumps({})},
         {"model": "energy_autonomic", "value": 85.0, "metadata": json.dumps({})},
         {"model": "energy_cognitive", "value": 78.0, "metadata": json.dumps({})},
     ]
@@ -839,16 +840,17 @@ async def test_get_readiness_bereit():
     ):
         result = await get_readiness(1)
     assert result["score"] >= 75
-    assert result["label"] == "Bereit"
+    assert result["label"] == "Gut erholt"
+    assert "energy_physical" not in result  # TSB bewusst entfernt
 
 
 async def test_get_readiness_in_ordnung():
+    # 60×0.6 + 60×0.4 = 60 → ≥55 "In Ordnung"
     import json
 
     from src.db.health import get_readiness
 
     rows = [
-        {"model": "energy_physical", "value": 60.0, "metadata": json.dumps({})},
         {"model": "energy_autonomic", "value": 60.0, "metadata": json.dumps({})},
         {"model": "energy_cognitive", "value": 60.0, "metadata": json.dumps({})},
     ]
@@ -861,12 +863,12 @@ async def test_get_readiness_in_ordnung():
 
 
 async def test_get_readiness_erholen():
+    # 40×0.6 + 40×0.4 = 40 → ≥35 "Erholen"
     import json
 
     from src.db.health import get_readiness
 
     rows = [
-        {"model": "energy_physical", "value": 40.0, "metadata": json.dumps({})},
         {"model": "energy_autonomic", "value": 40.0, "metadata": json.dumps({})},
         {"model": "energy_cognitive", "value": 40.0, "metadata": json.dumps({})},
     ]
@@ -878,13 +880,13 @@ async def test_get_readiness_erholen():
     assert result["label"] == "Erholen"
 
 
-async def test_get_readiness_pause():
+async def test_get_readiness_erschoepft():
+    # 20×0.6 + 20×0.4 = 20 → <35 "Erschöpft"
     import json
 
     from src.db.health import get_readiness
 
     rows = [
-        {"model": "energy_physical", "value": 20.0, "metadata": json.dumps({})},
         {"model": "energy_autonomic", "value": 20.0, "metadata": json.dumps({})},
         {"model": "energy_cognitive", "value": 20.0, "metadata": json.dumps({})},
     ]
@@ -893,7 +895,7 @@ async def test_get_readiness_pause():
     ):
         result = await get_readiness(1)
     assert result["score"] < 35
-    assert result["label"] == "Pause"
+    assert result["label"] == "Erschöpft"
 
 
 # ── seizures (async DB functions) ─────────────────────────────────────────────
