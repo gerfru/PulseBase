@@ -236,17 +236,17 @@ async function load() {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             maxZoom: 18,
         }).addTo(map);
-        const track = L.polyline(gpsPoints, { color: '#6366f1', weight: 3, opacity: .85 }).addTo(map);
+        const track = L.polyline(gpsPoints, { color: C.indigo, weight: 3, opacity: .85 }).addTo(map);
         map.fitBounds(track.getBounds().pad(0.12));
-        L.circleMarker(gpsPoints[0], { radius: 7, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1, weight: 2 }).addTo(map);
-        L.circleMarker(gpsPoints[gpsPoints.length - 1], { radius: 7, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }).addTo(map);
+        L.circleMarker(gpsPoints[0], { radius: 7, color: C.green, fillColor: C.green, fillOpacity: 1, weight: 2 }).addTo(map);
+        L.circleMarker(gpsPoints[gpsPoints.length - 1], { radius: 7, color: C.red, fillColor: C.red, fillOpacity: 1, weight: 2 }).addTo(map);
     }
 
     // HR Chart
     if (records.some(r => r.heart_rate)) {
         document.getElementById('hr-card').style.display = '';
         makeChart('hr-chart', 'line', xLabels,
-            [{ data: records.map(r => r.heart_rate), borderColor: '#ef4444', backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
+            [{ data: records.map(r => r.heart_rate), borderColor: C.red, backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
             { y: { beginAtZero: false } }
         );
     }
@@ -257,7 +257,7 @@ async function load() {
         document.getElementById('pace-title').textContent = 'Pace';
         makeChart('pace-chart', 'line', xLabels,
             [{ data: records.map(r => r.pace_sec_per_km ? +(r.pace_sec_per_km / 60).toFixed(2) : null),
-               borderColor: '#6366f1', backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
+               borderColor: C.indigo, backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
             { y: { reverse: true, title: { display: true, text: 'min/km' } } }
         );
     } else if (isCycling && records.some(r => r.pace_sec_per_km)) {
@@ -265,7 +265,7 @@ async function load() {
         document.getElementById('pace-title').textContent = 'Geschwindigkeit';
         makeChart('pace-chart', 'line', xLabels,
             [{ data: records.map(r => r.pace_sec_per_km ? +(1000 / r.pace_sec_per_km * 3.6).toFixed(1) : null),
-               borderColor: '#6366f1', backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
+               borderColor: C.indigo, backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
             { y: { title: { display: true, text: 'km/h' } } }
         );
     }
@@ -275,7 +275,7 @@ async function load() {
         document.getElementById('elev-card').style.display = '';
         makeChart('elev-chart', 'line', xLabels,
             [{ data: records.map(r => r.elevation ? +r.elevation.toFixed(1) : null),
-               borderColor: '#f59e0b', backgroundColor: isDark ? 'rgba(245,158,11,.1)' : 'rgba(245,158,11,.08)',
+               borderColor: C.amber, backgroundColor: isDark ? 'rgba(245,158,11,.1)' : 'rgba(245,158,11,.08)',
                fill: true, pointRadius: 0, tension: 0.3 }],
             { y: { title: { display: true, text: 'm' } } }
         );
@@ -286,7 +286,7 @@ async function load() {
         document.getElementById('cadence-card').style.display = '';
         makeChart('cadence-chart', 'line', xLabels,
             [{ data: records.map(r => r.cadence),
-               borderColor: '#22c55e', backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
+               borderColor: C.green, backgroundColor: 'transparent', pointRadius: 0, tension: 0.3 }],
             { y: { beginAtZero: false } }
         );
     }

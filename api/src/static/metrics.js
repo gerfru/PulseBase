@@ -35,7 +35,7 @@ const METRICS = {
                     title: '90-Tage-Verlauf',
                     type: 'bar',
                     labels: data.map(d => fmtDate(d.date)),
-                    datasets: [{ data: data.map(d => d.steps || 0), backgroundColor: '#6366f1', borderRadius: 3 }],
+                    datasets: [{ data: data.map(d => d.steps || 0), backgroundColor: C.indigo, borderRadius: 3 }],
                     scales: { y: { beginAtZero: true } },
                 },
                 formula: [
@@ -104,15 +104,15 @@ const METRICS = {
                     type: 'line',
                     labels: sorted.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Einschlafzeit', data: bedtimes, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
-                        { label: 'Aufwachzeit', data: waketimes, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                        { label: 'Einschlafzeit', data: bedtimes, borderColor: C.blue, backgroundColor: 'rgba(96,165,250,.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                        { label: 'Aufwachzeit', data: waketimes, borderColor: C.amber, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
                     ],
                     scales: { y: { min: 0, max: 24, ticks: { stepSize: 2, callback: v => (v === 0 ? '00:00' : v === 24 ? '00:00' : String(Math.floor(v)).padStart(2, '0') + ':00') } } },
                 } : {
                     title: 'Schlaf-Score Verlauf (90 Tage)',
                     type: 'line',
                     labels: sorted.map(d => fmtDate(d.date)),
-                    datasets: [{ data: sorted.map(d => d.sleep_score ?? null), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 }],
+                    datasets: [{ data: sorted.map(d => d.sleep_score ?? null), borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 }],
                     scales: { y: { min: 0, max: 100 } },
                 },
                 formula: [
@@ -154,7 +154,7 @@ hrv: {
                     type: 'line',
                     labels: data.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Letzte Nacht', data: data.map(d => d.hrv_last_night), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Letzte Nacht', data: data.map(d => d.hrv_last_night), borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
                         { label: 'Wochenø', data: data.map(d => d.hrv_weekly_avg), borderColor: '#86efac', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0 },
                     ],
                 },
@@ -196,8 +196,8 @@ hrv: {
                     type: 'line',
                     labels: data.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Maximum', data: data.map(d => d.body_battery_high), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
-                        { label: 'Minimum', data: data.map(d => d.body_battery_low), borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Maximum', data: data.map(d => d.body_battery_high), borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Minimum', data: data.map(d => d.body_battery_low), borderColor: C.orange, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
                     ],
                 },
                 formula: [
@@ -246,9 +246,9 @@ hrv: {
                     type: 'line',
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'CTL (Fitness)', data: hist.map(d => d.ctl ?? null), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
-                        { label: 'ATL (Erschöpfung)', data: hist.map(d => d.atl ?? null), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
-                        { label: 'TSB (Balance)', data: hist.map(d => d.tsb ?? null), borderColor: '#6366f1', backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.08)', fill: true, tension: 0.3, pointRadius: 0 },
+                        { label: 'CTL (Fitness)', data: hist.map(d => d.ctl ?? null), borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
+                        { label: 'ATL (Erschöpfung)', data: hist.map(d => d.atl ?? null), borderColor: C.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
+                        { label: 'TSB (Balance)', data: hist.map(d => d.tsb ?? null), borderColor: C.indigo, backgroundColor: isDark ? 'rgba(129,140,248,.12)' : 'rgba(129,140,248,.08)', fill: true, tension: 0.3, pointRadius: 0 },
                     ],
                 } : null,
                 formula: [
@@ -305,7 +305,7 @@ hrv: {
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [{
                         data: hist.map(d => d.value ?? null),
-                        borderColor: '#22c55e',
+                        borderColor: C.green,
                         backgroundColor: isDark ? 'rgba(34,197,94,.1)' : 'rgba(34,197,94,.07)',
                         fill: true, tension: 0.3, pointRadius: 0,
                     }],
@@ -356,8 +356,8 @@ hrv: {
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [{
                         data: hist.map(d => d.value ?? null),
-                        borderColor: '#8b5cf6',
-                        backgroundColor: isDark ? 'rgba(139,92,246,.1)' : 'rgba(139,92,246,.07)',
+                        borderColor: C.violet,
+                        backgroundColor: isDark ? 'rgba(167,139,250,.1)' : 'rgba(167,139,250,.07)',
                         fill: true, tension: 0.3, pointRadius: 0,
                     }],
                     scales: { y: { min: 0, max: 100 } },
@@ -406,7 +406,7 @@ hrv: {
                     title: 'Ruhepuls-Verlauf (90 Tage)',
                     type: 'line',
                     labels: daily.map(d => fmtDate(d.date)),
-                    datasets: [{ data: daily.map(d => d.resting_hr ?? null), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+                    datasets: [{ data: daily.map(d => d.resting_hr ?? null), borderColor: C.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
                 } : null,
                 formula: [
                     ['Baseline', 'Gleitendes 30-Tage-Fenster (min. 7 Messpunkte erforderlich)'],
@@ -457,8 +457,8 @@ hrv: {
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [{
                         data: hist.map(d => d.value ?? null),
-                        borderColor: '#6366f1',
-                        backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)',
+                        borderColor: C.indigo,
+                        backgroundColor: isDark ? 'rgba(129,140,248,.12)' : 'rgba(129,140,248,.07)',
                         fill: true, tension: 0.3, pointRadius: 2,
                     }],
                     scales: { y: { min: 0, max: 100 } },
@@ -510,7 +510,7 @@ hrv: {
                     datasets: [{
                         label: 'HRV letzte Nacht',
                         data: data.map(d => d.hrv_last_night ?? null),
-                        borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2,
+                        borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2,
                     }],
                 } : null,
                 formula: [
@@ -569,8 +569,8 @@ hrv: {
                         datasets: [{
                             label: 'TSB',
                             data: physHist.map(d => d.tsb ?? null),
-                            borderColor: '#6366f1',
-                            backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)',
+                            borderColor: C.indigo,
+                            backgroundColor: isDark ? 'rgba(129,140,248,.12)' : 'rgba(129,140,248,.07)',
                             fill: true, tension: 0.3, pointRadius: 0,
                         }],
                     } : null;
@@ -605,7 +605,7 @@ hrv: {
         },
         render([today, energy, history]) {
             const score = today?.score ?? null;
-            const color = score == null ? '#64748b' : score >= 75 ? '#22c55e' : score >= 45 ? '#f59e0b' : '#ef4444';
+            const color = score == null ? '#64748b' : score >= 75 ? C.green : score >= 45 ? C.amber : C.red;
 
             // Erholung-Composite: Autonom 60% + Kognitiv 40% (kein TSB — overnight physiology only)
             const auton = energy.energy_autonomic;
@@ -662,8 +662,8 @@ hrv: {
                 : (c != null ? '' : 'keine Daten');
 
             const customHtml = `<div class="readiness-comp-grid">
-                ${compTile('Autonom',  '60%', a, autonDetail, autonHist, '#22c55e')}
-                ${compTile('Kognitiv', '40%', c, cogDetail, cogHist, '#8b5cf6')}
+                ${compTile('Autonom',  '60%', a, autonDetail, autonHist, C.green)}
+                ${compTile('Kognitiv', '40%', c, cogDetail, cogHist, C.violet)}
             </div>`;
 
             return {
@@ -678,9 +678,9 @@ hrv: {
                     type: 'line',
                     labels: dates.map(fmtDate),
                     datasets: [
-                        { label: 'Erholung', data: compositeScores, borderColor: '#6366f1', backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)', fill: true, tension: 0.3, pointRadius: 0 },
-                        { label: 'Autonom',  data: dates.map(d => autonMap[d] ?? null), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
-                        { label: 'Kognitiv', data: dates.map(d => cogMap[d]   ?? null), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Erholung', data: compositeScores, borderColor: C.indigo, backgroundColor: isDark ? 'rgba(129,140,248,.12)' : 'rgba(129,140,248,.07)', fill: true, tension: 0.3, pointRadius: 0 },
+                        { label: 'Autonom',  data: dates.map(d => autonMap[d] ?? null), borderColor: C.amber, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Kognitiv', data: dates.map(d => cogMap[d]   ?? null), borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
                     ],
                     scales: { y: { min: 0, max: 100 } },
                 }] : [],
@@ -776,7 +776,7 @@ hrv: {
                     datasets: [{
                         label: 'Status-Score',
                         data: hist.map(h => h.status != null ? statusToScore[h.status] ?? null : null),
-                        borderColor: '#6366f1', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2,
+                        borderColor: C.indigo, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2,
                     }],
                     scales: { y: { min: 0, max: 100, ticks: { callback: v => ({ 100: 'BALANCED', 50: 'UNBALANCED', 25: 'LOW', 0: 'POOR' })[v] ?? '' } } },
                 } : null,
@@ -1001,8 +1001,8 @@ hrv: {
                     type: 'line',
                     labels: sorted.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Einschlafzeit', data: bedtimes, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true, tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
-                        { label: 'Aufwachzeit', data: waketimes, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
+                        { label: 'Einschlafzeit', data: bedtimes, borderColor: C.blue, backgroundColor: 'rgba(96,165,250,.08)', fill: true, tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
+                        { label: 'Aufwachzeit', data: waketimes, borderColor: C.amber, backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2.5 },
                     ],
                     scales: { y: { min: 0, max: 24, ticks: { stepSize: 4, callback: v => String(Math.floor(v)).padStart(2, '0') + ':00', font: { size: 12 } } } },
                     options: { plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: false, borderWidth: 2, padding: 15 } } } },
@@ -1055,7 +1055,7 @@ hrv: {
                     type: 'line',
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Custom Score', data: hist.map(d => d.value), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Custom Score', data: hist.map(d => d.value), borderColor: C.amber, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
                         { label: 'Garmin Wert', data: data.daily.map(d => d.body_battery_high), borderColor: '#94a3b8', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0 },
                     ],
                     scales: { y: { beginAtZero: true, max: 100 } },
@@ -1115,7 +1115,7 @@ hrv: {
                     type: 'line',
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Stress Score (Custom)', data: hist.map(d => d.value), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Stress Score (Custom)', data: hist.map(d => d.value), borderColor: C.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
                         { label: 'Garmin avg_stress', data: hist.map(d => dailyByDate[d.date] ?? null), borderColor: '#94a3b8', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0 },
                     ],
                     scales: { y: { beginAtZero: true, max: 100 } },
@@ -1169,7 +1169,7 @@ hrv: {
                     type: 'line',
                     labels: hist.map(d => fmtDate(d.date)),
                     datasets: [
-                        { label: 'Running Economy', data: hist.map(d => d.value), borderColor: '#06b6d4', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+                        { label: 'Running Economy', data: hist.map(d => d.value), borderColor: C.blue, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
                     ],
                     scales: { y: { beginAtZero: true, max: 100 } },
                 },
@@ -1297,7 +1297,7 @@ hrv: {
                         type: 'line',
                         labels: data.hrv.map(d => fmtDate(d.date)),
                         datasets: [
-                            { label: 'Letzte Nacht', data: data.hrv.map(d => d.hrv_last_night ?? null), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                            { label: 'Letzte Nacht', data: data.hrv.map(d => d.hrv_last_night ?? null), borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
                             { label: 'Wochenø',      data: data.hrv.map(d => d.hrv_weekly_avg ?? null), borderColor: '#86efac', backgroundColor: 'transparent', tension: 0.3, borderDash: [4, 4], pointRadius: 0, borderWidth: 1.5 },
                         ],
                     },
@@ -1306,7 +1306,7 @@ hrv: {
                         type: 'line',
                         labels: sleepSorted.map(d => fmtDate(d.date)),
                         datasets: [
-                            { label: 'Schlaf-Score', data: sleepSorted.map(d => d.sleep_score ?? null), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
+                            { label: 'Schlaf-Score', data: sleepSorted.map(d => d.sleep_score ?? null), borderColor: C.violet, backgroundColor: 'rgba(167,139,250,.08)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
                         ],
                         scales: { y: { min: 0, max: 100 } },
                     },
