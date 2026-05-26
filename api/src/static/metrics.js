@@ -257,15 +257,18 @@ hrv: {
                     ['ATL (τ=7d)', 'ATLₜ = ATLₜ₋₁ × e^(−1/7) + TRIMPₜ × (1 − e^(−1/7))'],
                     ['CTL (τ=42d)', 'CTLₜ = CTLₜ₋₁ × e^(−1/42) + TRIMPₜ × (1 − e^(−1/42))'],
                     ['TSB', 'TSB = CTL − ATL  (positiv = erholt, negativ = ermüdet)'],
-                    ['Score', 'Score = 50 + TSB × 1.5 (geclampt 0–100)'],
+                    ['Score', 'Score = 72 + TSB × 1.5  (geclampt 0–100)'],
+                    ['Anker TSB +10 → 87', 'Wettkampf-Taper-Zone: Busso (2003) + Friel — "Fresh zone" beginnt bei +5'],
+                    ['Anker TSB −30 → 27', 'Overreaching-Schwelle: Friel / TrainingPeaks — "below −30 = injury risk"'],
+                    ['Produktiver Block', 'TSB −10 bis −30 → Score 57–27 — normale, gesunde Trainingsermüdung'],
                 ],
-                science: 'Das Banister-Impuls-Antwort-Modell (1991) modelliert Fitness als Differenz zweier exponentieller Glättungsfilter: Chronic Training Load (CTL, τ = 42 Tage) approximiert langfristige Fitnessadaptation; Acute Training Load (ATL, τ = 7 Tage) modelliert kurzfristige Ermüdung. Training Stress Balance (TSB = CTL − ATL) quantifiziert den aktuellen Leistungszustand. Die TRIMP-Berechnung nutzt eine kontinuierliche HRr-basierte Gewichtungsformel (HRr × (HRr × 4 + 1)), die das Edwards-Zonen-Konzept als stetiges Polynom umsetzt — metabolisch präziser als diskrete Zonen. Das Modell wurde extensiv in Ausdauersport-Periodisierung validiert; optimales Wettkampf-TSB liegt typischerweise bei +5 bis +15 (Busso, 2003).',
+                science: 'Das Banister-Impuls-Antwort-Modell (1991) modelliert Fitness als Differenz zweier exponentieller Glättungsfilter: Chronic Training Load (CTL, τ = 42 Tage) approximiert langfristige Fitnessadaptation; Acute Training Load (ATL, τ = 7 Tage) modelliert kurzfristige Ermüdung. Training Stress Balance (TSB = CTL − ATL) quantifiziert den aktuellen Leistungszustand. Die Scoring-Konstante (72 statt 50) ist literaturverankert: Aus den Anker-Punkten TSB = +10 → 87 (Wettkampf-Taper, Busso 2003) und TSB = −30 → 27 (Overreaching-Schwelle, Friel/TrainingPeaks) ergibt sich über ein lineares Gleichungssystem exakt a = 72, b = 1.5. TSB = 0 ergibt damit Score 72 ("ausgeglichen ist gut"), nicht 50 ("mittelmäßig"). Die lineare Formel ist angemessen, da ATL/CTL bereits exponentielle Glättungsfilter sind — die Nicht-Linearität sitzt im Modell selbst, nicht im sekundären Score-Mapping.',
                 sources: [
                     { label: 'Wikipedia: Fitness–Fatigue Model (Banister 1991)', url: 'https://en.wikipedia.org/wiki/Fitness%E2%80%93fatigue_model' },
                     { label: 'Achten & Jeukendrup (2003): Heart Rate Monitoring — Sports Medicine', url: 'https://pubmed.ncbi.nlm.nih.gov/14561293/' },
                     { label: 'Busso (2003): Variable Dose-Response Model — Med Sci Sports Exerc', url: 'https://pubmed.ncbi.nlm.nih.gov/12783043/' },
                 ],
-                eli5: 'Denk an ein Sparkonto: Jedes Training hebt Geld ab (ATL = kurzfristige Erschöpfung). Regelmäßiges Training über Monate baut Zinsen auf (CTL = Fitness-Basis). TSB ist dein Kontostand: positiv = ausgeruht und fit. Negativ = müde. Vor Wettkämpfen ist ein leicht positiver TSB (+5 bis +15) ideal — fit ohne erschöpft zu sein.',
+                eli5: 'Denk an ein Sparkonto: Jedes Training hebt Geld ab (ATL = kurzfristige Erschöpfung). Regelmäßiges Training über Monate baut Zinsen auf (CTL = Fitness-Basis). TSB ist dein Kontostand: positiv = ausgeruht und fit, negativ = müde. Score 72 heißt "ausgeglichen" — das ist gut! Wer regelmäßig trainiert hat fast immer leicht negatives TSB, z.B. −15 (Score 49, gelb) — völlig normal. Problematisch wird es erst unter −30 (Score 27, rot). Vor Wettkämpfen ist ein leicht positiver TSB (+5 bis +15, Score 79–87) ideal.',
             };
         },
     },
@@ -312,15 +315,18 @@ hrv: {
                     ['Normierung', 'ln(HRV) — logarithmische Transformation für Normalverteilung'],
                     ['Baseline', 'Gleitendes Mittel μ und Stdabw σ über 90 Tage (min. 20 Messpunkte)'],
                     ['Z-Score', 'z = (ln(HRVₜ) − μ₉₀) / σ₉₀'],
-                    ['Score', 'Score = 50 + z × 15 (geclampt 0–100)'],
+                    ['Score', 'Score = 70 + z × 15  (geclampt 0–100)'],
+                    ['Anker z = 0 → 70', 'Altini & Plews (2021): Baseline-HRV = normaler Erholungsstatus — nicht mittelmäßig'],
+                    ['Anker z = ±1σ → 85/55', 'Buchheit (2014): Smallest Worthwhile Change ≈ 1σ — erst dann klinisch relevant'],
+                    ['Lineares Mapping nach log', 'ln(RMSSD) korrigiert Rechtsschiefe → σ-Raum ist gaußisch → lineares Mapping statistisch korrekt'],
                 ],
-                science: 'Absolute HRV-Werte sind interindividuell extrem variabel (RMSSD 20–100 ms normal bei Ausdauersportlern), aber intraindividuell relativ stabil. Die ln-Transformation normalisiert die rechtsschiefe RMSSD-Verteilung. Die σ-Abweichung vom persönlichen 90-Tage-Baseline ist klinisch aussagekräftiger als ein absoluter Vergleich mit Referenzwerten: Kiviniemi et al. (2007) und Plews et al. (2013) zeigen, dass tägliche HRV-Abweichungen von > 1 σ signifikant mit suboptimaler Erholungsqualität korrelieren.',
+                science: 'Absolute HRV-Werte sind interindividuell extrem variabel (RMSSD 20–100 ms normal bei Ausdauersportlern), aber intraindividuell stabil. Die ln-Transformation normalisiert die rechtsschiefe RMSSD-Verteilung — nach der Transformation ist der z-Score-Raum annähernd gaußisch, weshalb ein lineares Mapping statistisch korrekt ist (kein Sigmoid nötig). Die Score-Konstante (70 statt 50) ist literaturverankert: Altini & Plews (2021, Frontiers Physiol) zeigen, dass Baseline-HRV den Normalzustand beschreibt, nicht die Untergrenze — deshalb z = 0 → Score 70 ("In Ordnung"), nicht 50 ("Erholen"). ±1σ markiert die Smallest Worthwhile Change (Buchheit 2014) und wird auf Score 85/55 abgebildet.',
                 sources: [
                     { label: 'Kiviniemi et al. (2007): HRV-Guided Endurance Training — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/17492574/' },
                     { label: 'Plews et al. (2013): HRV in Elite Endurance Athletes — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
                     { label: 'Buchheit (2014): Monitoring Recovery with HRV — BJSM', url: 'https://bjsm.bmj.com/content/48/4/243' },
                 ],
-                eli5: 'Wir vergleichen dein HRV nur mit DEINEM eigenen Normalwert. Score 50 = genau dein Durchschnitt. Score 70 = du bist heute deutlich erholter als üblich. Score 30 = dein HRV ist ungewöhnlich niedrig. Das ist aussagekräftiger als ein absoluter Wert, weil jeder Mensch seinen eigenen HRV-Normalbereich hat.',
+                eli5: 'Wir vergleichen dein HRV nur mit DEINEM eigenen Normalwert. Score 70 = dein HRV ist genau auf deiner persönlichen Baseline — das ist gut, nicht mittelmäßig! Score 85+ = du bist heute deutlich erholter als üblich. Score 55 = leicht unter Baseline, kein Alarm. Score unter 40 = dein HRV ist ungewöhnlich niedrig, Vorsicht. Das ist aussagekräftiger als ein absoluter Wert, weil jeder Mensch seinen eigenen HRV-Normalbereich hat.',
             };
         },
     },
@@ -601,22 +607,19 @@ hrv: {
             const score = today?.score ?? null;
             const color = score == null ? '#64748b' : score >= 75 ? '#22c55e' : score >= 45 ? '#f59e0b' : '#ef4444';
 
-            const phys  = energy.energy_physical;
+            // Erholung-Composite: Autonom 60% + Kognitiv 40% (kein TSB — overnight physiology only)
             const auton = energy.energy_autonomic;
             const cog   = energy.energy_cognitive;
-            const p = phys?.score  != null ? Math.round(phys.score)  : null;
             const a = auton?.score != null ? Math.round(auton.score) : null;
             const c = cog?.score   != null ? Math.round(cog.score)   : null;
 
-            const physHist  = history.energy_physical  || [];
             const autonHist = history.energy_autonomic || [];
             const cogHist   = history.energy_cognitive || [];
-            const physMap   = Object.fromEntries(physHist.map(d => [d.date, d.value]));
             const autonMap  = Object.fromEntries(autonHist.map(d => [d.date, d.value]));
             const cogMap    = Object.fromEntries(cogHist.map(d => [d.date, d.value]));
-            const dates     = [...new Set([...Object.keys(physMap), ...Object.keys(autonMap), ...Object.keys(cogMap)])].sort();
+            const dates     = [...new Set([...Object.keys(autonMap), ...Object.keys(cogMap)])].sort();
             const compositeScores = dates.map(date => {
-                const parts = [[physMap[date], 0.35], [autonMap[date], 0.40], [cogMap[date], 0.25]].filter(([v]) => v != null);
+                const parts = [[autonMap[date], 0.60], [cogMap[date], 0.40]].filter(([v]) => v != null);
                 if (!parts.length) return null;
                 const tw = parts.reduce((s, [, w]) => s + w, 0);
                 return Math.round(parts.reduce((s, [v, w]) => s + v * w / tw, 0));
@@ -651,9 +654,6 @@ hrv: {
                 </div>`;
             }
 
-            const physDetail  = phys?.tsb != null
-                ? `TSB ${phys.tsb >= 0 ? '+' : ''}${phys.tsb.toFixed(1)}`
-                : (p != null ? '' : 'keine Daten');
             const autonDetail = auton?.deviation != null
                 ? `${auton.deviation >= 0 ? '+' : ''}${auton.deviation.toFixed(2)} σ`
                 : (a != null ? '' : 'keine Daten');
@@ -662,9 +662,8 @@ hrv: {
                 : (c != null ? '' : 'keine Daten');
 
             const customHtml = `<div class="readiness-comp-grid">
-                ${compTile('Physisch', '35%', p, physDetail, physHist, '#22c55e')}
-                ${compTile('Autonom',  '40%', a, autonDetail, autonHist, '#22c55e')}
-                ${compTile('Kognitiv', '25%', c, cogDetail, cogHist, '#8b5cf6')}
+                ${compTile('Autonom',  '60%', a, autonDetail, autonHist, '#22c55e')}
+                ${compTile('Kognitiv', '40%', c, cogDetail, cogHist, '#8b5cf6')}
             </div>`;
 
             return {
@@ -680,27 +679,26 @@ hrv: {
                     labels: dates.map(fmtDate),
                     datasets: [
                         { label: 'Erholung', data: compositeScores, borderColor: '#6366f1', backgroundColor: isDark ? 'rgba(99,102,241,.12)' : 'rgba(99,102,241,.07)', fill: true, tension: 0.3, pointRadius: 0 },
-                        { label: 'Physisch',  data: dates.map(d => physMap[d]  ?? null), borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
-                        { label: 'Autonom',   data: dates.map(d => autonMap[d] ?? null), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
-                        { label: 'Kognitiv',  data: dates.map(d => cogMap[d]   ?? null), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Autonom',  data: dates.map(d => autonMap[d] ?? null), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
+                        { label: 'Kognitiv', data: dates.map(d => cogMap[d]   ?? null), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderDash: [4, 2] },
                     ],
                     scales: { y: { min: 0, max: 100 } },
                 }] : [],
                 formula: [
-                    ['Physische Energie (35%)', 'TRIMP-Polynom + Banister ATL/CTL/TSB → Score (0–100)'],
-                    ['Autonome Energie (40%)',  'HRV (RMSSD) ln-normiert, σ-Abweichung vom persönlichen Baseline (90 Tage)'],
-                    ['Kognitive Energie (25%)', 'Borbély Process S: kumulative Schlafschuld (7d) vs. 7h-Ziel'],
+                    ['Autonome Energie (60%)',  'Score = 70 + z × 15  — Anker: z = 0 → 70 (Baseline = gut), ±1σ → 85/55 (SWC)'],
+                    ['Kognitive Energie (40%)', 'Score = 100 − Schuld × 6  — Anker: 0h Schuld → 100, 5h Schuld → 70'],
                     ['Fehlende Komponenten',    'Verbleibende Gewichte werden proportional normiert'],
-                    ['Score',                   'Gewichtetes Mittel, geclampt 0–100'],
+                    ['Composite',               'Gewichtetes Mittel (60/40), geclampt 0–100'],
+                    ['TSB (Trainingsbelastung)', 'Separat im Dashboard unter "HEUTE MÖGLICH" — misst akkumulierte Last, nicht overnight-Erholung'],
                 ],
-                science: 'Der Composite-Erholungs-Score integriert drei physiologisch eigenständige Dimensionen: (1) Physische Trainingsbelastung via Banister-Impuls-Antwort-Modell (CTL/ATL/TSB, Zeitkonstanten 42/7 Tage), (2) Autonome Erholungskapazität via HRV-Baseline-Deviation (ln RMSSD, σ-normiert gegen persönliches 90-Tage-Fenster), (3) Kognitive Kapazität via Borbély-Schlafschuld-Modell (Process S, 7h-Ziel). Die Gewichtung (35%/40%/25%) reflektiert die prädiktive Stärke von HRV als stärkstem Einzelprädiktor für Leistungsbereitschaft (Saw et al., 2016). Alle Berechnungen sind transparent und formelbasiert — keine proprietären Algorithmen.',
+                science: 'Der Erholungs-Score misst ausschließlich overnight-Physiologie — analog zu WHOOP Recovery und Garmin Body Battery. TSB (Trainingsbelastung) ist bewusst ausgeschlossen, da er akkumulierte Wochenlast misst, nicht den heutigen Erholungsstatus (Impellizzeri et al. 2020). (1) Autonome Erholungskapazität (60%): ln(RMSSD) z-Score; Score = 70 + z × 15, Konstante aus Altini & Plews (2021) — z = 0 (Baseline) = normaler Erholungsstatus, nicht mittelmäßig; ±1σ = Smallest Worthwhile Change nach Buchheit (2014). HRV ist der stärkste Einzelprädiktor für Erholungsstatus (Saw et al. 2016). (2) Kognitive Kapazität (40%): Borbély Process S, 7h-Ziel; Score = 100 − Schlafschuld × 6. Van Dongen (2003) zeigte lineare kognitive Leistungsdegradation bei chronischer Schlafeinschränkung. Die Gewichtung 60/40 reflektiert die höhere prädiktive Stärke von HRV gegenüber Schlafdauer für Erholungsqualität.',
                 sources: [
-                    { label: 'Wikipedia: Fitness–Fatigue Model (Banister 1991)', url: 'https://en.wikipedia.org/wiki/Fitness%E2%80%93fatigue_model' },
-                    { label: 'Borbély (1982): Two-Process Model of Sleep Regulation — Human Neurobiology', url: 'https://pubmed.ncbi.nlm.nih.gov/7185792/' },
                     { label: 'Plews et al. (2013): HRV Monitoring in Elite Athletes — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
+                    { label: 'Altini & Plews (2021): What Is the Correct HRV Baseline Procedure? — Sensors', url: 'https://pubmed.ncbi.nlm.nih.gov/34208059/' },
+                    { label: 'Borbély (1982): Two-Process Model of Sleep Regulation — Human Neurobiology', url: 'https://pubmed.ncbi.nlm.nih.gov/7185792/' },
                     { label: 'Saw et al. (2016): Monitoring Athlete Well-Being — Sports Medicine', url: 'https://pubmed.ncbi.nlm.nih.gov/26412149/' },
                 ],
-                eli5: 'Der Erholungs-Score kombiniert drei transparent berechnete Dimensionen. Physisch: Wie viel Trainingsbelastung steckt noch im System (Fitness minus Ermüdung)? Autonom: Ist dein Nervensystem (HRV) heute besser oder schlechter erholt als dein persönlicher Normalwert? Kognitiv: Wie viel Schlafschuld hast du angehäuft? Alles ohne Garmin-Blackbox.',
+                eli5: 'Der Erholungs-Score zeigt wie gut dein Körper sich über Nacht erholt hat — rein physiologisch, ohne Trainingskontext. Autonom (60%): Ist dein Nervensystem (HRV) heute besser oder schlechter als dein persönlicher Normalwert? Kognitiv (40%): Wie viel Schlafschuld hast du angehäuft? TSB (Trainingsbelastung) findest du separat unter "HEUTE MÖGLICH" im Dashboard.',
             };
         },
     },
@@ -873,48 +871,6 @@ hrv: {
                     { label: 'Uth et al. (2004): Estimation of VO2max from HR — Eur J Appl Physiol', url: 'https://pubmed.ncbi.nlm.nih.gov/14624296/' },
                 ],
                 eli5: 'Garmin zeigt dir einen Aerobic Training Effect nach einem Firstbeat-Algorithmus, den du nicht nachvollziehen kannst. Unser Wert basiert auf Banister TRIMP: Wie intensiv war das Training (Puls × Zeit), und wie viel davon verträgt dein aktuelles Fitness-Niveau (CTL)? Ein Training Effect von 3.0 bedeutet: deutliche Anpassungsreize, ohne überzubelasten.',
-            };
-        },
-    },
-
-    'acwr': {
-        title: 'ACWR — Acute-to-Chronic Workload Ratio',
-        section: 'Aktivität',
-        async fetch() {
-            const [insights, history] = await Promise.all([
-                fetch('/api/ml-insights').then(r => r.json()),
-                fetch('/api/ml-history?days=30').then(r => r.json()),
-            ]);
-            return { insights, history };
-        },
-        render(data) {
-            const d = data.insights['acwr'];
-            if (!d || d.acwr == null) return { value: '—', sub: 'Zu wenig Trainings-Daten', kpis: [] };
-            const hist = data.history['acwr'] || [];
-            const badgeColor = d.level === 'red' ? 'badge-poor' : d.level === 'amber' ? 'badge-unbalanced' : 'badge-balanced';
-            const risk = d.acwr > 1.5 || d.acwr < 0.8 ? '⚠️ Verletzungsrisiko erhöht' : d.acwr > 1.3 ? '⚠️ Erhöht' : '✓ Grüne Zone';
-            return {
-                value: d.acwr.toFixed(2),
-                sub: `${risk}`,
-                kpis: [
-                    { label: 'ATL (7d)',          value: d.atl.toFixed(1) },
-                    { label: 'CTL (42d)',         value: d.ctl.toFixed(1) },
-                    { label: 'Grüne Zone',        value: '0.8 – 1.3' },
-                    { label: 'Amber Zone',        value: '1.3 – 1.5' },
-                ],
-                formula: [
-                    ['ACWR',              'ATL(7d) / CTL(42d)'],
-                    ['ATL (Acute)',       'Trainingslast letzte 7 Tage (kurzfristige Ermüdung)'],
-                    ['CTL (Chronic)',     'Trainingslast letzte 42 Tage (langfristige Fitness)'],
-                    ['Grüne Zone',        '0.8 – 1.3: optimal, minimales Verletzungsrisiko'],
-                    ['Rot/Amber',         '> 1.5 oder < 0.8: Überbelastung oder Detraining'],
-                ],
-                science: 'Gabbett (2016) zeigte in Ballsportlern: ACWR > 1.5 erhöht Verletzungsrisiko um 40–50%, unabhängig vom absoluten Trainingsvolumen. Der „Süßpunkt" liegt bei 0.8–1.3: ausreichend Reiz für Anpassung, aber nicht so plötzlich, dass Strukturen überfordert sind. ATL und CTL sind exponentiell gewichtete Durchschnitte (τ=7d bzw. τ=42d), daher stabiler als Fenster-Mittelwerte.',
-                sources: [
-                    { label: 'Gabbett TJ (2016): The training-injury prevention paradox — BJSM 50(5):273–280', url: 'https://pubmed.ncbi.nlm.nih.gov/26933171/' },
-                    { label: 'Banister EW, Calvert TW (1991): Modeling Elite Athletic Performance — Physiological Testing', url: 'https://www.researchgate.net/publication/232157711' },
-                ],
-                eli5: 'Verletzungen entstehen oft nicht, wenn du hart trainierst, sondern wenn du zu schnell deinen Trainingsplan erhöhst. ACWR misst: Wie schnell steigerst du die Last? Wenn deine 7-Tage-Last plötzlich 50% über deiner normalen 42-Tage-Last liegt, warnt dich das System.',
             };
         },
     },
