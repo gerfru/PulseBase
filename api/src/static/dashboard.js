@@ -472,9 +472,10 @@ function buildHeroCard() {
     const cog       = energy.energy_cognitive;
 
     // 14-Tage Spark-Daten (für Inline Sparklines)
-    const sparkHrv   = hrvTrend.slice(-14).map(d => d.hrv_last_night);
-    const sparkSleep = sleep.slice(-14).map(d => d.sleep_score);
-    const sparkBatt  = daily.slice(-14).map(d => d.body_battery_high);
+    const sparkHrv    = hrvTrend.slice(-14).map(d => d.hrv_last_night);
+    const sparkSleep  = sleep.slice(-14).map(d => d.sleep_score);
+    const sparkBatt   = daily.slice(-14).map(d => d.body_battery_high);
+    const sparkStress = daily.slice(-14).map(d => d.avg_stress);
 
     const score        = r?.score ?? null;
     const circumference = 218; // 2π × 52 × (240/360) — Partial Arc 240°
@@ -532,7 +533,7 @@ function buildHeroCard() {
         const rows = [
             { s: auton?.score,   label: 'HRV',    href: '/metrics/autonomic',           spark: sparklineSvg(sparkHrv,   C.green,  52, 20) },
             { s: cog?.score,     label: 'Schlaf',  href: '/metrics/cognitive',           spark: sparklineSvg(sparkSleep, C.violet, 52, 20) },
-            { s: stressForColor, label: 'Stress',  href: '/metrics/stress-score-custom', spark: '', lbl: stressLbl },
+            { s: stressForColor, label: 'Stress',  href: '/metrics/stress-score-custom', spark: sparklineSvg(sparkStress, C.orange, 52, 20), lbl: stressLbl },
         ];
         return `<div class="hero-dot-row">${rows.map(({ s, label, href, spark, lbl }) => {
             const c = s == null ? 'var(--muted)'
