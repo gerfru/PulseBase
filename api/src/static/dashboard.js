@@ -13,6 +13,24 @@ function scoreLabel(score, thresholds = [75, 45]) {
     return 'Niedrig';
 }
 
+// Inline SVG sparkline — 14-Tage-Trend neben Key-Metriken
+function sparklineSvg(dataPoints, color = 'currentColor', W = 60, H = 22) {
+    const vals = dataPoints.filter(v => v != null);
+    if (vals.length < 3) return '';
+    const min = Math.min(...vals);
+    const range = Math.max(...vals) - min || 1;
+    const pts = dataPoints.map((v, i) => {
+        if (v == null) return null;
+        const x = (i / Math.max(dataPoints.length - 1, 1)) * W;
+        const y = H - ((v - min) / range) * (H - 4) - 2;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).filter(Boolean).join(' ');
+    return `<svg class="sparkline-inline" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+        <polyline points="${pts}" fill="none" stroke="${color}"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+}
+
 const SPORT_EMOJI = {
     running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
     hiking: '🥾', strength_training: '🏋️', yoga: '🧘',
@@ -433,15 +451,21 @@ function buildHeroCard() {
     const el = document.getElementById('bento-hero');
     if (!el) return;
 
-    const r      = _heroData.readiness;
-    const energy = _heroData.energy || {};
-    const daily  = _heroData.daily  || [];
-    const sleep  = _heroData.sleep  || [];
-    const hrv    = _heroData.hrv;
-    const ml     = _heroData.ml     || {};
-    const phys   = energy.energy_physical;
-    const auton  = energy.energy_autonomic;
-    const cog    = energy.energy_cognitive;
+    const r         = _heroData.readiness;
+    const energy    = _heroData.energy   || {};
+    const daily     = _heroData.daily    || [];
+    const sleep     = _heroData.sleep    || [];
+    const hrv       = _heroData.hrv;
+    const hrvTrend  = _heroData.hrvTrend || [];
+    const ml        = _heroData.ml       || {};
+    const phys      = energy.energy_physical;
+    const auton     = energy.energy_autonomic;
+    const cog       = energy.energy_cognitive;
+
+    // 14-Tage Spark-Daten (für Inline Sparklines)
+    const sparkHrv   = hrvTrend.slice(-14).map(d => d.hrv_last_night);
+    const sparkSleep = sleep.slice(-14).map(d => d.sleep_score);
+    const sparkBatt  = daily.slice(-14).map(d => d.body_battery_high);
 
     const score        = r?.score ?? null;
     const circumference = 218; // 2π × 52 × (240/360) — Partial Arc 240°
@@ -494,11 +518,11 @@ function buildHeroCard() {
         // Stress invertieren: hoher Stress-Score = schlechte Erholung → Farbe umkehren
         const stressForColor = stressRaw != null ? (100 - stressRaw) : null;
         const rows = [
-            { s: auton?.score,    label: 'HRV',    href: '/metrics/autonomic'         },
-            { s: cog?.score,      label: 'Schlaf',  href: '/metrics/cognitive'          },
-            { s: stressForColor,  label: 'Stress',  href: '/metrics/stress-score-custom' },
+            { s: auton?.score,   label: 'HRV',    href: '/metrics/autonomic',          spark: sparklineSvg(sparkHrv,   C.green,  52, 20) },
+            { s: cog?.score,     label: 'Schlaf',  href: '/metrics/cognitive',          spark: sparklineSvg(sparkSleep, C.violet, 52, 20) },
+            { s: stressForColor, label: 'Stress',  href: '/metrics/stress-score-custom', spark: '' },
         ];
-        return `<div class="hero-dot-row">${rows.map(({ s, label, href }) => {
+        return `<div class="hero-dot-row">${rows.map(({ s, label, href, spark }) => {
             const c = s == null ? 'var(--muted)'
                 : s >= 70 ? 'var(--green)'
                 : s >= 45 ? 'var(--amber)'
@@ -506,6 +530,7 @@ function buildHeroCard() {
             const sl = scoreLabel(s);
             return `<a href="${esc(href)}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
                 <span class="hero-dot-circle" style="background:${c}"></span>
+                ${spark}
                 <span class="hero-dot-label">${esc(label)}</span>
                 ${sl ? `<span class="hero-dot-score">${sl}</span>` : ''}
             </a>`;
@@ -543,6 +568,7 @@ function buildHeroCard() {
             ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
                    <span class="hero-heute-val ${bbCls}">${Math.round(bbScore)} %</span>
                    <span class="hero-heute-score-lbl">${scoreLabel(bbScore)}</span>
+                   ${sparklineSvg(sparkBatt, C.green, 56, 18)}
                    <span class="hero-heute-label">Energie</span>
                </a>`
             : '';
@@ -636,9 +662,10 @@ async function load(days, endDate = null) {
         fetch(`/api/ml-history?days=${days}${ed}`).then(r => r.json()),
     ]);
 
-    _heroData.daily = daily;
-    _heroData.sleep = sleep;
-    _heroData.hrv = hrv;
+    _heroData.daily    = daily;
+    _heroData.sleep    = sleep;
+    _heroData.hrv      = hrv;
+    _heroData.hrvTrend = hrvTrend;
     _heroData.trainingStatus = trainingStatus;
     buildHeroCard();
 
