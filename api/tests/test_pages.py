@@ -80,6 +80,12 @@ async def test_metrics_invalid_name_redirects_to_dashboard(client):
     assert r.headers["location"] == "/dashboard"
 
 
+async def test_metrics_overview_returns_200(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/metrics")
+    assert r.status_code == 200
+
+
 # ── Activity detail page ──────────────────────────────────────────────────────
 
 

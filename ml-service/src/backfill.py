@@ -91,7 +91,7 @@ async def _load_sleep_daily_gaps(user_id: int, pool: asyncpg.Pool) -> dict[str, 
     """Load sleep sessions, daily summaries, and gap dates requiring backfill."""
     sleep_rows = await pool.fetch(
         """SELECT DATE(start_time AT TIME ZONE 'UTC') AS sleep_date,
-                  total_sleep_seconds, deep_sleep_seconds
+                  total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds
            FROM sleep_sessions WHERE user_id = $1 ORDER BY start_time""",
         user_id,
     )
@@ -102,6 +102,9 @@ async def _load_sleep_daily_gaps(user_id: int, pool: asyncpg.Pool) -> dict[str, 
             else None,
             "deep_h": float(r["deep_sleep_seconds"]) / 3600.0
             if r["deep_sleep_seconds"]
+            else None,
+            "rem_h": float(r["rem_sleep_seconds"]) / 3600.0
+            if r["rem_sleep_seconds"]
             else None,
         }
         for r in sleep_rows
@@ -131,8 +134,11 @@ async def _load_sleep_daily_gaps(user_id: int, pool: asyncpg.Pool) -> dict[str, 
                    )
                    OR NOT EXISTS (
                      SELECT 1 FROM ml_predictions p
-                     WHERE p.user_id = d.user_id AND p.date = d.date
-                       AND p.model IN ('body_battery_custom', 'stress_score_custom')
+                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'body_battery_custom'
+                   )
+                   OR NOT EXISTS (
+                     SELECT 1 FROM ml_predictions p
+                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'stress_score_custom'
                    )
                  )
                ORDER BY d.date""",
@@ -204,9 +210,12 @@ async def _backfill_custom_scores(
     )
     avg_stress = data["daily_by_date"].get(target, {}).get("avg_stress")
 
+    sleep_entry = data["sleep_by_date"].get(target, {})
     bb_result = compute_body_battery(
         yesterday_bb,
-        data["sleep_by_date"].get(target, {}).get("total_h") or 0.0,
+        sleep_entry.get("total_h") or 0.0,
+        sleep_entry.get("deep_h"),
+        sleep_entry.get("rem_h"),
         hrv_valid[-1] if hrv_valid else None,
         hrv_baseline,
         _compute_trimp(data["act_rows"], data["hrmax"], target),
