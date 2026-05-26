@@ -11,32 +11,50 @@ Status-Symbole: ✅ implementiert · 🟡 machbar mit aktuellen Daten · 🔵 ne
 Garmin-Metriken die aktuell als undokumentierter Firstbeat-Output übernommen werden,
 obwohl wissenschaftlich publizierte Alternativmethoden existieren.
 
-### 1.1 Body Battery — eigenes Energie-Drain-Modell ✅
+### 1.1 Body Battery — eigenes Energie-Modell ✅
 
 **Aktuell:** `daily_summary.body_battery_high/low` — Garmin/Firstbeat, keine öffentliche Formel.
 
-**Möglich:** Tagesenergie-Budget-Modell auf Basis bestehender Daten.
+**Implementiert:** Fresh-State-Modell mit Schlafphasen-Qualität + HRV
+(`ml-service/src/models/body_battery.py`, Modell-Key `body_battery_custom`).
 
 ```
-Basis-Energie    = 100 (Vollladung nach ausreichend Schlaf)
-Drain Aktivität  = TRIMP_heute × Faktor (aus Trainingsintensität)
-Drain Stress     = Σ stress_intraday über Tagesstunden
-Recovery Nacht   = f(total_sleep_h, hrv_last_night) — analog Autonomic Energy
+# Schlafqualität: Phasen (60%) + Dauer (40%)
+deep_score    = min(1.0, deep_h/total_h / 0.20)   # Tiefschlaf-Ziel 20% (Walker 2017)
+rem_score     = min(1.0, rem_h /total_h / 0.25)   # REM-Ziel 25% (Dijk & Czeisler 1995)
+sleep_quality = 0.40 × (total_h/7.5) + 0.60 × (0.55×deep_score + 0.45×rem_score)
 
-Body Battery = min(100, max(0, Vortag + Recovery_Nacht − Drain_Aktivität − Drain_Stress))
+# HRV-Faktor: letzte Nacht vs. persönliche 30-Tage-Baseline (Plews et al. 2013)
+hrv_factor = min(1.0, hrv_last_night / hrv_baseline)   # Fallback 0.5 wenn keine Daten
+
+# Tageszustand aus heutiger Physiologie
+fresh = 40 + sleep_quality × 35 + hrv_factor × 25   # max 100 bei Idealwerten
+
+# Vortag 30% Trägheit, Heute 70% — kein Akkumulationsplateau
+score = clamp(0.30 × prev + 0.70 × fresh − activity_drain − stress_drain, 5, 100)
 ```
 
-**Daten vorhanden:** `body_battery_intraday` (Garmin-Rohdaten als Trainings-Target),
-`stress_intraday`, `sleep_sessions`, `hrv_daily`, `activities`
+**Warum kein reines Akkumulationsmodell:** Frühere Version (`prev + recovery - drain`) erzeugte
+Plateaus bei 100 an Ruhetagen — arithmetisches Artefakt, keine Physiologie. Fresh-State-Modell
+mit Momentum ist näher an Garmins bekanntem Verhalten und vermeidet den Artefakt by design.
 
-**Vorteil:** Explizite Drain-Quellen sichtbar (Stress vs. Training vs. Schlaf-Recovery).
+**Wissenschaftlicher Status 2025/2026:** Kein Hersteller (Oura, WHOOP, Garmin) veröffentlicht
+eine validierte Composite-Score-Formel. Das Banister-Fitness-Fatigue-Modell hat per
+Scientific Reports (2025) fundamentale statistische Mängel (schlecht konditioniert, Parameter
+kaum identifizierbar). PulseBase verwendet daher **validierte Einzelkomponenten** (HRV,
+Schlafphasen) in einer heuristischen Aggregation — ehrlicher als eine Pseudogenauigkeit durch
+Modellkomplexität vorzutäuschen.
 
-**Aufwand:** Medium — ML-Service-Erweiterung, kein neues Schema.
+**Backfill nach Modellwechsel:** `make backfill-battery` löscht alte `body_battery_custom`-
+Predictions und berechnet neu.
 
 **Quellen:**
-- Banister EW, Calvert TW (1991). "Modeling elite athletic performance". In: Driskell JE, Markham SL (eds). Stress and Human Performance. Mahwah: Lawrence Erlbaum
-- Achten J, Jeukendrup AE (2003). "Heart rate monitoring: applications and limitations". Sports Medicine 33(7):517–538
+- Walker M (2017). Why We Sleep. Scribner — sleep stage targets
+- Dijk DJ, Czeisler CA (1995). "Contribution of the circadian pacemaker and the sleep homeostat to sleep propensity, sleep structure, electroencephalographic slow waves, and sleep spindle activity in humans". J Neurosci 15(5):3526–3538
+- Plews DJ, et al. (2013). "Training adaptation and heart rate variability in elite endurance athletes". Sports Med 43(9):773–781
 - Kellmann M, Kallus KW (2001). Recovery-Stress Questionnaire for Athletes. Human Kinetics Publishers
+- Wearable Composite Health Scores Require Validation (2025). biosourcesoftware.com
+- Statistical flaws of the fitness-fatigue model. Sci Rep (2025) doi:10.1038/s41598-025-88153-7
 
 ---
 
