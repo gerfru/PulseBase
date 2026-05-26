@@ -341,6 +341,10 @@ async def test_evidence_returns_catalog(client):
     r = await client.get("/api/evidence")
     assert r.status_code == 200
     data = r.json()
-    assert "acwr" in data
-    assert data["acwr"]["level"] == "meta"
-    assert "refs" in data["acwr"]
+    # ACWR entfernt — unzureichende Evidenz (Impellizzeri et al. 2020, RCT 2021 negativ)
+    assert "acwr" not in data
+    # Stattdessen prüfen ob Catalog-Einträge die erwartete Struktur haben
+    assert len(data) > 0
+    first = next(iter(data.values()))
+    assert "level" in first
+    assert "refs" in first

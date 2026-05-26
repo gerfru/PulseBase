@@ -495,6 +495,22 @@ html:not(.dark) .hero-chip.chip-green { background: #dcfce7; color: #166534; bor
 html:not(.dark) .hero-chip.chip-amber { background: #fef9c3; color: #854d0e; border-color: rgba(234,179,8,.4); }
 html:not(.dark) .hero-chip.chip-red   { background: #fee2e2; color: #991b1b; border-color: rgba(239,68,68,.4); }
 
+/* ── Weekly Review (Trainingsübersicht) ──────────────────────────────────── */
+.wk-review  { margin-bottom: var(--sp-4); padding-bottom: var(--sp-4);
+  border-bottom: 1px solid rgba(255,255,255,.06); }
+html:not(.dark) .wk-review { border-bottom-color: rgba(0,0,0,.07); }
+.wk-header  { font-size: .72rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--sp-3); }
+.wk-kpis    { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: var(--sp-4) var(--sp-3); }
+.wk-kpi     { display: flex; flex-direction: column; gap: 3px; }
+.wk-kpi-lbl { font-size: .65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted); }
+.wk-kpi-val { font-size: 1.1rem; font-weight: 700; line-height: 1.1; color: var(--text); }
+.wk-kpi-sub { font-size: .72rem; color: var(--muted); }
+.wk-up      { color: var(--green); }
+.wk-down    { color: var(--red);   }
+.wk-flat    { color: var(--muted); }
+
 /* ── Period Nav Bar (JS-managed) ─────────────────────────────────────────── */
 .nav-bar   { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-4) var(--sp-4); }
 .nav-range { font-size: .8rem; font-weight: 600; color: var(--muted); min-width: 8rem; text-align: center; }
@@ -547,10 +563,29 @@ html:not(.dark) .ev-model { background: #e0f2fe; color: #0c4a6e; }
 /* ── Chip mit Modal-Interaktion ──────────────────────────────────────────── */
 .hero-chip[onclick] { cursor: pointer; }
 
+/* ── Zone 2: HEUTE MÖGLICH — TSB + Body Battery ─────────────────────────── */
+.hero-heute-section { margin-top: var(--sp-3); padding-top: var(--sp-3);
+  border-top: 1px solid rgba(255,255,255,.06); }
+html:not(.dark) .hero-heute-section { border-top-color: rgba(0,0,0,.07); }
+.hero-heute-row  { display: flex; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2); }
+.hero-heute-item { display: flex; flex-direction: column; gap: 3px; text-decoration: none;
+  padding: var(--sp-2) var(--sp-3); border-radius: 8px; border: 1px solid transparent;
+  flex: 0 0 auto; /* kompakt, nicht strecken */ }
+html.dark       .hero-heute-item { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.07); }
+html:not(.dark) .hero-heute-item { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.09); }
+.hero-heute-val  { font-size: 1.05rem; font-weight: 700; line-height: 1; }
+.hero-heute-label{ font-size: .65rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted); }
+/* Dedizierte Farbklassen — kein Hintergrund, nur Textfarbe */
+.heute-green { color: var(--green); }
+.heute-amber { color: var(--amber); }
+.heute-red   { color: var(--red);   }
+.heute-muted { color: var(--muted); }
+
 /* ── Readiness — Component Grid ─────────────────────────────────────────── */
 .readiness-comp-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--sp-3);
 }
 @media (max-width: 600px) {

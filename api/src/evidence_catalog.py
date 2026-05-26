@@ -29,26 +29,6 @@ EVIDENCE: dict[str, dict] = {
             "TRIMP ist ein Proxy, kein Goldstandard für metabolischen Aufwand."
         ),
     },
-    "acwr": {
-        "level": "meta",
-        "label": "Meta-Analyse",
-        "name": "ACWR (Acute:Chronic Workload Ratio)",
-        "summary": (
-            "ACWR als Verletzungsprädiktor über 28+ Studien bestätigt. "
-            "Grüne Zone 0.8–1.3 basiert auf Gabbett 2016 (n=28 Studien). "
-            "Konsens: ≥1.5 erhöht Verletzungsrisiko signifikant."
-        ),
-        "refs": [
-            "Gabbett TJ (2016). BJSM 50(5):273–280 [28 Studien]",
-            "Bowen L et al. (2017). BJSM 51(6):452–458 [Fußball, n=59]",
-            "Hulin BT et al. (2016). BJSM 50(4):231–236",
-        ],
-        "limitations": (
-            "Optimale Zeitfenster (7d/28d vs. 7d/42d) sind sportartabhängig. "
-            "Schwellenwerte stammen aus Mannschaftssport-Studien; "
-            "Übertragbarkeit auf Ausdauersport eingeschränkt."
-        ),
-    },
     "training_monotony": {
         "level": "replicated",
         "label": "Repliziert",

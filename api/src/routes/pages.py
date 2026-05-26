@@ -27,7 +27,6 @@ _VALID_METRICS = {
     "stress-score-custom",
     "intensity-minutes",
     "training-effect",
-    "acwr",
     "training-monotony",
     "spo2-trend",
     "sleep-consistency",
