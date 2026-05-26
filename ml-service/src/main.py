@@ -362,7 +362,8 @@ async def _run_body_battery_and_stress(
             user_id, today, "body_battery_custom", bb_result["score"], bb_result
         )
         logger.info(
-            f"user={user_id} body_battery_custom score={bb_result['score']} recovery={bb_result['recovery']}"
+            f"user={user_id} body_battery_custom score={bb_result['score']} "
+            f"sleep_q={bb_result.get('sleep_quality')} hrv_f={bb_result.get('hrv_factor')}"
         )
 
     stress_result = compute_stress_score(
