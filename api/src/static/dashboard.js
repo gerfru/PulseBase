@@ -2,6 +2,34 @@
 const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
 Chart.defaults.borderColor = isDark ? 'rgba(51,65,85,.6)' : 'rgba(226,232,240,.8)';
+Chart.defaults.interaction = { mode: 'index', intersect: false };
+Chart.defaults.elements.point.hoverRadius = 4;
+
+// Verbal score labels — Accessibility: Farbe nie als einziger Informationsträger (WCAG 1.4.1)
+function scoreLabel(score, thresholds = [75, 45]) {
+    if (score == null) return '';
+    if (score >= thresholds[0]) return 'Gut';
+    if (score >= thresholds[1]) return 'Ok';
+    return 'Niedrig';
+}
+
+// Inline SVG sparkline — 14-Tage-Trend neben Key-Metriken
+function sparklineSvg(dataPoints, color = 'currentColor', W = 60, H = 22) {
+    const vals = dataPoints.filter(v => v != null);
+    if (vals.length < 3) return '';
+    const min = Math.min(...vals);
+    const range = Math.max(...vals) - min || 1;
+    const pts = dataPoints.map((v, i) => {
+        if (v == null) return null;
+        const x = (i / Math.max(dataPoints.length - 1, 1)) * W;
+        const y = H - ((v - min) / range) * (H - 4) - 2;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).filter(Boolean).join(' ');
+    return `<svg class="sparkline-inline" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+        <polyline points="${pts}" fill="none" stroke="${color}"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+}
 
 const SPORT_EMOJI = {
     running: '🏃', cycling: '🚴', swimming: '🏊', walking: '🚶',
@@ -43,12 +71,36 @@ function secToH(s) { return s ? +(s / 3600).toFixed(1) : null; }
 
 const charts = {};
 
+// Lazily-evaluated canvas gradient für Area-Charts (Chart.js 3+)
+function makeGradient(hexColor, alphaTop = 0.32, alphaBot = 0.02) {
+    return function(ctx) {
+        const chart = ctx.chart;
+        const { ctx: c, chartArea } = chart;
+        if (!chartArea) return hexColor + '55';
+        const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const m = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
+        g.addColorStop(0, `rgba(${r},${m},${b},${alphaTop})`);
+        g.addColorStop(1, `rgba(${r},${m},${b},${alphaBot})`);
+        return g;
+    };
+}
+
 function makeChart(id, type, labels, datasets, extra = {}) {
     if (charts[id]) charts[id].destroy();
     const canvas = document.getElementById(id);
 
-    const scaleDefaults = extra.scales || {
+    const baseScales = extra.scales || {
         y: { beginAtZero: type === 'bar', stacked: extra.stacked || false }
+    };
+    // Inject X-axis tick limit — max 7 labels regardless of data density
+    const scaleDefaults = {
+        ...baseScales,
+        x: {
+            ...(baseScales.x || {}),
+            ticks: { maxTicksLimit: 7, autoSkip: true, ...(baseScales.x?.ticks || {}) },
+        },
     };
 
     charts[id] = new Chart(canvas, {
@@ -132,6 +184,7 @@ const CHART_HASHES = {
     battery:  ['verlauf',  'battery-chart'],
     hr:       ['verlauf',  'hr-chart'],
     training: ['training', 'training-load-chart'],
+    intensity: ['training', 'intensity-chart'],
 };
 
 function setTab(name) {
@@ -331,11 +384,19 @@ async function buildWeeklyReview() {
             const kmDelta  = w2.total_km - w1.total_km;
             const kmPct    = w1.total_km > 0 ? (kmDelta / w1.total_km * 100).toFixed(0) : 0;
 
+            // Compact week label: "KW 20" only (no date range — avoids overflow)
+            function kwOnly(weekDateStr) {
+                const mon = new Date(weekDateStr + 'T00:00:00');
+                const t = new Date(mon); t.setDate(t.getDate() + 4 - (t.getDay() || 7));
+                const kw = Math.ceil((((t - new Date(t.getFullYear(), 0, 1)) / 86400000) + 1) / 7);
+                return `KW ${kw}`;
+            }
+
             reviewHtml = `<div data-weekly-review class="wk-review">
-                <div class="wk-header">Zwei Wochen</div>
+                <div class="wk-header">14 Tage im Überblick</div>
                 <div class="wk-kpis">
-                    ${kpi(weekLabel(w1.week), `${w1.activity_count} Akt. · ${Math.round(w1.total_km)} km`, '', null)}
-                    ${kpi(weekLabel(w2.week), `${w2.activity_count} Akt. · ${Math.round(w2.total_km)} km`, '', null)}
+                    ${kpi(kwOnly(w1.week), `${w1.activity_count} Akt.`, `${Math.round(w1.total_km)} km`, null)}
+                    ${kpi(kwOnly(w2.week), `${w2.activity_count} Akt.`, `${Math.round(w2.total_km)} km`, null)}
                     ${kpi('Δ Aktivitäten', `${actDelta > 0 ? '+' : ''}${actDelta}`, '', actDelta)}
                     ${kpi('Δ Distanz', `${kmPct > 0 ? '+' : ''}${kmPct}%`, '', kmDelta)}
                 </div>
@@ -399,15 +460,22 @@ function buildHeroCard() {
     const el = document.getElementById('bento-hero');
     if (!el) return;
 
-    const r      = _heroData.readiness;
-    const energy = _heroData.energy || {};
-    const daily  = _heroData.daily  || [];
-    const sleep  = _heroData.sleep  || [];
-    const hrv    = _heroData.hrv;
-    const ml     = _heroData.ml     || {};
-    const phys   = energy.energy_physical;
-    const auton  = energy.energy_autonomic;
-    const cog    = energy.energy_cognitive;
+    const r         = _heroData.readiness;
+    const energy    = _heroData.energy   || {};
+    const daily     = _heroData.daily    || [];
+    const sleep     = _heroData.sleep    || [];
+    const hrv       = _heroData.hrv;
+    const hrvTrend  = _heroData.hrvTrend || [];
+    const ml        = _heroData.ml       || {};
+    const phys      = energy.energy_physical;
+    const auton     = energy.energy_autonomic;
+    const cog       = energy.energy_cognitive;
+
+    // 14-Tage Spark-Daten (für Inline Sparklines)
+    const sparkHrv    = hrvTrend.slice(-14).map(d => d.hrv_last_night);
+    const sparkSleep  = sleep.slice(-14).map(d => d.sleep_score);
+    const sparkBatt   = daily.slice(-14).map(d => d.body_battery_high);
+    const sparkStress = daily.slice(-14).map(d => d.avg_stress);
 
     const score        = r?.score ?? null;
     const circumference = 218; // 2π × 52 × (240/360) — Partial Arc 240°
@@ -426,7 +494,7 @@ function buildHeroCard() {
             stroke-dasharray="0 327" transform="rotate(120 60 60)"
             class="readiness-ring-progress" id="hero-ring-progress"/>
         <text x="60" y="56" text-anchor="middle" class="ring-score-text" id="hero-ring-score">0</text>
-        <text x="60" y="72" text-anchor="middle" class="ring-label-text">Erholung</text>
+        <text x="60" y="72" text-anchor="middle" class="ring-label-text">Erholung${score != null ? ' · ' + scoreLabel(score) : ''}</text>
     </svg>`;
 
     // ── Derived values (needed by ring + vitals) ────────────────────────────
@@ -459,19 +527,25 @@ function buildHeroCard() {
         const stressRaw = ml.stress_score_custom?.score;
         // Stress invertieren: hoher Stress-Score = schlechte Erholung → Farbe umkehren
         const stressForColor = stressRaw != null ? (100 - stressRaw) : null;
+        // Stress: eigene Skala konsistent mit Detail-Seite (Niedrig/Moderat/Hoch)
+        const stressLbl = stressRaw == null ? ''
+            : stressRaw < 30 ? 'Niedrig' : stressRaw < 60 ? 'Moderat' : 'Hoch';
         const rows = [
-            { s: auton?.score,    label: 'HRV',    href: '/metrics/autonomic'         },
-            { s: cog?.score,      label: 'Schlaf',  href: '/metrics/cognitive'          },
-            { s: stressForColor,  label: 'Stress',  href: '/metrics/stress-score-custom' },
+            { s: auton?.score,   label: 'HRV',    href: '/metrics/autonomic',           spark: sparklineSvg(sparkHrv,   C.green,  52, 20) },
+            { s: cog?.score,     label: 'Schlaf',  href: '/metrics/cognitive',           spark: sparklineSvg(sparkSleep, C.violet, 52, 20) },
+            { s: stressForColor, label: 'Stress',  href: '/metrics/stress-score-custom', spark: sparklineSvg(sparkStress, C.orange, 52, 20), lbl: stressLbl },
         ];
-        return `<div class="hero-dot-row">${rows.map(({ s, label, href }) => {
+        return `<div class="hero-dot-row">${rows.map(({ s, label, href, spark, lbl }) => {
             const c = s == null ? 'var(--muted)'
                 : s >= 70 ? 'var(--green)'
                 : s >= 45 ? 'var(--amber)'
                 : 'var(--red)';
+            const sl = lbl !== undefined ? lbl : scoreLabel(s);
             return `<a href="${esc(href)}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
                 <span class="hero-dot-circle" style="background:${c}"></span>
+                ${spark}
                 <span class="hero-dot-label">${esc(label)}</span>
+                ${sl ? `<span class="hero-dot-score">${sl}</span>` : ''}
             </a>`;
         }).join('')}</div>`;
     }
@@ -506,6 +580,8 @@ function buildHeroCard() {
         const bbTile = bbScore != null
             ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
                    <span class="hero-heute-val ${bbCls}">${Math.round(bbScore)} %</span>
+                   <span class="hero-heute-score-lbl">${scoreLabel(bbScore)}</span>
+                   ${sparklineSvg(sparkBatt, C.green, 56, 18)}
                    <span class="hero-heute-label">Energie</span>
                </a>`
             : '';
@@ -599,9 +675,10 @@ async function load(days, endDate = null) {
         fetch(`/api/ml-history?days=${days}${ed}`).then(r => r.json()),
     ]);
 
-    _heroData.daily = daily;
-    _heroData.sleep = sleep;
-    _heroData.hrv = hrv;
+    _heroData.daily    = daily;
+    _heroData.sleep    = sleep;
+    _heroData.hrv      = hrv;
+    _heroData.hrvTrend = hrvTrend;
     _heroData.trainingStatus = trainingStatus;
     buildHeroCard();
 
@@ -672,9 +749,9 @@ async function load(days, endDate = null) {
         if (hasRun || hasRide || hasOther) {
             hideEmpty('weekly');
             const actDatasets = [];
-            if (hasRun)   actDatasets.push({ label: 'Ausdauer',  data: runKm,  backgroundColor: 'rgba(99,102,241,.75)',  stack: 'km', borderRadius: 3 });
-            if (hasRide)  actDatasets.push({ label: 'Radfahren', data: rideKm, backgroundColor: 'rgba(245,158,11,.75)', stack: 'km', borderRadius: 3 });
-            if (hasOther) actDatasets.push({ label: 'Sonstiges', data: otherH, backgroundColor: 'rgba(16,185,129,.65)', stack: 'st', borderRadius: 3, yAxisID: 'yh' });
+            if (hasRun)   actDatasets.push({ label: 'Ausdauer',  data: runKm,  backgroundColor: 'rgba(129,140,248,.75)', stack: 'km', borderRadius: 3 });
+            if (hasRide)  actDatasets.push({ label: 'Radfahren', data: rideKm, backgroundColor: 'rgba(245,158,11,.75)',  stack: 'km', borderRadius: 3 });
+            if (hasOther) actDatasets.push({ label: 'Sonstiges', data: otherH, backgroundColor: 'rgba(16,185,129,.65)',  stack: 'st', borderRadius: 3, yAxisID: 'yh' });
             const actScales = hasOther
                 ? { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' }, position: 'left' }, yh: { stacked: true, title: { display: true, text: 'h' }, position: 'right', grid: { drawOnChartArea: false } } }
                 : { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } };
@@ -691,7 +768,7 @@ async function load(days, endDate = null) {
         hideEmpty('steps');
         makeChart('steps-chart', 'bar', labels,
             [{ label: 'Schritte', data: daily.map(d => d.steps || 0),
-               backgroundColor: '#6366f1', borderRadius: 4 }]);
+               backgroundColor: C.indigo, borderRadius: 4 }]);
     } else { showEmpty('steps'); }
 
     // ── Body Battery ──────────────────────────────────────────────────
@@ -700,9 +777,9 @@ async function load(days, endDate = null) {
         hideEmpty('battery');
         makeChart('battery-chart', 'line', bbDays.map(d => fmtDate(d.date)), [
             { label: 'Hoch', data: bbDays.map(d => d.body_battery_high),
-              borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+              borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
             { label: 'Niedrig', data: bbDays.map(d => d.body_battery_low),
-              borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
+              borderColor: C.orange, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 },
         ]);
     } else { showEmpty('battery'); }
 
@@ -711,7 +788,7 @@ async function load(days, endDate = null) {
         hideEmpty('hr');
         makeChart('hr-chart', 'line', labels,
             [{ label: 'Ruhepuls', data: daily.map(d => d.resting_hr),
-               borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }]);
+               borderColor: C.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }]);
     } else { showEmpty('hr'); }
 
     // ── Stress ────────────────────────────────────────────────────────
@@ -719,7 +796,7 @@ async function load(days, endDate = null) {
         hideEmpty('stress');
         makeChart('stress-chart', 'line', labels,
             [{ label: 'Stress', data: daily.map(d => d.avg_stress),
-               borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+               borderColor: C.orange, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }],
             { scales: { y: { beginAtZero: true, max: 100 } } });
     } else { showEmpty('stress'); }
 
@@ -729,11 +806,11 @@ async function load(days, endDate = null) {
         const datasets = [];
         if (hrvTrend.some(h => h.hrv_last_night)) {
             datasets.push({ label: 'HRV letzte Nacht', data: hrvTrend.map(h => h.hrv_last_night),
-               borderColor: '#6366f1', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 });
+               borderColor: C.indigo, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 });
         }
         if (hrvTrend.some(h => h.hrv_weekly_avg)) {
             datasets.push({ label: 'Wochenø', data: hrvTrend.map(h => h.hrv_weekly_avg),
-               borderColor: '#a5b4fc', backgroundColor: 'transparent', tension: 0.3,
+               borderColor: C.sleepLight, backgroundColor: 'transparent', tension: 0.3,
                borderDash: [4, 4], pointRadius: 0 });
         }
         makeChart('hrv-trend-chart', 'line', hrvTrend.map(h => fmtDate(h.date)), datasets);
@@ -748,13 +825,13 @@ async function load(days, endDate = null) {
         makeChart('sleep-chart', 'line',
             customSleepHist.map(s => fmtDate(s.date)),
             [{ label: 'Score', data: customSleepHist.map(s => s.value),
-               borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+               borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }],
             { scales: { y: { min: 0, max: 100 } } });
     } else if (sleepSorted.some(s => s.sleep_score != null)) {
         hideEmpty('sleep');
         makeChart('sleep-chart', 'line', sleepLabels,
             [{ label: 'Score', data: sleepSorted.map(s => s.sleep_score ?? null),
-               borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 }],
+               borderColor: C.violet, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }],
             { scales: { y: { min: 0, max: 100 } } });
     } else { showEmpty('sleep'); }
 
@@ -763,11 +840,11 @@ async function load(days, endDate = null) {
         hideEmpty('sleep-stages');
         makeChart('sleep-stages-chart', 'bar', sleepLabels, [
             { label: 'Tief',   data: sleepSorted.map(s => secToH(s.deep_sleep_seconds)),
-              backgroundColor: '#4f46e5', stack: 'sleep', borderRadius: 2 },
+              backgroundColor: C.sleepDeep, stack: 'sleep', borderRadius: 2 },
             { label: 'REM',    data: sleepSorted.map(s => secToH(s.rem_sleep_seconds)),
-              backgroundColor: '#8b5cf6', stack: 'sleep', borderRadius: 2 },
+              backgroundColor: C.sleepRem, stack: 'sleep', borderRadius: 2 },
             { label: 'Leicht', data: sleepSorted.map(s => secToH(s.light_sleep_seconds)),
-              backgroundColor: '#a5b4fc', stack: 'sleep', borderRadius: 2 },
+              backgroundColor: C.sleepLight, stack: 'sleep', borderRadius: 2 },
             { label: 'Wach',   data: sleepSorted.map(s => secToH(s.awake_seconds)),
               backgroundColor: isDark ? '#334155' : '#e2e8f0', stack: 'sleep', borderRadius: 2 },
         ], { scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'Stunden' } } } });
@@ -780,17 +857,17 @@ async function load(days, endDate = null) {
         makeChart('intensity-chart', 'bar',
             customIntHist.map(s => fmtDate(s.date)), [
             { label: 'Moderat', data: customIntHist.map(s => s.moderate_minutes || 0),
-              backgroundColor: '#22c55e', stack: 'intensity', borderRadius: 2 },
+              backgroundColor: C.green, stack: 'intensity', borderRadius: 2 },
             { label: 'Intensiv', data: customIntHist.map(s => s.vigorous_minutes || 0),
-              backgroundColor: '#06b6d4', stack: 'intensity', borderRadius: 2 },
+              backgroundColor: C.blue, stack: 'intensity', borderRadius: 2 },
         ], { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Minuten' } } } });
     } else if (daily.some(d => d.intensity_moderate || d.intensity_vigorous)) {
         hideEmpty('intensity');
         makeChart('intensity-chart', 'bar', labels, [
             { label: 'Moderat', data: daily.map(d => d.intensity_moderate || 0),
-              backgroundColor: '#22c55e', stack: 'intensity', borderRadius: 2 },
+              backgroundColor: C.green, stack: 'intensity', borderRadius: 2 },
             { label: 'Intensiv', data: daily.map(d => d.intensity_vigorous || 0),
-              backgroundColor: '#06b6d4', stack: 'intensity', borderRadius: 2 },
+              backgroundColor: C.blue, stack: 'intensity', borderRadius: 2 },
         ], { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Minuten' } } } });
     } else { showEmpty('intensity'); }
 
@@ -799,7 +876,7 @@ async function load(days, endDate = null) {
         hideEmpty('calories');
         makeChart('calories-chart', 'bar', labels,
             [{ label: 'Kalorien', data: daily.map(d => d.calories_total || 0),
-               backgroundColor: '#f59e0b', borderRadius: 4 }]);
+               backgroundColor: C.amber, borderRadius: 4 }]);
     } else { showEmpty('calories'); }
 }
 
@@ -841,13 +918,13 @@ async function loadTrainingLoad(days = null) {
     const solid  = i => [...history.map(h => h[i]), ...forecast.map(() => null)];
 
     const datasets = [
-        { type: 'bar',  label: 'Tagesimpuls',   data: trimpData,      backgroundColor: 'rgba(99,102,241,.2)', yAxisID: 'ytrimp', borderRadius: 3 },
-        { type: 'line', label: 'Ermüdung',      data: solid('atl'),   borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
-        { type: 'line', label: 'Ermüdung →',    data: bridge('atl'),  borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
-        { type: 'line', label: 'Fitness',        data: solid('ctl'),   borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
-        { type: 'line', label: 'Fitness →',      data: bridge('ctl'),  borderColor: '#22c55e', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
-        { type: 'line', label: 'Form',           data: solid('tsb'),   borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 2 },
-        { type: 'line', label: 'Form →',         data: bridge('tsb'),  borderColor: '#a78bfa', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'bar',  label: 'Tagesimpuls',   data: trimpData,      backgroundColor: 'rgba(129,140,248,.2)', yAxisID: 'ytrimp', borderRadius: 3 },
+        { type: 'line', label: 'Ermüdung',      data: solid('atl'),   borderColor: C.orange, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+        { type: 'line', label: 'Ermüdung →',    data: bridge('atl'),  borderColor: C.orange, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'line', label: 'Fitness',        data: solid('ctl'),   borderColor: C.green, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+        { type: 'line', label: 'Fitness →',      data: bridge('ctl'),  borderColor: C.green, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
+        { type: 'line', label: 'Form',           data: solid('tsb'),   borderColor: C.violet, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+        { type: 'line', label: 'Form →',         data: bridge('tsb'),  borderColor: C.violet, backgroundColor: 'transparent', tension: 0.2, pointRadius: 0, borderDash: [4, 4] },
     ];
 
     makeChart('training-load-chart', 'bar', allLabels, datasets, {

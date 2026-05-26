@@ -159,37 +159,46 @@ Kalt-Start: Die ersten 6 Wochen baut sich CTL erst auf.
 Garmin's Body Battery ist ein Firstbeat-Algorithmus ohne öffentliche Spezifikation.
 Ziel ist ein einfacher, verständlicher Energiestatus nach dem Aufwachen und über den Tag.
 
-### Wissenschaftlich fundiertes Ersatz-Modell
+> **Status:** ✅ Implementiert als `body_battery_custom` — Fresh-State-Modell v2 (Mai 2026).
+> Das frühere Banister-Akkumulationsmodell wurde ersetzt (wissenschaftliche Grundlage
+> und Plateau-Problem, siehe unten). Formel → `ml-service/src/models/body_battery.py`.
 
-Drei publizierte Bausteine kombiniert:
+### Implementiertes Modell: Fresh-State (v2, Mai 2026)
 
-```
-Readiness = w₁ × HRV_Factor + w₂ × Sleep_Factor + w₃ × Recovery_Factor
-
-Gewichte (Vorschlag, anpassbar):
-  w₁ = 0.40  (HRV spiegelt autonome Erholung am direktesten wider)
-  w₂ = 0.35  (Schlaf ist der primäre Erholungsmechanismus)
-  w₃ = 0.25  (Trainingsbelastung als Kontext)
-```
-
-**HRV_Factor (0–100) nach Ithlete/Elite HRV:**
-```
-HRV_Score_raw = ln(hrv_last_night) × 20
-HRV_Factor    = (HRV_Score_raw − Baseline_mean) / Baseline_std
-              → normiert auf 0–100 relativ zur persönlichen Norm
-```
-
-#### Sleep\_Factor (0–100) — eigener Sleep Score (s. oben)
-
-#### Recovery\_Factor (0–100) aus TSB
+Ersetzt das frühere lineare Akkumulationsmodell, das bei mehrtägiger Ruhe zu
+Plateaus bei Score=100 geführt hat (fundamentale statistische Mängel des Banister-FFM,
+Scientific Reports 2025, doi:10.1038/s41598-025-88153-7).
 
 ```
-Recovery_Factor = 50 + TSB × 1.5    # TSB ≈ ±30 typisch → ergibt 5–95
-                  geclippt auf [0, 100]
+# Schlafqualität: Phasen 60% + Dauer 40%  (Walker 2017, Dijk & Czeisler 1995)
+deep_score    = min(1.0, (deep_h / total_h) / 0.20)
+rem_score     = min(1.0, (rem_h  / total_h) / 0.25)
+sleep_quality = 0.40 × min(1.0, total_h / 7.5)
+              + 0.60 × (0.55 × deep_score + 0.45 × rem_score)
+
+# HRV-Faktor: letzte Nacht vs. 30-Tage-Baseline  (Plews et al. 2013)
+hrv_factor = min(1.0, hrv_last_night / hrv_baseline)
+
+# Tageszustand aus aktueller Physiologie (max 100 bei Idealwerten)
+fresh = 40 + sleep_quality × 35 + hrv_factor × 25
+
+# 70% Fresh + 30% Trägheit vom Vortag — verhindert Akkumulationsplateau
+score = clamp(0.30 × prev + 0.70 × fresh − activity_drain − stress_drain, 5, 100)
 ```
 
-**Tages-Verlauf:** Body Battery Intraday = nicht direkt replizierbar (braucht
-kontinuierliches HRV), aber der **Tages-Eröffnungswert** (nach Schlaf) ist gut approximierbar.
+**Wissenschaftlicher Status:** Einzelkomponenten validiert (HRV ✅, Schlafphasen ✅,
+TRIMP-Drain ✅); Composite-Aggregation heuristisch — kein Hersteller (Oura, WHOOP,
+Garmin) veröffentlicht klinisch validierte Formel (Wearable Composite Health Scores
+Require Validation, biosourcesoftware.com 2025).
+
+**Tages-Verlauf:** Intraday-Granularität nicht replizierbar (braucht kontinuierliches
+HRV). Der Tages-Eröffnungswert nach Schlaf ist gut approximierbar.
+
+### Früheres Modell (v1, ersetzt)
+
+Das frühere Modell verwendete eine lineare Banister-Akkumulation
+(`score = clamp(prev + recovery − drains, 5, 100)`), was bei mehrtägiger Ruhe
+zu dauerhaften Plateaus bei 100 führte und Tageserholung nicht korrekt widerspiegelte.
 
 ---
 

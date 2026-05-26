@@ -10,9 +10,124 @@ from datetime import datetime, timezone
 
 from models.anomaly import detect_metric_anomaly as detect_resting_hr_anomaly
 from models.battery_pattern import extract_features
+from models.body_battery import _sleep_quality, compute_body_battery
 from models.correlation import compute_sleep_hrv_correlation
 from models.energy_metrics import compute_autonomic_energy, compute_cognitive_energy
 from models.readiness import predict_tomorrow, prepare_training_data, train_and_save
+
+
+# ── Body Battery ───────────────────────────────────────────────────────────
+
+
+def test_body_battery_perfect_conditions():
+    """Perfect sleep + HRV at baseline → score near 100, no accumulation plateau."""
+    result = compute_body_battery(
+        yesterday_score=100.0,
+        sleep_hours=8.0,
+        deep_sleep_hours=1.6,  # 20% of 8h
+        rem_sleep_hours=2.0,  # 25% of 8h
+        hrv_last_night=60.0,
+        hrv_baseline=60.0,  # HRV at baseline → factor 1.0
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    assert result["score"] == 100
+    # No plateau: fresh state dominates, not pure accumulation
+    assert result["sleep_quality"] == 1.0
+    assert result["hrv_factor"] == 1.0
+
+
+def test_body_battery_no_plateau_at_rest():
+    """Key regression: rest day with prev=100 must NOT drift above 100."""
+    result = compute_body_battery(
+        yesterday_score=100.0,
+        sleep_hours=7.5,
+        deep_sleep_hours=1.5,
+        rem_sleep_hours=1.875,
+        hrv_last_night=55.0,
+        hrv_baseline=55.0,
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    assert result["score"] <= 100
+
+
+def test_body_battery_poor_sleep_phases_lower_score():
+    """Poor deep + REM ratios should produce lower score than ideal phases."""
+    good = compute_body_battery(
+        yesterday_score=75.0,
+        sleep_hours=7.0,
+        deep_sleep_hours=1.4,
+        rem_sleep_hours=1.75,
+        hrv_last_night=50.0,
+        hrv_baseline=50.0,
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    poor = compute_body_battery(
+        yesterday_score=75.0,
+        sleep_hours=7.0,
+        deep_sleep_hours=0.3,
+        rem_sleep_hours=0.3,
+        hrv_last_night=50.0,
+        hrv_baseline=50.0,
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    assert good["score"] > poor["score"]
+
+
+def test_body_battery_no_phase_data_falls_back_to_duration():
+    """Without deep/REM data, model still produces a valid score via duration fallback."""
+    result = compute_body_battery(
+        yesterday_score=75.0,
+        sleep_hours=7.0,
+        deep_sleep_hours=None,
+        rem_sleep_hours=None,
+        hrv_last_night=50.0,
+        hrv_baseline=50.0,
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    assert result["score"] is not None
+    assert 5 <= result["score"] <= 100
+
+
+def test_body_battery_activity_drain():
+    """High TRIMP should reduce score vs rest day."""
+    rest = compute_body_battery(
+        yesterday_score=80.0,
+        sleep_hours=7.0,
+        deep_sleep_hours=1.4,
+        rem_sleep_hours=1.75,
+        hrv_last_night=50.0,
+        hrv_baseline=50.0,
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    hard = compute_body_battery(
+        yesterday_score=80.0,
+        sleep_hours=7.0,
+        deep_sleep_hours=1.4,
+        rem_sleep_hours=1.75,
+        hrv_last_night=50.0,
+        hrv_baseline=50.0,
+        today_trimp=60.0,
+        avg_stress=25.0,  # high TRIMP
+    )
+    assert rest["score"] > hard["score"]
+
+
+def test_sleep_quality_phases_beat_duration_alone():
+    """Same duration, ideal phases → higher quality than no phase data."""
+    with_phases = _sleep_quality(7.0, deep_h=1.4, rem_h=1.75)  # ideal ratios
+    duration_only = _sleep_quality(7.0, deep_h=None, rem_h=None)
+    assert with_phases >= duration_only
+
+
+def test_sleep_quality_zero_sleep():
+    result = _sleep_quality(0.0, None, None)
+    assert result == 0.2
 
 
 # ── Autonomic Energy ───────────────────────────────────────────────────────

@@ -49,7 +49,13 @@ async def count_energy_gaps(user_id: int) -> int:
               SELECT 1 FROM ml_predictions p
               WHERE p.user_id = d.user_id
                 AND p.date    = d.date
-                AND p.model IN ('body_battery_custom', 'stress_score_custom')
+                AND p.model   = 'body_battery_custom'
+            )
+            OR NOT EXISTS (
+              SELECT 1 FROM ml_predictions p
+              WHERE p.user_id = d.user_id
+                AND p.date    = d.date
+                AND p.model   = 'stress_score_custom'
             )
           )
         """,
@@ -392,7 +398,8 @@ async def get_sleep_data_7d(user_id: int) -> list[dict[str, float | None]]:
         SELECT DISTINCT ON (sleep_date)
                DATE(start_time AT TIME ZONE 'UTC') AS sleep_date,
                total_sleep_seconds,
-               deep_sleep_seconds
+               deep_sleep_seconds,
+               rem_sleep_seconds
         FROM sleep_sessions
         WHERE user_id = $1
           AND start_time >= CURRENT_DATE - INTERVAL '8 days'
@@ -408,6 +415,9 @@ async def get_sleep_data_7d(user_id: int) -> list[dict[str, float | None]]:
             else None,
             "deep_h": float(r["deep_sleep_seconds"]) / 3600.0
             if r["deep_sleep_seconds"] is not None
+            else None,
+            "rem_h": float(r["rem_sleep_seconds"]) / 3600.0
+            if r["rem_sleep_seconds"] is not None
             else None,
         }
         for r in rows

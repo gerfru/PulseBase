@@ -196,6 +196,62 @@ score = clip(100 − total_debt × 6, 0, 100)
 
 ---
 
+---
+
+## Body Battery Custom: Fresh-State-Modell mit Schlafphasen
+
+**Modell-Key:** `body_battery_custom`
+**Datei:** [`ml-service/src/models/body_battery.py`](../ml-service/src/models/body_battery.py)
+
+Ersetzt Garmins proprietären Body-Battery-Score durch ein transparentes Energiemodell.
+
+### Schlafqualitätsfaktor (neu)
+
+```
+# Phasen-Zielwerte: Tiefschlaf 20%, REM 25% der Schlafdauer
+# (Walker 2017, Dijk & Czeisler 1995)
+deep_score    = min(1.0, (deep_h / total_h) / 0.20)
+rem_score     = min(1.0, (rem_h  / total_h) / 0.25)
+
+sleep_quality = 0.40 × min(1.0, total_h / 7.5)          # Dauer 40%
+              + 0.60 × (0.55 × deep_score + 0.45 × rem_score)  # Phasen 60%
+
+# Fallback: wenn keine Phasendaten → reine Dauer
+```
+
+### Fresh-State-Modell (kein Akkumulationsplateau)
+
+```
+# HRV-Faktor: letzte Nacht vs. persönliche 30-Tage-Baseline (Plews 2013)
+hrv_factor = min(1.0, hrv_last_night / hrv_baseline)   # Fallback 0.5
+
+# Tageszustand aus heutiger Physiologie (max 100 bei Idealwerten)
+fresh = 40 + sleep_quality × 35 + hrv_factor × 25
+
+# Fresh 70% + Trägheit vom Vortag 30% — verhindert Akkumulations-Plateau
+score = clamp(0.30 × prev + 0.70 × fresh − activity_drain − stress_drain, 5, 100)
+```
+
+### Wissenschaftlicher Status (Stand 2025/2026)
+
+Kein Hersteller (Oura, WHOOP, Garmin) veröffentlicht eine klinisch validierte
+Composite-Score-Formel — der Algorithmus bleibt immer proprietär. PulseBase verwendet
+**validierte Einzelkomponenten** (HRV als Recovery-Indikator ✅, Schlafphasen als
+Qualitätsproxy ✅) in einer heuristischen Aggregation. Das frühere Banister-Akkumulationsmodell
+hat fundamentale statistische Mängel (Scientific Reports, 2025) und wurde bewusst ersetzt.
+
+**Backfill nach Modellwechsel:** `make backfill-battery`
+
+**Quellen:**
+- Walker M (2017). Why We Sleep — sleep stage targets (Deep ~20%, REM ~25%)
+- Dijk DJ, Czeisler CA (1995). J Neurosci 15(5):3526–3538 — SWS/REM physiology
+- Plews DJ et al. (2013). Sports Med 43(9):773–781 — HRV vs. baseline
+- Kellmann M, Kallus KW (2001). Recovery-Stress Questionnaire for Athletes
+- Statistical flaws of the fitness-fatigue model. Sci Rep (2025) doi:10.1038/s41598-025-88153-7
+- Wearable Composite Health Scores Require Validation. biosourcesoftware.com (2025)
+
+---
+
 ## Was noch fehlt (Roadmap)
 
 | Erweiterung | Status |
@@ -204,3 +260,4 @@ score = clip(100 − total_debt × 6, 0, 100)
 | HRmax via Altersformel (Fallback) | ✅ `users.date_of_birth` vorhanden; Alter aus Geburtsdatum berechenbar |
 | Borbély Process C (Zirkadian) | Offen — Einschlaf-/Aufwachzeiten müssten explizit gespeichert werden |
 | 7-Tage gleitendes Baseline-Fenster HRV | ✅ Implementiert — 7-Tage-Rolling-Mean vs. Rest-Baseline |
+| Body Battery Custom — Schlafphasen + Fresh-State | ✅ Implementiert — `body_battery.py` v2 mit deep_h + rem_h |
