@@ -28,8 +28,6 @@
   --card-shadow:  0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.2);
   --tile-bg:      #1e293b;
   --tile-border:  rgba(255, 255, 255, 0.07);
-  --mtile-bg:     rgba(255,255,255,.07);
-  --mtile-border: rgba(255,255,255,.12);
 }
 
 /* ── Design Tokens — Light override ───────────────────────────────────── */
@@ -45,8 +43,6 @@ html:not(.dark) {
   --card-shadow:  0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
   --tile-bg:      #ffffff;
   --tile-border:  rgba(0, 0, 0, 0.07);
-  --mtile-bg:     #ffffff;
-  --mtile-border: rgba(148,163,184,.30);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────── */
@@ -251,28 +247,6 @@ tbody tr:hover { background: var(--surface-2); }
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: var(--sp-3);
 }
-.metric-tile {
-  background: var(--mtile-bg);
-  border: 1px solid var(--mtile-border);
-  border-radius: var(--radius); padding: var(--sp-4);
-  transition: transform .15s, box-shadow .15s, border-color .15s;
-  text-decoration: none; color: inherit; display: block; position: relative;
-}
-a.metric-tile { cursor: pointer; }
-.metric-tile-static { cursor: default; }
-a.metric-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,.35);
-}
-html.dark a.metric-tile:hover  { border-color: rgba(255,255,255,.22); }
-html:not(.dark) a.metric-tile:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); border-color: rgba(16,185,129,.4); }
-.metric-tile-label { font-size: var(--text-xs); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
-.metric-tile-value { font-size: var(--text-xl); font-weight: 700; line-height: 1.15; margin-top: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
-.metric-tile-sub   { font-size: var(--text-xs); color: var(--muted); margin-top: 2px; min-height: 1em; }
-.metric-tile-hint  { font-size: var(--text-xs); color: var(--muted); margin-top: var(--sp-2); opacity: .6; }
-.metric-tile-arrow { position: absolute; top: var(--sp-3); right: var(--sp-3); font-size: var(--text-sm); color: var(--muted); opacity: .5; transition: opacity .15s; }
-a.metric-tile:hover .metric-tile-arrow { opacity: 1; }
-
 /* ── Readiness (JS-generated) ──────────────────────────────────────────── */
 .readiness-tile {
   display: inline-flex; flex-direction: column; gap: var(--sp-1);
@@ -489,23 +463,6 @@ html:not(.dark) .sub-green { background: #dcfce7 !important; color: #166534 !imp
 html:not(.dark) .sub-amber { background: #fef9c3 !important; color: #854d0e !important; border-color: rgba(234,179,8,.4)  !important; }
 html:not(.dark) .sub-red   { background: #fee2e2 !important; color: #991b1b !important; border-color: rgba(239,68,68,.4)  !important; }
 
-/* Status chips */
-.hero-chips-wrap { margin-top: var(--sp-3); padding-top: var(--sp-3);
-  border-top: 1px solid rgba(255,255,255,.06); }
-html:not(.dark) .hero-chips-wrap { border-top-color: rgba(0,0,0,.07); }
-.hero-chips-label { display: block; font-size: var(--text-xs); font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--muted); opacity: .6; margin-bottom: var(--sp-2); }
-.hero-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-.hero-chip { font-size: var(--text-xs); font-weight: 600; padding: 3px 10px; border-radius: 99px; border: 1px solid transparent; }
-html.dark       .hero-chip { background: rgba(255,255,255,.06); color: var(--muted); border-color: rgba(255,255,255,.08); }
-html:not(.dark) .hero-chip { background: rgba(0,0,0,.04); color: var(--muted); border-color: rgba(0,0,0,.07); }
-.hero-chip.chip-green { background: rgba(34,197,94,.15);  color: #86efac; border-color: rgba(34,197,94,.25); }
-.hero-chip.chip-amber { background: rgba(234,179,8,.15);  color: #fde68a; border-color: rgba(234,179,8,.25); }
-.hero-chip.chip-red   { background: rgba(239,68,68,.15);  color: #fca5a5; border-color: rgba(239,68,68,.25); }
-html:not(.dark) .hero-chip.chip-green { background: #dcfce7; color: #166534; border-color: rgba(34,197,94,.4); }
-html:not(.dark) .hero-chip.chip-amber { background: #fef9c3; color: #854d0e; border-color: rgba(234,179,8,.4); }
-html:not(.dark) .hero-chip.chip-red   { background: #fee2e2; color: #991b1b; border-color: rgba(239,68,68,.4); }
-
 /* ── Weekly Review (Trainingsübersicht) ──────────────────────────────────── */
 .wk-review  { margin-bottom: var(--sp-4); padding-bottom: var(--sp-4);
   border-bottom: 1px solid rgba(255,255,255,.06); }
@@ -572,9 +529,6 @@ html:not(.dark) .ev-model { background: #e0f2fe; color: #0c4a6e; }
 
 /* ── Zone-Label (SIGNALE / HEUTE) ────────────────────────────────────────── */
 .hero-zone-label { display: block; font-size: var(--text-xs); font-weight: 700; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; margin-bottom: var(--sp-2); }
-
-/* ── Chip mit Modal-Interaktion ──────────────────────────────────────────── */
-.hero-chip[onclick] { cursor: pointer; }
 
 /* ── Zone 2: HEUTE MÖGLICH — TSB + Body Battery ─────────────────────────── */
 .hero-heute-section { margin-top: var(--sp-3); padding-top: var(--sp-3);

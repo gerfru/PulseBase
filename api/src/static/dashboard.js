@@ -251,67 +251,6 @@ function scoreColor(score) {
     return 'var(--red)';
 }
 
-function openChipModal(chipKey) {
-    const ml = _heroData.ml || {};
-    const defs = {
-        body_battery_custom: {
-            title: 'Tagesenergie',
-            valueFn: () => { const b = ml.body_battery_custom;
-                return b ? `${Math.round(b.score)}% · ↑${b.recovery} Recovery · ↓${b.activity_drain} Drain` : '—'; },
-            href: '/metrics/body-battery-custom', evKey: 'body_battery_custom',
-        },
-        training_monotony: {
-            title: 'Training Monotony',
-            valueFn: () => { const m = ml.training_monotony;
-                return m ? `${m.monotony.toFixed(2)}${m.monotony > 2.0 ? ' ⚠️ Hoch' : ' · Normal'}` : '—'; },
-            href: '/metrics/training-monotony', evKey: 'training_monotony',
-        },
-        sleep_consistency: {
-            title: 'Schlafrhythmus',
-            valueFn: () => { const c = ml.sleep_consistency;
-                return c ? `Score ${Math.round(c.score)}` : '—'; },
-            href: '/metrics/sleep-consistency', evKey: 'sleep_consistency',
-        },
-        stress_score_custom: {
-            title: 'Stress-Index',
-            valueFn: () => { const s = ml.stress_score_custom;
-                return s ? `${Math.round(s.score)} · ${s.score < 30 ? 'Niedrig' : s.score < 60 ? 'Moderat' : 'Hoch'}` : '—'; },
-            href: '/metrics/stress-score-custom', evKey: 'stress_score_custom',
-        },
-        recovery: {
-            title: 'Erholung — Schlaf & HRV',
-            valueFn: () => {
-                const h = _heroData.hrv;
-                const sc = ml.sleep_score_custom?.score ?? _heroData.sleep?.[0]?.sleep_score;
-                const corr = ml.correlation_sleep_hrv;
-                const parts = [];
-                if (h?.hrv_weekly_avg != null) parts.push(`HRV Wochenø: ${h.hrv_weekly_avg} ms`);
-                if (h?.hrv_last_night != null)  parts.push(`Letzte Nacht: ${h.hrv_last_night} ms`);
-                if (sc != null)                 parts.push(`Schlaf-Score: ${Math.round(sc)}`);
-                if (corr?.r != null)            parts.push(`Schlaf→HRV: r=${corr.r.toFixed(2)} (${corr.interpretation})`);
-                return parts.join(' · ') || '—';
-            },
-            href: '/metrics/recovery', evKey: null,
-        },
-    };
-    const def = defs[chipKey];
-    if (!def) return;
-    const ev = def.evKey ? _evidence[def.evKey] : null;
-    const levelLabel = ev ? ({ meta: '🟢 Meta-Analyse', replicated: '🟡 Repliziert', model: '🔵 Eigenmodell' }[ev.level] ?? ev.level) : null;
-    const levelCls = ev ? (ev.level === 'meta' ? 'bg-green-700/50 text-green-300'
-        : ev.level === 'replicated' ? 'bg-amber-700/50 text-amber-300'
-        : 'bg-sky-700/50 text-sky-300') : '';
-    const refs = (ev?.refs || []).map(r => `<li class="ml-3 list-disc">${esc(r)}</li>`).join('');
-    const body = `
-        <p class="mb-3 text-base font-semibold">${esc(def.valueFn())}</p>
-        ${ev ? `<p class="mb-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${levelCls}">${levelLabel}</span></p>
-        <p class="mb-3">${esc(ev.summary)}</p>
-        ${refs ? `<ul class="mb-3 text-xs text-slate-400 space-y-0.5">${refs}</ul>` : ''}
-        ${ev.limitations ? `<p class="text-xs text-slate-500 border-t border-slate-700 pt-2"><strong class="text-slate-400">Einschränkungen:</strong> ${esc(ev.limitations)}</p>` : ''}` : ''}
-        <p class="text-xs text-slate-600 mt-3 border-t border-slate-700 pt-2">Methode validiert · Personalisierte Kalibrierung · Kein Ersatz für medizinische Diagnostik</p>`;
-    openFormulaDialog(def.title, body, def.href);
-}
-
 async function buildWeeklyReview() {
     try {
         const card = document.getElementById('weekly-card');
@@ -440,22 +379,6 @@ async function buildWeeklyReview() {
     }
 }
 
-function metricTile({ label, value, sub = '', metric = '' }) {
-    if (metric) {
-        return `<a class="metric-tile" href="/metrics/${metric}">
-            <div class="metric-tile-label">${label}</div>
-            <div class="metric-tile-value">${value}</div>
-            <div class="metric-tile-sub">${sub || '&nbsp;'}</div>
-            <div class="metric-tile-arrow">↗</div>
-        </a>`;
-    }
-    return `<div class="metric-tile metric-tile-static">
-        <div class="metric-tile-label">${label}</div>
-        <div class="metric-tile-value">${value}</div>
-        <div class="metric-tile-sub">${sub || '&nbsp;'}</div>
-    </div>`;
-}
-
 function buildHeroCard() {
     const el = document.getElementById('bento-hero');
     if (!el) return;
@@ -530,22 +453,38 @@ function buildHeroCard() {
         // Stress: eigene Skala konsistent mit Detail-Seite (Niedrig/Moderat/Hoch)
         const stressLbl = stressRaw == null ? ''
             : stressRaw < 30 ? 'Niedrig' : stressRaw < 60 ? 'Moderat' : 'Hoch';
+
+        // Kontext-Werte für Erklärbarkeit (4.6 / 4.9)
+        // HRV: σ-Abweichung von der persönlichen Baseline
+        const devRaw = auton?.deviation;
+        const autDevLbl = devRaw != null
+            ? (devRaw >= 0 ? `+${devRaw.toFixed(1)}σ` : `${devRaw.toFixed(1)}σ`)
+            : null;
+        // Schlaf: Schlafschuld in Stunden
+        const debtRaw = cog?.debt_hours;
+        const cogDebtLbl = debtRaw != null
+            ? (debtRaw > 0.1 ? `${debtRaw.toFixed(1)}h Schuld` : 'Kein Defizit')
+            : null;
+
         const rows = [
-            { s: auton?.score,   label: 'HRV',    href: '/metrics/autonomic',           spark: sparklineSvg(sparkHrv,   C.green,  52, 20) },
-            { s: cog?.score,     label: 'Schlaf',  href: '/metrics/cognitive',           spark: sparklineSvg(sparkSleep, C.violet, 52, 20) },
+            { s: auton?.score,   label: 'HRV',    href: '/metrics/autonomic',           spark: sparklineSvg(sparkHrv,   C.green,  52, 20), ctx: autDevLbl },
+            { s: cog?.score,     label: 'Schlaf',  href: '/metrics/cognitive',           spark: sparklineSvg(sparkSleep, C.violet, 52, 20), ctx: cogDebtLbl },
             { s: stressForColor, label: 'Stress',  href: '/metrics/stress-score-custom', spark: sparklineSvg(sparkStress, C.orange, 52, 20), lbl: stressLbl },
         ];
-        return `<div class="hero-dot-row">${rows.map(({ s, label, href, spark, lbl }) => {
+        return `<span class="hero-zone-label">SIGNALE</span>
+        <div class="hero-dot-row">${rows.map(({ s, label, href, spark, lbl, ctx }) => {
             const c = s == null ? 'var(--muted)'
                 : s >= 70 ? 'var(--green)'
                 : s >= 45 ? 'var(--amber)'
                 : 'var(--red)';
             const sl = lbl !== undefined ? lbl : scoreLabel(s);
+            // ctx überschreibt sl wenn vorhanden (konkrete Zahl schlägt Wort)
+            const subtitle = ctx ?? sl;
             return `<a href="${esc(href)}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
                 <span class="hero-dot-circle" style="background:${c}"></span>
                 ${spark}
                 <span class="hero-dot-label">${esc(label)}</span>
-                ${sl ? `<span class="hero-dot-score">${sl}</span>` : ''}
+                ${subtitle ? `<span class="hero-dot-score">${esc(subtitle)}</span>` : ''}
             </a>`;
         }).join('')}</div>`;
     }
@@ -634,9 +573,7 @@ function buildHeroCard() {
     // ── Click delegation (CSP-safe, kein inline onclick) ─────────────────────
     el.addEventListener('click', e => {
         const badge = e.target.closest('[data-ev-badge]');
-        if (badge) { e.preventDefault(); e.stopPropagation(); openEvidenceDialog(badge.dataset.evBadge); return; }
-        const chip = e.target.closest('[data-chip-modal]');
-        if (chip)  { e.preventDefault(); openChipModal(chip.dataset.chipModal); }
+        if (badge) { e.preventDefault(); e.stopPropagation(); openEvidenceDialog(badge.dataset.evBadge); }
     });
 
     // ── Arc animation ────────────────────────────────────────────────────────
