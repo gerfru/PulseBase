@@ -1,8 +1,8 @@
-import logging
 from datetime import datetime, timedelta, timezone
 
 import asyncpg
 import resend as resend_client
+import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -27,7 +27,7 @@ from src.deps import (
     verify_password,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 _RESET_SALT = "password-reset"
@@ -72,7 +72,7 @@ def _verify_email_token(token: str) -> int | None:
 
 async def _send_lockout_email(to_email: str) -> bool:
     if not settings.resend_api_key:
-        logger.warning("lockout mail skipped — RESEND_API_KEY not set")
+        logger.warning("mail.lockout.skipped", reason="RESEND_API_KEY not set")
         return False
     resend_client.api_key = settings.resend_api_key
     try:
@@ -92,13 +92,13 @@ async def _send_lockout_email(to_email: str) -> bool:
         )
         return True
     except Exception:
-        logger.exception("lockout mail failed for %s", to_email)
+        logger.exception("mail.lockout.failed", to=to_email)
         return False
 
 
 async def _send_reset_email(to_email: str, token: str) -> bool:
     if not settings.resend_api_key:
-        logger.warning("reset mail skipped — RESEND_API_KEY not set, token: %s", token)
+        logger.warning("mail.reset.skipped", reason="RESEND_API_KEY not set")
         return False
     resend_client.api_key = settings.resend_api_key
     url = f"{settings.app_base_url}/auth/reset/{token}"
@@ -116,13 +116,13 @@ async def _send_reset_email(to_email: str, token: str) -> bool:
         )
         return True
     except Exception:
-        logger.exception("reset mail failed for %s, token: %s", to_email, token)
+        logger.exception("mail.reset.failed", to=to_email)
         return False
 
 
 async def _send_verify_email(to_email: str, token: str) -> bool:
     if not settings.resend_api_key:
-        logger.warning("verify mail skipped — RESEND_API_KEY not set, token: %s", token)
+        logger.warning("mail.verify.skipped", reason="RESEND_API_KEY not set")
         return False
     resend_client.api_key = settings.resend_api_key
     url = f"{settings.app_base_url}/auth/verify/{token}"
@@ -140,7 +140,7 @@ async def _send_verify_email(to_email: str, token: str) -> bool:
         )
         return True
     except Exception:
-        logger.exception("verify mail failed for %s, token: %s", to_email, token)
+        logger.exception("mail.verify.failed", to=to_email)
         return False
 
 
@@ -170,9 +170,10 @@ async def login(
             + 1
         )
         logger.warning(
-            "auth.login.fail reason=locked user_id=%s ip=%s",
-            user["id"],
-            _get_real_ip(request),
+            "auth.login.fail",
+            reason="locked",
+            user_id=user["id"],
+            ip=_get_real_ip(request),
         )
         return templates.TemplateResponse(
             request,
@@ -194,9 +195,10 @@ async def login(
                 await lock_user_until(user["id"], until)
                 await _send_lockout_email(user["email"])
         logger.warning(
-            "auth.login.fail reason=bad_credentials email=%s ip=%s",
-            email,
-            _get_real_ip(request),
+            "auth.login.fail",
+            reason="bad_credentials",
+            email=email,
+            ip=_get_real_ip(request),
         )
         return templates.TemplateResponse(
             request,
@@ -207,9 +209,10 @@ async def login(
 
     if not user["email_verified_at"]:
         logger.warning(
-            "auth.login.fail reason=unverified user_id=%s ip=%s",
-            user["id"],
-            _get_real_ip(request),
+            "auth.login.fail",
+            reason="unverified",
+            user_id=user["id"],
+            ip=_get_real_ip(request),
         )
         return templates.TemplateResponse(
             request,
@@ -224,9 +227,7 @@ async def login(
     await reset_failed_login(user["id"])
     request.session.clear()
     request.session["user_id"] = str(user["id"])
-    logger.info(
-        "auth.login.success user_id=%s ip=%s", user["id"], _get_real_ip(request)
-    )
+    logger.info("auth.login.success", user_id=user["id"], ip=_get_real_ip(request))
     return RedirectResponse("/", status_code=303)
 
 
@@ -294,7 +295,7 @@ async def register(
         password_hash = hash_password(password)
         user = await create_user(name, email, password_hash)
     except asyncpg.UniqueViolationError:
-        logger.warning("register: duplicate email '%s'", email)
+        logger.warning("auth.register.fail", reason="duplicate_email", email=email)
         return templates.TemplateResponse(
             request,
             "register.html",
@@ -305,9 +306,7 @@ async def register(
     await save_consent(user["id"], "health_data", True, ip)
     await save_consent(user["id"], "terms", True, ip)
     await save_consent(user["id"], "age_16plus", True, ip)
-    logger.info(
-        "auth.register.success user_id=%s ip=%s", user["id"], _get_real_ip(request)
-    )
+    logger.info("auth.register.success", user_id=user["id"], ip=_get_real_ip(request))
     token = _make_verify_token(user["id"])
     sent = await _send_verify_email(email, token)
     return RedirectResponse(
@@ -423,5 +422,5 @@ async def reset_password(
             status_code=400,
         )
     await update_password(user_id, hash_password(password))
-    logger.info("auth.password_reset.success user_id=%s", user_id)
+    logger.info("auth.password_reset.success", user_id=user_id)
     return RedirectResponse("/login?reset=1", status_code=303)

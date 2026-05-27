@@ -1,6 +1,6 @@
-import logging
 import tempfile
 
+import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
@@ -20,7 +20,7 @@ from src.db import (
 from src.deps import _get_real_ip
 from src.garmin.client import GarminClient
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
@@ -66,16 +66,14 @@ async def garmin_link(
             await save_user_token(user["id"], "garmin", blob)
 
         await set_garmin_linked(user["id"], garmin_email)
-        logger.info(
-            "garmin.link.success user_id=%s ip=%s", user["id"], _get_real_ip(request)
-        )
+        logger.info("garmin.link.success", user_id=user["id"], ip=_get_real_ip(request))
         return RedirectResponse("/?linked=1", status_code=303)
     except Exception as e:
         logger.error(
-            "garmin.link.fail user_id=%s reason=%s ip=%s",
-            user["id"],
-            type(e).__name__,
-            _get_real_ip(request),
+            "garmin.link.fail",
+            user_id=user["id"],
+            reason=type(e).__name__,
+            ip=_get_real_ip(request),
         )
         return _deps.templates.TemplateResponse(
             request,
@@ -89,5 +87,5 @@ async def garmin_link(
 async def garmin_unlink(request: Request):
     user = await _deps.require_user(request)
     await set_garmin_unlinked(user["id"])
-    logger.info("garmin.unlink user_id=%s ip=%s", user["id"], _get_real_ip(request))
+    logger.info("garmin.unlink", user_id=user["id"], ip=_get_real_ip(request))
     return RedirectResponse("/", status_code=303)
