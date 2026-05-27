@@ -1,3 +1,12 @@
+/* ── Inter Variable Font (self-hosted) ─────────────────────────────────── */
+@font-face {
+  font-family: 'Inter';
+  src: url('/static/fonts/inter.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ── Design Tokens — Dark (default) ───────────────────────────────────── */
 :root {
   --surface:          #1e293b;

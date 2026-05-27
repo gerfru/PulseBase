@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     resend_from_email: str = "onboarding@resend.dev"
     app_base_url: str = "https://garmin.home.lab"
     fernet_key: str = ""  # FERNET_KEY — empty = no encryption (startup warning)
+    sentry_dsn: str = ""  # SENTRY_DSN — empty = disabled
 
     @property
     def db_url(self) -> str:

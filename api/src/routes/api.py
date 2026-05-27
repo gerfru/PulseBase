@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from datetime import date, datetime
 
 from fastapi import APIRouter, Query, Request
@@ -40,7 +39,6 @@ from src.db import (
 import src.deps as _deps
 from src.training_load import build_training_load
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -309,7 +307,10 @@ async def api_log_seizure(request: Request, body: SeizureBody):
 
 
 @router.get("/api/seizures")
-async def api_get_seizures(request: Request, days: int = 365):
+async def api_get_seizures(
+    request: Request,
+    days: int = Query(default=365, ge=1, le=365),
+):
     user = await _deps.require_user(request)
     return await get_seizures(user["id"], days)
 

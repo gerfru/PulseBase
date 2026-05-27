@@ -283,6 +283,36 @@ async def test_seizures_list(client):
     assert r.status_code == 200
 
 
+async def test_seizures_days_zero_returns_422(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/seizures?days=0")
+    assert r.status_code == 422
+
+
+async def test_seizures_days_over_max_returns_422(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/seizures?days=366")
+    assert r.status_code == 422
+
+
+async def test_seizures_days_boundary_min(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_seizures", AsyncMock(return_value=[])),
+    ):
+        r = await client.get("/api/seizures?days=1")
+    assert r.status_code == 200
+
+
+async def test_seizures_days_boundary_max(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_seizures", AsyncMock(return_value=[])),
+    ):
+        r = await client.get("/api/seizures?days=365")
+    assert r.status_code == 200
+
+
 async def test_seizure_risk(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
