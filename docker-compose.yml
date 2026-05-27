@@ -19,6 +19,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '1.00'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   flyway:
     image: flyway/flyway:latest@sha256:3a6be8355102c0a45fb1b869615beea8510fd0dc44ffc48d5583808a1b00c19f
@@ -85,6 +95,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '0.50'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   sync-service:
     build: ./sync-service
@@ -102,6 +122,16 @@ services:
       DB_NAME: garmin
     networks:
       - internal
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.25'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ml-service:
     build: ./ml-service
@@ -119,6 +149,16 @@ services:
       - ml-models:/app/models
     networks:
       - internal
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1.00'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   timescale-data:

@@ -17,6 +17,8 @@ dependencies = [
     "slowapi>=0.1.9",
     "pylibrelinkup>=0.10.0",
     "cryptography>=42.0.0",
+    "structlog>=24.4.0",
+    "sentry-sdk[fastapi]>=2.0.0",
 ]
 
 [project.optional-dependencies]

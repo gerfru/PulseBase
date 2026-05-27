@@ -1,8 +1,8 @@
-import logging
 import time
 from pathlib import Path
 
 import bcrypt
+import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 
 from src.db import Settings, get_user_by_id
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 settings = Settings()  # type: ignore[call-arg]
 

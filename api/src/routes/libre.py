@@ -1,8 +1,8 @@
 import json
-import logging
 import shutil
 from pathlib import Path
 
+import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
@@ -11,7 +11,7 @@ from src.crypto import fernet_encrypt
 from src.db import save_user_token, set_libre_linked, set_libre_unlinked
 from src.deps import _get_real_ip
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
@@ -46,15 +46,14 @@ async def libre_link(
         )
         await save_user_token(user["id"], "libre", blob)
         await set_libre_linked(user["id"], libre_email)
-        logger.info(
-            "libre.link.success user_id=%s ip=%s", user["id"], _get_real_ip(request)
-        )
+        logger.info("libre.link.success", user_id=user["id"], ip=_get_real_ip(request))
         return RedirectResponse("/dashboard", status_code=303)
     except LibreAuthError:
         logger.warning(
-            "libre.link.fail reason=auth user_id=%s ip=%s",
-            user["id"],
-            _get_real_ip(request),
+            "libre.link.fail",
+            reason="auth",
+            user_id=user["id"],
+            ip=_get_real_ip(request),
         )
         return _deps.templates.TemplateResponse(
             request,
@@ -67,10 +66,10 @@ async def libre_link(
         )
     except Exception as e:
         logger.error(
-            "libre.link.fail reason=%s user_id=%s ip=%s",
-            type(e).__name__,
-            user["id"],
-            _get_real_ip(request),
+            "libre.link.fail",
+            reason=type(e).__name__,
+            user_id=user["id"],
+            ip=_get_real_ip(request),
         )
         return _deps.templates.TemplateResponse(
             request,
@@ -90,5 +89,5 @@ async def libre_unlink(request: Request):
     token_dir = Path(f"/app/tokens/{user['id']}/libre")
     if token_dir.exists():
         shutil.rmtree(token_dir)
-    logger.info("libre.unlink user_id=%s ip=%s", user["id"], _get_real_ip(request))
+    logger.info("libre.unlink", user_id=user["id"], ip=_get_real_ip(request))
     return RedirectResponse("/libre/link", status_code=303)
