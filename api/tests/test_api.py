@@ -13,6 +13,67 @@ async def test_health(client):
     assert r.json() == {"status": "ok"}
 
 
+async def test_ready_ok(client):
+    r = await client.get("/ready")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ready"}
+
+
+async def test_ready_db_failure_returns_503(client):
+    with patch("src.main.get_pool", AsyncMock(side_effect=Exception("db down"))):
+        r = await client.get("/ready")
+    assert r.status_code == 503
+    assert r.json()["status"] == "unavailable"
+
+
+# ── Security Headers ──────────────────────────────────────────────────────────
+
+
+async def test_security_headers_present(client):
+    r = await client.get("/health")
+    assert "connect-src 'self'" in r.headers.get("content-security-policy", "")
+    assert "payment=()" in r.headers.get("permissions-policy", "")
+    assert r.headers.get("x-frame-options") == "DENY"
+    assert r.headers.get("x-content-type-options") == "nosniff"
+
+
+async def test_csp_no_external_font_sources(client):
+    csp = (
+        r.headers.get("content-security-policy", "")
+        if (r := await client.get("/health"))
+        else ""
+    )
+    assert "fonts.googleapis.com" not in csp
+    assert "fonts.gstatic.com" not in csp
+
+
+# ── Cache-Control Headers ─────────────────────────────────────────────────────
+
+
+async def test_api_get_has_private_cache_header(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_readiness", AsyncMock(return_value={"score": 75})),
+    ):
+        r = await client.get("/api/readiness")
+    assert r.headers.get("cache-control") == "private, no-cache"
+
+
+async def test_post_has_no_store_cache_header(client):
+    with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=None)):
+        r = await client.post(
+            "/login",
+            data={"email": "x@x.com", "password": "wrong"},  # pragma: allowlist secret
+        )  # pragma: allowlist secret
+    assert r.headers.get("cache-control") == "no-store"
+
+
+async def test_static_asset_has_immutable_cache_header(client):
+    r = await client.get("/static/colors.js")
+    assert r.status_code == 200
+    assert r.headers.get("cache-control") == "public, max-age=31536000, immutable"
+
+
 async def test_login_page(client):
     r = await client.get("/login")
     assert r.status_code == 200
