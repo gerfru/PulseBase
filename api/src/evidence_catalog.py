@@ -170,18 +170,27 @@ EVIDENCE: dict[str, dict] = {
         "label": "Eigenmodell",
         "name": "Body Battery Custom",
         "summary": (
-            "Energiebudget-Modell angelehnt an Banister-Drain-Logik: "
-            "Recovery via Schlaf/HRV, Drain via TRIMP und Stress. "
-            "Konzept physiologisch plausibel, spezifische Formel ist "
-            "PulseBase-eigene Kalibrierung ohne externe Validierung."
+            "Fresh-State-Energiemodell (v2, Mai 2026): Tagesenergie als "
+            "physiologischer Snapshot — 70 % aktuelle Physiologie + 30 % Trägheit "
+            "vom Vortag. Schlafphasen (Tiefschlaf-Ziel 20 %, REM-Ziel 25 %) sind "
+            "primäres Erholungssignal, HRV vs. 30-Tage-Baseline sekundär. "
+            "Ersetzt das frühere Banister-Akkumulationsmodell, das bei Ruhe "
+            "Plateaus bei 100 produzierte (Sci Rep 2025: FFM hat fundamentale "
+            "statistische Mängel). Composite-Aggregation bleibt heuristisch — "
+            "kein Hersteller veröffentlicht klinisch validierte Formel."
         ),
         "refs": [
-            "Banister EW, Calvert TW (1991). Modeling Elite Athletic Performance.",
+            "Walker M (2017). Why We Sleep — sleep stage targets (Deep ~20 %, REM ~25 %).",
+            "Dijk DJ, Czeisler CA (1995). J Neurosci 15(5):3526–3538 — SWS/REM physiology.",
+            "Plews DJ et al. (2013). Sports Med 43(9):773–781 — HRV vs. baseline.",
             "Kellmann M, Kallus KW (2001). Recovery-Stress Questionnaire for Athletes.",
+            "Statistical flaws of the fitness-fatigue model. Sci Rep (2025) doi:10.1038/s41598-025-88153-7.",
         ],
         "limitations": (
-            "Kein externer Benchmark. Drain-Faktoren und Gewichtungen sind "
-            "nicht empirisch gegen Goldstandard-Biomarker kalibriert."
+            "Kein externer Benchmark. Gewichtungen (70/30, 35/25) sind "
+            "heuristische Kalibrierungen, nicht gegen Goldstandard-Biomarker "
+            "validiert. Schlafphasen-Messung per Akzelerometer+HRV (Garmin) "
+            "nur mäßig mit PSG-Referenzmessungen korreliert."
         ),
     },
     "stress_score_custom": {
