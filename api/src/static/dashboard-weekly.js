@@ -1,4 +1,3 @@
-import { fmtDate } from './chart-utils.js';
 import { currentDays } from './dashboard-nav.js';
 
 export async function buildWeeklyReview() {
@@ -10,15 +9,17 @@ export async function buildWeeklyReview() {
         if (existingReview) existingReview.remove();
 
         const numWeeks = Math.ceil((currentDays / 7) * 2) + 1;
-        const weekly = await fetch(`/api/weekly?weeks=${numWeeks}`).then(r => r.json());
+        const weekly = await fetch(`/api/weekly?weeks=${numWeeks}`).then((r) => r.json());
         if (!weekly || weekly.length === 0) return;
 
         function weekLabel(weekDateStr) {
-            const mon = new Date(weekDateStr + 'T00:00:00');
-            const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-            const fmt = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-            const t = new Date(mon); t.setDate(t.getDate() + 4 - (t.getDay() || 7));
-            const kw = Math.ceil((((t - new Date(t.getFullYear(), 0, 1)) / 86400000) + 1) / 7);
+            const mon = new Date(`${weekDateStr}T00:00:00`);
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const t = new Date(mon);
+            t.setDate(t.getDate() + 4 - (t.getDay() || 7));
+            const kw = Math.ceil(((t - new Date(t.getFullYear(), 0, 1)) / 86400000 + 1) / 7);
             return `KW ${kw} · ${fmt(mon)} – ${fmt(sun)}`;
         }
 
@@ -45,11 +46,10 @@ export async function buildWeeklyReview() {
             const [thisWeek, lastWeek] = weekly.slice(-2).reverse();
             if (!thisWeek) return;
             const actDelta = lastWeek ? thisWeek.activity_count - lastWeek.activity_count : null;
-            const kmDelta  = lastWeek ? thisWeek.total_km  - lastWeek.total_km  : null;
-            const kmPct    = lastWeek && lastWeek.total_km > 0
-                ? (kmDelta / lastWeek.total_km * 100).toFixed(0) : null;
+            const kmDelta = lastWeek ? thisWeek.total_km - lastWeek.total_km : null;
+            const kmPct = lastWeek && lastWeek.total_km > 0 ? ((kmDelta / lastWeek.total_km) * 100).toFixed(0) : null;
             const actSub = lastWeek ? `vs. ${lastWeek.activity_count} Vorwoche` : '';
-            const kmSub  = kmPct != null ? `${kmPct > 0 ? '+' : ''}${kmPct}%` : '';
+            const kmSub = kmPct != null ? `${kmPct > 0 ? '+' : ''}${kmPct}%` : '';
 
             reviewHtml = `<div data-weekly-review class="wk-review">
                 <div class="wk-header">${weekLabel(thisWeek.week)}</div>
@@ -64,13 +64,14 @@ export async function buildWeeklyReview() {
             const [w2, w1] = weekly.slice(-2).reverse();
             if (!w1 || !w2) return;
             const actDelta = w2.activity_count - w1.activity_count;
-            const kmDelta  = w2.total_km - w1.total_km;
-            const kmPct    = w1.total_km > 0 ? (kmDelta / w1.total_km * 100).toFixed(0) : 0;
+            const kmDelta = w2.total_km - w1.total_km;
+            const kmPct = w1.total_km > 0 ? ((kmDelta / w1.total_km) * 100).toFixed(0) : 0;
 
             function kwOnly(weekDateStr) {
-                const mon = new Date(weekDateStr + 'T00:00:00');
-                const t = new Date(mon); t.setDate(t.getDate() + 4 - (t.getDay() || 7));
-                const kw = Math.ceil((((t - new Date(t.getFullYear(), 0, 1)) / 86400000) + 1) / 7);
+                const mon = new Date(`${weekDateStr}T00:00:00`);
+                const t = new Date(mon);
+                t.setDate(t.getDate() + 4 - (t.getDay() || 7));
+                const kw = Math.ceil(((t - new Date(t.getFullYear(), 0, 1)) / 86400000 + 1) / 7);
                 return `KW ${kw}`;
             }
 
@@ -85,26 +86,26 @@ export async function buildWeeklyReview() {
             </div>`;
         } else if (currentDays === 30) {
             const actSum = weekly.reduce((s, w) => s + (w.activity_count || 0), 0);
-            const kmSum  = weekly.reduce((s, w) => s + (w.total_km  || 0), 0);
-            const wks    = weekly.length || 1;
+            const kmSum = weekly.reduce((s, w) => s + (w.total_km || 0), 0);
+            const wks = weekly.length || 1;
 
             reviewHtml = `<div data-weekly-review class="wk-review">
                 <div class="wk-header">Monat im Überblick</div>
                 <div class="wk-kpis">
-                    ${kpi('Aktivitäten', actSum, `Ø ${(actSum/wks).toFixed(1)}/Woche`)}
-                    ${kpi('Distanz', `${Math.round(kmSum)} km`, `Ø ${Math.round(kmSum/wks)} km/Woche`)}
+                    ${kpi('Aktivitäten', actSum, `Ø ${(actSum / wks).toFixed(1)}/Woche`)}
+                    ${kpi('Distanz', `${Math.round(kmSum)} km`, `Ø ${Math.round(kmSum / wks)} km/Woche`)}
                 </div>
             </div>`;
         } else {
             const actSum = weekly.reduce((s, w) => s + (w.activity_count || 0), 0);
-            const kmSum  = weekly.reduce((s, w) => s + (w.total_km  || 0), 0);
-            const wks    = weekly.length || 1;
+            const kmSum = weekly.reduce((s, w) => s + (w.total_km || 0), 0);
+            const wks = weekly.length || 1;
 
             reviewHtml = `<div data-weekly-review class="wk-review">
                 <div class="wk-header">${wks} Wochen im Überblick</div>
                 <div class="wk-kpis">
-                    ${kpi('Aktivitäten', actSum, `Ø ${(actSum/wks).toFixed(1)}/Woche`)}
-                    ${kpi('Distanz', `${Math.round(kmSum)} km`, `Ø ${Math.round(kmSum/wks)} km/Woche`)}
+                    ${kpi('Aktivitäten', actSum, `Ø ${(actSum / wks).toFixed(1)}/Woche`)}
+                    ${kpi('Distanz', `${Math.round(kmSum)} km`, `Ø ${Math.round(kmSum / wks)} km/Woche`)}
                 </div>
             </div>`;
         }

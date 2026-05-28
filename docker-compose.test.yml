@@ -15,6 +15,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - test-internal
 
   flyway-test:
     image: flyway/flyway:latest@sha256:3a6be8355102c0a45fb1b869615beea8510fd0dc44ffc48d5583808a1b00c19f

@@ -6,4 +6,4 @@ tailwind.config = {
             colors: { accent: '#10b981' },
         },
     },
-}
+};

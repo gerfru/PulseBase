@@ -28,7 +28,7 @@ function renderSeverityChips() {
 }
 
 async function loadRisk() {
-    const r = await fetch('/api/seizures/risk').then(r => r.json());
+    const r = await fetch('/api/seizures/risk').then((r) => r.json());
     const dot = document.getElementById('risk-dot');
     const lbl = document.getElementById('risk-label');
     const detail = document.getElementById('risk-detail');
@@ -59,22 +59,29 @@ function formatDuration(sec) {
 
 function formatDate(iso) {
     const d = new Date(iso);
-    return d.toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString('de-AT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 const TYPE_LABELS = { focal: 'Fokal', generalized: 'Generalisiert', unknown: 'Unbekannt' };
 
 async function loadEvents() {
-    const events = await fetch('/api/seizures?days=365').then(r => r.json());
+    const events = await fetch('/api/seizures?days=365').then((r) => r.json());
     const el = document.getElementById('event-list');
     if (!events.length) {
         el.innerHTML = '<p class="text-sm text-slate-400">Noch keine Einträge.</p>';
         return;
     }
-    el.innerHTML = events.map(e => {
-        const dur = formatDuration(e.duration_seconds);
-        const sev = e.severity ? `${'●'.repeat(e.severity)}${'○'.repeat(5 - e.severity)}` : null;
-        return `<div class="flex flex-col gap-1 px-4 py-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06]">
+    el.innerHTML = events
+        .map((e) => {
+            const dur = formatDuration(e.duration_seconds);
+            const sev = e.severity ? `${'●'.repeat(e.severity)}${'○'.repeat(5 - e.severity)}` : null;
+            return `<div class="flex flex-col gap-1 px-4 py-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06]">
             <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-slate-700 dark:text-slate-200">${formatDate(e.occurred_at)}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">${TYPE_LABELS[e.type] || e.type}</span>
@@ -83,16 +90,20 @@ async function loadEvents() {
             ${sev ? `<div class="text-sm tracking-widest text-violet-400" title="Schwere ${e.severity}/5">${sev}</div>` : ''}
             ${e.notes ? `<div class="text-xs text-slate-400 mt-0.5">${e.notes.replace(/</g, '&lt;')}</div>` : ''}
         </div>`;
-    }).join('');
+        })
+        .join('');
 }
 
 async function logSeizure() {
     const occurredAt = document.getElementById('occurred-at').value;
-    if (!occurredAt) { alert('Bitte Datum und Uhrzeit angeben.'); return; }
+    if (!occurredAt) {
+        alert('Bitte Datum und Uhrzeit angeben.');
+        return;
+    }
     const body = {
         occurred_at: new Date(occurredAt).toISOString(),
         type: document.getElementById('seizure-type').value,
-        duration_seconds: parseInt(document.getElementById('duration').value) || null,
+        duration_seconds: parseInt(document.getElementById('duration').value, 10) || null,
         severity: selectedSeverity,
         notes: document.getElementById('notes').value.trim() || null,
     };
@@ -101,7 +112,10 @@ async function logSeizure() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    if (!res.ok) { alert('Fehler beim Speichern.'); return; }
+    if (!res.ok) {
+        alert('Fehler beim Speichern.');
+        return;
+    }
 
     document.getElementById('occurred-at').value = '';
     document.getElementById('seizure-type').value = 'unknown';
@@ -112,7 +126,9 @@ async function logSeizure() {
 
     const msg = document.getElementById('log-msg');
     msg.style.display = 'inline';
-    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    setTimeout(() => {
+        msg.style.display = 'none';
+    }, 3000);
 
     await loadEvents();
 }

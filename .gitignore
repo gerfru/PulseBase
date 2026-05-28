@@ -11,6 +11,10 @@ __pycache__/
 .venv/
 *.egg-info/
 
+# Node.js
+node_modules/
+api/coverage/
+
 # IDE
 .vscode/
 .idea/
