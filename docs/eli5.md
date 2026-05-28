@@ -49,13 +49,17 @@ nur die Zahlen, den Rest zeichnet dein Browser selbst.
 Der ML-Service ist wie ein stiller Forscher im Hintergrund. Jeden Morgen
 schaut er sich deine Daten an und stellt Fragen:
 
-- Ist dein Ruhepuls heute ungewöhnlich?
+- Ist dein Ruhepuls, SpO2 oder Stresslevel heute ungewöhnlich?
 - Wie fit wirst du morgen wahrscheinlich sein?
 - Hängt dein Schlaf mit deinem HRV-Wert zusammen?
 - Welches Energiemuster hattest du heute?
+- Wie viel Trainingsbelastung trägst du gerade (ACWR)?
+- Wie regelmäßig sind deine Schlafzeiten?
+- Wie schnell erholt sich deine HRV nach dem Training?
 
-Einmal pro Woche (sonntags) trainiert er seine Modelle neu — mit deinen
-neuesten Daten, damit die Vorhersagen immer besser werden.
+Einmal pro Woche (sonntags) trainiert er seine lernenden Modelle neu — mit deinen
+neuesten Daten, damit die Vorhersagen immer besser werden. Alle anderen Analysen
+sind regelbasierte Berechnungen ohne Trainingsbedarf.
 
 ---
 
@@ -102,9 +106,9 @@ Ohne dein Passwort zu kennen, kann PulseBase damit trotzdem Daten abrufen.
 
 ---
 
-## ML — Was der Computer lernt
+## ML — Was der Computer analysiert
 
-Der ML-Service führt täglich vier Analysen durch. Hier sind sie in einfacher Sprache:
+Der ML-Service führt täglich viele Analysen durch. Hier sind die wichtigsten in einfacher Sprache:
 
 ### Analyse 1: Ist dein Puls heute ungewöhnlich?
 
@@ -160,7 +164,7 @@ Der Computer gruppiert alle deine Tage in drei Muster:
 - **Erschöpft** — Stark abgefallen, viele Belastungsspitzen
 
 Das Muster wird täglich als kleiner Status-Chip im Tagesstatus-Hero angezeigt.
-Die Detail-Seite (`/ml/battery`) zeigt die Feature-Aufschlüsselung für den aktuellen Tag.
+Die Detail-Seite (`/metrics/battery-pattern`) zeigt die Feature-Aufschlüsselung für den aktuellen Tag.
 
 ---
 

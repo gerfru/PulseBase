@@ -111,27 +111,46 @@ make db               # psql-Shell (liest DB_APP_USER aus env/.env)
 
 ```
 api/src/
-├── main.py           App-Setup + Router-Registrierung
+├── main.py              App-Setup + Router-Registrierung
+├── deps.py              Settings (Pydantic), require_user(), Limiter, Templates
+├── evidence_catalog.py  Evidence-Catalog aller Metriken → GET /api/evidence
+├── training_load.py     Banister TRIMP für Physical Energy (Edwards 1993)
 ├── db/
-│   ├── __init__.py   Re-exports aller DB-Funktionen
-│   ├── users.py      User-Queries (create, get, delete, export, consent, …)
-│   └── pool.py       asyncpg Connection Pool
+│   ├── __init__.py      Re-exports aller DB-Funktionen
+│   ├── pool.py          asyncpg Connection Pool
+│   ├── users.py         User-Queries (create, get, delete, export, consent, …)
+│   ├── activities.py    Aktivitäts-Queries + RPE
+│   ├── health.py        daily/sleep/hrv/readiness/training-status/energy Queries
+│   ├── ml.py            ML-Predictions lesen/schreiben, ml-status
+│   ├── seizures.py      Anfallsereignisse (Epilepsie-Modus, V15)
+│   └── glucose.py       Glukose-Readings (Libre-User, V9)
 ├── routes/
-│   ├── auth.py       /login, /register, /auth/*, /logout (consent_health/terms/age, 12-Zeichen-PW)
-│   ├── account.py    /account/delete (DSGVO Art. 17), /account/export (DSGVO Art. 20)
-│   └── pages.py      /privacy, /terms, /imprint, /accessibility (öffentlich, keine Session nötig)
+│   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW)
+│   ├── account.py       /account/delete (DSGVO Art. 17), /account/export (DSGVO Art. 20)
+│   ├── api.py           Alle /api/* JSON-Endpunkte
+│   ├── garmin.py        /garmin/link, /garmin/unlink
+│   ├── libre.py         /libre/link, /libre/unlink
+│   └── pages.py         /dashboard, /settings, /metrics/*, /help, /epilepsy + öffentliche Seiten
 ├── garmin/
 │   ├── __init__.py
-│   └── client.py     Garmin Connect Client (Token-Login)
-└── templates/        Jinja2 Templates (login, register, dashboard, activity, settings, privacy, terms, imprint, accessibility, …)
+│   └── client.py        Garmin Connect Client (Token-Login)
+├── libre/
+│   └── client.py        LibreLinkUp Client (pylibrelinkup)
+└── templates/           Jinja2 Templates (login, register, dashboard, activity, settings,
+                         metrics, metrics_overview, help, epilepsy, privacy, terms, imprint, …)
 
 sync-service/src/
-├── main.py           APScheduler + Sync-Loop pro User
+├── main.py           APScheduler + Sync-Loop pro User (Garmin täglich, Libre 5-min)
+├── config.py         Settings (Pydantic): DB-Credentials, SYNC_HOUR, FERNET_KEY
+├── crypto.py         Fernet: fernet_encrypt/decrypt, serialize/restore_token_dir
 ├── domain/
 │   ├── __init__.py
 │   └── models.py
 ├── garmin/
 │   ├── __init__.py
+│   ├── client.py
+│   └── mapper.py
+├── libre/
 │   ├── client.py
 │   └── mapper.py
 └── repositories/
@@ -143,12 +162,26 @@ ml-service/src/
 ├── main.py           APScheduler: Inference täglich (ML_INFER_HOUR), Training Sonntag 3h
 ├── config.py         Settings (DB_APP_USER/PASSWORD, MODEL_DIR, ML_INFER_HOUR)
 ├── db.py             asyncpg: Trainingsdaten laden + Predictions speichern
+├── backfill.py       Prediction-Backfill (make backfill-battery / backfill-energy)
 └── models/
-    ├── anomaly.py    Z-Score auf Resting-HR (30-Tage-Rolling-Baseline, min. 7 Punkte)
-    ├── correlation.py Pearson r: sleep_score(N) → hrv_last_night(N+1) (min. 10 Paare)
-    └── readiness.py  RandomForestRegressor: [hrv, sleep, resting_hr] → Score (min. 30 Paare)
+    ├── anomaly.py         Z-Score: resting_hr, spo2, sleep_duration, steps, stress
+    ├── correlation.py     Pearson r: sleep→HRV, sleep→RHR, body battery→RHR (min. 10 Paare)
+    ├── readiness.py       RandomForestRegressor: 8 Features → Score (min. 30 Paare)
+    ├── battery_pattern.py k-Means: Body-Battery-Tagesmuster (frisch/erschöpft/…)
+    ├── body_battery.py    Fresh-State-Modell: Schlafqualität(40%) + HRV(25%) + Drain
+    ├── energy_metrics.py  Physical (CTL/TSB), Autonomic (HRV-σ), Cognitive (Schlafschuld)
+    ├── hrv_status.py      BALANCED/UNBALANCED/LOW/POOR Klassifikation
+    ├── sleep_score.py     Custom Sleep Score (Phasen + Dauer)
+    ├── intensity_minutes.py  WHO-Intensitätsminuten (moderat/intensiv)
+    ├── training_load.py   ACWR (7d/42d-Ratio) + Training Monotony
+    ├── stress_metrics.py  Stress-Score (HRV-basiert, invertierte autonome Balance)
+    ├── spo2_metrics.py    SpO2-Trendanalyse + Apnoe-Flag (min_spo2 < 90%)
+    ├── sleep_metrics.py   Sleep Consistency Score (zirkuläre σ-Statistik)
+    ├── training_effect.py Banister TRIMP → atan-Skalierung 0–5
+    ├── running_economy.py GCT / Vertikal-Oszillation / Vertical Ratio → Score
+    └── hrv_recovery.py    HRV-Erholungstrajektorie nach Belastung (ΔHRV/Tag)
 
-db/migrations/        Flyway: V1-V5 Schema, V6 sync_trigger, V7 app_user, V8 ml_predictions
+db/migrations/        Flyway: V1–V20 (V15 Epilepsie, V19 Consents, V20 user_tokens)
 ```
 
 Die `__init__.py`-Dateien in den sync-service-Sub-Paketen sind Pflicht — ohne sie erkennt mypy die
@@ -178,10 +211,13 @@ Jobs in `.github/workflows/ci.yml`:
 
 | Job | Tool | Was |
 | --- | ---- | --- |
-| `lint` | ruff | Check + Format-Check |
+| `lint` | ruff | Check + Format-Check (Python) |
+| `js-lint` | Biome 2.x | Lint + Format-Check (JS: api/src/static/) |
 | `security` | gitleaks + pip-audit + bandit | Secret-Scan, SCA, SAST |
 | `typecheck` | mypy | api/ + sync-service/ + ml-service/ mit `--explicit-package-bases` |
-| `test` | pytest | sync-service/tests/ + ml-service/tests/ |
+| `test` | pytest | api/tests/ + sync-service/tests/ + ml-service/tests/ |
+| `js-test` | Vitest | api/src/static/ JS Unit-Tests mit Coverage |
+| `e2e` | Playwright | E2E Smoke-Tests auf test-docker-compose Stack (api-test auf Port 8001) |
 | `trivy` | trivy | Docker-Image-Scan für api + sync + ml, CRITICAL+HIGH (`ignore-unfixed: true`) |
 
 ## Pre-commit Hooks
@@ -214,31 +250,64 @@ Wichtig: bandit und mypy als `pass_filenames: false` mit absoluten Pfaden vom Pr
 ## JSON-API Endpoints (alle session-geschützt)
 
 ```
-GET /api/activities              Aktivitäten (Query: days=7, limit=500)
-GET /api/activities/{id}         Aktivität Detail + activity_records
-GET /api/daily?days=30           Tagesübersichten
-GET /api/sleep?days=14           Schlaf-Sessions
-GET /api/hrv                     letzter HRV-Eintrag
-GET /api/hrv/trend?days=30       HRV-Verlauf
-GET /api/training-status         letzter Trainingszustand
-GET /api/weekly?weeks=12         Wöchentliche Volumen-Aggregation (run_km, ride_km)
-GET /api/readiness               Readiness-Score 0-100 (regelbasiert, kein ML)
-GET /api/ml-insights             ML-Ergebnisse (Anomalie, Korrelation, RF-Prognose)
+GET  /api/activities              Aktivitäten (Query: days=7, limit=500)
+GET  /api/activities/{id}         Aktivität Detail + activity_records
+GET  /api/daily?days=30           Tagesübersichten
+GET  /api/sleep?days=14           Schlaf-Sessions
+GET  /api/hrv                     letzter HRV-Eintrag
+GET  /api/hrv/trend?days=30       HRV-Verlauf
+GET  /api/training-status         letzter Trainingszustand
+GET  /api/weekly?weeks=12         Wöchentliche Volumen-Aggregation (run_km, ride_km)
+GET  /api/readiness               Readiness-Score 0-100 (regelbasiert, kein ML)
+GET  /api/energy                  Energie-Scores: physical / autonomic / cognitive
+GET  /api/ml-insights             Alle ML-Predictions: Anomalie, Korrelation, RF, Muster, …
+GET  /api/ml-history?days=30      ML-Predictions-Verlauf
+GET  /api/ml-status               ML-Service-Status (letzte Inferenz, Training, Modell-Metadaten)
+GET  /api/sync-status             Sync-Service-Status (letzter erfolgreicher Sync)
+POST /api/sync                    Garmin-Sync manuell auslösen
+GET  /api/evidence                Evidence-Catalog aller Metriken (level, time_horizon, …)
+GET  /api/seizures                Anfallsereignisse (nur Epilepsie-Modus)
+POST /api/seizures                Neues Anfallsereignis speichern
+GET  /api/seizures/risk           Aktueller regelbasierter Anfallsrisiko-Indikator
+GET  /api/glucose?days=7          Glukose-Messwerte (nur Libre-User)
+GET  /api/glucose/stats           Glukose-Statistiken (mean, CV, time-in-range)
+PATCH /api/profile                Nutzerprofil: Geb.-Datum, Geschlecht (Banister-TRIMP)
+PATCH /api/activities/{id}/rpe    RPE (Rate of Perceived Exertion) für Aktivität setzen
+GET  /health                      Liveness-Check (kein Auth nötig)
 ```
 
 ## Seiten-Routen
 
 ```
-GET /dashboard               Dashboard (Chart.js, fetch)
-GET /activity/{id}           Aktivitäts-Detail (GPS-Karte, Charts)
-GET /garmin/link             Garmin-Account verknüpfen
-GET /account/export          Daten-Export als JSON-Download (DSGVO Art. 20)
+# Auth (öffentlich)
+GET/POST /login              Login (rate-limited 10/min, Account-Lockout nach 5 Fehlern)
+GET/POST /register           Registrierung (3 Consent-Checkboxen, 12-Zeichen-PW)
+GET      /auth/verify/{tok}  E-Mail-Verifizierung (signierter Token, 24h TTL)
+POST     /auth/resend-verify Verifikations-E-Mail erneut senden
+POST     /auth/reset-request Passwort-Reset anfordern
+GET/POST /auth/reset/{tok}   Neues Passwort setzen
+POST     /logout             Session beenden
+
+# Geschützte Seiten (Session nötig)
+GET  /dashboard              Dashboard (Chart.js, fetch)
+GET  /activity/{id}          Aktivitäts-Detail (GPS-Karte, Charts)
+GET  /settings               Einstellungen (Garmin/Libre-Link, Profil, Epilepsie-Modus)
+GET  /metrics                Metriken-Übersicht (alle Metriken als Kacheln mit Evidence-Badge)
+GET  /metrics/{name}         Metrik-Detail (Summary + Empfehlung + Chart + KPIs)
+GET  /help                   Hilfe & Methodologie (durchsuchbar, Deep-Links /help#<metric-key>)
+GET  /epilepsy               Anfallstagebuch + Risiko-Indikator (nur Epilepsie-Modus)
+GET/POST /garmin/link        Garmin-Account verknüpfen
+POST     /garmin/unlink      Garmin-Account trennen
+GET/POST /libre/link         LibreLinkUp verknüpfen
+POST     /libre/unlink       LibreLinkUp trennen
+GET  /account/export         Daten-Export als JSON-Download (DSGVO Art. 20)
 POST /account/delete         Konto löschen — E-Mail + Passwort nötig (DSGVO Art. 17)
-GET /help                    Hilfe & Methodologie (durchsuchbar, Deep-Links /help#<metric-key>)
-GET /privacy                 Datenschutzerklärung (öffentlich)
-GET /terms                   Nutzungsbedingungen (öffentlich)
-GET /imprint                 Impressum (öffentlich)
-GET /accessibility           Barrierefreiheitserklärung (öffentlich, BFSG)
+
+# Öffentliche Seiten (keine Session nötig)
+GET /privacy                 Datenschutzerklärung
+GET /terms                   Nutzungsbedingungen
+GET /imprint                 Impressum
+GET /accessibility           Barrierefreiheitserklärung (BFSG)
 ```
 
 ## Env-Files (unter `env/`)
