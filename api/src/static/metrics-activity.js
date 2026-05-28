@@ -45,6 +45,16 @@ export const ACTIVITY_METRICS = {
                     },
                 ],
                 eli5: 'Garmin zählt Intensitätsminuten nach einem fixen Pulsgrenzwert — egal wie fit du bist. Karvonen berücksichtigt deinen Ruhepuls: Wenn dein Herz in Ruhe sehr langsam schlägt (gute Fitness), muss es bei gleicher Anstrengung weniger schlagen. Die Formel normalisiert das und gibt dir eine faire Einschätzung.',
+                summary:
+                    'Heutige Intensitätsminuten nach Karvonen-HRR-Methode — WHO-kompatibel gewichtet (intensiv × 2).',
+                recommendation: (() => {
+                    if (total == null) return null;
+                    if (total >= 30)
+                        return `${total} WHO-Äquivalent-Minuten heute — guter Beitrag zum Wochenziel (150 min).`;
+                    if (total > 0)
+                        return `${total} WHO-Äquivalent-Minuten. Mehr moderate oder intensive Aktivität einplanen.`;
+                    return 'Heute keine Intensitätsminuten erfasst. Aktivität einplanen wenn möglich.';
+                })(),
             };
         },
     },
@@ -103,6 +113,19 @@ export const ACTIVITY_METRICS = {
                     },
                 ],
                 eli5: 'Garmin zeigt dir einen Aerobic Training Effect nach einem Firstbeat-Algorithmus, den du nicht nachvollziehen kannst. Unser Wert basiert auf Banister TRIMP: Wie intensiv war das Training (Puls × Zeit), und wie viel davon verträgt dein aktuelles Fitness-Niveau (CTL)? Ein Training Effect von 3.0 bedeutet: deutliche Anpassungsreize, ohne überzubelasten.',
+                summary:
+                    'Trainingseffekt der letzten Einheit (0–5) basierend auf TRIMP relativ zur aktuellen CTL-Fitness.',
+                recommendation: (() => {
+                    const ef = d?.effect ?? null;
+                    if (ef == null) return null;
+                    if (ef >= 4)
+                        return `Training Effect ${ef.toFixed(1)} — sehr intensiv. Heute oder morgen Erholung einplanen.`;
+                    if (ef >= 2.5)
+                        return `Training Effect ${ef.toFixed(1)} — guter Trainingsreiz. Anpassungseffekte erwartet.`;
+                    if (ef >= 1)
+                        return `Training Effect ${ef.toFixed(1)} — leichter Reiz. Für Fitness-Aufbau Intensität erhöhen.`;
+                    return `Training Effect ${ef.toFixed(1)} — minimaler Reiz. Training war sehr leicht.`;
+                })(),
             };
         },
     },
@@ -154,6 +177,16 @@ export const ACTIVITY_METRICS = {
                     },
                 ],
                 eli5: 'Wenn du 7 Tage lang immer die gleiche Trainingsart mit der gleichen Intensität machst, wird dein Körper überlastet — nicht weil es zu viel ist, sondern weil die Reizvariation fehlt. Ein Schwimmer, der nur Tempotraining macht, bekommt eher Infekte als einer, der Temposchwimmen, Fondo und Sprintblöcke abwechselt.',
+                summary:
+                    'Zeigt ob die Trainingsbelastung der letzten 7 Tage zu monoton (gleichförmig) war — Risiko für Übertraining.',
+                recommendation: (() => {
+                    const mono = d?.monotony ?? null;
+                    if (mono == null) return null;
+                    if (mono < 1.5) return `Monotonie ${mono.toFixed(2)} — gute Variation im Trainingsplan.`;
+                    if (mono < 2.0)
+                        return `Monotonie ${mono.toFixed(2)} — leicht erhöht. Mehr Variation zwischen harten und leichten Tagen einbauen.`;
+                    return `Monotonie ${mono.toFixed(2)} — kritisch hoch (>2.0). Drastische Variation empfohlen, Infektrisiko erhöht.`;
+                })(),
             };
         },
     },
@@ -235,6 +268,16 @@ export const ACTIVITY_METRICS = {
                     },
                 ],
                 eli5: 'Beim Laufen brauchst du guten Kontakt mit dem Boden. Zu lange Bodenkontakt (>240ms) bedeutet, du drückst zu lange ab und verschwendest Energie. Zu viel Auf-und-Ab (hohes VO) belastet deine Knöchel und Knie. Ideale Werte: schneller Fuß-Kontakt, geringe vertikale Bewegung (effiziente Kraftübertragung). Dieser Score zeigt, ob dein Lauf-Stil ökonomisch ist.',
+                summary:
+                    'Laufökonomie-Score aus Bodenkontaktzeit + vertikaler Oszillation — verglichen mit deiner eigenen Baseline.',
+                recommendation: (() => {
+                    const sc = d?.score ?? null;
+                    if (sc == null) return null;
+                    if (sc >= 75) return `Laufökonomie ${Math.round(sc)} — effizienter Laufstil. Technik beibehalten.`;
+                    if (sc >= 50)
+                        return `Laufökonomie ${Math.round(sc)} — durchschnittlich. Bodenkontaktzeit und vertikale Bewegung reduzieren.`;
+                    return `Laufökonomie ${Math.round(sc)} — Verbesserungspotenzial. Lauftechnik-Training empfohlen.`;
+                })(),
             };
         },
     },

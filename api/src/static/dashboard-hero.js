@@ -65,6 +65,19 @@ export function evBadge(key) {
     return `<button class="ev-badge ${cls}" data-ev-badge="${key}" title="${esc(e.label)}: ${esc(e.name)}">${short}</button>`;
 }
 
+export function heroRecommendation(s) {
+    if (s == null) return '';
+    const [text, cls] =
+        s >= 75
+            ? ['Voll belasten — Körper ist erholt', 'rec-green']
+            : s >= 60
+              ? ['Moderat trainieren — Erholung läuft', 'rec-amber']
+              : s >= 40
+                ? ['Leichtes Training — Erholung bevorzugen', 'rec-amber']
+                : ['Heute ruhen — Erholung prioritär', 'rec-red'];
+    return `<p class="hero-recommendation ${cls}">${text}</p>`;
+}
+
 export function buildHeroCard() {
     const el = document.getElementById('bento-hero');
     if (!el) return;
@@ -115,19 +128,6 @@ export function buildHeroCard() {
 
     const rfScore = rf?.value != null ? Math.round(rf.value) : null;
     const rfSubCls = rfScore != null ? (rfScore >= 75 ? 'sub-green' : rfScore >= 50 ? 'sub-amber' : 'sub-red') : '';
-
-    function heroRecommendation(s) {
-        if (s == null) return '';
-        const [text, cls] =
-            s >= 75
-                ? ['Voll belasten — Körper ist erholt', 'rec-green']
-                : s >= 60
-                  ? ['Moderat trainieren — Erholung läuft', 'rec-amber']
-                  : s >= 40
-                    ? ['Leichtes Training — Erholung bevorzugen', 'rec-amber']
-                    : ['Heute ruhen — Erholung prioritär', 'rec-red'];
-        return `<p class="hero-recommendation ${cls}">${text}</p>`;
-    }
 
     function tileCls(s) {
         return s == null ? 'heute-muted' : s >= 70 ? 'heute-green' : s >= 45 ? 'heute-amber' : 'heute-red';

@@ -298,3 +298,73 @@ async def test_garmin_link_loads_existing_token(client):
             },
         )
     assert r.status_code == 303
+
+
+# ── Evidence Catalog ──────────────────────────────────────────────────────────
+
+
+def test_evidence_catalog_required_fields():
+    """Every entry must have the EN 62366-inspired fields added in this sprint."""
+    from src.evidence_catalog import EVIDENCE
+
+    required = {
+        "level",
+        "label",
+        "metric_type",
+        "time_horizon",
+        "intended_use",
+        "not_for",
+        "name",
+        "summary",
+        "refs",
+        "limitations",
+    }
+    valid_types = {"recovery", "capacity", "trend", "prediction", "screening"}
+
+    for key, entry in EVIDENCE.items():
+        missing = required - set(entry.keys())
+        assert not missing, f"Entry '{key}' missing fields: {missing}"
+        assert entry["metric_type"] in valid_types, (
+            f"Entry '{key}' has invalid metric_type: {entry['metric_type']!r}"
+        )
+        assert entry["time_horizon"], f"Entry '{key}' has empty time_horizon"
+        assert entry["intended_use"], f"Entry '{key}' has empty intended_use"
+        assert entry["not_for"], f"Entry '{key}' has empty not_for"
+
+
+def test_evidence_catalog_new_entries_present():
+    """Newly added metrics must have evidence entries."""
+    from src.evidence_catalog import EVIDENCE
+
+    expected_new = {
+        "battery_pattern",
+        "sleep_score_custom",
+        "intensity_minutes_custom",
+        "correlation_sleep_hrv",
+    }
+    for key in expected_new:
+        assert key in EVIDENCE, f"Missing evidence entry for '{key}'"
+
+
+def test_evidence_catalog_metric_types():
+    """Spot-check metric_type assignments for correctness."""
+    from src.evidence_catalog import EVIDENCE
+
+    assert EVIDENCE["energy_physical"]["metric_type"] == "capacity"
+    assert EVIDENCE["energy_autonomic"]["metric_type"] == "recovery"
+    assert EVIDENCE["readiness_rf"]["metric_type"] == "prediction"
+    assert EVIDENCE["battery_pattern"]["metric_type"] == "trend"
+    assert EVIDENCE["anomaly_hr"]["metric_type"] == "screening"
+    assert EVIDENCE["spo2_trend"]["metric_type"] == "screening"
+
+
+async def test_evidence_api_returns_new_fields(client):
+    """/api/evidence must return metric_type and time_horizon for every entry."""
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/evidence")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) >= 17
+    for key, entry in data.items():
+        assert "metric_type" in entry, f"/api/evidence: '{key}' missing metric_type"
+        assert "time_horizon" in entry, f"/api/evidence: '{key}' missing time_horizon"

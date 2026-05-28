@@ -37,6 +37,24 @@ async function load() {
         document.getElementById('metric-value').innerHTML = result.value;
         if (result.sub) document.getElementById('metric-sub').textContent = result.sub;
 
+        // Inline summary (1-2 sentences from eli5)
+        const summaryEl = document.getElementById('metric-summary');
+        if (summaryEl && result.summary) {
+            summaryEl.textContent = result.summary;
+            summaryEl.style.display = '';
+        }
+
+        // Recommendation block
+        const recEl = document.getElementById('metric-recommendation');
+        if (recEl && result.recommendation) {
+            recEl.textContent = result.recommendation;
+            recEl.style.display = '';
+        }
+
+        // Deep-link to help article
+        const helpLink = document.getElementById('metric-help-link');
+        if (helpLink) helpLink.href = `/help#${name}`;
+
         if (result.customHtml) {
             document.getElementById('custom-html-block').innerHTML = result.customHtml;
         }
@@ -127,31 +145,7 @@ async function load() {
             });
         }
 
-        if (result.eli5) {
-            document.getElementById('eli5-card').style.display = '';
-            document.getElementById('eli5-text').textContent = result.eli5;
-        }
-
-        if (result.formula?.length || result.science) {
-            document.getElementById('formula-card').style.display = '';
-            if (result.science) {
-                const sciEl = document.getElementById('science-text');
-                sciEl.textContent = result.science;
-                sciEl.style.display = '';
-            }
-            if (result.formula?.length) {
-                document.getElementById('formula-content').innerHTML = `<div class="formula-table">${result.formula
-                    .map(([k, v]) => `<div class="formula-row"><strong>${k}</strong><span>${v}</span></div>`)
-                    .join('')}</div>`;
-            }
-        }
-
-        if (result.sources?.length) {
-            document.getElementById('sources-card').style.display = '';
-            document.getElementById('sources-list').innerHTML = result.sources
-                .map((s) => `<li><a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.label}</a></li>`)
-                .join('');
-        }
+        // eli5, formula, sources are now in the /help section — see /help#<metric-name>
     } catch (err) {
         document.getElementById('metric-value').textContent = 'Fehler beim Laden';
         console.error('metrics load error:', err);

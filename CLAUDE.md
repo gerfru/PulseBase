@@ -234,6 +234,7 @@ GET /activity/{id}           Aktivitäts-Detail (GPS-Karte, Charts)
 GET /garmin/link             Garmin-Account verknüpfen
 GET /account/export          Daten-Export als JSON-Download (DSGVO Art. 20)
 POST /account/delete         Konto löschen — E-Mail + Passwort nötig (DSGVO Art. 17)
+GET /help                    Hilfe & Methodologie (durchsuchbar, Deep-Links /help#<metric-key>)
 GET /privacy                 Datenschutzerklärung (öffentlich)
 GET /terms                   Nutzungsbedingungen (öffentlich)
 GET /imprint                 Impressum (öffentlich)
