@@ -136,6 +136,59 @@ jobs:
       - run: npm run test:coverage
         working-directory: api
 
+  e2e:
+    name: E2E Tests
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Prepare env files
+        run: |
+          cp env/.env.example env/.env
+          cp env/.env.api.example env/.env.api
+          sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -hex 32)|" env/.env.api
+          sed -i "s|^FERNET_KEY=.*|FERNET_KEY=$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" env/.env
+          sed -i "s|^HTTPS_ONLY=.*|HTTPS_ONLY=false|" env/.env.api
+
+      - name: Start test stack
+        run: docker compose --env-file env/.env -f docker-compose.test.yml up -d --wait
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install api dev deps
+        run: pip install -e ".[dev]" -q
+        working-directory: api
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+        working-directory: api
+
+      - name: Create CI test user
+        working-directory: api
+        env:
+          TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}  # pragma: allowlist secret
+          DB_PORT: "5434"
+        run: |
+          export DB_USER=$(grep ^DB_USER ../env/.env | cut -d= -f2)
+          export DB_PASSWORD=$(grep ^DB_PASSWORD ../env/.env | cut -d= -f2)
+          python tests/e2e/create_ci_user.py
+
+      - name: Run E2E smoke tests
+        working-directory: api
+        env:
+          TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}  # pragma: allowlist secret
+        run: pytest tests/e2e/ -v
+
+      - name: Stop test stack
+        if: always()
+        run: docker compose --env-file env/.env -f docker-compose.test.yml down
+
   test:
     name: Tests
     needs: typecheck
