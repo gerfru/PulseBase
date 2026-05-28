@@ -11,6 +11,8 @@ dependencies = [
     "pydantic-settings>=2.14.1",
     "apscheduler>=3.11.2",
     "cryptography>=42.0.0",
+    "structlog>=24.4.0",
+    "tenacity>=8.2.0",
 ]
 
 [project.optional-dependencies]

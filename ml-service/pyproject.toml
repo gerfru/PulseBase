@@ -12,6 +12,7 @@ dependencies = [
     "scipy>=1.15.0",
     "numpy>=2.0.0",
     "joblib>=1.4.0",
+    "structlog>=24.4.0",
 ]
 
 [project.optional-dependencies]
