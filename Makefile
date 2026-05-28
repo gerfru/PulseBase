@@ -134,7 +134,7 @@ test: ## Unit + Integration aller 3 Services (kein Docker nötig)
 	cd ml-service && .venv/bin/pytest tests/ -v
 
 test-env-up: ## Test-Stack auf Port 8001 starten
-	$(DC) -f docker-compose.test.yml up -d --wait
+	$(DC) -f docker-compose.test.yml up -d --build --wait
 
 test-env-down: ## Test-Stack stoppen
 	$(DC) -f docker-compose.test.yml down

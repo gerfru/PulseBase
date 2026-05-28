@@ -106,146 +106,141 @@ export function buildHeroCard() {
         return `<p class="hero-recommendation ${cls}">${text}</p>`;
     }
 
-    function energyDots() {
+    function tileCls(s) {
+        return s == null ? 'heute-muted' : s >= 70 ? 'heute-green' : s >= 45 ? 'heute-amber' : 'heute-red';
+    }
+
+    function signalTiles() {
         const stressRaw = ml.stress_score_custom?.score;
         const stressForColor = stressRaw != null ? 100 - stressRaw : null;
-        const stressLbl = stressRaw == null ? '' : stressRaw < 30 ? 'Niedrig' : stressRaw < 60 ? 'Moderat' : 'Hoch';
-
+        const stressLbl = stressRaw == null ? '—' : stressRaw < 30 ? 'Niedrig' : stressRaw < 60 ? 'Moderat' : 'Hoch';
         const devRaw = auton?.deviation;
-        const autDevLbl = devRaw != null ? (devRaw >= 0 ? `+${devRaw.toFixed(1)}σ` : `${devRaw.toFixed(1)}σ`) : null;
+        const autDevLbl = devRaw != null ? (devRaw >= 0 ? `+${devRaw.toFixed(1)}σ` : `${devRaw.toFixed(1)}σ`) : '—';
         const debtRaw = cog?.debt_hours;
-        const cogDebtLbl = debtRaw != null ? (debtRaw > 0.1 ? `${debtRaw.toFixed(1)}h Schuld` : 'Kein Defizit') : null;
+        const cogDebtLbl = debtRaw != null ? (debtRaw > 0.1 ? `${debtRaw.toFixed(1)}h Schuld` : 'Kein Defizit') : '—';
 
-        const rows = [
+        return [
             {
-                s: auton?.score,
                 label: 'HRV',
                 href: '/metrics/autonomic',
-                spark: sparklineSvg(sparkHrv, C.green, 52, 20),
-                ctx: autDevLbl,
+                s: auton?.score,
+                val: autDevLbl,
+                spark: sparkHrv,
+                col: C.green,
             },
             {
-                s: cog?.score,
                 label: 'Schlaf',
                 href: '/metrics/cognitive',
-                spark: sparklineSvg(sparkSleep, C.violet, 52, 20),
-                ctx: cogDebtLbl,
+                s: cog?.score,
+                val: cogDebtLbl,
+                spark: sparkSleep,
+                col: C.violet,
             },
             {
-                s: stressForColor,
                 label: 'Stress',
                 href: '/metrics/stress-score-custom',
-                spark: sparklineSvg(sparkStress, C.orange, 52, 20),
-                lbl: stressLbl,
+                s: stressForColor,
+                val: stressLbl,
+                spark: sparkStress,
+                col: C.orange,
             },
-        ];
-        return `<span class="hero-zone-label">SIGNALE</span>
-        <div class="hero-dot-row">${rows
-            .map(({ s, label, href, spark, lbl, ctx }) => {
-                const c =
-                    s == null ? 'var(--muted)' : s >= 70 ? 'var(--green)' : s >= 45 ? 'var(--amber)' : 'var(--red)';
-                const sl = lbl !== undefined ? lbl : scoreLabel(s);
-                const subtitle = ctx ?? sl;
-                return `<a href="${esc(href)}" class="hero-dot-item" title="${esc(label)}: ${s ?? '—'}">
-                <span class="hero-dot-circle" style="background:${c}"></span>
-                ${spark}
-                <span class="hero-dot-label">${esc(label)}</span>
-                ${subtitle ? `<span class="hero-dot-score">${esc(subtitle)}</span>` : ''}
-            </a>`;
-            })
-            .join('')}</div>`;
+        ]
+            .map(
+                ({ label, href, s, val, spark, col }) =>
+                    `<a href="${esc(href)}" class="hero-heute-item">
+                <span class="hero-heute-val ${tileCls(s)}" style="font-size:1.05rem">${esc(val)}</span>
+                ${sparklineSvg(spark, col, 56, 16)}
+                <span class="hero-heute-label">${esc(label)}</span>
+            </a>`,
+            )
+            .join('');
     }
 
-    function todayCapacitySection() {
-        const bb = ml.body_battery_custom;
-        const phys = energy.energy_physical;
-        const bbScore = bb?.score ?? null;
-        const tsb = phys?.tsb ?? null;
-        if (bbScore == null && tsb == null) return '';
-
-        let recText, recCls;
-        const bbLow = bbScore != null && bbScore < 40;
-        const tsbHeavy = tsb != null && tsb < -30;
-        const tsbMod = tsb != null && tsb >= -30 && tsb < -15;
-        const tsbFresh = tsb == null || tsb >= -15;
-        const bbGood = bbScore == null || bbScore >= 60;
-
+    // Capacity recommendation (displayed in HEUTE MÖGLICH header)
+    let capRecText = '',
+        capRecCls = '';
+    const _bb = ml.body_battery_custom;
+    const _bbScore = _bb?.score ?? null;
+    const _tsb = _phys?.tsb ?? null;
+    if (_bbScore != null || _tsb != null) {
+        const bbLow = _bbScore != null && _bbScore < 40;
+        const tsbHeavy = _tsb != null && _tsb < -30;
+        const tsbMod = _tsb != null && _tsb >= -30 && _tsb < -15;
+        const tsbFresh = _tsb == null || _tsb >= -15;
+        const bbGood = _bbScore == null || _bbScore >= 60;
         if (bbLow) {
-            recText = 'Aktive Erholung — Energie erschöpft';
-            recCls = 'rec-red';
+            capRecText = 'Aktive Erholung';
+            capRecCls = 'rec-red';
         } else if (tsbHeavy) {
-            recText = 'Leichtes Training — hohe Trainingsbelastung';
-            recCls = 'rec-amber';
+            capRecText = 'Leichtes Training';
+            capRecCls = 'rec-amber';
         } else if (bbGood && tsbFresh) {
-            recText = 'Intensives Training möglich';
-            recCls = 'rec-green';
+            capRecText = 'Intensives Training';
+            capRecCls = 'rec-green';
         } else if (bbGood && tsbMod) {
-            recText = 'Normales Training';
-            recCls = 'rec-green';
+            capRecText = 'Normales Training';
+            capRecCls = 'rec-green';
         } else {
-            recText = 'Leichtes bis moderates Training';
-            recCls = 'rec-amber';
+            capRecText = 'Moderates Training';
+            capRecCls = 'rec-amber';
         }
-
-        const bbCls =
-            bbScore == null
-                ? 'heute-muted'
-                : bbScore >= 75
-                  ? 'heute-green'
-                  : bbScore >= 40
-                    ? 'heute-amber'
-                    : 'heute-red';
-        const bbTile =
-            bbScore != null
-                ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
-                   <span class="hero-heute-val ${bbCls}">${Math.round(bbScore)} %</span>
-                   <span class="hero-heute-score-lbl">${scoreLabel(bbScore)}</span>
-                   ${sparklineSvg(sparkBatt, C.green, 56, 18)}
-                   <span class="hero-heute-label">Energie</span>
-               </a>`
-                : '';
-
-        const tsbCls =
-            tsb == null ? 'heute-muted' : tsb >= -15 ? 'heute-green' : tsb >= -30 ? 'heute-amber' : 'heute-red';
-        const tsbLabel = tsb == null ? '—' : tsb >= -15 ? 'Erholt' : tsb >= -30 ? 'Trainingsphase' : 'Hohe Last';
-        const tsbStr = tsb != null ? (tsb >= 0 ? `+${tsb.toFixed(1)}` : tsb.toFixed(1)) : '—';
-        const tsbTile = `<a href="/metrics/physical" class="hero-heute-item">
-            <span class="hero-heute-val ${tsbCls}">TSB ${tsbStr}</span>
-            <span class="hero-heute-label">${esc(tsbLabel)}</span>
-        </a>`;
-
-        return `<div class="hero-heute-section">
-            <span class="hero-zone-label">HEUTE MÖGLICH</span>
-            <div class="hero-heute-row">${bbTile}${tsbTile}</div>
-            <p class="hero-recommendation ${recCls}">${recText}</p>
-        </div>`;
     }
 
-    const rfTag =
-        rfScore != null
-            ? `<span class="hero-vital-derived ${rfSubCls}">~${rfScore}<span class="hero-derived-meta"> · ML · Morgen</span></span>`
-            : '';
+    function capacityTilesOnly() {
+        const bbTile =
+            _bbScore != null
+                ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
+                <span class="hero-heute-val ${tileCls(_bbScore)}" style="font-size:1.05rem">${Math.round(_bbScore)} %</span>
+                ${sparklineSvg(sparkBatt, C.green, 56, 16)}
+                <span class="hero-heute-label">Energie</span>
+            </a>`
+                : '';
+        const tsbCls =
+            _tsb == null ? 'heute-muted' : _tsb >= -15 ? 'heute-green' : _tsb >= -30 ? 'heute-amber' : 'heute-red';
+        const tsbStr = _tsb != null ? (_tsb >= 0 ? `+${_tsb.toFixed(1)}` : _tsb.toFixed(1)) : '—';
+        const tsbLbl = _tsb == null ? '—' : _tsb >= -15 ? 'Erholt' : _tsb >= -30 ? 'Trainingsphase' : 'Hohe Last';
+        const tsbTile =
+            _tsb != null
+                ? `<a href="/metrics/physical" class="hero-heute-item">
+                <span class="hero-heute-val ${tsbCls}" style="font-size:1.05rem">TSB ${esc(tsbStr)}</span>
+                <span class="hero-heute-score-lbl">${esc(tsbLbl)}</span>
+                <span class="hero-heute-label">Trainingsform</span>
+            </a>`
+                : '';
+        return bbTile + tsbTile;
+    }
 
-    const ringSection = `<div class="hero-ring-section">
-        ${svgRing}
-    </div>`;
+    const mlTile =
+        rfScore != null
+            ? `<span class="hero-heute-item">
+            <span class="hero-heute-val ${rfSubCls}" style="font-size:1.05rem">~${rfScore}</span>
+            <span class="hero-heute-score-lbl">ML-Prognose</span>
+            <span class="hero-heute-label">Readiness Morgen</span>
+        </span>`
+            : '';
 
     el.innerHTML = `<div class="hero-header">
             <span class="hero-title">TAGESSTATUS</span>
             <span class="hero-date">${esc(dateLabel)}</span>
         </div>
         <div class="hero-grid">
-            ${ringSection}
-            <div class="hero-right">
+            <div class="hero-ring-panel">
+                ${svgRing}
                 <div class="hero-ring-meta">
                     <span class="hero-ring-status">${esc(r?.label ?? '—')}</span>
                     ${heroRecommendation(score)}
-                    ${energyDots()}
-                    ${rfTag}
                 </div>
             </div>
-        </div>
-        ${todayCapacitySection()}`;
+            <div class="hero-right-panel">
+                <div class="hero-signals-row">${signalTiles()}</div>
+                <div class="hero-capacity-header">
+                    <span class="hero-zone-label">HEUTE MÖGLICH</span>
+                    ${capRecText ? `<span class="${capRecCls} hero-cap-rec">${esc(capRecText)}</span>` : ''}
+                </div>
+                <div class="hero-capacity-grid">${capacityTilesOnly()}</div>
+                ${mlTile}
+            </div>
+        </div>`;
 
     el.addEventListener('click', (e) => {
         const badge = e.target.closest('[data-ev-badge]');
@@ -274,5 +269,88 @@ export function buildHeroCard() {
     } else {
         const scoreEl = document.getElementById('hero-ring-score');
         if (scoreEl) scoreEl.textContent = '—';
+    }
+}
+
+function mlStatTile(label, value, sub, href) {
+    const tag = href ? 'a' : 'div';
+    const hrefAttr = href ? ` href="${href}"` : '';
+    return `<${tag} class="stat-tile"${hrefAttr}>
+        <div class="stat-label">${esc(label)}</div>
+        <div class="stat-value" style="font-size:1.3rem">${value}</div>
+        ${sub ? `<div style="font-size:.73rem;color:var(--muted);margin-top:3px">${sub}</div>` : ''}
+    </${tag}>`;
+}
+
+export function buildMlTabs() {
+    const ml = _heroData.ml || {};
+
+    // ── Erholung Tab: Anomalie + Battery Pattern ────────────────────────────
+    const erholungEl = document.getElementById('ml-erholung-content');
+    if (erholungEl) {
+        const anomaly = ml.anomaly_hr;
+        const bp = ml.battery_pattern;
+        if (anomaly || bp) {
+            document.getElementById('ml-erholung-card').style.display = '';
+            let html = '<div class="ml-kpi-row">';
+            if (anomaly) {
+                const z = anomaly.z_score;
+                const flag = anomaly.is_anomaly
+                    ? '<span style="color:var(--red)">⚠ Anomalie</span>'
+                    : '<span style="color:var(--green)">✓ Normal</span>';
+                html += mlStatTile(
+                    'Ruhepuls z-Score',
+                    z != null ? z.toFixed(2) : '—',
+                    flag,
+                    '/metrics/hr-zscore?back=erholung',
+                );
+            }
+            if (bp?.pattern) {
+                const BP_LABELS = {
+                    stabil_hoch: 'Hohe & stabile Energie',
+                    erholung: 'Erholung',
+                    erschoepft: 'Erschöpft',
+                };
+                html += mlStatTile(
+                    'Battery Muster',
+                    BP_LABELS[bp.pattern] ?? esc(bp.pattern),
+                    '',
+                    '/metrics/battery-pattern?back=erholung',
+                );
+            }
+            html += '</div>';
+            erholungEl.innerHTML = html;
+        }
+    }
+
+    // ── Verlauf Tab: Readiness RF + Korrelationen ────────────────────────────
+    const verlaufEl = document.getElementById('ml-verlauf-content');
+    if (verlaufEl) {
+        const rf = ml.readiness_rf;
+        const corr = ml.correlation_sleep_hrv;
+        if (rf || corr) {
+            document.getElementById('ml-verlauf-card').style.display = '';
+            let html = '<div class="ml-kpi-row">';
+            if (rf?.value != null) {
+                const score = Math.round(rf.value);
+                const cls = score >= 80 ? 'sub-green' : score >= 50 ? 'sub-amber' : 'sub-red';
+                html += mlStatTile(
+                    'Readiness Morgen',
+                    `<span class="${cls}">${score}</span>`,
+                    'ML-Prognose',
+                    '/metrics/readiness-rf?back=verlauf',
+                );
+            }
+            if (corr?.r != null) {
+                html += mlStatTile(
+                    'Schlaf → HRV',
+                    `r = ${corr.r.toFixed(2)}`,
+                    `n = ${corr.n} Nächte`,
+                    '/metrics/correlations?back=verlauf',
+                );
+            }
+            html += '</div>';
+            verlaufEl.innerHTML = html;
+        }
     }
 }

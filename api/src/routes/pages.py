@@ -33,6 +33,8 @@ _VALID_METRICS = {
     "running-economy",
     "hrv-recovery",
     "recovery",
+    "battery-pattern",
+    "correlations",
 }
 
 
@@ -45,9 +47,7 @@ async def index(request: Request):
 @router.get("/dashboard")
 async def dashboard(request: Request):
     user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(
-        request, "dashboard.html", {"user": user, "active_page": "dashboard"}
-    )
+    return _deps.templates.TemplateResponse(request, "dashboard.html", {"user": user})
 
 
 @router.get("/settings")
@@ -56,7 +56,7 @@ async def settings_page(request: Request):
     return _deps.templates.TemplateResponse(
         request,
         "settings.html",
-        {"user": user, "today": date.today().isoformat(), "active_page": "settings"},
+        {"user": user, "today": date.today().isoformat()},
     )
 
 
@@ -64,7 +64,7 @@ async def settings_page(request: Request):
 async def metrics_overview_page(request: Request):
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(
-        request, "metrics_overview.html", {"user": user, "active_page": "metrics"}
+        request, "metrics_overview.html", {"user": user}
     )
 
 
@@ -76,7 +76,7 @@ async def metrics_detail_page(request: Request, name: str):
     return _deps.templates.TemplateResponse(
         request,
         "metrics.html",
-        {"user": user, "metric_name": name, "active_page": "metrics"},
+        {"user": user, "metric_name": name},
     )
 
 
@@ -99,47 +99,27 @@ async def epilepsy_page(request: Request):
     return _deps.templates.TemplateResponse(request, "epilepsy.html", {"user": user})
 
 
-# ── ML detail pages (template renders, no data) ───────────────────────────────
+# ── ML detail pages — redirect to unified /metrics/* blueprint ────────────────
 
 
 @router.get("/ml/anomaly")
-async def ml_anomaly_page(request: Request):
-    user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(
-        request,
-        "ml_insights.html",
-        {"user": user, "section": "anomaly", "title": "Ruhepuls-Anomalie"},
-    )
+async def ml_anomaly_redirect():
+    return RedirectResponse("/metrics/hr-zscore", status_code=301)
 
 
 @router.get("/ml/readiness")
-async def ml_readiness_page(request: Request):
-    user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(
-        request,
-        "ml_insights.html",
-        {"user": user, "section": "readiness", "title": "Readiness-Prognose"},
-    )
+async def ml_readiness_redirect():
+    return RedirectResponse("/metrics/readiness-rf", status_code=301)
 
 
 @router.get("/ml/correlations")
-async def ml_correlations_page(request: Request):
-    user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(
-        request,
-        "ml_insights.html",
-        {"user": user, "section": "correlations", "title": "Korrelationen"},
-    )
+async def ml_correlations_redirect():
+    return RedirectResponse("/metrics/correlations", status_code=301)
 
 
 @router.get("/ml/battery")
-async def ml_battery_page(request: Request):
-    user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(
-        request,
-        "ml_insights.html",
-        {"user": user, "section": "battery", "title": "Body Battery Muster"},
-    )
+async def ml_battery_redirect():
+    return RedirectResponse("/metrics/battery-pattern", status_code=301)
 
 
 # ── Public legal pages (no session required) ──────────────────────────────────

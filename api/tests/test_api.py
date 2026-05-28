@@ -119,10 +119,6 @@ async def test_register_page(client):
         "/api/energy",
         "/api/training-load",
         # ML endpoints
-        "/ml/anomaly",
-        "/ml/readiness",
-        "/ml/correlations",
-        "/ml/battery",
         "/api/ml-insights",
         "/api/ml-history",
         # Sync + status
