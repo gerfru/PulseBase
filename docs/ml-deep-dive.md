@@ -11,14 +11,32 @@ Für eine verständliche Erklärung ohne Mathekenntnisse: [eli5.md](eli5.md).
 
 | Modell | Typ | Algorithmus | Ziel |
 |--------|-----|-------------|------|
-| `anomaly_hr` | Anomalieerkennung | Z-Score | Ruhepuls-Ausreißer identifizieren |
+| `anomaly_hr` | Anomalieerkennung | Z-Score | Ruhepuls-Ausreißer |
+| `anomaly_spo2` | Anomalieerkennung | Z-Score | SpO2-Ausreißer |
+| `anomaly_stress` | Anomalieerkennung | Z-Score | Stress-Ausreißer |
+| `anomaly_steps` | Anomalieerkennung | Z-Score | Schritt-Ausreißer |
+| `anomaly_sleep_duration` | Anomalieerkennung | Z-Score | Schlafdauer-Ausreißer |
 | `correlation_sleep_hrv` | Korrelationsanalyse | Pearson r | Schlaf → nächster-Tag-HRV |
 | `correlation_sleep_rhr` | Korrelationsanalyse | Pearson r | Schlaf → nächster-Tag-Ruhepuls |
 | `correlation_bb_rhr` | Korrelationsanalyse | Pearson r | Body Battery → nächster-Tag-Ruhepuls |
 | `readiness_rf` | Regression | Random Forest | Readiness Score für morgen |
-| `battery_pattern` | Clustering | k-Means | Energie-Tagesmuster |
 | `model_meta_rf` | Metadaten | — | Feature Importances + Trainingsinfos des RF |
+| `battery_pattern` | Clustering | k-Means | Energie-Tagesmuster |
 | `body_battery_custom` | Algorithmisch | Fresh-State-Modell | Tagesenergie (Schlafphasen + HRV) |
+| `sleep_score_custom` | Algorithmisch | Gewichteter Score | Custom Schlaf-Score (Phasen + Dauer) |
+| `hrv_status_custom` | Algorithmisch | σ-Klassifikation | BALANCED/UNBALANCED/LOW/POOR |
+| `intensity_minutes_custom` | Algorithmisch | Karvonen HRR | WHO-Intensitätsminuten |
+| `training_effect_custom` | Algorithmisch | Banister TRIMP + atan | Training Effect 0–5 |
+| `acwr` | Algorithmisch | Banister CTL/ATL | Acute:Chronic Workload Ratio |
+| `training_monotony` | Algorithmisch | CV-Statistik | Training Monotony + Strain |
+| `sleep_consistency` | Algorithmisch | Zirkuläre σ | Schlaf-/Aufwachzeit-Konsistenz |
+| `spo2_trend` | Algorithmisch | Lineare Regression | SpO2-Trendanalyse + Apnoe-Flag |
+| `stress_score_custom` | Algorithmisch | HRV-σ invertiert | HRV-basierter Tagesstress 0–100 |
+| `hrv_recovery` | Algorithmisch | ΔHRV/Tag | HRV-Erholungstrajektorie |
+| `running_economy` | Algorithmisch | Z-Score-Normierung | Laufökonomie (GCT/VO/VR) |
+| `energy_physical` | Algorithmisch | CTL/TSB Banister | Physische Energie (TSB-basiert) |
+| `energy_autonomic` | Algorithmisch | HRV σ-Deviation | Autonome Energie |
+| `energy_cognitive` | Algorithmisch | Schlafschuld-Akk. | Kognitive Energie |
 
 ---
 
@@ -156,30 +174,42 @@ Erwartete Richtung: **negativ** (höhere Body Battery → niedrigerer Ruhepuls a
 **Datei:** `ml-service/src/models/readiness.py`
 **Inferenz:** Täglich | **Training:** Wöchentlich (Sonntag 03:00)
 
-### Trainings-Target: Regelbasierter Score
+### Trainings-Target: Energie-basierter Score (`_energy_based_score`)
 
-Der Random Forest lernt nicht aus einem externen Label, sondern aus einem
-regelbasierten Score, der zur Trainingszeit aus mehreren Signalen berechnet wird:
+Der Random Forest lernt aus dem gleichen Composite, der auch in `GET /api/energy`
+angezeigt wird — damit RF und Regelwert konsistent sind:
 
+```python
+# ml-service/src/models/readiness.py: _energy_based_score()
+components = []
+if energy_autonomic_score is not None:   components.append((energy_autonomic_score, 0.60))
+if energy_cognitive_score is not None:   components.append((energy_cognitive_score, 0.40))
+score = sum(v * w for v, w in components) / sum(w for _, w in components)
 ```
-T = (w₁·v₁ + w₂·v₂ + w₃·v₃ + w₄·v₄) / Σwᵢ
-```
 
-| Signal | Gewicht | Transformation |
-|--------|---------|----------------|
-| HRV-Status | 30% | BALANCED=100, UNBALANCED=50, LOW=25, POOR=0 |
-| Schlaf-Score | 30% | Garmin 0–100, direkt |
-| Body Battery High | 20% | 0–100, direkt |
-| Avg Stress (invertiert) | 20% | `max(0, 100 − avg_stress)` |
+| Signal | Gewicht |
+|--------|---------|
+| Autonome Energie (HRV vs. 90d-Baseline, σ-skaliert) | 60% |
+| Kognitive Energie (Schlafschuld vs. 7h-Ziel) | 40% |
+| Physische Energie (TSB) | **nicht im Target** — misst akkumulierte Last, nicht Erholung |
 
-Fehlende Komponenten werden aus der Gewichtssumme herausgerechnet
-(kein Imputation des Targets). Gibt `None` zurück wenn keine Komponente verfügbar.
+Fehlende Komponenten werden aus der Gewichtssumme herausgerechnet.
+Gibt `None` zurück wenn beide Komponenten fehlen.
 
 ### Feature Engineering
 
 **Kandidaten-Features:**
 ```python
-_CANDIDATE_FEATURES = ["hrv_last_night", "sleep_score", "resting_hr"]
+_CANDIDATE_FEATURES = [
+    "hrv_last_night",
+    "sleep_score",
+    "resting_hr",
+    "aerobic_effect_daily",
+    "anaerobic_effect_daily",
+    "body_battery_high",
+    "avg_stress",
+    "acwr_ratio",          # per JOIN auf ml_predictions
+]
 ```
 
 **Dynamische Feature-Selektion:**
@@ -219,9 +249,10 @@ joblib.dump({"model": model, "features": feature_names}, model_path)
 
 ```json
 {
-  "features": ["sleep_score", "resting_hr"],
-  "importances": {"sleep_score": 0.562, "resting_hr": 0.438},
-  "n_rows": 429
+  "features": ["sleep_score", "resting_hr", "hrv_last_night"],
+  "importances": {"sleep_score": 0.421, "resting_hr": 0.318, "hrv_last_night": 0.261},
+  "n_rows": 429,
+  "trained_at": "2026-05-28"
 }
 ```
 
@@ -245,7 +276,7 @@ Prediction date = morgen (`date.today() + timedelta(days=1)`).
 
 ## 4. Body Battery K-Means Clustering
 
-**Datei:** `ml-service/src/models/battery.py` (inferenz in `main.py`)
+**Datei:** `ml-service/src/models/battery_pattern.py` (inferenz in `main.py`)
 **Inferenz:** Täglich | **Training:** Wöchentlich (Sonntag 03:00)
 
 ### Feature-Extraktion aus Intraday-Daten
@@ -301,28 +332,22 @@ Nach dem Training wird jedem Cluster anhand des Centroid-Profils ein Label zugew
 
 ```
 für jeden aktiven User (garmin_linked=true, is_active=true):
-  ┌─ anomaly.py
-  │   get_resting_hr_history(31d) + get_today_resting_hr()
-  │   → detect_resting_hr_anomaly()
-  │   → save_prediction("anomaly_hr", value=z_score)
-  │
-  ├─ correlation.py
-  │   get_sleep_hrv_pairs(90d) → compute_sleep_hrv_correlation()
-  │   → save_prediction("correlation_sleep_hrv", value=r)
-  │
-  │   get_sleep_resting_hr_pairs(90d) → compute_sleep_hrv_correlation()
-  │   → save_prediction("correlation_sleep_rhr", value=r)
-  │
-  │   get_bb_resting_hr_pairs(90d) → compute_sleep_hrv_correlation()
-  │   → save_prediction("correlation_bb_rhr", value=r)
-  │
-  ├─ readiness.py
-  │   get_latest_features() → predict_tomorrow(model_path)
-  │   → save_prediction("readiness_rf", value=score, date=tomorrow)
-  │
-  └─ battery.py
-      get_body_battery_today() → battery_predict_today(model_path)
-      → save_prediction("battery_pattern", value=cluster_id)
+  anomaly.py     → anomaly_hr, anomaly_spo2, anomaly_stress, anomaly_steps, anomaly_sleep_duration
+  correlation.py → correlation_sleep_hrv, correlation_sleep_rhr, correlation_bb_rhr
+  readiness.py   → readiness_rf (date=tomorrow)
+  battery_pattern.py → battery_pattern
+  body_battery.py    → body_battery_custom
+  sleep_score.py     → sleep_score_custom
+  hrv_status.py      → hrv_status_custom
+  intensity_minutes.py → intensity_minutes_custom
+  training_effect.py   → training_effect_custom
+  training_load.py     → acwr, training_monotony
+  sleep_metrics.py     → sleep_consistency
+  spo2_metrics.py      → spo2_trend
+  stress_metrics.py    → stress_score_custom
+  hrv_recovery.py      → hrv_recovery
+  running_economy.py   → running_economy
+  energy_metrics.py    → energy_physical, energy_autonomic, energy_cognitive
 ```
 
 ### Trainings-Lauf (wöchentlich, Sonntag 03:00)
@@ -331,10 +356,10 @@ für jeden aktiven User (garmin_linked=true, is_active=true):
 für jeden aktiven User:
   readiness.py:
     get_readiness_training_rows(365d) → train_and_save(model_path)
-    → save_prediction("model_meta_rf", value=n_rows, metadata={features, importances})
+    → save_prediction("model_meta_rf", metadata={features, importances, n_rows, trained_at})
 
-  battery.py:
-    get_body_battery_history(90d) → battery_fit_and_save(model_path)
+  battery_pattern.py:
+    get_body_battery_history(90d) → fit_and_save(model_path)
 ```
 
 ### Startup-Verhalten
@@ -362,24 +387,32 @@ ON CONFLICT (date, user_id, model) DO UPDATE
 
 | `model` | `value` | `metadata`-Felder |
 |---------|---------|------------------|
-| `anomaly_hr` | z_score | `is_anomaly`, `baseline_mean`, `baseline_std`, `threshold` |
-| `correlation_sleep_hrv` | Pearson r | `p_value`, `n`, `interpretation` |
-| `correlation_sleep_rhr` | Pearson r | `p_value`, `n`, `interpretation` |
-| `correlation_bb_rhr` | Pearson r | `p_value`, `n`, `interpretation` |
-| `readiness_rf` | Predicted score 0–100 | — |
+| `anomaly_hr` / `_spo2` / `_stress` / `_steps` / `_sleep_duration` | z_score | `is_anomaly`, `baseline_mean`, `baseline_std`, `threshold` |
+| `correlation_sleep_hrv` / `_sleep_rhr` / `_bb_rhr` | Pearson r | `p_value`, `n`, `interpretation` |
+| `readiness_rf` | Score 0–100 (morgen) | `confidence_low`, `confidence_high` |
+| `model_meta_rf` | n_rows (float) | `features`, `importances`, `n_rows`, `trained_at` |
 | `battery_pattern` | Cluster-ID (int) | `pattern`, `features`, `cluster` |
-| `model_meta_rf` | n_rows (float) | `features`, `importances`, `n_rows` |
+| `body_battery_custom` | Score 5–100 | `sleep_quality`, `hrv_factor`, `activity_drain`, `stress_drain`, `sleep_h`, `deep_h`, `rem_h`, `prev_score` |
 | `sleep_score_custom` | Score 0–100 | `total_h`, `deep_pct`, `rem_pct`, `wake_pct` |
 | `hrv_status_custom` | Score 0–100 | `status`, `deviation`, `baseline_mean`, `baseline_std`, `hrv_7d_mean` |
 | `intensity_minutes_custom` | Score 0–100 | `moderate_minutes`, `vigorous_minutes`, `hrmax_used`, `resting_hr_used` |
 | `training_effect_custom` | Score 0–100 | `effect`, `trimp_today`, `ctl`, `atl`, `tsb`, `vo2max`, `sex`, `b_coeff` |
-| `body_battery_custom` | Score 5–100 | `sleep_quality`, `hrv_factor`, `activity_drain`, `stress_drain`, `sleep_h`, `deep_h`, `rem_h`, `prev_score` |
+| `acwr` | Ratio (float) | `atl_7d`, `ctl_42d`, `level` (`green`/`amber`/`red`) |
+| `training_monotony` | Monotony (float) | `strain`, `trimp_mean`, `trimp_std`, `trimp_7d` |
+| `sleep_consistency` | Score 0–100 | `sigma_wake`, `sigma_sleep`, `n_nights` |
+| `spo2_trend` | mean_spo2 (float) | `slope`, `trend` (`falling`/`stable`/`rising`), `apnea_flag` |
+| `stress_score_custom` | Score 0–100 | `deviation`, `baseline_mean`, `baseline_std` |
+| `hrv_recovery` | recovery_speed (float) | `days_since_peak_load`, `hrv_delta` |
+| `running_economy` | Score 0–100 | `gct_score`, `vo_score`, `vr_score`, `n_runs` |
+| `energy_physical` | Score 0–100 | `tsb`, `ctl`, `atl` |
+| `energy_autonomic` | Score 0–100 | `deviation_sigma`, `hrv_last_night`, `baseline_mean` |
+| `energy_cognitive` | Score 0–100 | `sleep_debt_hours`, `sleep_h_7d_mean` |
 
 ---
 
-## 7. Custom Metric Models (Items 1–3 + 6)
+## 7. Algorithmische Modelle (kein ML-Training)
 
-Vier rein algorithmische Modelle ohne ML-Training — alle Formeln sind transparent.
+Alle folgenden Modelle berechnen deterministisch aus vorhandenen Daten — kein joblib-File, kein Training.
 
 ### `sleep_score_custom` — Custom Schlaf-Score
 
@@ -507,13 +540,21 @@ effect = atan(TRIMP_heute / (CTL × 0.5)) × (10/π)
 | Anomalie Z-Score (Baseline) | 31 Tage | 7 Datenpunkte |
 | Pearson-Korrelation | 90 Tage | 10 Paare |
 | RF Training | 365 Tage | 30 Trainingspaare |
-| K-Means Training | 90 Tage | k.A. |
-| Inferenz (Features) | 2 Tage | alle aktiven Features müssen vorhanden sein |
+| K-Means Training | 90 Tage | — |
+| RF Inferenz (Features) | 2 Tage | alle aktiven Features vorhanden |
 | `sleep_score_custom` | 2 Tage | letzte Schlafsession |
 | `hrv_status_custom` | 90 Tage | 7 HRV-Werte |
-| `intensity_minutes_custom` | heute | min. 1 activity_record |
+| `intensity_minutes_custom` | heute | 1 activity_record + resting_hr |
 | `training_effect_custom` | 50 Tage | Profil (sex) gesetzt |
-| `body_battery_custom` | 2 Tage Schlaf + 30 Tage HRV-Baseline | kein Minimum (Fallbacks greifen) |
+| `body_battery_custom` | 2 Tage Schlaf + 30 Tage HRV-Baseline | — (Fallbacks greifen) |
+| `acwr` | 42 Tage (CTL) | — |
+| `training_monotony` | 7 Tage | 2 Trainingstage |
+| `sleep_consistency` | 14 Tage | 5 Schlafnächte |
+| `spo2_trend` | 7 Tage | 3 SpO2-Werte |
+| `stress_score_custom` | 90 Tage HRV-Baseline | 7 HRV-Werte |
+| `hrv_recovery` | 30 Tage | 1 Belastungstag + 3 Folgenächte HRV |
+| `running_economy` | 30 Tage | 3 Lauf-Aktivitäten mit activity_records |
+| `energy_physical/autonomic/cognitive` | 90 Tage | — (Fallbacks greifen) |
 
 ---
 

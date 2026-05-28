@@ -481,15 +481,15 @@ Kein Ersatz für medizinische Diagnostik."*
 
 ## Priorisierung (Aufwand/Nutzen)
 
-| Priorität | Feature | Aufwand | Nutzen |
-|-----------|---------|---------|--------|
-| 🥇 | ACWR (Verletzungsprävention) | Sehr niedrig | Hoch |
-| 🥇 | Training Monotony + Strain | Niedrig | Mittel |
-| 🥈 | Laufökonomie-Score (V13-Daten) | Medium | Hoch für Läufer |
-| 🥈 | SpO2-Trendanalyse | Niedrig | Mittel |
-| 🥈 | Sleep Consistency Score | Niedrig | Mittel |
-| 🥉 | Body Battery Ersatz | Medium | Hoch |
-| 🥉 | Stress-Score Ersatz | Niedrig | Mittel |
-| 🥉 | Glukose × Training Korrelation | Medium | Hoch für Libre-User |
+| Status | Feature | Aufwand | Nutzen |
+|--------|---------|---------|--------|
+| ✅ | ACWR (Verletzungsprävention) | Sehr niedrig | Hoch |
+| ✅ | Training Monotony + Strain | Niedrig | Mittel |
+| ✅ | Laufökonomie-Score (V13-Daten) | Medium | Hoch für Läufer |
+| ✅ | SpO2-Trendanalyse | Niedrig | Mittel |
+| ✅ | Sleep Consistency Score | Niedrig | Mittel |
+| ✅ | Body Battery Ersatz | Medium | Hoch |
+| ✅ | Stress-Score Ersatz | Niedrig | Mittel |
+| 🟡 | Glukose × Training Korrelation | Medium | Hoch für Libre-User |
 | ⏳ | Epilepsie-Risiko V2 (ML) | Hoch | Hoch (ab 20 Events) |
-| ⏳ | Schlafphasen-Klassifikation | Sehr hoch | Fraglich (Sensor-Limitation) |
+| 🔴 | Schlafphasen-Klassifikation | Sehr hoch | Fraglich (Sensor-Limitation) |

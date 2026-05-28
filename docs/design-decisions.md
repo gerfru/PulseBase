@@ -257,6 +257,36 @@ and re-runs the backfill script against full history.
 
 ---
 
+## EN 62366-inspired Metric Disclosure + Progressive Disclosure UX
+
+**Implemented:** May 2026. `api/src/evidence_catalog.py`, `/help`, `/metrics/{name}`.
+
+Every health metric needs to communicate what it measures, what it is and is not intended for,
+and the quality of its evidence. EN 62366 (medical device usability engineering) provided the
+framework for thinking about this, even though PulseBase is not a regulated device.
+
+**Three-layer disclosure architecture:**
+
+1. **Metrics overview** (`/metrics`) — Evidence Badges on every tile:
+   - 🟢 **M** Meta-Analysis / clinical guideline standard
+   - 🟡 **R** Replicated (multiple independent studies)
+   - 🔵 **E** Eigenmodell (PulseBase-specific, literature-based)
+   Source: `GET /api/evidence` → `evidence_catalog.py`. Each entry has `level`, `metric_type`,
+   `time_horizon`, `intended_use`, `not_for`, `limitations`, `sources`.
+
+2. **Metric detail pages** (`/metrics/{name}`) — simplified: value + chart + 1-sentence summary +
+   score-dependent recommendation. No formula block, no ELI5 card, no sources card.
+   Deep-link to the full help article via `? Hilfe-Artikel`.
+
+3. **Help page** (`/help`) — full methodology for each metric: evidence level, formula,
+   science background, sources, intended use, limitations. Client-side searchable (20 articles,
+   6 categories). Deep-linkable via `#metric-key` (e.g. `/help#energy_autonomic`).
+
+**Why Progressive Disclosure instead of all-in-one detail pages:**
+- Practitioners need the recommendation fast; researchers need the formula — different needs
+- EN 62366: intended use and not-for statements prevent misinterpretation of health data
+- Avoids cognitive overload: 5-block detail pages discouraged exploration of the methodology
+
 ## TimescaleDB for intraday data
 
 Regular PostgreSQL tables would work for daily summaries and activities. Intraday data
