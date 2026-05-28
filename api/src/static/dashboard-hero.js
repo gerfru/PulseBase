@@ -127,7 +127,8 @@ export function buildHeroCard() {
     const _hrvLabel = { BALANCED: 'Erholt', UNBALANCED: 'Leicht gedämpft', LOW: 'Niedrig', POOR: 'Stark gedämpft' };
 
     const rfScore = rf?.value != null ? Math.round(rf.value) : null;
-    const rfSubCls = rfScore != null ? (rfScore >= 75 ? 'sub-green' : rfScore >= 50 ? 'sub-amber' : 'sub-red') : '';
+    const rfSubCls =
+        rfScore != null ? (rfScore >= 75 ? 'heute-green' : rfScore >= 50 ? 'heute-amber' : 'heute-red') : '';
 
     function tileCls(s) {
         return s == null ? 'heute-muted' : s >= 70 ? 'heute-green' : s >= 45 ? 'heute-amber' : 'heute-red';
