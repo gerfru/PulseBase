@@ -174,8 +174,8 @@
 
     <!-- ── Formula Modal Dialog ──────────────────────────────────────────────── -->
     <dialog id="formula-dialog" class="bg-slate-800 text-slate-100 rounded-xl p-6 max-w-sm w-full backdrop:bg-black/50">
-        <button onclick="document.getElementById('formula-dialog').close()"
-                class="float-right text-slate-400 hover:text-white">✕</button>
+        <button id="formula-dialog-close"
+                class="float-right text-slate-400 hover:text-white" aria-label="Schließen">✕</button>
         <h3 id="formula-dialog-title" class="font-bold text-lg mb-3"></h3>
         <div id="formula-dialog-body" class="text-sm text-slate-300 space-y-2"></div>
         <a id="formula-dialog-link" href="#" class="block mt-4 text-sky-400 text-sm hover:underline">
@@ -185,6 +185,5 @@
 
 {% endblock %}
 {% block scripts %}
-<script>window.__spo2Enabled = {{ 'true' if user.spo2_enabled else 'false' }};</script>
-<script src="/static/dashboard.js?v={{ v }}"></script>
+<script type="module" src="/static/dashboard.js?v={{ v }}"></script>
 {% endblock %}

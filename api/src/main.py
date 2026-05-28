@@ -45,6 +45,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline'; "
             "font-src 'self'; "
             "img-src 'self' data: https:; "
+            "media-src 'self' data:; "
             "connect-src 'self'; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
@@ -67,7 +68,9 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         path = request.url.path
-        if path.startswith("/static/"):
+        if path.startswith("/static/") and path.endswith(".js"):
+            response.headers["Cache-Control"] = "no-cache"
+        elif path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         elif path.startswith("/api/") and request.method == "GET":
             response.headers.setdefault("Cache-Control", "private, no-cache")
