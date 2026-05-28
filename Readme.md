@@ -11,10 +11,13 @@ PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, priv
 - Slate/Emerald dark instrument panel dashboard — tabbed layout (Training / Verlauf / Erholung), dark + light mode
 - Unified Tagesstatus hero card: animated partial arc gauge (Readiness, Oura-style) with HRV/Schlaf/Puls contributor rows, Energie-Triptychon (Physisch / Autonom / Kognitiv), vitals strip
 - Time navigation (← →) for all charts — browse any historical period without switching time range
-- ML insights: anomaly detection (resting HR Z-score), sleep→HRV Pearson correlation, Random Forest readiness prediction, Body Battery K-Means pattern — each with dedicated detail pages
+- ML insights: anomaly detection (resting HR + SpO2 + stress Z-score), sleep→HRV Pearson correlation, Random Forest readiness prediction, Body Battery K-Means pattern, ACWR, Training Monotony, Running Economy, Sleep Consistency, SpO2 trend, and more — each with dedicated detail pages
+- Metrics overview (`/metrics`) — all health metrics as tiles with color-coded Evidence Badges (Meta-Analysis / Replicated / Model)
+- EN 62366-inspired metric disclosure: every metric shows intended use, limitations, time horizon, and actionable recommendation — methodology in searchable `/help` page with 20 articles
 - Activity detail page with GPS map (Leaflet.js), HR/pace/elevation/cadence charts
 - Training status tracking (PRODUCTIVE, MAINTAINING, RECOVERY, …)
 - Weekly training volume overview (run km / ride km stacked bar)
+- Epilepsy seizure diary with rule-based risk indicator (6 biomarker heuristics, optional feature)
 - Central settings page — Garmin + LibreLinkUp connection management in one place
 - Self-service registration — no admin needed
 - Garmin and LibreLinkUp passwords are **never stored** — token-only
