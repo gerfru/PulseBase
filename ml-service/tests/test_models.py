@@ -13,7 +13,12 @@ from models.battery_pattern import extract_features
 from models.body_battery import _sleep_quality, compute_body_battery
 from models.correlation import compute_sleep_hrv_correlation
 from models.energy_metrics import compute_autonomic_energy, compute_cognitive_energy
-from models.readiness import predict_tomorrow, prepare_training_data, train_and_save
+from models.readiness import (
+    predict_tomorrow,
+    prepare_training_data,
+    train_and_save,
+    _energy_based_score,
+)
 
 
 # ── Body Battery ───────────────────────────────────────────────────────────
@@ -248,6 +253,45 @@ def test_correlation_strong():
     result = compute_sleep_hrv_correlation(sleep, hrv)
     assert result["interpretation"] == "stark"
     assert result["r"] == pytest.approx(1.0, abs=0.01)
+
+
+# ── _energy_based_score ───────────────────────────────────────────────────────
+
+
+def test_energy_based_score_uses_autonomic_and_cognitive():
+    """Target must be autonomic 60% + cognitive 40% — physical is excluded."""
+    row = {
+        "energy_autonomic_score": 80.0,
+        "energy_cognitive_score": 60.0,
+        "energy_physical_score": 0.0,  # must be ignored
+    }
+    result = _energy_based_score(row)
+    expected = 80.0 * 0.60 + 60.0 * 0.40
+    assert result == pytest.approx(expected)
+
+
+def test_energy_based_score_physical_ignored():
+    """Physical score must have zero effect on the target."""
+    base = {"energy_autonomic_score": 70.0, "energy_cognitive_score": 70.0}
+    with_phys = {**base, "energy_physical_score": 0.0}
+    without_phys = {**base}
+    assert _energy_based_score(with_phys) == pytest.approx(
+        _energy_based_score(without_phys)
+    )
+
+
+def test_energy_based_score_none_when_both_missing():
+    result = _energy_based_score({"energy_physical_score": 80.0})
+    assert result is None
+
+
+def test_energy_based_score_partial_normalises_weight():
+    """When only one component is available, weight normalises to 1.0."""
+    row_auton_only = {"energy_autonomic_score": 50.0}
+    assert _energy_based_score(row_auton_only) == pytest.approx(50.0)
+
+    row_cog_only = {"energy_cognitive_score": 40.0}
+    assert _energy_based_score(row_cog_only) == pytest.approx(40.0)
 
 
 # ── Readiness Training Data ────────────────────────────────────────────────

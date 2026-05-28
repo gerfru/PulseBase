@@ -60,6 +60,12 @@ async def settings_page(request: Request):
     )
 
 
+@router.get("/help")
+async def help_page(request: Request):
+    user = await _deps.require_user(request)
+    return _deps.templates.TemplateResponse(request, "help.html", {"user": user})
+
+
 @router.get("/metrics")
 async def metrics_overview_page(request: Request):
     user = await _deps.require_user(request)
