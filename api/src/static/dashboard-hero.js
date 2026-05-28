@@ -24,13 +24,36 @@ export function openEvidenceDialog(key) {
     if (!e) return;
     const levelLabel =
         { meta: '🟢 Meta-Analyse', replicated: '🟡 Repliziert', model: '🔵 Eigenmodell' }[e.level] ?? e.level;
+    const typeLabels = {
+        recovery: 'Erholung',
+        capacity: 'Kapazität',
+        trend: 'Verlauf',
+        prediction: 'Prognose',
+        screening: 'Screening',
+    };
+    const typeBadge = e.metric_type
+        ? `<span class="metric-type-chip type-${e.metric_type}">${typeLabels[e.metric_type] ?? e.metric_type}</span>`
+        : '';
+    const horizon = e.time_horizon ? `<p class="disclosure-horizon">⏱ ${esc(e.time_horizon)}</p>` : '';
+    const intendedUse = e.intended_use
+        ? `<div class="disclosure-block intended"><strong>Wofür:</strong> ${esc(e.intended_use)}</div>`
+        : '';
+    const notFor = e.not_for
+        ? `<div class="disclosure-block not-for"><strong>Nicht geeignet für:</strong> ${esc(e.not_for)}</div>`
+        : '';
     const refs = (e.refs || []).map((r) => `<li class="ml-3 list-disc">${esc(r)}</li>`).join('');
     const body = `
-        <p class="mb-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${e.level === 'meta' ? 'bg-green-700/50 text-green-300' : e.level === 'replicated' ? 'bg-amber-700/50 text-amber-300' : 'bg-sky-700/50 text-sky-300'}">${levelLabel}</span></p>
-        <p class="mb-3">${esc(e.summary)}</p>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+            <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${e.level === 'meta' ? 'bg-green-700/50 text-green-300' : e.level === 'replicated' ? 'bg-amber-700/50 text-amber-300' : 'bg-sky-700/50 text-sky-300'}">${levelLabel}</span>
+            ${typeBadge}
+        </div>
+        ${horizon}
+        ${intendedUse}
+        ${notFor}
+        <p class="mb-3" style="margin-top:8px">${esc(e.summary)}</p>
         ${refs ? `<ul class="mb-3 text-xs text-slate-400 space-y-0.5">${refs}</ul>` : ''}
         ${e.limitations ? `<p class="text-xs text-slate-500 border-t border-slate-700 pt-2"><strong class="text-slate-400">Einschränkungen:</strong> ${esc(e.limitations)}</p>` : ''}
-        <p class="text-xs text-slate-600 mt-3 border-t border-slate-700 pt-2">Methode validiert · Personalisierte Kalibrierung · Kein Ersatz für medizinische Diagnostik</p>`;
+        <p class="disclosure-disclaimer">Kein Ersatz für ärztliche Beratung · Keine medizinische Diagnose · Personalisierte Kalibrierung</p>`;
     openFormulaDialog(e.name || key, body, '#');
 }
 
@@ -40,6 +63,19 @@ export function evBadge(key) {
     const cls = e.level === 'meta' ? 'ev-meta' : e.level === 'replicated' ? 'ev-rep' : 'ev-model';
     const short = e.level === 'meta' ? 'M' : e.level === 'replicated' ? 'R' : 'E';
     return `<button class="ev-badge ${cls}" data-ev-badge="${key}" title="${esc(e.label)}: ${esc(e.name)}">${short}</button>`;
+}
+
+export function heroRecommendation(s) {
+    if (s == null) return '';
+    const [text, cls] =
+        s >= 75
+            ? ['Voll belasten — Körper ist erholt', 'rec-green']
+            : s >= 60
+              ? ['Moderat trainieren — Erholung läuft', 'rec-amber']
+              : s >= 40
+                ? ['Leichtes Training — Erholung bevorzugen', 'rec-amber']
+                : ['Heute ruhen — Erholung prioritär', 'rec-red'];
+    return `<p class="hero-recommendation ${cls}">${text}</p>`;
 }
 
 export function buildHeroCard() {
@@ -91,20 +127,8 @@ export function buildHeroCard() {
     const _hrvLabel = { BALANCED: 'Erholt', UNBALANCED: 'Leicht gedämpft', LOW: 'Niedrig', POOR: 'Stark gedämpft' };
 
     const rfScore = rf?.value != null ? Math.round(rf.value) : null;
-    const rfSubCls = rfScore != null ? (rfScore >= 75 ? 'sub-green' : rfScore >= 50 ? 'sub-amber' : 'sub-red') : '';
-
-    function heroRecommendation(s) {
-        if (s == null) return '';
-        const [text, cls] =
-            s >= 80
-                ? ['Voll belasten — Körper ist erholt', 'rec-green']
-                : s >= 60
-                  ? ['Moderat trainieren — Erholung läuft', 'rec-amber']
-                  : s >= 40
-                    ? ['Leichtes Training — Erholung bevorzugen', 'rec-amber']
-                    : ['Heute ruhen — Erholung prioritär', 'rec-red'];
-        return `<p class="hero-recommendation ${cls}">${text}</p>`;
-    }
+    const rfSubCls =
+        rfScore != null ? (rfScore >= 75 ? 'heute-green' : rfScore >= 50 ? 'heute-amber' : 'heute-red') : '';
 
     function tileCls(s) {
         return s == null ? 'heute-muted' : s >= 70 ? 'heute-green' : s >= 45 ? 'heute-amber' : 'heute-red';
@@ -127,6 +151,7 @@ export function buildHeroCard() {
                 val: autDevLbl,
                 spark: sparkHrv,
                 col: C.green,
+                horizon: 'Heute Nacht · 90T-Basis',
             },
             {
                 label: 'Schlaf',
@@ -135,6 +160,7 @@ export function buildHeroCard() {
                 val: cogDebtLbl,
                 spark: sparkSleep,
                 col: C.violet,
+                horizon: '7-Tage kumulativ',
             },
             {
                 label: 'Stress',
@@ -143,14 +169,16 @@ export function buildHeroCard() {
                 val: stressLbl,
                 spark: sparkStress,
                 col: C.orange,
+                horizon: 'Heute · Tageswert',
             },
         ]
             .map(
-                ({ label, href, s, val, spark, col }) =>
+                ({ label, href, s, val, spark, col, horizon }) =>
                     `<a href="${esc(href)}" class="hero-heute-item">
                 <span class="hero-heute-val ${tileCls(s)}" style="font-size:1.05rem">${esc(val)}</span>
                 ${sparklineSvg(spark, col, 56, 16)}
                 <span class="hero-heute-label">${esc(label)}</span>
+                <span class="metric-horizon">${esc(horizon)}</span>
             </a>`,
             )
             .join('');
@@ -193,6 +221,7 @@ export function buildHeroCard() {
                 <span class="hero-heute-val ${tileCls(_bbScore)}" style="font-size:1.05rem">${Math.round(_bbScore)} %</span>
                 ${sparklineSvg(sparkBatt, C.green, 56, 16)}
                 <span class="hero-heute-label">Energie</span>
+                <span class="metric-horizon">Heute · Snapshot</span>
             </a>`
                 : '';
         const tsbCls =
@@ -205,6 +234,7 @@ export function buildHeroCard() {
                 <span class="hero-heute-val ${tsbCls}" style="font-size:1.05rem">TSB ${esc(tsbStr)}</span>
                 <span class="hero-heute-score-lbl">${esc(tsbLbl)}</span>
                 <span class="hero-heute-label">Trainingsform</span>
+                <span class="metric-horizon">42-Tage-Verlauf</span>
             </a>`
                 : '';
         return bbTile + tsbTile;
@@ -212,11 +242,19 @@ export function buildHeroCard() {
 
     const mlTile =
         rfScore != null
-            ? `<span class="hero-heute-item">
+            ? `<a href="/metrics/readiness-rf" class="hero-heute-item">
             <span class="hero-heute-val ${rfSubCls}" style="font-size:1.05rem">~${rfScore}</span>
             <span class="hero-heute-score-lbl">ML-Prognose</span>
             <span class="hero-heute-label">Readiness Morgen</span>
-        </span>`
+            <span class="metric-horizon">Prognose · Morgen</span>
+        </a>`
+            : '';
+
+    // Conflict explainer: battery pattern "erschoepft" while readiness is good
+    const _bp = ml.battery_pattern;
+    const conflictInfo =
+        _bp?.pattern === 'erschoepft' && score != null && score >= 60
+            ? `<span class="metric-conflict-info" title="Battery-Muster beschreibt die letzten Wochen. Readiness misst heute Nacht.">ⓘ Verschiedene Zeiträume</span>`
             : '';
 
     el.innerHTML = `<div class="hero-header">
@@ -232,9 +270,13 @@ export function buildHeroCard() {
                 </div>
             </div>
             <div class="hero-right-panel">
+                <div class="hero-capacity-header" style="margin-bottom:4px">
+                    <span class="hero-section-label">ERHOLUNGSSIGNALE</span>
+                    ${conflictInfo}
+                </div>
                 <div class="hero-signals-row">${signalTiles()}</div>
                 <div class="hero-capacity-header">
-                    <span class="hero-zone-label">HEUTE MÖGLICH</span>
+                    <span class="hero-section-label">TRAININGSKAPAZITÄT</span>
                     ${capRecText ? `<span class="${capRecCls} hero-cap-rec">${esc(capRecText)}</span>` : ''}
                 </div>
                 <div class="hero-capacity-grid">${capacityTilesOnly()}</div>
@@ -314,7 +356,7 @@ export function buildMlTabs() {
                 html += mlStatTile(
                     'Battery Muster',
                     BP_LABELS[bp.pattern] ?? esc(bp.pattern),
-                    '',
+                    'Verlaufsmuster · Letzte Wochen',
                     '/metrics/battery-pattern?back=erholung',
                 );
             }

@@ -518,6 +518,66 @@ html.dark       .nav-arrow:hover:not(:disabled) { background: rgba(255,255,255,.
 html:not(.dark) .nav-arrow:hover:not(:disabled) { background: rgba(0,0,0,.08); color: var(--text); }
 .nav-arrow:disabled { opacity: .3; cursor: not-allowed; }
 
+/* ── EN 62366 Metric Disclosure ──────────────────────────────────────────── */
+
+/* Zeithorizont-Chip unter Metrik-Wert */
+.metric-horizon {
+  font-size: 0.62rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-top: 1px; line-height: 1.2;
+}
+
+/* Sektion-Header ERHOLUNGSSIGNALE / TRAININGSKAPAZITÄT */
+.hero-section-label {
+  display: block; font-size: var(--text-xs); font-weight: 700;
+  letter-spacing: .1em; color: var(--muted); text-transform: uppercase;
+}
+
+/* Conflict-Info-Chip */
+.metric-conflict-info {
+  font-size: 0.65rem; color: var(--muted);
+  border: 1px solid rgba(148,163,184,.2); border-radius: 4px;
+  padding: 1px 6px; cursor: default; white-space: nowrap;
+}
+html.dark       .metric-conflict-info:hover { color: var(--accent); border-color: var(--accent); }
+html:not(.dark) .metric-conflict-info:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Metric-Typ-Chip in Evidence Dialog */
+.metric-type-chip {
+  display: inline-block; padding: 2px 7px; border-radius: 999px;
+  font-size: 0.65rem; font-weight: 600; line-height: 1.4;
+}
+.type-recovery   { background: rgba(16,185,129,.15);  color: #6ee7b7; }
+.type-capacity   { background: rgba(59,130,246,.15);  color: #93c5fd; }
+.type-trend      { background: rgba(245,158,11,.15);  color: #fcd34d; }
+.type-prediction { background: rgba(139,92,246,.15);  color: #c4b5fd; }
+.type-screening  { background: rgba(249,115,22,.15);  color: #fdba74; }
+html:not(.dark) .type-recovery   { background: #d1fae5; color: #065f46; }
+html:not(.dark) .type-capacity   { background: #dbeafe; color: #1e40af; }
+html:not(.dark) .type-trend      { background: #fef3c7; color: #92400e; }
+html:not(.dark) .type-prediction { background: #ede9fe; color: #4c1d95; }
+html:not(.dark) .type-screening  { background: #ffedd5; color: #7c2d12; }
+
+/* Evidence Disclosure Dialog Blocks */
+.disclosure-horizon {
+  font-size: .75rem; color: var(--muted); margin: 4px 0 8px; line-height: 1.4;
+}
+.disclosure-block {
+  padding: 6px 8px; border-radius: 6px; margin: 4px 0; font-size: .8rem; line-height: 1.4;
+}
+.disclosure-block.intended {
+  background: rgba(16,185,129,.08); color: #6ee7b7; border: 1px solid rgba(16,185,129,.2);
+}
+.disclosure-block.not-for {
+  background: rgba(239,68,68,.08); color: #fca5a5; border: 1px solid rgba(239,68,68,.18);
+}
+html:not(.dark) .disclosure-block.intended { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+html:not(.dark) .disclosure-block.not-for  { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.disclosure-disclaimer {
+  font-size: .65rem; color: rgba(148,163,184,.5);
+  border-top: 1px solid rgba(148,163,184,.12); padding-top: 6px; margin-top: 8px; line-height: 1.4;
+}
+html:not(.dark) .disclosure-disclaimer { color: rgba(71,85,105,.45); border-top-color: rgba(0,0,0,.08); }
+
 /* ── Evidence Badges ─────────────────────────────────────────────────────── */
 .ev-badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -591,3 +651,36 @@ html:not(.dark) .hero-heute-item { background: rgba(0,0,0,.04); border-color: rg
 .comp-score  { font-size: var(--text-xl); font-weight: 800; letter-spacing: -.03em; line-height: 1; margin-bottom: var(--sp-1); font-variant-numeric: tabular-nums; }
 .comp-detail { font-size: var(--text-xs); color: var(--muted); min-height: 1em; margin-bottom: var(--sp-2); }
 .comp-sparkline { opacity: .75; line-height: 0; }
+
+/* ── Metric Detail Page: Summary + Recommendation ────────────────────────── */
+.metric-summary-text {
+  font-size: var(--text-sm); color: var(--muted); line-height: 1.5;
+  margin: var(--sp-2) 0 0;
+}
+.recommendation-block {
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  border-left: 3px solid var(--green);
+  font-size: var(--text-sm); font-weight: 500; line-height: 1.4;
+  color: var(--text);
+}
+html.dark       .recommendation-block { background: rgba(16,185,129,.08); }
+html:not(.dark) .recommendation-block { background: rgba(16,185,129,.07); }
+
+/* ── Help Page Articles ───────────────────────────────────────────────────── */
+.help-article { scroll-margin-top: 80px; border-left: 3px solid transparent; transition: border-color .2s; }
+.help-article:target, .help-article.help-highlight { border-left-color: var(--accent); }
+.help-article-header { display: flex; align-items: flex-start; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-1); }
+.help-article-header h2 { font-size: var(--text-lg); font-weight: 700; margin: 0; flex: 1 1 auto; line-height: 1.2; }
+.help-summary { font-size: var(--text-sm); color: var(--muted); line-height: 1.6; margin: var(--sp-2) 0 var(--sp-3); }
+.help-science-text { font-size: var(--text-sm); color: var(--muted); line-height: 1.6; margin-top: var(--sp-2); }
+.help-formula { margin: var(--sp-3) 0 0; }
+.help-article-footer { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border); flex-wrap: wrap; }
+.help-group-heading { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: var(--sp-6) 0 var(--sp-3); }
+.help-group-heading:first-of-type { margin-top: 0; }
+.help-show-all-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  font-size: var(--text-sm); color: var(--muted);
+  padding: 0 0 var(--sp-3); transition: color .15s;
+}
+.help-show-all-btn:hover { color: var(--accent); }

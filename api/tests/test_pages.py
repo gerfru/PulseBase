@@ -86,6 +86,24 @@ async def test_metrics_overview_returns_200(client):
     assert r.status_code == 200
 
 
+# ── Help page ─────────────────────────────────────────────────────────────────
+
+
+async def test_help_page_returns_200(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/help")
+    assert r.status_code == 200
+
+
+async def test_help_page_requires_auth(client):
+    from src.deps import NeedsLogin
+
+    with patch("src.deps.require_user", AsyncMock(side_effect=NeedsLogin())):
+        r = await client.get("/help")
+    assert r.status_code == 303
+    assert r.headers["location"] == "/login"
+
+
 # ── Activity detail page ──────────────────────────────────────────────────────
 
 

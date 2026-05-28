@@ -49,6 +49,16 @@ export const GARMIN_METRICS = {
                     },
                 ],
                 eli5: 'Dein Garmin zählt jeden Schritt mit einem eingebauten Bewegungssensor. Drei Achsen messen die Beschleunigung deines Körpers und erkennen das typische Auf-und-Ab-Muster beim Gehen. Das Ergebnis ist präziser als ein klassischer Schrittzähler, weil das Gerät auch Schrittlänge und Bewegungsrhythmus berücksichtigt.',
+                summary:
+                    'Tägliche Schrittzahl gemessen via tri-axialem Beschleunigungssensor. WHO-Empfehlung: 7.000–10.000 Schritte täglich.',
+                recommendation: (() => {
+                    const s = latest?.steps ?? null;
+                    if (s == null) return null;
+                    if (s >= 10000) return `${s.toLocaleString('de-AT')} Schritte — WHO-Aktivitätsziel erreicht.`;
+                    if (s >= 7000)
+                        return `${s.toLocaleString('de-AT')} Schritte — gute Grundaktivität. 10.000 als Idealziel.`;
+                    return `${s.toLocaleString('de-AT')} Schritte — unter 7.000. Mehr Alltagsbewegung einbauen.`;
+                })(),
             };
         },
     },
@@ -184,6 +194,16 @@ export const GARMIN_METRICS = {
                     },
                 ],
                 eli5: 'Garmin schaut, wie lange du geschlafen hast, und bewertet die Qualität deines Schlafs. Tiefschlaf ist besonders wertvoll — dort regeneriert sich dein Körper physisch. REM-Schlaf ist wichtig fürs Gedächtnis. Viele Wachphasen oder zu wenig Tiefschlaf senken den Score. Das Ergebnis ist eine Note von 0–100.',
+                summary:
+                    'Garmins proprietärer Schlaf-Score (0–100) basierend auf Schlafdauer, Phasen und HRV während des Schlafs.',
+                recommendation: (() => {
+                    const sc = latest?.sleep_score ?? null;
+                    if (sc == null) return null;
+                    if (sc >= 80) return `Schlaf-Score ${sc} — ausgezeichnet. Körper gut regeneriert.`;
+                    if (sc >= 60) return `Schlaf-Score ${sc} — gut. Training wie geplant möglich.`;
+                    if (sc >= 40) return `Schlaf-Score ${sc} — ausreichend. Auf Schlafqualität heute Nacht achten.`;
+                    return `Schlaf-Score ${sc} — niedrig. Belastung heute reduzieren, früh schlafen gehen.`;
+                })(),
             };
         },
     },
@@ -262,6 +282,15 @@ export const GARMIN_METRICS = {
                     },
                 ],
                 eli5: 'Dein Herz schlägt nicht perfekt gleichmäßig — zwischen je zwei Schlägen gibt es winzige Zeitunterschiede. RMSSD misst, wie groß diese Unterschiede sind. Je größer, desto aktiver arbeitet dein Erholungsnerv (Parasympathikus). Ein hoher HRV bedeutet: dein Körper ist gut erholt und kann flexibel auf Belastungen reagieren.',
+                summary:
+                    'HRV Wochendurchschnitt (Garmin RMSSD) — Rohwert in ms. Für kontextualisierte Auswertung → Autonome Energie.',
+                recommendation: (() => {
+                    if (latest?.hrv_weekly_avg == null) return null;
+                    const delta = latest.hrv_weekly_avg - avg90;
+                    if (delta > 3) return `HRV ${latest.hrv_weekly_avg} ms — über deinem Ø. Gute autonome Erholung.`;
+                    if (delta >= -3) return `HRV ${latest.hrv_weekly_avg} ms — im Normalbereich.`;
+                    return `HRV ${latest.hrv_weekly_avg} ms — unter deinem Ø. Auf Erholung und Schlaf achten.`;
+                })(),
             };
         },
     },
@@ -330,6 +359,14 @@ export const GARMIN_METRICS = {
                     },
                 ],
                 eli5: 'Stell dir einen Smartphone-Akku vor: Sport und Stress verbrauchen Energie, Schlaf und Erholung laden ihn wieder auf. Garmin berechnet das kontinuierlich aus deinem Herzrhythmus. Wenn du morgens mit 90+ aufwachst, hat die Nacht gut geladen. Wenn du nach einer intensiven Trainingswoche mit 30 aufwachst, ist eine Erholungspause fällig.',
+                summary: 'Garmins Body Battery (Firstbeat): kontinuierliche Energieschätzung aus Herzrhythmus, 0–100.',
+                recommendation: (() => {
+                    const bb = latest?.body_battery_high ?? null;
+                    if (bb == null) return null;
+                    if (bb >= 70) return `Body Battery ${bb} — gute Energie für Sport und anspruchsvolle Aufgaben.`;
+                    if (bb >= 40) return `Body Battery ${bb} — moderate Energie. Mittelschwere Aktivität möglich.`;
+                    return `Body Battery ${bb} — niedrig. Erholung oder leichte Aktivität empfohlen.`;
+                })(),
             };
         },
     },
@@ -382,6 +419,15 @@ export const GARMIN_METRICS = {
                     },
                 ],
                 eli5: 'Nachts sollte dein SpO₂ stabil bei 95–100 % bleiben. Wenn es regelmäßig unter 90 % fällt oder über mehrere Tage sinkt, kann das auf Schlafapnoe oder eine Erkrankung hindeuten. Das System zeigt dir den Trend — ein Arzt macht die Diagnose.',
+                summary: 'Screening auf nächtliche SpO₂-Desaturationen. Werte unter 90% wiederholt: Arzt konsultieren.',
+                recommendation: (() => {
+                    const spo2 = latest?.avg_spo2 ?? null;
+                    if (spo2 == null) return null;
+                    if (spo2 >= 95) return `SpO₂ ${spo2.toFixed(1)}% — normaler Bereich.`;
+                    if (spo2 >= 90)
+                        return `SpO₂ ${spo2.toFixed(1)}% — leicht erhöhte Aufmerksamkeit empfohlen. Trend beobachten.`;
+                    return `SpO₂ ${spo2.toFixed(1)}% — unter 90%. Bitte einen Arzt konsultieren.`;
+                })(),
             };
         },
     },

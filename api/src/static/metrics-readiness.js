@@ -172,6 +172,17 @@ export const READINESS_METRICS = {
                     },
                 ],
                 eli5: 'Der Erholungs-Score zeigt wie gut dein Körper sich über Nacht erholt hat — rein physiologisch, ohne Trainingskontext. Autonom (60%): Ist dein Nervensystem (HRV) heute besser oder schlechter als dein persönlicher Normalwert? Kognitiv (40%): Wie viel Schlafschuld hast du angehäuft? TSB (Trainingsbelastung) findest du separat unter "HEUTE MÖGLICH" im Dashboard.',
+                summary:
+                    'Overnight-Erholungsstatus: 60% HRV-Abweichung von Baseline + 40% Schlafschuld — ohne Trainingsbelastung.',
+                recommendation: (() => {
+                    if (score == null) return null;
+                    if (score >= 75)
+                        return 'Gut erholt — autonomes System und Schlaf in guter Verfassung. Volles Training möglich.';
+                    if (score >= 55) return 'Erholung in Ordnung. Normales Training planbar, auf HRV-Signale achten.';
+                    if (score >= 35)
+                        return 'Erholung eingeschränkt. Leichtes Training, Schlaf und Regeneration priorisieren.';
+                    return 'Erhebliches Defizit — HRV und/oder Schlafschuld kritisch. Heute ruhen.';
+                })(),
             };
         },
     },
@@ -228,6 +239,16 @@ export const READINESS_METRICS = {
                     },
                 ],
                 eli5: 'Nach einem intensiven Training sollte sich dein Nervensystem erholen. Wenn deine HRV (Herzfrequenzvariabilität) schnell ansteigt (z.B. +2–4 ms pro Tag), bedeutet das: dein Körper aktiviert seinen Erholung-Nerv schnell. Das ist ein positives Zeichen — dein Körper adaptet gut. Wenn die HRV langsam oder gar nicht ansteigt nach schwierigem Training, könnte es sein, dass du übertrainiert bist.',
+                summary:
+                    'Misst die Erholungsgeschwindigkeit deiner HRV nach intensiven Trainingseinheiten (60-Tage-Verlauf).',
+                recommendation: (() => {
+                    const spd = d?.recovery_speed ?? null;
+                    if (spd == null) return null;
+                    if (spd >= 2)
+                        return 'Schnelle HRV-Erholung — gute Trainingsadaptation. Intensitätsblöcke gut vertragen.';
+                    if (spd >= 0) return 'Normale HRV-Erholung. Training fortführen, Volumen moderat halten.';
+                    return 'Verzögerte HRV-Erholung nach Training. Längere Erholungsphasen zwischen intensiven Einheiten einplanen.';
+                })(),
             };
         },
     },
@@ -359,6 +380,21 @@ export const READINESS_METRICS = {
                     },
                 ],
                 eli5: 'Dein Herz wird nachts vom Erholungsnerv (Parasympathikus) kontrolliert — je tiefer du schläfst, desto stärker ist dieser Nerv aktiv, desto höher ist deine HRV. Tiefschlaf ist die Phase, wo dein Körper wirklich repariert: Muskeln, Immunsystem, Energiereserven. Die Korrelation zeigt, ob bei dir persönlich guter Schlaf am nächsten Tag tatsächlich eine höhere HRV produziert — das ist dein persönlicher Schlaf-Erholungs-Zusammenhang.',
+                summary: 'Kombinierte Ansicht: HRV-Verlauf + Schlaf-Score + persönlicher Schlaf→HRV-Zusammenhang.',
+                recommendation: (() => {
+                    if (hrvWeekly == null && sleepScore == null) return null;
+                    const parts = [];
+                    if (hrvWeekly != null && avg90Hrv != null) {
+                        if (hrvWeekly >= avg90Hrv * 1.05) parts.push('HRV über Ø — gute autonome Erholung.');
+                        else if (hrvWeekly < avg90Hrv * 0.92)
+                            parts.push('HRV unter Ø — auf ausreichend Schlaf achten.');
+                    }
+                    if (sleepScore != null) {
+                        if (sleepScore >= 75) parts.push('Schlaf-Score gut.');
+                        else if (sleepScore < 50) parts.push('Schlaf-Score niedrig — Schlafhygiene verbessern.');
+                    }
+                    return parts.length ? parts.join(' ') : null;
+                })(),
             };
         },
     },

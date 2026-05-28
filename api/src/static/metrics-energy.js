@@ -91,6 +91,17 @@ export const ENERGY_METRICS = {
                     },
                 ],
                 eli5: 'Denk an ein Sparkonto: Jedes Training hebt Geld ab (ATL = kurzfristige Erschöpfung). Regelmäßiges Training über Monate baut Zinsen auf (CTL = Fitness-Basis). TSB ist dein Kontostand: positiv = ausgeruht und fit, negativ = müde. Score 72 heißt "ausgeglichen" — das ist gut! Wer regelmäßig trainiert hat fast immer leicht negatives TSB, z.B. −15 (Score 49, gelb) — völlig normal. Problematisch wird es erst unter −30 (Score 27, rot). Vor Wettkämpfen ist ein leicht positiver TSB (+5 bis +15, Score 79–87) ideal.',
+                summary:
+                    'Zeigt deine Trainingsform (TSB = Fitness minus Erschöpfung). Positiv = frisch, negativ = im Trainingsblock — beides kann richtig sein.',
+                recommendation: (() => {
+                    const tsb = phys?.tsb ?? null;
+                    if (tsb == null) return null;
+                    if (tsb >= 5)
+                        return 'TSB positiv — Körper ist frisch. Guter Zeitpunkt für intensive Einheit oder Wettkampf.';
+                    if (tsb >= -15) return 'TSB ausgeglichen. Normales Training möglich, du bist in guter Form.';
+                    if (tsb >= -30) return 'Trainingsphase — moderate Erschöpfung ist normal. Belastung wie geplant.';
+                    return 'TSB sehr negativ — hohe Erschöpfung. Regeneration oder leichte Einheit empfohlen.';
+                })(),
             };
         },
     },
@@ -173,6 +184,16 @@ export const ENERGY_METRICS = {
                     },
                 ],
                 eli5: 'Wir vergleichen dein HRV nur mit DEINEM eigenen Normalwert. Score 70 = dein HRV ist genau auf deiner persönlichen Baseline — das ist gut, nicht mittelmäßig! Score 85+ = du bist heute deutlich erholter als üblich. Score 55 = leicht unter Baseline, kein Alarm. Score unter 40 = dein HRV ist ungewöhnlich niedrig, Vorsicht. Das ist aussagekräftiger als ein absoluter Wert, weil jeder Mensch seinen eigenen HRV-Normalbereich hat.',
+                summary:
+                    'Vergleicht deine HRV von heute Nacht mit deiner persönlichen 90-Tage-Baseline — zeigt autonomen Erholungsstatus.',
+                recommendation: (() => {
+                    const z = auton?.deviation ?? null;
+                    if (z == null) return null;
+                    if (z > 0.5) return 'HRV über Baseline — autonomes System gut erholt. Intensives Training möglich.';
+                    if (z > -0.5) return 'HRV im Normalbereich. Training wie geplant.';
+                    if (z > -1.5) return 'HRV leicht unter Baseline. Moderates Training, auf Signale achten.';
+                    return 'HRV deutlich unter Baseline. Belastung heute reduzieren, Regeneration priorisieren.';
+                })(),
             };
         },
     },
@@ -246,6 +267,17 @@ export const ENERGY_METRICS = {
                     },
                 ],
                 eli5: 'Jede Nacht mit zu wenig Schlaf packt dir Gewichte in einen unsichtbaren Rucksack. Der Rucksack macht es schwerer, klar zu denken und Entscheidungen zu treffen. Score 100 = leerer Rucksack. Score 27 heißt, du trägst ca. 10h Schlafschuld mit dir. Zwei gute Nächte hintereinander können das schon merklich verbessern.',
+                summary:
+                    'Bewertet kognitive Energie basierend auf der Schlafschuld der letzten 7 Nächte (Ziel: 7h/Nacht).',
+                recommendation: (() => {
+                    const debt = cog?.debt_hours ?? null;
+                    if (debt == null) return null;
+                    if (debt < 1)
+                        return 'Kein wesentliches Schlafdefizit. Kognitive Leistungsfähigkeit unbeeinträchtigt.';
+                    if (debt < 4)
+                        return `${debt.toFixed(1)}h Schlafschuld akkumuliert. Priorität auf ausreichend Schlaf legen.`;
+                    return `${debt.toFixed(1)}h Schlafschuld — deutliches Defizit. Intensive Belastung heute vermeiden.`;
+                })(),
             };
         },
     },
@@ -340,6 +372,15 @@ export const ENERGY_METRICS = {
                     },
                 ],
                 eli5: 'Stell dir deinen Akku vor: Jeden Morgen startest du neu — basierend darauf wie gut du geschlafen hast (Tiefschlaf + REM zählen mehr als bloße Stunden) und wie erholt dein Nervensystem laut HRV ist. Training und Stress verbrauchen Energie. 30% Trägheit vom Vortag verhindert, dass der Wert täglich wild springt.',
+                summary:
+                    'Tagesenergie als physiologischer Snapshot: 70% aktuelle Physiologie (Schlaf + HRV), 30% Vortags-Trägheit.',
+                recommendation: (() => {
+                    const sc = d?.score ?? null;
+                    if (sc == null) return null;
+                    if (sc >= 75) return 'Gute Energie — ideal für Training oder anspruchsvolle Aufgaben.';
+                    if (sc >= 45) return 'Moderate Energie. Mittelschwere Aktivität möglich, auf Signale achten.';
+                    return 'Niedrige Energie. Leichte Aktivität oder bewusste Erholung empfohlen.';
+                })(),
             };
         },
     },
@@ -427,6 +468,15 @@ export const ENERGY_METRICS = {
                     },
                 ],
                 eli5: 'Ein hoher Stress Score bedeutet: dein Nervensystem ist aktiviert (hohe Herzfrequenzvariabilität ist schlecht = hoher Stress). Gemessen wird das über HRV-Abweichung von deinem 97-Tage-Durchschnitt. Ein Score unter 30 = du bist entspannt. Über 60 = dein Körper ist in Kampf-oder-Flucht-Modus. Das kombiniert auch Garmins Stressmarker (sympathische Aktivität).',
+                summary:
+                    'Bewertet physiologischen Stress via HRV-Abweichung (60%) und Garmin-Stressdaten (40%). Niedriger Score = entspannt.',
+                recommendation: (() => {
+                    const sc = d?.score ?? null;
+                    if (sc == null) return null;
+                    if (sc < 30) return 'Niedriger Stress — guter Zustand für Belastung oder anspruchsvolle Arbeit.';
+                    if (sc < 60) return 'Moderater Stress — normaler Alltag. Bei Training auf Erholung achten.';
+                    return 'Hoher Stress — autonomes Nervensystem stark aktiviert. Intensives Training heute vermeiden.';
+                })(),
             };
         },
     },
