@@ -23,9 +23,9 @@ async def page(browser_context: BrowserContext) -> Page:
     await p.close()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 async def authenticated_page(browser_context: BrowserContext) -> Page:
-    """Browser page that is already logged in."""
+    """Shared authenticated page — login happens once per test session."""
     p = await browser_context.new_page()
     await p.goto("/login")
     await p.fill("input[name=email]", TEST_EMAIL)

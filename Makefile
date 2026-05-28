@@ -1,6 +1,10 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-e2e test-coverage test-js test-js-coverage secure-env
+.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env
+
+# E2E Test-Credentials (lokal, kein echter Account)
+TEST_EMAIL  ?= e2e@pulsebase.test
+TEST_PASSWORD ?= E2eLocalTest1!  # pragma: allowlist secret
 
 network:
 	docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
@@ -135,15 +139,24 @@ test-env-up: ## Test-Stack auf Port 8001 starten
 test-env-down: ## Test-Stack stoppen
 	$(DC) -f docker-compose.test.yml down
 
-test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren (test-env-up vorher)
+test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren — vollständiger pg_dump (nur bei Bedarf)
 	docker exec garmin-db pg_dump \
 	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin \
 	  | docker exec -i garmin-db-test psql \
 	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin_test
 
-test-e2e: ## Playwright E2E gegen Test-Stack (test-env-up + test-seed vorher)
-	cd api && .venv/bin/playwright install chromium --with-deps
-	cd api && .venv/bin/pytest tests/e2e/ -v
+test-user: ## Test-User in garmin_test anlegen — reicht für E2E
+	cd api && TEST_EMAIL=$(TEST_EMAIL) TEST_PASSWORD=$(TEST_PASSWORD) DB_PORT=5434 \
+	  DB_USER=$$(grep ^DB_USER ../env/.env | cut -d= -f2) \
+	  DB_PASSWORD=$$(grep ^DB_PASSWORD ../env/.env | cut -d= -f2) \
+	  .venv/bin/python tests/e2e/create_ci_user.py
+
+test-e2e: ## Playwright E2E — alles automatisch, Stack wird auch bei Fehler gestoppt
+	$(MAKE) test-env-up
+	$(MAKE) test-user && \
+	  api/.venv/bin/playwright install chromium --with-deps && \
+	  ( cd api && TEST_EMAIL=$(TEST_EMAIL) TEST_PASSWORD=$(TEST_PASSWORD) .venv/bin/pytest tests/e2e/ -v ); \
+	  EXIT=$$?; $(MAKE) test-env-down; exit $$EXIT
 
 test-coverage: ## Coverage-Report (Terminal + HTML unter api/htmlcov/index.html)
 	cd api && .venv/bin/pytest tests/ --ignore=tests/e2e \
