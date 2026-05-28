@@ -42,6 +42,15 @@ export const SLEEP_METRICS = {
                     },
                 ],
                 eli5: 'Statt einfach zu sagen wie lange du geschlafen hast, schaut dieser Score auch ob du genug Tiefschlaf (körperliche Erholung) und REM-Schlaf (Träume, emotionale Verarbeitung) hattest. Ein guter Score bedeutet: die richtige Menge und die richtigen Phasen — nicht nur lange im Bett.',
+                summary:
+                    'Schlafqualitätsscore letzte Nacht: Tiefschlaf (35%) + REM (25%) + Dauer (25%) + Wach-Penalty (15%).',
+                recommendation: (() => {
+                    if (sc == null) return null;
+                    if (sc >= 75) return `Schlafqualität ${sc} — ausgezeichnet. Körper hat sich gut erholt.`;
+                    if (sc >= 50)
+                        return `Schlafqualität ${sc} — okay. Tiefschlaf- oder REM-Anteil könnte verbessert werden.`;
+                    return `Schlafqualität ${sc} — niedrig. Schlafumgebung und -routine überprüfen.`;
+                })(),
             };
         },
     },
@@ -134,6 +143,16 @@ export const SLEEP_METRICS = {
                     },
                 ],
                 eli5: 'Garmin vergleicht deine HRV mit einer anonymen Referenzpopulation — wir vergleichen sie mit DIR. Wenn du normalerweise eine HRV von 60ms hast und heute 55ms misst, ist das für dich anders als für jemanden dessen Normal bei 40ms liegt. Dein persönlicher Normalwert ist der einzig sinnvolle Vergleichsmaßstab.',
+                summary:
+                    'Personalisierter HRV-Status (Custom): vergleicht 7-Tage-HRV-Mittel mit persönlicher Langzeit-Baseline.',
+                recommendation: (() => {
+                    const st = d?.status ?? null;
+                    if (st === 'BALANCED') return 'HRV ausgeglichen — gute Erholung. Volles Training möglich.';
+                    if (st === 'UNBALANCED') return 'HRV leicht gedämpft. Moderate Belastung empfohlen.';
+                    if (st === 'LOW' || st === 'POOR')
+                        return 'HRV deutlich unter Baseline. Regeneration heute priorisieren.';
+                    return null;
+                })(),
             };
         },
     },
@@ -253,6 +272,17 @@ export const SLEEP_METRICS = {
                     },
                 ],
                 eli5: 'Wenn du eine Nacht um 22 Uhr schlafen gehst, die nächste um 00:30, und dann wieder um 23:15, „weiß" dein Körper nicht, was los ist. Dein Hirn versucht, zirkadianen Rhythmus stabil zu halten — ständiger Jet Lag verwirrt dein Melatonin und deine Fitness-Anpassungen. Regelmäßig schlafen gehen und aufstehen (auch am Wochenende) ist einer der stärksten Hebel für Schlafqualität und Gesundheit.',
+                summary:
+                    'Bewertet die Regelmäßigkeit deiner Schlafzeiten über 14 Nächte. Hoher Score = stabiler Schlafrhythmus.',
+                recommendation: (() => {
+                    const sc = d?.score ?? null;
+                    if (sc == null) return null;
+                    if (sc >= 80)
+                        return `Sehr konsistenter Schlafrhythmus (${Math.round(sc)}). Circadiane Uhr gut eingestellt.`;
+                    if (sc >= 60)
+                        return `Mäßig konsistenter Schlafrhythmus (${Math.round(sc)}). Einschlafzeiten stabilisieren.`;
+                    return `Unregelmäßiger Schlafrhythmus (${Math.round(sc)}). Feste Schlafzeiten auch am Wochenende einhalten.`;
+                })(),
             };
         },
     },

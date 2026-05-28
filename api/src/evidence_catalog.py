@@ -5,6 +5,12 @@ Evidence levels:
   meta       — at least one meta-analysis or clinical practice guideline standard
   replicated — multiple independent studies, consistent findings, no formal meta
   model      — PulseBase-specific calibration, literature-informed, not externally benchmarked
+
+EN 62366-inspired fields (added to every entry):
+  metric_type   — recovery | capacity | trend | prediction | screening
+  time_horizon  — when/how long this measurement is valid
+  intended_use  — what this metric assesses (one sentence)
+  not_for       — what it explicitly does NOT assess (one sentence)
 """
 
 EVIDENCE: dict[str, dict] = {
@@ -12,6 +18,10 @@ EVIDENCE: dict[str, dict] = {
     "energy_physical": {
         "level": "meta",
         "label": "Meta-Analyse",
+        "metric_type": "capacity",
+        "time_horizon": "Letzte 7–42 Tage (ATL/CTL-Fenster)",
+        "intended_use": "Bewertet akkumulierte Trainingsbelastung und aktuelle Trainingsform (TSB).",
+        "not_for": "Misst Last, nicht Regeneration — kein Indikator für heutigen Erholungsstatus.",
         "name": "TRIMP / ATL · CTL · TSB",
         "summary": (
             "Banister TRIMP (Training Impulse) ist der am häufigsten validierte "
@@ -32,6 +42,10 @@ EVIDENCE: dict[str, dict] = {
     "training_monotony": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "trend",
+        "time_horizon": "Letzte 7 Tage",
+        "intended_use": "Bewertet die Gleichförmigkeit der wöchentlichen Trainingsbelastung.",
+        "not_for": "Keine Einzeltags-Empfehlung — beschreibt das Wochenmuster, nicht heute.",
         "name": "Training Monotony & Strain",
         "summary": (
             "Foster (1998) zeigte, dass hohe Training Monotony (>2.0) mit "
@@ -50,6 +64,10 @@ EVIDENCE: dict[str, dict] = {
     "training_effect_custom": {
         "level": "meta",
         "label": "Meta-Analyse",
+        "metric_type": "capacity",
+        "time_horizon": "Heute (TRIMP der letzten Einheit)",
+        "intended_use": "Bewertet den aeroben Trainingseffekt der heutigen oder gestrigen Einheit.",
+        "not_for": "Kein Erholungsindikator und kein Maß für langfristige Adaptation.",
         "name": "Aerober Trainingseffekt (TRIMP-basiert)",
         "summary": (
             "Skalierung des TRIMP auf Trainingseffekt 0–5 via atan gegen persönliche "
@@ -70,6 +88,10 @@ EVIDENCE: dict[str, dict] = {
     "energy_autonomic": {
         "level": "meta",
         "label": "Meta-Analyse",
+        "metric_type": "recovery",
+        "time_horizon": "Heutige Nacht (HRV vs. 90-Tage-Baseline)",
+        "intended_use": "Bewertet den autonomen Erholungszustand anhand der HRV-Abweichung von der persönlichen Baseline.",
+        "not_for": "Keine Kardiodiagnostik und kein Arrhythmie-Screening.",
         "name": "Autonome Energie (HRV-Baseline)",
         "summary": (
             "HRV als Marker für autonomes Gleichgewicht und Erholungsstatus ist "
@@ -89,6 +111,10 @@ EVIDENCE: dict[str, dict] = {
     "hrv_recovery": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "trend",
+        "time_horizon": "60-Tage-Verlauf nach Trainingseinheiten",
+        "intended_use": "Bewertet, wie schnell sich die HRV nach Trainingsbelastung erholt.",
+        "not_for": "Keine Tages-Empfehlung — zeigt Adaptationstrend, nicht akuten Status.",
         "name": "HRV Recovery Trajectory",
         "summary": (
             "Erholungsgeschwindigkeit der HRV nach Trainingsbelastung als "
@@ -109,6 +135,10 @@ EVIDENCE: dict[str, dict] = {
     "energy_cognitive": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "recovery",
+        "time_horizon": "Letzte 7 Nächte (kumulativ)",
+        "intended_use": "Bewertet kognitive Energie anhand akkumulierter Schlafschuld der letzten Woche.",
+        "not_for": "Keine Schlafstörungsdiagnostik — beschreibt Schlafschuld, keine Schlafpathologie.",
         "name": "Kognitive Energie (Schlafschuld-Modell)",
         "summary": (
             "Kognitive Leistungsfähigkeit degradiert proportional zur akkumulierten "
@@ -128,6 +158,10 @@ EVIDENCE: dict[str, dict] = {
     "sleep_consistency": {
         "level": "meta",
         "label": "Meta-Analyse",
+        "metric_type": "trend",
+        "time_horizon": "Letzte 14 Nächte",
+        "intended_use": "Bewertet die Regelmäßigkeit der Schlaf- und Aufwachzeiten über zwei Wochen.",
+        "not_for": "Keine Aussage über die Qualität einer einzelnen Nacht.",
         "name": "Sleep Consistency Score",
         "summary": (
             "Unregelmäßige Schlaf-/Aufwachzeiten korrelieren mit schlechterer "
@@ -145,10 +179,37 @@ EVIDENCE: dict[str, dict] = {
             "Schlafzeit-Erkennung kann um 15–30 min abweichen."
         ),
     },
+    "sleep_score_custom": {
+        "level": "replicated",
+        "label": "Repliziert",
+        "metric_type": "recovery",
+        "time_horizon": "Letzte Nacht",
+        "intended_use": "Bewertet die Schlafqualität der letzten Nacht anhand von Schlafphasen und Dauer.",
+        "not_for": "Kein klinischer Schlaftest — kein Ersatz für Polysomnographie oder Schlafmedizin.",
+        "name": "Sleep Score Custom",
+        "summary": (
+            "Gewichtetes Composite aus Tiefschlaf (35%), REM (25%), Gesamtdauer (25%) "
+            "und Wake-Penalty (15%). Phasen-Ziele basieren auf NSF-Empfehlungen und "
+            "Walkers Schlafarchitektur-Forschung."
+        ),
+        "refs": [
+            "Walker MP (2017). Why We Sleep. Scribner — sleep stage targets.",
+            "Hirshkowitz M et al. (2015). Sleep Health 1(1):40–43 [NSF guidelines]",
+            "Dijk DJ, Czeisler CA (1995). J Neurosci 15(5):3526–3538 — SWS/REM physiology.",
+        ],
+        "limitations": (
+            "Garmin-Schlafstaging via Akzelerometer + HRV; Übereinstimmung mit PSG "
+            "nur moderat. Gewichtungen (35/25/25/15) sind heuristisch kalibriert."
+        ),
+    },
     # ── Body / SpO2 ───────────────────────────────────────────────────────────
     "spo2_trend": {
         "level": "meta",
         "label": "Meta-Analyse",
+        "metric_type": "screening",
+        "time_horizon": "Letzte 7 Nächte",
+        "intended_use": "Screening auf nächtliche SpO2-Desaturationen als Hinweis auf Atemprobleme im Schlaf.",
+        "not_for": "Kein Ersatz für Polysomnographie — keine Diagnose von Schlafapnoe oder anderen Schlafstörungen.",
         "name": "SpO2-Trendanalyse",
         "summary": (
             "Nächtliche SpO2-Desaturationen (<90%) sind etabliertes Screening-Kriterium "
@@ -168,6 +229,10 @@ EVIDENCE: dict[str, dict] = {
     "body_battery_custom": {
         "level": "model",
         "label": "Eigenmodell",
+        "metric_type": "recovery",
+        "time_horizon": "Heute (physiologischer Snapshot)",
+        "intended_use": "Bewertet den heutigen Energiestatus als physiologischen Snapshot aus Schlaf und HRV.",
+        "not_for": "Kein Maß für akkumulierte Trainingsbelastung — misst Tagesenergie, nicht Trainingsform.",
         "name": "Body Battery Custom",
         "summary": (
             "Fresh-State-Energiemodell (v2, Mai 2026): Tagesenergie als "
@@ -196,6 +261,10 @@ EVIDENCE: dict[str, dict] = {
     "stress_score_custom": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "recovery",
+        "time_horizon": "Heute (HRV-Tageswert)",
+        "intended_use": "Bewertet sympatho-vagale Balance als Proxy für physiologischen Stresszustand.",
+        "not_for": "Keine psychologische Stressdiagnostik — misst vegetative Balance, nicht subjektiven Stress.",
         "name": "Stress-Score (HRV-basiert)",
         "summary": (
             "Sympatho-vagale Balance als Stress-Proxy via HRV-Baseline-Abweichung. "
@@ -216,6 +285,10 @@ EVIDENCE: dict[str, dict] = {
     "running_economy": {
         "level": "meta",
         "label": "Meta-Analyse",
+        "metric_type": "trend",
+        "time_horizon": "Letzte Laufeinheiten (90-Tage-Basis)",
+        "intended_use": "Bewertet Laufökonomie aus biomechanischen Kennzahlen (Bodenkontaktzeit, vertikale Oszillation).",
+        "not_for": "Keine sportmedizinische Leistungsdiagnostik — kein Ersatz für Laktattests oder VO2max-Messung.",
         "name": "Laufökonomie-Score",
         "summary": (
             "Bodenkonatktzeit, vertikale Oszillation und vertikales Verhältnis sind "
@@ -232,10 +305,39 @@ EVIDENCE: dict[str, dict] = {
             "Z-Score gegen eigene Baseline ist personalisiert aber nicht extern validiert."
         ),
     },
+    # ── Intensity Minutes ─────────────────────────────────────────────────────
+    "intensity_minutes_custom": {
+        "level": "meta",
+        "label": "Meta-Analyse",
+        "metric_type": "capacity",
+        "time_horizon": "Heutige Aktivität",
+        "intended_use": "Bewertet moderate und intensive Aktivitätsminuten nach WHO-Empfehlungen.",
+        "not_for": "Kein Erholungsindikator — misst Aktivitätsdosis, nicht Regeneration.",
+        "name": "Intensitätsminuten (Karvonen-Methode)",
+        "summary": (
+            "Herzfrequenz-Reserve-Methode (Karvonen) klassifiziert Aktivitätsminuten "
+            "in moderat (40–70% HRR) und intensiv (>70% HRR). Grundlage für "
+            "WHO-Empfehlungen (150 min/Woche moderat oder 75 min intensiv). "
+            "Vigorous-Minuten werden ×2 gewertet (WHO-konform)."
+        ),
+        "refs": [
+            "Karvonen MJ et al. (1957). Ann Med Exp Biol Fenn 35(3):307–315",
+            "WHO (2020). Global recommendations on physical activity for health.",
+            "Garber CE et al. (2011). Med Sci Sports Exerc 43(7):1334–1359 [ACSM]",
+        ],
+        "limitations": (
+            "HRmax-Schätzung aus Garmin-Daten kann individuell abweichen. "
+            "Kein kontinuierliches HRR-Tracking — nur aus Activity-Records mit HR-Daten."
+        ),
+    },
     # ── ML Models ─────────────────────────────────────────────────────────────
     "readiness_rf": {
         "level": "model",
         "label": "Eigenmodell",
+        "metric_type": "prediction",
+        "time_horizon": "Prognose: Morgen",
+        "intended_use": "Sagt die personalisierte Readiness für den nächsten Tag voraus.",
+        "not_for": "Keine Diagnose, kein populationsbasierter Normwert — Modell ist nur für dich kalibriert.",
         "name": "Readiness RF (Random Forest)",
         "summary": (
             "Personalisierter Random Forest trainiert auf deinen eigenen Daten. "
@@ -251,10 +353,66 @@ EVIDENCE: dict[str, dict] = {
             "Modell ist spezifisch für dich — keine Generalisierbarkeit."
         ),
     },
+    "battery_pattern": {
+        "level": "model",
+        "label": "Eigenmodell",
+        "metric_type": "trend",
+        "time_horizon": "Letzte 14–30 Tage (Verlaufsmuster)",
+        "intended_use": "Erkennt, welchem historischen Body-Battery-Kurventyp die letzten Wochen ähneln.",
+        "not_for": (
+            "Keine Aussage über den heutigen Erholungsstatus — "
+            "beschreibt das Muster vergangener Tage, nicht den aktuellen Zustand."
+        ),
+        "name": "Battery-Muster (k-Means)",
+        "summary": (
+            "k-Means-Clustering (3 Cluster) auf täglichen Body-Battery-Features: "
+            "Morgenwert, Abendwert, Tagesrange, Fläche unter der Kurve, Anzahl Einbrüche. "
+            "Cluster werden semantisch zugewiesen: stabil_hoch (hohe stabile Energie), "
+            "erholung (tiefer Morgenwert, steigende Kurve), erschöpft (niedrige AUC oder "
+            "schnelle Entladung). Mindestens 14 Tage mit ≥6 Messpunkten pro Tag nötig."
+        ),
+        "refs": [
+            "MacQueen JB (1967). Proceedings of 5th Berkeley Symposium on Mathematical Statistics.",
+            "Firstbeat Technologies (2014). Body Battery — physiological background.",
+        ],
+        "limitations": (
+            "Nur 3 Cluster — 'erschöpft' ist Fallback-Label für alles, das nicht "
+            "stabil_hoch oder erholung entspricht. Label kann auch bei hohem Tageswert "
+            "erscheinen, wenn das historische Kurvenform-Muster nicht passt. "
+            "Cluster-Grenzen variieren mit deinen persönlichen Daten."
+        ),
+    },
+    "correlation_sleep_hrv": {
+        "level": "replicated",
+        "label": "Repliziert",
+        "metric_type": "trend",
+        "time_horizon": "Letzte 90 Tage (Pearson r)",
+        "intended_use": "Zeigt den statistischen Zusammenhang zwischen Schlafqualität und nächster-Nacht-HRV über 90 Tage.",
+        "not_for": "Kein Kausalitätsnachweis — korrelative Beobachtung ohne experimentelle Kontrolle.",
+        "name": "Schlaf → HRV Korrelation (Pearson r)",
+        "summary": (
+            "Pearson-Korrelation zwischen Sleep Score (Nacht N) und HRV der nächsten Nacht (N+1). "
+            "Analoge Korrelationen für Sleep→RHR und Body Battery→RHR. "
+            "Physiologischer Mechanismus gut belegt: guter Schlaf fördert vagale Aktivität."
+        ),
+        "refs": [
+            "Plews DJ et al. (2013). Sports Med 43(9):773–781",
+            "Brosschot JF et al. (2006). J Psychosom Res 61(3):311–320",
+            "Otzenberger H et al. (1997). Am J Physiol 273(2):R812–R817",
+        ],
+        "limitations": (
+            "Mindestens 10 Paare nötig. Pearson r setzt Linearität voraus. "
+            "Garmin-Schlafphasen und HRV via PPG; beide mit messbarer Geräteunsicherheit."
+        ),
+    },
     # ── Anomaly Detection ─────────────────────────────────────────────────────
     "anomaly_hr": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "screening",
+        "time_horizon": "Heute vs. 30-Tage-Baseline",
+        "intended_use": "Erkennt ungewöhnlich erhöhte Ruheherzfrequenz als mögliches Erholungsdefizit-Signal.",
+        "not_for": "Keine kardiovaskuläre Diagnostik — kein Ersatz für ärztliche Beurteilung.",
         "name": "Ruhepuls-Anomalie (Z-Score)",
         "summary": (
             "Z-Score-basierte Anomalie-Detektion gegen 30-Tages-Baseline. "
@@ -270,6 +428,10 @@ EVIDENCE: dict[str, dict] = {
     "anomaly_spo2": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "screening",
+        "time_horizon": "Heute vs. 30-Tage-Baseline",
+        "intended_use": "Erkennt ungewöhnlich niedrige SpO2-Werte als mögliches Atemproblems-Signal.",
+        "not_for": "Keine klinische Diagnose — optischer Sensor weniger präzise als medizinische Pulsoximetrie.",
         "name": "SpO2-Anomalie (Z-Score)",
         "summary": "Z-Score-Abweichung vom persönlichen SpO2-Mittelwert. Methodisch analog zur HR-Anomalie.",
         "refs": [
@@ -281,6 +443,10 @@ EVIDENCE: dict[str, dict] = {
     "anomaly_sleep_duration": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "screening",
+        "time_horizon": "Heute vs. 30-Tage-Baseline",
+        "intended_use": "Erkennt ungewöhnliche Abweichungen von der persönlichen Schlafdauer-Baseline.",
+        "not_for": "Keine Schlafstörungsdiagnostik — zeigt Abweichung, nicht Pathologie.",
         "name": "Schlafdauer-Anomalie (Z-Score)",
         "summary": "Z-Score-Abweichung von persönlicher Schlafdauer-Baseline.",
         "refs": [
@@ -292,6 +458,10 @@ EVIDENCE: dict[str, dict] = {
     "anomaly_steps": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "screening",
+        "time_horizon": "Heute vs. 30-Tage-Baseline",
+        "intended_use": "Erkennt ungewöhnlich hohe oder niedrige Schrittzahlen als Aktivitätsmuster-Signal.",
+        "not_for": "Keine medizinische Mobilitätsdiagnostik — grober Aktivitätsproxy ohne Intensitätsinformation.",
         "name": "Schritte-Anomalie (Z-Score)",
         "summary": "Ungewöhnlich niedrige oder hohe Schrittzahlen als Aktivitätsmuster-Signal.",
         "refs": ["Chandola V et al. (2009). ACM Computing Surveys 41(3):15"],
@@ -300,6 +470,10 @@ EVIDENCE: dict[str, dict] = {
     "anomaly_stress": {
         "level": "replicated",
         "label": "Repliziert",
+        "metric_type": "screening",
+        "time_horizon": "Heute vs. 30-Tage-Baseline",
+        "intended_use": "Erkennt ungewöhnlich hohe physiologische Stresswerte im Vergleich zur persönlichen Baseline.",
+        "not_for": "Keine psychologische Stressdiagnostik — basiert auf HRV-Proxy, nicht auf subjektivem Erleben.",
         "name": "Stress-Anomalie (Z-Score)",
         "summary": "Z-Score-Abweichung vom persönlichen Stress-Baseline.",
         "refs": [

@@ -19,13 +19,14 @@ _CANDIDATE_FEATURES = [
 
 
 def _energy_based_score(row: dict[str, Any]) -> float | None:
+    # Weights match get_readiness() in api/src/db/health.py so RF predicts
+    # the same composite that is displayed — physical energy (TSB-based) is
+    # intentionally excluded because it measures accumulated load, not recovery.
     components: list[tuple[float, float]] = []
-    if row.get("energy_physical_score") is not None:
-        components.append((float(row["energy_physical_score"]), 0.35))
     if row.get("energy_autonomic_score") is not None:
-        components.append((float(row["energy_autonomic_score"]), 0.40))
+        components.append((float(row["energy_autonomic_score"]), 0.60))
     if row.get("energy_cognitive_score") is not None:
-        components.append((float(row["energy_cognitive_score"]), 0.25))
+        components.append((float(row["energy_cognitive_score"]), 0.40))
     if not components:
         return None
     total_w = sum(w for _, w in components)
@@ -96,7 +97,14 @@ def train_and_save(
     importances = {
         f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
     }
-    return {"features": feature_names, "importances": importances, "n_rows": len(X)}
+    from datetime import date as _date
+
+    return {
+        "features": feature_names,
+        "importances": importances,
+        "n_rows": len(X),
+        "trained_at": _date.today().isoformat(),
+    }
 
 
 def predict_tomorrow(

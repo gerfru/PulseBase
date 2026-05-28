@@ -69,6 +69,15 @@ export const ML_METRICS = {
                     },
                 ],
                 eli5: 'Wir schauen, ob dein heutiger Ruhepuls ungewöhnlich anders ist als dein eigener Normalwert der letzten 30 Tage. Z=0 heißt: genau wie immer. Z=+2 heißt: heute 2 Standardabweichungen höher als normal. Wenn du sonst immer 44bpm hast, aber heute 52bpm, kann das ein frühes Zeichen für eine Erkältung sein — noch bevor du dich krank fühlst.',
+                summary:
+                    'Vergleicht deinen heutigen Ruhepuls mit deiner persönlichen 30-Tage-Baseline. Erkennt ungewöhnliche Abweichungen frühzeitig.',
+                recommendation: (() => {
+                    if (anomaly == null) return null;
+                    if (isAnom && (anomaly.z_score ?? 0) > 2)
+                        return 'Ruhepuls ungewöhnlich hoch — mögliches Zeichen für Übertraining, Stress oder Erkrankung. Belastung heute reduzieren.';
+                    if (isAnom) return 'Anomalie erkannt. Auf körperliche Signale achten.';
+                    return 'Ruhepuls im Normalbereich. Kein Anlass zur Sorge.';
+                })(),
             };
         },
     },
@@ -100,7 +109,7 @@ export const ML_METRICS = {
                     { label: 'Heutiger Score', value: score ?? '—' },
                     {
                         label: 'Trainingsdaten',
-                        value: meta?.n_training_samples != null ? `${meta.n_training_samples} Tage` : '—',
+                        value: meta?.n_rows != null ? `${meta.n_rows} Tage` : '—',
                     },
                     { label: 'Letztes Training', value: meta?.trained_at ? fmtDate(meta.trained_at) : '—' },
                 ],
@@ -150,6 +159,16 @@ export const ML_METRICS = {
                     },
                 ],
                 eli5: 'Ein Computerprogramm hat aus deinen Daten gelernt: "Wenn HRV hoch, Schlaf gut und Ruhepuls normal ist, dann ist diese Person morgen meistens fit." 100 Entscheidungsbäume stimmen jeweils unabhängig voneinander ab und ihr Durchschnitt ist die Prognose. Je mehr Tage das Modell beobachtet hat, desto besser kennt es deine persönlichen Muster.',
+                summary:
+                    'Personalisierte ML-Prognose deiner Readiness für morgen — trainiert ausschließlich auf deinen eigenen Daten.',
+                recommendation: (() => {
+                    if (score == null) return null;
+                    if (score >= 75)
+                        return `Prognose ${score} — gute Erholung erwartet. Intensives Training morgen möglich.`;
+                    if (score >= 50)
+                        return `Prognose ${score} — moderate Erholung erwartet. Normales Training morgen planbar.`;
+                    return `Prognose ${score} — eingeschränkte Erholung erwartet. Morgen eher leicht trainieren.`;
+                })(),
             };
         },
     },
@@ -232,6 +251,17 @@ export const ML_METRICS = {
                     },
                 ],
                 eli5: 'Garmin schaut jeden Morgen auf dein HRV und vergleicht es mit deinem persönlichen Normalwert der letzten 3 Wochen. "Ausgeglichen" heißt: alles normal, gut erholt. "Unausgeglichen" heißt: etwas stimmt nicht ganz. "Niedrig" ist ein klares Signal: heute solltest du regenerieren, nicht intensiv trainieren.',
+                summary:
+                    'Garmins HRV-Statusklassifikation (Firstbeat): vergleicht heutige HRV mit persönlicher 3-Wochen-Baseline.',
+                recommendation: (() => {
+                    const k = (latest?.hrv_status || '').toLowerCase();
+                    if (k === 'balanced') return 'HRV ausgeglichen — gut erholt. Volles Training möglich.';
+                    if (k === 'unbalanced')
+                        return 'HRV leicht außerhalb des Normalbereichs. Moderate Belastung empfohlen.';
+                    if (k === 'low' || k === 'poor')
+                        return 'HRV deutlich unter Baseline. Heute regenerieren statt intensiv trainieren.';
+                    return null;
+                })(),
             };
         },
     },
@@ -327,6 +357,20 @@ export const ML_METRICS = {
                     },
                 ],
                 eli5: 'Garmin analysiert deine Trainingsbelastung der letzten Wochen und vergleicht sie mit deiner geschätzten Fitness. "Aufbauend" bedeutet: du machst es perfekt, du wirst gerade stärker. "Übertraining" ist ein rotes Licht — dein Körper kann die Belastung nicht mehr sinnvoll verarbeiten. Dann hilft mehr Training nicht mehr, sondern schadet.',
+                summary:
+                    'Garmins Bewertung ob dein Training gerade aufbauend, erhaltend oder überbelastend ist — basierend auf Firstbeat-Analyse.',
+                recommendation: (() => {
+                    const k = (data?.training_status || '').toUpperCase();
+                    if (k === 'PRODUCTIVE') return 'Training wirkt aufbauend — weiter so. Belastung stabil halten.';
+                    if (k === 'MAINTAINING')
+                        return 'Fitnesslevel wird gehalten. Für Steigerung Umfang oder Intensität leicht erhöhen.';
+                    if (k === 'RECOVERY') return 'Erholungsphase — Belastung bewusst reduziert halten.';
+                    if (k === 'OVERREACHING')
+                        return 'Übertraining erkannt — Erholung priorisieren, Umfang deutlich reduzieren.';
+                    if (k === 'DETRAINING')
+                        return 'Zu wenig Aktivität — Fitness nimmt ab. Regelmäßige Einheiten einplanen.';
+                    return null;
+                })(),
             };
         },
     },
@@ -362,6 +406,14 @@ export const ML_METRICS = {
                     { label: 'Einbrüche', value: String(feat.n_dips ?? '—') },
                 ],
                 eli5: 'Deine Body Battery zeigt über den Tag, wie viel Energie du hast. Das System schaut sich 5 Kennzahlen an (Morgen-Start, Abend-End, Schwankungsbreite, Gesamtniveau, Einbrüche) und ordnet deinen Tag einem von 3 Mustern zu: ⚡ Hohe Energie, 🔄 Erholung, oder 📉 Erschöpft.',
+                summary:
+                    'k-Means Klassifikation deines Body-Battery-Kurventyps — beschreibt das Verlaufsmuster der letzten Wochen, nicht nur heute.',
+                recommendation:
+                    bp.pattern === 'stabil_hoch'
+                        ? 'Stabiles Energiemuster — Training wie geplant.'
+                        : bp.pattern === 'erholung'
+                          ? 'Erholungsmuster erkannt — Energie steigt typischerweise über den Tag.'
+                          : 'Erschöpftes Muster in letzter Zeit — längerfristige Belastung reduzieren erwägen.',
                 formula: [
                     ['Modell', 'k-Means Clustering auf 5 Body-Battery-Features'],
                     ['Features', 'morning_avg, evening_avg, daily_range, auc, n_dips'],
@@ -420,6 +472,11 @@ export const ML_METRICS = {
                 kpis,
                 customHtml: corrItems.length ? `<div class="card">${corrItems.join('')}</div>` : '',
                 eli5: 'r misst, ob zwei Dinge zusammenhängen — auf einer Skala von −1 bis +1. r = +1 heißt: wenn A steigt, steigt B immer. r = −1 heißt: wenn A steigt, fällt B immer. r = 0 heißt: kein Zusammenhang. Wichtig: Zusammenhang bedeutet nicht Ursache.',
+                summary:
+                    'Zeigt statistische Zusammenhänge zwischen deinen Schlaf-, HRV- und Body-Battery-Werten über 90 Tage (Pearson r).',
+                recommendation: kpis.length
+                    ? null
+                    : 'Noch zu wenig Daten für Korrelationsanalyse. Mindestens 10 Datenpunkte nötig.',
                 formula: [
                     ['r-Wert', 'Pearson-Korrelationskoeffizient (−1 bis +1)'],
                     ['|r| > 0,6', 'Starker Zusammenhang'],
