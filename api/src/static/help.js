@@ -502,7 +502,7 @@ function renderArticle(art) {
         .filter(Boolean)
         .join('');
 
-    return `<article id="${esc(art.key)}" class="card help-article" data-searchtext="${esc((art.title + ' ' + art.eli5 + ' ' + (art.science ?? '') + ' ' + (ev.intended_use ?? '')).toLowerCase())}">
+    return `<article id="${esc(art.key)}" class="card help-article" data-searchtext="${esc(`${art.title} ${art.eli5} ${art.science ?? ''} ${ev.intended_use ?? ''}`.toLowerCase())}">
         <div class="help-article-header">
             ${typeBadge}
             <h2>${esc(art.title)}</h2>
@@ -580,6 +580,15 @@ function setupSearch() {
 
 // ── Hash navigation ───────────────────────────────────────────────────────────
 
+// Map metric URL names (e.g. "autonomic") → evidence keys (e.g. "energy_autonomic")
+// Needed because metric-detail links use the URL name, articles use the evidence key.
+const _metricNameToKey = {};
+for (const g of HELP_GROUPS) {
+    for (const art of g.articles) {
+        if (art.metricName) _metricNameToKey[art.metricName] = art.key;
+    }
+}
+
 let _filteredByHash = false;
 
 function showAllArticles() {
@@ -594,14 +603,16 @@ function showAllArticles() {
 function scrollToHash() {
     const hash = location.hash.slice(1);
     if (!hash) return;
-    const target = document.getElementById(hash);
+    // Resolve metric URL name → evidence key (e.g. "autonomic" → "energy_autonomic")
+    const resolvedKey = _metricNameToKey[hash] ?? hash;
+    const target = document.getElementById(resolvedKey);
     if (!target) return;
 
     // When arriving from a metric page, show only that article
     const allArticles = document.querySelectorAll('.help-article');
     if (allArticles.length > 1) {
         allArticles.forEach((art) => {
-            art.style.display = art.id === hash ? '' : 'none';
+            art.style.display = art.id === resolvedKey ? '' : 'none';
         });
         document.querySelectorAll('.help-group-heading').forEach((h) => {
             h.style.display = 'none';

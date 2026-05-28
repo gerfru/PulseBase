@@ -8,7 +8,7 @@
 .help-search-input::placeholder { color: var(--muted); }
 .help-group-heading { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: var(--sp-6) 0 var(--sp-3); }
 .help-group-heading:first-of-type { margin-top: 0; }
-.help-article { scroll-margin-top: 80px; border-left: 3px solid transparent; transition: border-color .2s; }
+.help-article { scroll-margin-top: 80px; border-left: 3px solid transparent; transition: border-color .2s; margin-bottom: var(--sp-4); }
 .help-article:target, .help-article.help-highlight { border-left-color: var(--accent); }
 .help-article-header { display: flex; align-items: flex-start; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-2); }
 .help-article-header h2 { font-size: var(--text-lg); font-weight: 700; margin: 0; flex: 1 1 auto; }
@@ -26,10 +26,9 @@ details.help-details { margin-top: var(--sp-3); }
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-4 pb-16">
 
-    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+    <div class="flex items-center gap-4 mb-4">
         <a class="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors no-underline py-1" href="/dashboard">← Dashboard</a>
         <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Hilfe &amp; Methodologie</h1>
-        <a href="/metrics" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 no-underline">Alle Metriken →</a>
     </div>
 
     <div class="help-search-wrap">
