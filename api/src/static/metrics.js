@@ -158,4 +158,10 @@ async function load() {
     }
 }
 
+const _backTab = new URLSearchParams(location.search).get('back');
+if (_backTab) {
+    const el = document.querySelector('a[href="/dashboard"]');
+    if (el) el.href = `/dashboard#${_backTab}`;
+}
+
 load();
