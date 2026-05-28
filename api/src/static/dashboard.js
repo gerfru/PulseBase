@@ -1,6 +1,16 @@
 import './chart-utils.js';
-import { currentDays, getEndDate, updateNavBar, setCurrentDays, incrementOffset, resetOffset, setTab, TABS, CHART_HASHES } from './dashboard-nav.js';
-import { loadEvidence, openEvidenceDialog } from './dashboard-hero.js';
+import {
+    currentDays,
+    getEndDate,
+    updateNavBar,
+    setCurrentDays,
+    incrementOffset,
+    resetOffset,
+    setTab,
+    TABS,
+    CHART_HASHES,
+} from './dashboard-nav.js';
+import { loadEvidence } from './dashboard-hero.js';
 import { load, loadReadiness, loadMlInsights, loadEnergyMetrics, loadTrainingLoad } from './dashboard-loaders.js';
 import { showToast, loadMlStatus, loadSyncStatus, triggerSync } from './dashboard-status.js';
 
@@ -14,7 +24,7 @@ function shiftPeriod(delta) {
 function setDays(days) {
     setCurrentDays(days);
     resetOffset();
-    document.querySelectorAll('.time-btn').forEach(b => {
+    document.querySelectorAll('.time-btn').forEach((b) => {
         b.classList.toggle('active', +b.dataset.days === days);
     });
     updateNavBar();
@@ -22,19 +32,21 @@ function setDays(days) {
     loadTrainingLoad(days).catch(() => {});
 }
 
-document.querySelectorAll('.time-btn').forEach(btn => {
+document.querySelectorAll('.time-btn').forEach((btn) => {
     btn.addEventListener('click', () => setDays(+btn.dataset.days));
 });
-document.querySelectorAll('.tab-btn').forEach(btn => {
+document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => setTab(btn.dataset.tab));
 });
 document.getElementById('sync-btn').addEventListener('click', triggerSync);
-document.getElementById('formula-dialog-close').addEventListener('click', () => document.getElementById('formula-dialog').close());
+document
+    .getElementById('formula-dialog-close')
+    .addEventListener('click', () => document.getElementById('formula-dialog').close());
 document.getElementById('nav-back').addEventListener('click', () => shiftPeriod(1));
 document.getElementById('nav-forward').addEventListener('click', () => shiftPeriod(-1));
-document.getElementById('activities-container').addEventListener('click', e => {
+document.getElementById('activities-container').addEventListener('click', (e) => {
     const tr = e.target.closest('tr[data-id]');
-    if (tr) location.href = '/activity/' + tr.dataset.id;
+    if (tr) location.href = `/activity/${tr.dataset.id}`;
 });
 
 updateNavBar();
@@ -57,3 +69,4 @@ loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werd
 loadMlInsights().catch(() => {});
 loadEnergyMetrics().catch(() => {});
 loadSyncStatus();
+loadMlStatus();

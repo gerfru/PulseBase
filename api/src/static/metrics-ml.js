@@ -6,8 +6,8 @@ export const ML_METRICS = {
         section: 'ML & Status',
         async fetch() {
             return Promise.all([
-                fetch('/api/ml-insights').then(r => r.json()),
-                fetch('/api/daily?days=90').then(r => r.json()),
+                fetch('/api/ml-insights').then((r) => r.json()),
+                fetch('/api/daily?days=90').then((r) => r.json()),
             ]);
         },
         render([ml, daily]) {
@@ -15,23 +15,40 @@ export const ML_METRICS = {
             const zscore = anomaly?.z_score?.toFixed(2) ?? '—';
             const isAnom = anomaly?.is_anomaly;
             const today = daily.at(-1);
-            const validRhr = daily.filter(d => d.resting_hr);
+            const validRhr = daily.filter((d) => d.resting_hr);
             const rhrDelta = validRhr.length >= 2 ? validRhr.at(-1).resting_hr - validRhr.at(-2).resting_hr : null;
             return {
                 value: zscore,
-                sub: isAnom ? '⚠ Anomalie erkannt' : (anomaly?.z_score != null ? '✓ Normal' : 'zu wenig Daten'),
+                sub: isAnom ? '⚠ Anomalie erkannt' : anomaly?.z_score != null ? '✓ Normal' : 'zu wenig Daten',
                 kpis: [
                     { label: 'Z-Score heute (Standardabweichungen vom Ø)', value: zscore },
-                    { label: 'Status', value: isAnom ? '⚠ Anomalie' : (anomaly?.z_score != null ? '✓ Normal' : '—') },
-                    { label: 'Baseline Ø (30 Tage)', value: anomaly?.baseline_mean ? Math.round(anomaly.baseline_mean) + ' bpm' : '—' },
-                    { label: 'Ruhepuls heute', value: today?.resting_hr ? today.resting_hr + ' bpm' : '—', delta: rhrDelta },
+                    { label: 'Status', value: isAnom ? '⚠ Anomalie' : anomaly?.z_score != null ? '✓ Normal' : '—' },
+                    {
+                        label: 'Baseline Ø (30 Tage)',
+                        value: anomaly?.baseline_mean ? `${Math.round(anomaly.baseline_mean)} bpm` : '—',
+                    },
+                    {
+                        label: 'Ruhepuls heute',
+                        value: today?.resting_hr ? `${today.resting_hr} bpm` : '—',
+                        delta: rhrDelta,
+                    },
                 ],
-                chart: daily.some(d => d.resting_hr) ? {
-                    title: 'Ruhepuls-Verlauf (90 Tage)',
-                    type: 'line',
-                    labels: daily.map(d => fmtDate(d.date)),
-                    datasets: [{ data: daily.map(d => d.resting_hr ?? null), borderColor: C.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0 }],
-                } : null,
+                chart: daily.some((d) => d.resting_hr)
+                    ? {
+                          title: 'Ruhepuls-Verlauf (90 Tage)',
+                          type: 'line',
+                          labels: daily.map((d) => fmtDate(d.date)),
+                          datasets: [
+                              {
+                                  data: daily.map((d) => d.resting_hr ?? null),
+                                  borderColor: C.red,
+                                  backgroundColor: 'transparent',
+                                  tension: 0.3,
+                                  pointRadius: 0,
+                              },
+                          ],
+                      }
+                    : null,
                 formula: [
                     ['Baseline', 'Gleitendes 30-Tage-Fenster (min. 7 Messpunkte erforderlich)'],
                     ['Z-Score', 'Z = (HR_heute − μ₃₀) / σ₃₀'],
@@ -39,10 +56,17 @@ export const ML_METRICS = {
                     ['Positiv (Z > +2)', 'Hoher Ruhepuls → Übertraining, Krankheit, Schlafmangel'],
                     ['Negativ (Z < −2)', 'Sehr tiefer Ruhepuls → Super-Erholung oder Messproblem'],
                 ],
-                science: 'Resting Heart Rate (RHR) ist ein sensitiver Biomarker des autonomen Gleichgewichts: sympathische Aktivierung durch Übertraining, Infektion oder Schlafmangel erhöht RHR messbar vor klinischen Symptomen. Die Z-Score-basierte Anomalieerkennung entstammt der statistischen Prozesskontrolle. Die |Z| > 2.0-Schwelle entspricht den äußersten ≈ 5% einer Normalverteilung (zweiseitig) und liefert bei ausreichend langem Beobachtungsfenster spezifische Anomaliemeldungen. Bidirektionale Erkennung (|Z|, nicht nur Z > 0) ist wichtig, da ein ungewöhnlich tiefer Ruhepuls ebenso auf Messartefakte oder atypische Erholung hinweisen kann.',
+                science:
+                    'Resting Heart Rate (RHR) ist ein sensitiver Biomarker des autonomen Gleichgewichts: sympathische Aktivierung durch Übertraining, Infektion oder Schlafmangel erhöht RHR messbar vor klinischen Symptomen. Die Z-Score-basierte Anomalieerkennung entstammt der statistischen Prozesskontrolle. Die |Z| > 2.0-Schwelle entspricht den äußersten ≈ 5% einer Normalverteilung (zweiseitig) und liefert bei ausreichend langem Beobachtungsfenster spezifische Anomaliemeldungen. Bidirektionale Erkennung (|Z|, nicht nur Z > 0) ist wichtig, da ein ungewöhnlich tiefer Ruhepuls ebenso auf Messartefakte oder atypische Erholung hinweisen kann.',
                 sources: [
-                    { label: 'Buchheit (2014): Monitoring Recovery in Endurance Sports — BJSM', url: 'https://bjsm.bmj.com/content/48/4/243' },
-                    { label: 'Achten & Jeukendrup (2003): Heart Rate Monitoring — Sports Medicine', url: 'https://pubmed.ncbi.nlm.nih.gov/14561293/' },
+                    {
+                        label: 'Buchheit (2014): Monitoring Recovery in Endurance Sports — BJSM',
+                        url: 'https://bjsm.bmj.com/content/48/4/243',
+                    },
+                    {
+                        label: 'Achten & Jeukendrup (2003): Heart Rate Monitoring — Sports Medicine',
+                        url: 'https://pubmed.ncbi.nlm.nih.gov/14561293/',
+                    },
                 ],
                 eli5: 'Wir schauen, ob dein heutiger Ruhepuls ungewöhnlich anders ist als dein eigener Normalwert der letzten 30 Tage. Z=0 heißt: genau wie immer. Z=+2 heißt: heute 2 Standardabweichungen höher als normal. Wenn du sonst immer 44bpm hast, aber heute 52bpm, kann das ein frühes Zeichen für eine Erkältung sein — noch bevor du dich krank fühlst.',
             };
@@ -54,8 +78,8 @@ export const ML_METRICS = {
         section: 'ML & Status',
         async fetch() {
             return Promise.all([
-                fetch('/api/ml-insights').then(r => r.json()),
-                fetch('/api/ml-history?days=90').then(r => r.json()),
+                fetch('/api/ml-insights').then((r) => r.json()),
+                fetch('/api/ml-history?days=90').then((r) => r.json()),
             ]);
         },
         render([ml, history]) {
@@ -63,42 +87,67 @@ export const ML_METRICS = {
             const meta = ml.model_meta_rf;
             const hist = history.readiness_rf || [];
             const score = rf?.value != null ? Math.round(rf.value) : null;
-            const cls = score != null ? (score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor') : '';
+            const cls =
+                score != null ? (score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor') : '';
             const lbl = score != null ? (score >= 80 ? 'Gut' : score >= 50 ? 'Moderat' : 'Niedrig') : '—';
             return {
-                value: score != null
-                    ? `<span class="badge ${cls}" style="font-size:2.5rem;padding:.2rem .8rem;letter-spacing:-.01em">${score}</span>`
-                    : '—',
+                value:
+                    score != null
+                        ? `<span class="badge ${cls}" style="font-size:2.5rem;padding:.2rem .8rem;letter-spacing:-.01em">${score}</span>`
+                        : '—',
                 sub: lbl + (score != null ? ' · Readiness (0–100)' : ''),
                 kpis: [
                     { label: 'Heutiger Score', value: score ?? '—' },
-                    { label: 'Trainingsdaten', value: meta?.n_training_samples != null ? meta.n_training_samples + ' Tage' : '—' },
+                    {
+                        label: 'Trainingsdaten',
+                        value: meta?.n_training_samples != null ? `${meta.n_training_samples} Tage` : '—',
+                    },
                     { label: 'Letztes Training', value: meta?.trained_at ? fmtDate(meta.trained_at) : '—' },
                 ],
-                chart: hist.length > 3 ? {
-                    title: 'Prognose-Verlauf (90 Tage)',
-                    type: 'line',
-                    labels: hist.map(d => fmtDate(d.date)),
-                    datasets: [{
-                        data: hist.map(d => d.value ?? null),
-                        borderColor: C.indigo,
-                        backgroundColor: makeGradient(C.indigo),
-                        fill: true, tension: 0.3, pointRadius: 0,
-                    }],
-                    scales: { y: { min: 0, max: 100 } },
-                } : null,
+                chart:
+                    hist.length > 3
+                        ? {
+                              title: 'Prognose-Verlauf (90 Tage)',
+                              type: 'line',
+                              labels: hist.map((d) => fmtDate(d.date)),
+                              datasets: [
+                                  {
+                                      data: hist.map((d) => d.value ?? null),
+                                      borderColor: C.indigo,
+                                      backgroundColor: makeGradient(C.indigo),
+                                      fill: true,
+                                      tension: 0.3,
+                                      pointRadius: 0,
+                                  },
+                              ],
+                              scales: { y: { min: 0, max: 100 } },
+                          }
+                        : null,
                 formula: [
                     ['Modell', 'Random Forest Regressor (scikit-learn, 100 Entscheidungsbäume)'],
                     ['Features', 'hrv_last_night, sleep_score, resting_hr, aerobic_effect, anaerobic_effect'],
-                    ['Label', 'Energie-basierter Readiness-Score des Folgetages (Physical × 0.35 + Autonomic × 0.40 + Cognitive × 0.25)'],
+                    [
+                        'Label',
+                        'Energie-basierter Readiness-Score des Folgetages (Physical × 0.35 + Autonomic × 0.40 + Cognitive × 0.25)',
+                    ],
                     ['Training', 'Wöchentlich (Sonntag 3:00 Uhr), min. 30 Datenpunkte erforderlich'],
                     ['Output', 'Prognostizierter Readiness-Score für morgen (0–100)'],
                 ],
-                science: 'Random Forests (Breiman, 2001) sind Ensemble-Lernverfahren, die aus B Bootstrap-Stichproben B dekorrelierte Entscheidungsbäume trainieren. Averaging über alle Bäume reduziert Varianz ohne Bias-Erhöhung. Das Konfidenzintervall (10./90. Perzentil der Tree-Prognosen) quantifiziert Prognose-Unsicherheit — besonders relevant bei wenigen Trainingsdaten. Das Modell lernt personalisiert: Features (HRV, Schlaf, Ruhepuls, Trainingseffekt) am Tag N sagen den energie-basierten Readiness-Score am Tag N+1 vorher.',
+                science:
+                    'Random Forests (Breiman, 2001) sind Ensemble-Lernverfahren, die aus B Bootstrap-Stichproben B dekorrelierte Entscheidungsbäume trainieren. Averaging über alle Bäume reduziert Varianz ohne Bias-Erhöhung. Das Konfidenzintervall (10./90. Perzentil der Tree-Prognosen) quantifiziert Prognose-Unsicherheit — besonders relevant bei wenigen Trainingsdaten. Das Modell lernt personalisiert: Features (HRV, Schlaf, Ruhepuls, Trainingseffekt) am Tag N sagen den energie-basierten Readiness-Score am Tag N+1 vorher.',
                 sources: [
-                    { label: 'Breiman (2001): Random Forests — Machine Learning', url: 'https://link.springer.com/article/10.1023/A:1010933404324' },
-                    { label: 'Claudino et al. (2019): ML for Athlete Monitoring — Frontiers in Physiology', url: 'https://www.frontiersin.org/articles/10.3389/fphys.2019.00337/full' },
-                    { label: 'Saw et al. (2016): Monitoring Athlete Well-Being — Sports Medicine', url: 'https://pubmed.ncbi.nlm.nih.gov/26412149/' },
+                    {
+                        label: 'Breiman (2001): Random Forests — Machine Learning',
+                        url: 'https://link.springer.com/article/10.1023/A:1010933404324',
+                    },
+                    {
+                        label: 'Claudino et al. (2019): ML for Athlete Monitoring — Frontiers in Physiology',
+                        url: 'https://www.frontiersin.org/articles/10.3389/fphys.2019.00337/full',
+                    },
+                    {
+                        label: 'Saw et al. (2016): Monitoring Athlete Well-Being — Sports Medicine',
+                        url: 'https://pubmed.ncbi.nlm.nih.gov/26412149/',
+                    },
                 ],
                 eli5: 'Ein Computerprogramm hat aus deinen Daten gelernt: "Wenn HRV hoch, Schlaf gut und Ruhepuls normal ist, dann ist diese Person morgen meistens fit." 100 Entscheidungsbäume stimmen jeweils unabhängig voneinander ab und ihr Durchschnitt ist die Prognose. Je mehr Tage das Modell beobachtet hat, desto besser kennt es deine persönlichen Muster.',
             };
@@ -108,35 +157,57 @@ export const ML_METRICS = {
     'hrv-status': {
         title: 'HRV-Status',
         section: 'ML & Status',
-        async fetch() { return fetch('/api/hrv/trend?days=90').then(r => r.json()); },
+        async fetch() {
+            return fetch('/api/hrv/trend?days=90').then((r) => r.json());
+        },
         render(data) {
-            const statusLabels = { balanced: 'Ausgeglichen', unbalanced: 'Unausgeglichen', low: 'Niedrig', poor: 'Niedrig' };
-            const statusCls = { balanced: 'badge-balanced', unbalanced: 'badge-unbalanced', low: 'badge-poor', poor: 'badge-poor' };
+            const statusLabels = {
+                balanced: 'Ausgeglichen',
+                unbalanced: 'Unausgeglichen',
+                low: 'Niedrig',
+                poor: 'Niedrig',
+            };
+            const statusCls = {
+                balanced: 'badge-balanced',
+                unbalanced: 'badge-unbalanced',
+                low: 'badge-poor',
+                poor: 'badge-poor',
+            };
             const latest = data.at(-1);
             const key = (latest?.hrv_status || '').toLowerCase();
-            const label = statusLabels[key] ?? (latest?.hrv_status ?? '—');
+            const label = statusLabels[key] ?? latest?.hrv_status ?? '—';
             const cls = statusCls[key] ?? '';
-            const countBalanced = data.filter(d => (d.hrv_status || '').toLowerCase() === 'balanced').length;
+            const countBalanced = data.filter((d) => (d.hrv_status || '').toLowerCase() === 'balanced').length;
             return {
                 value: cls
                     ? `<span class="badge ${cls}" style="font-size:1.8rem;padding:.2rem .7rem">${label}</span>`
                     : '—',
-                sub: latest?.hrv_last_night ? latest.hrv_last_night + ' ms letzte Nacht' : '',
+                sub: latest?.hrv_last_night ? `${latest.hrv_last_night} ms letzte Nacht` : '',
                 kpis: [
                     { label: 'Aktueller Status', value: label },
-                    { label: 'Letzte Nacht HRV', value: latest?.hrv_last_night ? latest.hrv_last_night + ' ms' : '—' },
-                    { label: 'Ausgeglichen (90d)', value: data.length ? countBalanced + ' / ' + data.length + ' Tage' : '—' },
+                    { label: 'Letzte Nacht HRV', value: latest?.hrv_last_night ? `${latest.hrv_last_night} ms` : '—' },
+                    {
+                        label: 'Ausgeglichen (90d)',
+                        value: data.length ? `${countBalanced} / ${data.length} Tage` : '—',
+                    },
                 ],
-                chart: data.some(d => d.hrv_last_night) ? {
-                    title: 'HRV letzte Nacht (90 Tage)',
-                    type: 'line',
-                    labels: data.map(d => fmtDate(d.date)),
-                    datasets: [{
-                        label: 'HRV letzte Nacht',
-                        data: data.map(d => d.hrv_last_night ?? null),
-                        borderColor: C.green, backgroundColor: 'transparent', tension: 0.3, pointRadius: 0,
-                    }],
-                } : null,
+                chart: data.some((d) => d.hrv_last_night)
+                    ? {
+                          title: 'HRV letzte Nacht (90 Tage)',
+                          type: 'line',
+                          labels: data.map((d) => fmtDate(d.date)),
+                          datasets: [
+                              {
+                                  label: 'HRV letzte Nacht',
+                                  data: data.map((d) => d.hrv_last_night ?? null),
+                                  borderColor: C.green,
+                                  backgroundColor: 'transparent',
+                                  tension: 0.3,
+                                  pointRadius: 0,
+                              },
+                          ],
+                      }
+                    : null,
                 formula: [
                     ['Quelle', 'Garmin Firstbeat-Algorithmus (hrv_daily.hrv_status)'],
                     ['Vergleich', 'HRV letzte Nacht vs. persönliche 3-Wochen-Baseline'],
@@ -144,11 +215,21 @@ export const ML_METRICS = {
                     ['UNBALANCED', 'HRV leicht außerhalb → erhöhte Belastung oder Stress'],
                     ['LOW / POOR', 'HRV deutlich unter Baseline → Überbelastung oder Erkrankung'],
                 ],
-                science: 'Garmin HRV Status basiert auf dem proprietären Firstbeat Analytics-Algorithmus, der nächtliches RMSSD mit einer rollierenden 3-Wochen-Baseline vergleicht. Die Klassifikation (BALANCED/UNBALANCED/LOW/POOR) spiegelt konzeptionell die wissenschaftliche Literatur zur HRV-gestützten Trainingsteuerung wider (Plews et al., 2013). Der Algorithmus ist nicht öffentlich peer-reviewed. Die zugrundeliegenden Prinzipien — täglicher Vergleich gegen persönlichen Baseline, Tiefenfilterung via Wochenø — sind wissenschaftlich fundiert.',
+                science:
+                    'Garmin HRV Status basiert auf dem proprietären Firstbeat Analytics-Algorithmus, der nächtliches RMSSD mit einer rollierenden 3-Wochen-Baseline vergleicht. Die Klassifikation (BALANCED/UNBALANCED/LOW/POOR) spiegelt konzeptionell die wissenschaftliche Literatur zur HRV-gestützten Trainingsteuerung wider (Plews et al., 2013). Der Algorithmus ist nicht öffentlich peer-reviewed. Die zugrundeliegenden Prinzipien — täglicher Vergleich gegen persönlichen Baseline, Tiefenfilterung via Wochenø — sind wissenschaftlich fundiert.',
                 sources: [
-                    { label: 'Firstbeat Technologies: HRV-Based Recovery Analysis', url: 'https://www.firstbeat.com/en/science-behind-firstbeat/' },
-                    { label: 'Plews et al. (2013): HRV in Elite Endurance Athletes — IJSPP', url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/' },
-                    { label: 'Task Force ESC/NASPE (1996): HRV Standards — Circulation', url: 'https://www.ahajournals.org/doi/10.1161/01.CIR.93.5.1043' },
+                    {
+                        label: 'Firstbeat Technologies: HRV-Based Recovery Analysis',
+                        url: 'https://www.firstbeat.com/en/science-behind-firstbeat/',
+                    },
+                    {
+                        label: 'Plews et al. (2013): HRV in Elite Endurance Athletes — IJSPP',
+                        url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/',
+                    },
+                    {
+                        label: 'Task Force ESC/NASPE (1996): HRV Standards — Circulation',
+                        url: 'https://www.ahajournals.org/doi/10.1161/01.CIR.93.5.1043',
+                    },
                 ],
                 eli5: 'Garmin schaut jeden Morgen auf dein HRV und vergleicht es mit deinem persönlichen Normalwert der letzten 3 Wochen. "Ausgeglichen" heißt: alles normal, gut erholt. "Unausgeglichen" heißt: etwas stimmt nicht ganz. "Niedrig" ist ein klares Signal: heute solltest du regenerieren, nicht intensiv trainieren.',
             };
@@ -160,18 +241,38 @@ export const ML_METRICS = {
         section: 'ML & Status',
         async fetch() {
             return Promise.all([
-                fetch('/api/training-status').then(r => r.json()),
-                fetch('/api/ml-history?days=90').then(r => r.json()),
+                fetch('/api/training-status').then((r) => r.json()),
+                fetch('/api/ml-history?days=90').then((r) => r.json()),
             ]);
         },
         render([data, history]) {
             const tsMap = {
-                PRODUCTIVE:   { label: 'Aufbauend',       cls: 'badge-balanced',   desc: 'Dein Training ist effektiv — du wirst gerade fitter.' },
-                MAINTAINING:  { label: 'Erhalt',          cls: 'badge-balanced',   desc: 'Du hältst dein aktuelles Fitnesslevel stabil.' },
-                RECOVERY:     { label: 'Erholung',        cls: 'badge-unbalanced', desc: 'Dein Körper erholt sich nach hoher Belastung.' },
-                UNPRODUCTIVE: { label: 'Nicht produktiv', cls: 'badge-unbalanced', desc: 'Zu wenig oder zu viel Training für Fortschritte.' },
-                OVERREACHING: { label: 'Übertraining',    cls: 'badge-poor',       desc: 'Zu hohe Belastung — Erholung dringend empfohlen.' },
-                DETRAINING:   { label: 'Abfall',          cls: 'badge-poor',       desc: 'Zu wenig Aktivität — Fitness nimmt ab.' },
+                PRODUCTIVE: {
+                    label: 'Aufbauend',
+                    cls: 'badge-balanced',
+                    desc: 'Dein Training ist effektiv — du wirst gerade fitter.',
+                },
+                MAINTAINING: {
+                    label: 'Erhalt',
+                    cls: 'badge-balanced',
+                    desc: 'Du hältst dein aktuelles Fitnesslevel stabil.',
+                },
+                RECOVERY: {
+                    label: 'Erholung',
+                    cls: 'badge-unbalanced',
+                    desc: 'Dein Körper erholt sich nach hoher Belastung.',
+                },
+                UNPRODUCTIVE: {
+                    label: 'Nicht produktiv',
+                    cls: 'badge-unbalanced',
+                    desc: 'Zu wenig oder zu viel Training für Fortschritte.',
+                },
+                OVERREACHING: {
+                    label: 'Übertraining',
+                    cls: 'badge-poor',
+                    desc: 'Zu hohe Belastung — Erholung dringend empfohlen.',
+                },
+                DETRAINING: { label: 'Abfall', cls: 'badge-poor', desc: 'Zu wenig Aktivität — Fitness nimmt ab.' },
             };
             const key = (data?.training_status || '').toUpperCase();
             const entry = tsMap[key] || { label: data?.training_status ?? '—', cls: '', desc: '' };
@@ -179,25 +280,31 @@ export const ML_METRICS = {
                 value: entry.cls
                     ? `<span class="badge ${entry.cls}" style="font-size:1.8rem;padding:.2rem .7rem">${entry.label}</span>`
                     : '—',
-                sub: data?.date ? 'Stand ' + fmtDate(data.date) : '',
+                sub: data?.date ? `Stand ${fmtDate(data.date)}` : '',
                 kpis: [
                     { label: 'Status', value: entry.label },
                     { label: 'Bedeutung', value: entry.desc || '—' },
                 ],
                 chart: (() => {
                     const physHist = history.energy_physical || [];
-                    return physHist.length > 3 ? {
-                        title: 'Training Stress Balance — TSB (90 Tage)',
-                        type: 'line',
-                        labels: physHist.map(d => fmtDate(d.date)),
-                        datasets: [{
-                            label: 'TSB',
-                            data: physHist.map(d => d.tsb ?? null),
-                            borderColor: C.indigo,
-                            backgroundColor: makeGradient(C.indigo),
-                            fill: true, tension: 0.3, pointRadius: 0,
-                        }],
-                    } : null;
+                    return physHist.length > 3
+                        ? {
+                              title: 'Training Stress Balance — TSB (90 Tage)',
+                              type: 'line',
+                              labels: physHist.map((d) => fmtDate(d.date)),
+                              datasets: [
+                                  {
+                                      label: 'TSB',
+                                      data: physHist.map((d) => d.tsb ?? null),
+                                      borderColor: C.indigo,
+                                      backgroundColor: makeGradient(C.indigo),
+                                      fill: true,
+                                      tension: 0.3,
+                                      pointRadius: 0,
+                                  },
+                              ],
+                          }
+                        : null;
                 })(),
                 formula: [
                     ['Quelle', 'Garmin Firstbeat-Algorithmus (daily_summary.training_status)'],
@@ -207,10 +314,17 @@ export const ML_METRICS = {
                     ['RECOVERY', 'Bewusste Entlastungsphase nach hoher Belastung'],
                     ['OVERREACHING', 'Chronische Überbelastung — Verletzungsrisiko steigt'],
                 ],
-                science: 'Garmin Training Status integriert VO₂max-Schätzung via submaximaler Laufanalyse (Firstbeat-Algorithmus) mit Trainingsbelastungsperiodisierung. Die Klassifikation modelliert das Prinzip der Superkompensation: ausreichende Belastung + Erholung → PRODUCTIVE; chronische Überbelastung ohne ausreichende Erholung → OVERREACHING (Meeusen et al., 2013). Wie Body Battery ist dieser Wert ein proprietäres Firstbeat-Modell ohne externe Peer-Review-Validierung — als Orientierung, nicht als klinische Diagnose zu interpretieren.',
+                science:
+                    'Garmin Training Status integriert VO₂max-Schätzung via submaximaler Laufanalyse (Firstbeat-Algorithmus) mit Trainingsbelastungsperiodisierung. Die Klassifikation modelliert das Prinzip der Superkompensation: ausreichende Belastung + Erholung → PRODUCTIVE; chronische Überbelastung ohne ausreichende Erholung → OVERREACHING (Meeusen et al., 2013). Wie Body Battery ist dieser Wert ein proprietäres Firstbeat-Modell ohne externe Peer-Review-Validierung — als Orientierung, nicht als klinische Diagnose zu interpretieren.',
                 sources: [
-                    { label: 'Firstbeat Technologies: Training Status Overview', url: 'https://www.firstbeat.com/en/science-behind-firstbeat/training-effect/' },
-                    { label: 'Meeusen et al. (2013): Overtraining Syndrome Consensus — Med Sci Sports Exerc', url: 'https://pubmed.ncbi.nlm.nih.gov/23247672/' },
+                    {
+                        label: 'Firstbeat Technologies: Training Status Overview',
+                        url: 'https://www.firstbeat.com/en/science-behind-firstbeat/training-effect/',
+                    },
+                    {
+                        label: 'Meeusen et al. (2013): Overtraining Syndrome Consensus — Med Sci Sports Exerc',
+                        url: 'https://pubmed.ncbi.nlm.nih.gov/23247672/',
+                    },
                 ],
                 eli5: 'Garmin analysiert deine Trainingsbelastung der letzten Wochen und vergleicht sie mit deiner geschätzten Fitness. "Aufbauend" bedeutet: du machst es perfekt, du wirst gerade stärker. "Übertraining" ist ein rotes Licht — dein Körper kann die Belastung nicht mehr sinnvoll verarbeiten. Dann hilft mehr Training nicht mehr, sondern schadet.',
             };

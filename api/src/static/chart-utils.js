@@ -6,10 +6,10 @@ Chart.defaults.interaction = { mode: 'index', intersect: false };
 Chart.defaults.elements.point.hoverRadius = 4;
 
 export function makeGradient(hexColor, alphaTop = 0.32, alphaBot = 0.02) {
-    return function(ctx) {
+    return (ctx) => {
         const chart = ctx.chart;
         const { ctx: c, chartArea } = chart;
-        if (!chartArea) return hexColor + '55';
+        if (!chartArea) return `${hexColor}55`;
         const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
         const r = parseInt(hexColor.slice(1, 3), 16);
         const m = parseInt(hexColor.slice(3, 5), 16);
@@ -28,6 +28,7 @@ export function fmtDate(iso) {
 
 export function fmtHours(seconds) {
     if (!seconds) return '—';
-    const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+    const h = Math.floor(seconds / 3600),
+        m = Math.floor((seconds % 3600) / 60);
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }

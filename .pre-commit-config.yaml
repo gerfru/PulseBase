@@ -41,6 +41,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: biome-check
+        name: biome check (JS lint + format)
+        entry: npx --yes @biomejs/biome@2.4.16 check --write api/src/static/
+        language: node
+        pass_filenames: false
+        files: ^api/src/static/.*\.js$
+
       - id: mypy-api
         name: mypy api
         entry: mypy
