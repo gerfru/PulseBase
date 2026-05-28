@@ -97,7 +97,14 @@ def train_and_save(
     importances = {
         f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
     }
-    return {"features": feature_names, "importances": importances, "n_rows": len(X)}
+    from datetime import date as _date
+
+    return {
+        "features": feature_names,
+        "importances": importances,
+        "n_rows": len(X),
+        "trained_at": _date.today().isoformat(),
+    }
 
 
 def predict_tomorrow(

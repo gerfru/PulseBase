@@ -109,7 +109,7 @@ export const ML_METRICS = {
                     { label: 'Heutiger Score', value: score ?? '—' },
                     {
                         label: 'Trainingsdaten',
-                        value: meta?.n_training_samples != null ? `${meta.n_training_samples} Tage` : '—',
+                        value: meta?.n_rows != null ? `${meta.n_rows} Tage` : '—',
                     },
                     { label: 'Letztes Training', value: meta?.trained_at ? fmtDate(meta.trained_at) : '—' },
                 ],
