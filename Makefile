@@ -142,7 +142,7 @@ test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren (test-env-up v
 	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin_test
 
 test-e2e: ## Playwright E2E gegen Test-Stack (test-env-up + test-seed vorher)
-	cd api && .venv/bin/playwright install chromium --with-deps --quiet
+	cd api && .venv/bin/playwright install chromium --with-deps
 	cd api && .venv/bin/pytest tests/e2e/ -v
 
 test-coverage: ## Coverage-Report (Terminal + HTML unter api/htmlcov/index.html)
