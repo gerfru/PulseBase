@@ -176,7 +176,7 @@ jobs:
         working-directory: api
         run: pip install -e ".[dev]" -q
       - name: Install Playwright browsers
-        run: playwright install chromium --with-deps --quiet
+        run: playwright install chromium --with-deps
       - name: Create CI test user
         env:
           TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
