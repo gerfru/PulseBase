@@ -24,6 +24,16 @@ jobs:
           args: format --check .
           version: "0.11.4"
 
+  js-lint:
+    name: JS Lint (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: biomejs/setup-biome@v2
+        with:
+          version: "2.4.16"
+      - run: biome ci api/src/static/
+
   security:
     name: Security
     runs-on: ubuntu-latest
@@ -110,6 +120,21 @@ jobs:
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+
+  js-test:
+    name: JS Tests (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+        working-directory: api
+      - run: npm run test:coverage
+        working-directory: api
 
   test:
     name: Tests

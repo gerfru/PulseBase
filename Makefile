@@ -1,4 +1,4 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-e2e test-coverage secure-env
+.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-e2e test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env
 
@@ -142,10 +142,17 @@ test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren (test-env-up v
 	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin_test
 
 test-e2e: ## Playwright E2E gegen Test-Stack (test-env-up + test-seed vorher)
-	cd api && .venv/bin/playwright install chromium --with-deps --quiet
+	cd api && .venv/bin/playwright install chromium --with-deps
 	cd api && .venv/bin/pytest tests/e2e/ -v
 
 test-coverage: ## Coverage-Report (Terminal + HTML unter api/htmlcov/index.html)
 	cd api && .venv/bin/pytest tests/ --ignore=tests/e2e \
 	  --cov=src --cov-report=term-missing --cov-report=html:htmlcov
 	@echo "→ open api/htmlcov/index.html"
+
+test-js: ## JS Unit Tests (Vitest)
+	cd api && npm test
+
+test-js-coverage: ## JS Coverage-Report (api/coverage/index.html)
+	cd api && npm run test:coverage
+	@echo "→ open api/coverage/index.html"
