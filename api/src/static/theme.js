@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', () => {
     var toggle = document.getElementById('theme-toggle');
     if (!toggle) return;
 
