@@ -330,4 +330,104 @@ export const ML_METRICS = {
             };
         },
     },
+
+    'battery-pattern': {
+        title: 'Body Battery Muster',
+        section: 'ML & Status',
+        async fetch() {
+            return fetch('/api/ml-insights').then((r) => r.json());
+        },
+        render(ml) {
+            const bp = ml.battery_pattern;
+            if (!bp?.pattern) return { value: '—', sub: 'zu wenig Daten' };
+
+            const BP_LABELS = {
+                stabil_hoch: 'Hohe & stabile Energie',
+                erholung: 'Erholung',
+                erschoepft: 'Erschöpft / hohe Belastung',
+            };
+            const BP_ICONS = { stabil_hoch: '⚡', erholung: '🔄', erschoepft: '📉' };
+            const feat = bp.features || {};
+
+            return {
+                value: `<span style="font-size:2.5rem">${BP_ICONS[bp.pattern] ?? '•'}</span>`,
+                sub: BP_LABELS[bp.pattern] ?? bp.pattern,
+                kpis: [
+                    { label: 'Muster', value: BP_LABELS[bp.pattern] ?? bp.pattern },
+                    { label: 'Cluster', value: String(bp.cluster ?? '—') },
+                    { label: 'Morgen (06–09h)', value: feat.morning_avg?.toFixed(1) ?? '—' },
+                    { label: 'Abend (20–23h)', value: feat.evening_avg?.toFixed(1) ?? '—' },
+                    { label: 'Tagesreichweite', value: feat.daily_range?.toFixed(1) ?? '—' },
+                    { label: 'Ø Niveau (AUC)', value: feat.auc?.toFixed(1) ?? '—' },
+                    { label: 'Einbrüche', value: String(feat.n_dips ?? '—') },
+                ],
+                eli5: 'Deine Body Battery zeigt über den Tag, wie viel Energie du hast. Das System schaut sich 5 Kennzahlen an (Morgen-Start, Abend-End, Schwankungsbreite, Gesamtniveau, Einbrüche) und ordnet deinen Tag einem von 3 Mustern zu: ⚡ Hohe Energie, 🔄 Erholung, oder 📉 Erschöpft.',
+                formula: [
+                    ['Modell', 'k-Means Clustering auf 5 Body-Battery-Features'],
+                    ['Features', 'morning_avg, evening_avg, daily_range, auc, n_dips'],
+                    ['Cluster', 'Stabil Hoch / Erholung / Erschöpft (k=3)'],
+                ],
+            };
+        },
+    },
+
+    correlations: {
+        title: 'Korrelationen',
+        section: 'ML & Status',
+        async fetch() {
+            return fetch('/api/ml-insights').then((r) => r.json());
+        },
+        render(ml) {
+            const CORR_META = {
+                correlation_sleep_hrv: {
+                    label: 'Schlaf → HRV (nächster Tag)',
+                    desc: 'Besserer Schlaf geht typischerweise mit höherer HRV am nächsten Morgen einher.',
+                    expected: 'positiv',
+                },
+                correlation_sleep_rhr: {
+                    label: 'Schlaf → Ruhepuls (nächster Tag)',
+                    desc: 'Schlechter Schlaf erhöht typischerweise den Ruhepuls am Folgetag.',
+                    expected: 'negativ',
+                },
+                correlation_bb_rhr: {
+                    label: 'Body Battery → Ruhepuls (nächster Tag)',
+                    desc: 'Hohe Body Battery korreliert mit niedrigerem Ruhepuls am nächsten Tag.',
+                    expected: 'negativ',
+                },
+            };
+            const kpis = [];
+            const corrItems = [];
+            for (const [key, meta] of Object.entries(CORR_META)) {
+                const corr = ml[key];
+                if (!corr || corr.r == null) continue;
+                const absR = Math.abs(corr.r);
+                const dir = corr.r >= 0 ? 'positiv' : 'negativ';
+                const strength = absR >= 0.6 ? 'starker' : absR >= 0.3 ? 'moderater' : 'schwacher';
+                const barColor = corr.r >= 0 ? 'rgba(99,102,241,.75)' : 'rgba(245,158,11,.75)';
+                const dirMatch = dir === meta.expected;
+                kpis.push({ label: meta.label, value: `r = ${corr.r.toFixed(2)}` });
+                corrItems.push(`<div class="corr-row">
+                    <div class="corr-label">${meta.label}</div>
+                    <div class="corr-bar-wrap"><div class="corr-bar" style="width:${absR * 100}%;background:${barColor}"></div></div>
+                    <div class="corr-r">r = ${corr.r.toFixed(2)}</div>
+                    <div class="corr-meta">${strength} ${dir}er Zusammenhang · n = ${corr.n} Nächte · ${dirMatch ? '✓ erwartete Richtung' : '↔ unerwartete Richtung'}</div>
+                    <div class="corr-desc">${meta.desc}</div>
+                </div>`);
+            }
+            return {
+                value: kpis.length ? kpis[0].value : '—',
+                sub: kpis.length ? 'Schlaf → HRV' : 'zu wenig Daten',
+                kpis,
+                customHtml: corrItems.length ? `<div class="card">${corrItems.join('')}</div>` : '',
+                eli5: 'r misst, ob zwei Dinge zusammenhängen — auf einer Skala von −1 bis +1. r = +1 heißt: wenn A steigt, steigt B immer. r = −1 heißt: wenn A steigt, fällt B immer. r = 0 heißt: kein Zusammenhang. Wichtig: Zusammenhang bedeutet nicht Ursache.',
+                formula: [
+                    ['r-Wert', 'Pearson-Korrelationskoeffizient (−1 bis +1)'],
+                    ['|r| > 0,6', 'Starker Zusammenhang'],
+                    ['|r| 0,3–0,6', 'Moderater Zusammenhang'],
+                    ['|r| < 0,3', 'Schwacher oder kein Zusammenhang'],
+                    ['Minimum', 'Min. 10 Paare erforderlich'],
+                ],
+            };
+        },
+    },
 };

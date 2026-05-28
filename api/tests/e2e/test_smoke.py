@@ -115,9 +115,9 @@ async def test_formula_modal_opens_on_score_click(authenticated_page):
 
 
 async def test_ml_insights_page_loads(authenticated_page):
-    await authenticated_page.goto("/ml/anomaly")
+    await authenticated_page.goto("/metrics/hr-zscore")
     await authenticated_page.wait_for_load_state("networkidle")
-    assert authenticated_page.url.endswith("/ml/anomaly")
+    assert authenticated_page.url.endswith("/metrics/hr-zscore")
 
 
 async def test_activity_detail_page_loads(authenticated_page):
@@ -169,8 +169,8 @@ async def test_hero_capacity_in_dom(authenticated_page):
     await authenticated_page.locator(".hero-grid").wait_for(
         state="attached", timeout=10000
     )
-    count = await authenticated_page.locator(".hero-capacity").count()
-    assert count == 1, ".hero-capacity (3rd grid column) should be present in hero card"
+    count = await authenticated_page.locator(".hero-capacity-grid").count()
+    assert count == 1, ".hero-capacity-grid should be present in hero card"
 
 
 async def test_ml_cards_in_tabs(authenticated_page):

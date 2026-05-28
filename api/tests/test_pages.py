@@ -36,18 +36,18 @@ async def test_authenticated_page_returns_200(client, path):
 
 
 @pytest.mark.parametrize(
-    "path",
+    "path,location",
     [
-        "/ml/anomaly",
-        "/ml/readiness",
-        "/ml/correlations",
-        "/ml/battery",
+        ("/ml/anomaly", "/metrics/hr-zscore"),
+        ("/ml/readiness", "/metrics/readiness-rf"),
+        ("/ml/correlations", "/metrics/correlations"),
+        ("/ml/battery", "/metrics/battery-pattern"),
     ],
 )
-async def test_ml_pages_return_200(client, path):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
-        r = await client.get(path)
-    assert r.status_code == 200
+async def test_ml_legacy_routes_redirect(client, path, location):
+    r = await client.get(path)
+    assert r.status_code == 301
+    assert r.headers["location"] == location
 
 
 # ── Metrics pages ─────────────────────────────────────────────────────────────

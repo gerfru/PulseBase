@@ -37,6 +37,8 @@
         </div>
     </header>
 
+    <div class="max-w-7xl mx-auto w-full">
+
     {% if not user.garmin_linked %}
     <div class="px-4 mb-4">
         <div class="px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/25 text-yellow-200 text-sm">
@@ -58,7 +60,9 @@
 
     <!-- ── Hero Card (immer sichtbar) ───────────────────────────── -->
     <div class="px-4 sm:px-6 pt-5">
-        <div class="card" id="bento-hero"><p class="empty">Lade…</p></div>
+        <div class="hero-card-wrap">
+            <div class="card" id="bento-hero"><p class="empty">Lade…</p></div>
+        </div>
     </div>
 
     <!-- ── Tab-Navigation ────────────────────────────────────────── -->
@@ -192,6 +196,8 @@
             → Vollständige Analyse
         </a>
     </dialog>
+
+    </div><!-- /max-w-7xl -->
 
 {% endblock %}
 {% block scripts %}
