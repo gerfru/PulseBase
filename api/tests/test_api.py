@@ -69,9 +69,15 @@ async def test_post_has_no_store_cache_header(client):
 
 
 async def test_static_asset_has_immutable_cache_header(client):
-    r = await client.get("/static/colors.js")
+    r = await client.get("/static/style.css")
     assert r.status_code == 200
     assert r.headers.get("cache-control") == "public, max-age=31536000, immutable"
+
+
+async def test_static_js_has_no_cache_header(client):
+    r = await client.get("/static/colors.js")
+    assert r.status_code == 200
+    assert r.headers.get("cache-control") == "no-cache"
 
 
 async def test_login_page(client):
