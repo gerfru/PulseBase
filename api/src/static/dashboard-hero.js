@@ -241,12 +241,12 @@ export function buildHeroCard() {
 
     const mlTile =
         rfScore != null
-            ? `<span class="hero-heute-item">
+            ? `<a href="/metrics/readiness-rf" class="hero-heute-item">
             <span class="hero-heute-val ${rfSubCls}" style="font-size:1.05rem">~${rfScore}</span>
             <span class="hero-heute-score-lbl">ML-Prognose</span>
             <span class="hero-heute-label">Readiness Morgen</span>
             <span class="metric-horizon">Prognose · Morgen</span>
-        </span>`
+        </a>`
             : '';
 
     // Conflict explainer: battery pattern "erschoepft" while readiness is good
