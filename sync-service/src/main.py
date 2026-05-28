@@ -1,12 +1,13 @@
 import asyncio
 import json
-import logging
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
+import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from tenacity import Retrying, stop_after_attempt, wait_exponential
 
 from config import Settings
 from crypto import (
@@ -29,11 +30,22 @@ from garmin.mapper import (
     map_summary,
     map_training_status,
 )
-from logging_config import setup_logging
+from logging_config import configure_logging
 from repositories.timescale import TimescaleRepository
 
-setup_logging()
-logger = logging.getLogger(__name__)
+configure_logging()
+logger = structlog.get_logger(__name__)
+
+
+def _garmin_call(fn):
+    """Call a synchronous Garmin API function with up to 3 retries and exponential backoff."""
+    for attempt in Retrying(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        reraise=True,
+    ):
+        with attempt:
+            return fn()
 
 
 async def _sync_activities(
@@ -43,14 +55,14 @@ async def _sync_activities(
     start: date,
     end: date,
 ) -> None:
-    for raw in client.get_activities(start, end):
+    for raw in _garmin_call(lambda: client.get_activities(start, end)):
         garmin_id = raw.get("activityId")
         if not garmin_id:
             continue
         activity = map_activity(raw, user_id)
         activity_db_id = await repo.save_activity(activity)
         if activity_db_id and not await repo.records_exist(activity_db_id):
-            details = client.get_activity_details(garmin_id)
+            details = _garmin_call(lambda: client.get_activity_details(garmin_id))
             activity.records = map_records(details)
             if activity.records:
                 await repo.bulk_insert_records(activity_db_id, activity.records)
@@ -61,13 +73,13 @@ async def _sync_day(
 ) -> None:
     """Sync all daily metrics for one date; each failure is logged but doesn't stop others."""
     try:
-        summary_raw = client.get_daily_summary(current)
+        summary_raw = _garmin_call(lambda: client.get_daily_summary(current))
         await repo.upsert_daily(map_summary(summary_raw, user_id, current))
     except Exception as e:
-        logger.warning(f"Daily summary {current} fehlgeschlagen: {e}")
+        logger.warning("daily_summary.failed", date=str(current), error=str(e))
 
     try:
-        sleep_raw = client.get_sleep(current)
+        sleep_raw = _garmin_call(lambda: client.get_sleep(current))
         session = map_sleep(sleep_raw, user_id)
         if (
             session
@@ -76,45 +88,45 @@ async def _sync_day(
         ):
             await repo.save_sleep(session)
     except Exception as e:
-        logger.warning(f"Sleep {current} fehlgeschlagen: {e}")
+        logger.warning("sleep.failed", date=str(current), error=str(e))
 
     try:
-        hrv_raw = client.get_hrv(current)
+        hrv_raw = _garmin_call(lambda: client.get_hrv(current))
         hrv = map_hrv(hrv_raw, user_id, current)
         if hrv:
             await repo.upsert_hrv(hrv)
     except Exception as e:
-        logger.warning(f"HRV {current} fehlgeschlagen: {e}")
+        logger.warning("hrv.failed", date=str(current), error=str(e))
 
     try:
-        bb_raw = client.get_body_battery(current)
+        bb_raw = _garmin_call(lambda: client.get_body_battery(current))
         await repo.bulk_insert(
             "body_battery_intraday", user_id, map_body_battery(bb_raw, user_id)
         )
     except Exception as e:
-        logger.warning(f"Body Battery {current} fehlgeschlagen: {e}")
+        logger.warning("body_battery.failed", date=str(current), error=str(e))
 
     try:
-        stress_raw = client.get_stress(current)
+        stress_raw = _garmin_call(lambda: client.get_stress(current))
         await repo.bulk_insert(
             "stress_intraday", user_id, map_stress(stress_raw, user_id)
         )
     except Exception as e:
-        logger.warning(f"Stress {current} fehlgeschlagen: {e}")
+        logger.warning("stress.failed", date=str(current), error=str(e))
 
     try:
-        ts_raw = client.get_training_status(current)
+        ts_raw = _garmin_call(lambda: client.get_training_status(current))
         status = map_training_status(ts_raw)
         if status:
             await repo.upsert_training_status(user_id, current, status)
     except Exception as e:
-        logger.warning(f"Training status {current} fehlgeschlagen: {e}")
+        logger.warning("training_status.failed", date=str(current), error=str(e))
 
 
 async def sync_user(
     user: dict, repo: TimescaleRepository, days: int, settings: Settings
 ) -> None:
-    logger.info(f"Sync gestartet: {user['name']} ({days} Tage)")
+    logger.info("sync.started", user=user["name"], days=days)
 
     blob = await repo.get_user_token(user["id"], "garmin")
     if blob is None:
@@ -128,7 +140,7 @@ async def sync_user(
             )
             await repo.save_user_token(user["id"], "garmin", blob)
     if blob is None:
-        logger.warning(f"Kein Garmin-Token für User {user['id']} — Sync übersprungen")
+        logger.warning("sync.no_token", user_id=user["id"])
         return
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -160,7 +172,7 @@ async def sync_user(
         )
         await repo.save_user_token(user["id"], "garmin", encrypted)
 
-    logger.info(f"Sync fertig: {user['name']}")
+    logger.info("sync.done", user=user["name"])
 
 
 async def get_libre_users(repo: TimescaleRepository) -> list[dict]:
@@ -194,7 +206,7 @@ async def sync_libre_user(
     readings = get_recent_glucose(client, hours=2)
     rows = [map_glucose_reading(r, user["id"]) for r in readings]
     await repo.bulk_insert_glucose(user["id"], rows)
-    logger.info(f"Libre sync: user={user['id']} inserted {len(rows)} readings")
+    logger.info("libre_sync.done", user_id=user["id"], readings=len(rows))
 
 
 async def sync_all_libre(repo: TimescaleRepository, settings: Settings) -> None:
@@ -205,9 +217,11 @@ async def sync_all_libre(repo: TimescaleRepository, settings: Settings) -> None:
         try:
             await sync_libre_user(user, repo, settings)
         except LibreAuthError as e:
-            logger.warning(f"Libre auth error user={user['id']}: {e}")
+            logger.warning("libre_sync.auth_error", user_id=user["id"], error=str(e))
         except Exception as e:
-            logger.error(f"Libre sync failed user={user['id']}: {e}", exc_info=True)
+            logger.error(
+                "libre_sync.failed", user_id=user["id"], error=str(e), exc_info=True
+            )
 
 
 async def get_active_users(repo: TimescaleRepository) -> list[dict]:
@@ -248,11 +262,13 @@ async def process_sync_requests(
 ) -> None:
     users = await get_sync_requested_users(repo)
     for user in users:
-        logger.info(f"Manueller Sync: {user['name']}")
+        logger.info("sync.manual.started", user=user["name"])
         try:
             await sync_user(user, repo, days=daily_days, settings=settings)
         except Exception as e:
-            logger.error(f"Manueller Sync Fehler {user['name']}: {e}", exc_info=True)
+            logger.error(
+                "sync.manual.failed", user=user["name"], error=str(e), exc_info=True
+            )
         finally:
             await set_ml_requested(user["id"], repo)
             await mark_sync_done(user["id"], repo)
@@ -263,13 +279,13 @@ async def sync_all_users(
 ) -> None:
     users = await get_active_users(repo)
     if not users:
-        logger.info("Keine verknüpften Garmin-User gefunden — Sync übersprungen")
+        logger.info("sync.no_users")
         return
     for user in users:
         try:
             await sync_user(user, repo, days=days, settings=settings)
         except Exception as e:
-            logger.error(f"Sync Fehler {user['name']}: {e}", exc_info=True)
+            logger.error("sync.failed", user=user["name"], error=str(e), exc_info=True)
         finally:
             await mark_sync_done(user["id"], repo)
 
@@ -277,7 +293,7 @@ async def sync_all_users(
 async def main() -> None:
     settings = Settings()  # type: ignore[call-arg]
     if not settings.fernet_key:
-        logger.warning("FERNET_KEY not set — tokens stored unencrypted in DB")
+        logger.warning("fernet_key.missing", detail="tokens stored unencrypted in DB")
     else:
         try:
             from cryptography.fernet import Fernet
@@ -289,7 +305,7 @@ async def main() -> None:
     repo = TimescaleRepository(settings.db_url)
     await repo.init()
 
-    logger.info(f"Initialer Sync: {settings.sync_lookback_days} Tage")
+    logger.info("sync.initial", lookback_days=settings.sync_lookback_days)
     await sync_all_users(repo, days=settings.sync_lookback_days, settings=settings)
 
     scheduler = AsyncIOScheduler()
@@ -312,9 +328,7 @@ async def main() -> None:
         id="libre_sync",
     )
     scheduler.start()
-    logger.info(
-        f"Scheduler aktiv — täglicher Sync um {settings.sync_hour}:00 Uhr, manuelle Requests alle 60s"
-    )
+    logger.info("scheduler.started", sync_hour=settings.sync_hour)
 
     await asyncio.Event().wait()
 
