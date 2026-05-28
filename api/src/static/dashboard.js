@@ -10,7 +10,7 @@ import {
     TABS,
     CHART_HASHES,
 } from './dashboard-nav.js';
-import { loadEvidence } from './dashboard-hero.js';
+import { loadEvidence, buildMlTabs } from './dashboard-hero.js';
 import { load, loadReadiness, loadMlInsights, loadEnergyMetrics, loadTrainingLoad } from './dashboard-loaders.js';
 import { showToast, loadMlStatus, loadSyncStatus, triggerSync } from './dashboard-status.js';
 
@@ -66,7 +66,9 @@ loadEvidence().catch(() => {});
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadTrainingLoad().catch(() => {});
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
-loadMlInsights().catch(() => {});
+loadMlInsights()
+    .then(() => buildMlTabs())
+    .catch(() => {});
 loadEnergyMetrics().catch(() => {});
 loadSyncStatus();
 loadMlStatus();

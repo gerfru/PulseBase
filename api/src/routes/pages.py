@@ -45,9 +45,7 @@ async def index(request: Request):
 @router.get("/dashboard")
 async def dashboard(request: Request):
     user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(
-        request, "dashboard.html", {"user": user, "active_page": "dashboard"}
-    )
+    return _deps.templates.TemplateResponse(request, "dashboard.html", {"user": user})
 
 
 @router.get("/settings")
@@ -56,7 +54,7 @@ async def settings_page(request: Request):
     return _deps.templates.TemplateResponse(
         request,
         "settings.html",
-        {"user": user, "today": date.today().isoformat(), "active_page": "settings"},
+        {"user": user, "today": date.today().isoformat()},
     )
 
 
@@ -64,7 +62,7 @@ async def settings_page(request: Request):
 async def metrics_overview_page(request: Request):
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(
-        request, "metrics_overview.html", {"user": user, "active_page": "metrics"}
+        request, "metrics_overview.html", {"user": user}
     )
 
 
@@ -76,7 +74,7 @@ async def metrics_detail_page(request: Request, name: str):
     return _deps.templates.TemplateResponse(
         request,
         "metrics.html",
-        {"user": user, "metric_name": name, "active_page": "metrics"},
+        {"user": user, "metric_name": name},
     )
 
 
