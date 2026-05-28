@@ -154,6 +154,37 @@ async def test_theme_toggle_switches_dark_class(authenticated_page):
     assert classes_after != classes_before
 
 
+# ── Navigation structure ──────────────────────────────────────────────────────
+
+
+async def test_no_bottom_nav(authenticated_page):
+    count = await authenticated_page.locator(".bottom-nav").count()
+    assert count == 0, ".bottom-nav should be removed from the DOM"
+
+
+async def test_hero_capacity_in_dom(authenticated_page):
+    await authenticated_page.goto("/dashboard")
+    await authenticated_page.wait_for_load_state("networkidle")
+    # Wait for JS to finish building the hero card (hero-grid only exists after buildHeroCard())
+    await authenticated_page.locator(".hero-grid").wait_for(
+        state="attached", timeout=10000
+    )
+    count = await authenticated_page.locator(".hero-capacity").count()
+    assert count == 1, ".hero-capacity (3rd grid column) should be present in hero card"
+
+
+async def test_ml_cards_in_tabs(authenticated_page):
+    await authenticated_page.goto("/dashboard")
+    await authenticated_page.wait_for_load_state("networkidle")
+    await authenticated_page.click("[data-tab='verlauf']")
+    await authenticated_page.wait_for_timeout(300)
+    assert await authenticated_page.locator("#ml-verlauf-card").count() == 1
+
+    await authenticated_page.click("[data-tab='erholung']")
+    await authenticated_page.wait_for_timeout(300)
+    assert await authenticated_page.locator("#ml-erholung-card").count() == 1
+
+
 # ── Sync button ───────────────────────────────────────────────────────────────
 
 

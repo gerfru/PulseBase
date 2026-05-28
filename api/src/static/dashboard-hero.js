@@ -156,7 +156,7 @@ export function buildHeroCard() {
             .join('')}</div>`;
     }
 
-    function todayCapacitySection() {
+    function todayCapacityInner() {
         const bb = ml.body_battery_custom;
         const phys = energy.energy_physical;
         const bbScore = bb?.score ?? null;
@@ -230,6 +230,7 @@ export function buildHeroCard() {
         ${svgRing}
     </div>`;
 
+    const capacityInner = todayCapacityInner();
     el.innerHTML = `<div class="hero-header">
             <span class="hero-title">TAGESSTATUS</span>
             <span class="hero-date">${esc(dateLabel)}</span>
@@ -244,8 +245,8 @@ export function buildHeroCard() {
                     ${rfTag}
                 </div>
             </div>
-        </div>
-        ${todayCapacitySection()}`;
+            <div class="hero-capacity"${capacityInner ? '' : ' style="display:none"'}>${capacityInner}</div>
+        </div>`;
 
     el.addEventListener('click', (e) => {
         const badge = e.target.closest('[data-ev-badge]');
@@ -274,5 +275,75 @@ export function buildHeroCard() {
     } else {
         const scoreEl = document.getElementById('hero-ring-score');
         if (scoreEl) scoreEl.textContent = '—';
+    }
+}
+
+function mlStatTile(label, value, sub) {
+    return `<div class="stat-tile">
+        <div class="stat-label">${esc(label)}</div>
+        <div class="stat-value" style="font-size:1.3rem">${value}</div>
+        ${sub ? `<div style="font-size:.73rem;color:var(--muted);margin-top:3px">${sub}</div>` : ''}
+    </div>`;
+}
+
+export function buildMlTabs() {
+    const ml = _heroData.ml || {};
+
+    // ── Erholung Tab: Anomalie + Battery Pattern ────────────────────────────
+    const erholungEl = document.getElementById('ml-erholung-content');
+    if (erholungEl) {
+        const anomaly = ml.anomaly_hr;
+        const bp = ml.battery_pattern;
+        if (anomaly || bp) {
+            document.getElementById('ml-erholung-card').style.display = '';
+            let html = '<div class="ml-kpi-row">';
+            if (anomaly) {
+                const z = anomaly.z_score;
+                const flag = anomaly.is_anomaly
+                    ? '<span style="color:var(--red)">⚠ Anomalie</span>'
+                    : '<span style="color:var(--green)">✓ Normal</span>';
+                html += mlStatTile('Ruhepuls z-Score', z != null ? z.toFixed(2) : '—', flag);
+            }
+            if (bp?.pattern) {
+                const BP_LABELS = {
+                    stabil_hoch: 'Hohe & stabile Energie',
+                    erholung: 'Erholung',
+                    erschoepft: 'Erschöpft',
+                };
+                html += mlStatTile('Battery Muster', BP_LABELS[bp.pattern] ?? esc(bp.pattern), '');
+            }
+            html += '</div><div style="margin-top:var(--sp-3);display:flex;gap:var(--sp-4);flex-wrap:wrap">';
+            if (anomaly)
+                html += `<a href="/ml/anomaly" class="text-sm" style="color:var(--accent)">→ Ruhepuls-Anomalie</a>`;
+            if (bp) html += `<a href="/ml/battery" class="text-sm" style="color:var(--accent)">→ Battery Muster</a>`;
+            html += '</div>';
+            erholungEl.innerHTML = html;
+        }
+    }
+
+    // ── Verlauf Tab: Readiness RF + Korrelationen ────────────────────────────
+    const verlaufEl = document.getElementById('ml-verlauf-content');
+    if (verlaufEl) {
+        const rf = ml.readiness_rf;
+        const corr = ml.correlation_sleep_hrv;
+        if (rf || corr) {
+            document.getElementById('ml-verlauf-card').style.display = '';
+            let html = '<div class="ml-kpi-row">';
+            if (rf?.value != null) {
+                const score = Math.round(rf.value);
+                const cls = score >= 80 ? 'sub-green' : score >= 50 ? 'sub-amber' : 'sub-red';
+                html += mlStatTile('Readiness Morgen', `<span class="${cls}">${score}</span>`, 'ML-Prognose');
+            }
+            if (corr?.r != null) {
+                html += mlStatTile('Schlaf → HRV', `r = ${corr.r.toFixed(2)}`, `n = ${corr.n} Nächte`);
+            }
+            html += '</div><div style="margin-top:var(--sp-3);display:flex;gap:var(--sp-4);flex-wrap:wrap">';
+            if (rf)
+                html += `<a href="/ml/readiness" class="text-sm" style="color:var(--accent)">→ Readiness-Prognose</a>`;
+            if (corr)
+                html += `<a href="/ml/correlations" class="text-sm" style="color:var(--accent)">→ Korrelationen</a>`;
+            html += '</div>';
+            verlaufEl.innerHTML = html;
+        }
     }
 }
