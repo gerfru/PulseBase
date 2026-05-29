@@ -159,6 +159,12 @@ describe('sparklineSvg', () => {
         const result = sparklineSvg([1, 2, 3], '#ff0000');
         expect(result).toContain('#ff0000');
     });
+
+    it('handles all-equal values without crashing (range=0 falls back to 1)', () => {
+        const result = sparklineSvg([5, 5, 5]);
+        expect(result).toContain('<svg');
+        expect(result).toContain('<polyline');
+    });
 });
 
 describe('sportLabel', () => {
@@ -225,6 +231,15 @@ describe('makeChart', () => {
         makeChart('test-chart', 'line', [], [{ data: [] }, { data: [] }]);
         const config = global.Chart.mock.calls[0][1];
         expect(config.options.plugins.legend.display).toBe(true);
+    });
+
+    it('spreads custom x-axis ticks into scaleDefaults', () => {
+        makeChart('test-chart', 'line', [], [{ data: [] }], {
+            scales: { x: { ticks: { maxRotation: 0 } } },
+        });
+        const config = global.Chart.mock.calls[0][1];
+        expect(config.options.scales.x.ticks.maxRotation).toBe(0);
+        expect(config.options.scales.x.ticks.maxTicksLimit).toBe(7);
     });
 });
 

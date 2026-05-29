@@ -312,14 +312,14 @@ Aufwand: **S**
 4. **TEST-H2** ML-Modelle testen (10 Modelle, L-Aufwand)
 5. **CICD-M1** pip → uv in CI
 
-### 🔲 Wave 3 — deferred / Dokumentation
+### ✅ Wave 3 — erledigt
 
-- **ARCH-M2** Service-Layer (Tech-Debt, kein akuter Handlungsbedarf)
-- **ARCH-M3** Traefik TLS: Homelab-Ausnahme dokumentieren
-- **ARCH-M4** SQL aus sync-service main.py in Repository
-- **QUAL-M1** Godfunction dashboard-loaders.js
-- **QUAL-M2** Duplizierter GarminClient
-- **CICD-M3** Branch Protection (erfordert GitHub Pro)
+- **ARCH-M4** SQL-Helfer (`get_active_users`, `get_sync_requested_users`, `get_libre_users`, `mark_sync_done`, `set_ml_requested`) aus `sync-service/src/main.py` → `TimescaleRepository`
+- **QUAL-M1** `load()` in `dashboard-loaders.js` aufgeteilt: `renderActivitiesTable()` + `buildActivityCharts()` + `buildHealthCharts()` (~415 → 3 Funktionen à ~50–130 Zeilen)
+- **QUAL-M2** `api/src/garmin/client.py` mit sync-client angeglichen (identische Implementierung, bewusste Duplikation dokumentiert in CLAUDE.md)
+- **ARCH-M2** Als Tech-Debt in CLAUDE.md dokumentiert (Service-Layer bei Wachstum)
+- **ARCH-M3** Als Homelab-Ausnahme in CLAUDE.md dokumentiert (self-signed TLS im internen LAN)
+- **CICD-M3** Als bekannte Limitierung in CLAUDE.md dokumentiert (GitHub Gratis-Plan)
 
 ---
 
