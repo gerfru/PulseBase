@@ -39,7 +39,6 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.coverage.run]
-omit = ["src/db.py"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]

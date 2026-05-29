@@ -53,7 +53,7 @@ repos:
         entry: mypy
         language: python
         additional_dependencies: [mypy, asyncpg-stubs, types-python-dateutil]
-        args: [api/src/, --ignore-missing-imports]
+        args: [api/src/, --ignore-missing-imports, --explicit-package-bases]
         pass_filenames: false
         files: ^api/src/
       - id: mypy-sync
@@ -61,7 +61,7 @@ repos:
         entry: mypy
         language: python
         additional_dependencies: [mypy, asyncpg-stubs, types-python-dateutil]
-        args: [sync-service/src/, --ignore-missing-imports]
+        args: [sync-service/src/, --ignore-missing-imports, --explicit-package-bases]
         pass_filenames: false
         files: ^sync-service/src/
       - id: mypy-ml
@@ -69,6 +69,6 @@ repos:
         entry: mypy
         language: python
         additional_dependencies: [mypy, asyncpg-stubs, scikit-learn, scipy, numpy, joblib]
-        args: [ml-service/src/, --ignore-missing-imports]
+        args: [ml-service/src/, --ignore-missing-imports, --explicit-package-bases]
         pass_filenames: false
         files: ^ml-service/src/
