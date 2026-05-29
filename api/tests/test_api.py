@@ -209,6 +209,17 @@ async def test_activity_detail_not_found(client):
     assert r.json()["error"]["code"] == "NOT_FOUND"
 
 
+async def test_activity_detail_idor_returns_404(client):
+    """User A requesting User B's activity ID gets 404 (not 403/200).
+    DB layer enforces AND user_id = $2; route returns 404 when result is None."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.get_activity_detail", AsyncMock(return_value=None)),
+    ):
+        r = await client.get("/api/activities/9999")
+    assert r.status_code == 404
+
+
 async def test_ml_insights_authenticated(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),

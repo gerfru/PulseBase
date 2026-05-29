@@ -25,7 +25,9 @@ async def page(browser_context: BrowserContext) -> Page:
 
 @pytest.fixture(scope="session")
 async def authenticated_page(browser_context: BrowserContext) -> Page:
-    """Shared authenticated page — login happens once per test session."""
+    """Session-scoped: login once, share page across tests.
+    Tests using this fixture must navigate to their target page explicitly.
+    For a completely unauthenticated context use an isolated browser (see test_account_export_unauthenticated_redirects_to_login)."""
     p = await browser_context.new_page()
     await p.goto("/login")
     await p.fill("input[name=email]", TEST_EMAIL)

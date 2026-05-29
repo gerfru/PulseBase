@@ -299,6 +299,14 @@ async def main() -> None:
     except Exception:
         raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
 
+    if settings.sentry_dsn:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.0
+        )
+        logger.info("sentry.initialized")
+
     repo = TimescaleRepository(settings.db_url)
     await repo.init()
 

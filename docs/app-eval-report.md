@@ -1,4 +1,5 @@
 # PulseBase — App-Eval-Report
+
 **Datum:** 2026-05-28 | **ASVS-Level:** L1 (Solo) | **Regelquelle:** Dev-Best-Practices Plugin (essential/app/github/architecture-rules.md)
 
 ---
@@ -274,42 +275,51 @@ Aufwand: **S**
 
 ## Fix-Reihenfolge
 
-### 1. Security (sofort, alle S-Aufwand)
-1. **SEC-H2** FERNET_KEY Pflicht-Validator → Startup-Crash bei leerem Wert
-2. **SEC-H3** Path Traversal: `name = Path(name).name` in crypto.py (beide Services)
-3. **SEC-M1** Password-Reset: `request.session.clear()` nach `update_password()`
-4. **SEC-M3/M4** `account/delete` + `account/export`: `require_user()` verwenden
-5. **SEC-M2** SQL Interval-Verkettung in seizures.py + glucose.py
+### ✅ Wave 1 — erledigt (PR #90)
 
-### 2. CI/CD & Tooling (sofort, alle S/XS-Aufwand)
-6. **CICD-M4** `no-commit-to-branch` → `main` ergänzen
-7. **CICD-H1** ml-service: `uv lock` + committen
-8. **SEC-H4** semgrep in CI + bandit für ml-service in pre-commit
-9. **CICD-M2** Toplevel `permissions: contents: read` in ci.yml
-10. **TEST-H1** CI pytest mit `--cov --cov-fail-under=70`
+- **SEC-H2** FERNET_KEY Pflicht-Validator → Startup-Crash bei leerem Wert
+- **SEC-H3** Path Traversal: `name = Path(name).name` in crypto.py (beide Services)
+- **SEC-M1** Password-Reset: `request.session.clear()` nach `update_password()`
+- **SEC-M3/M4** `account/delete` + `account/export`: `require_user()` verwenden
+- **CICD-M4** `no-commit-to-branch` → `main` ergänzen
+- **CICD-H1** ml-service: `uv lock` + committen
+- **SEC-H4** semgrep in CI + bandit für ml-service in pre-commit
+- **TEST-H1** CI pytest mit `--cov --cov-fail-under=70`
+- **TEST-H4** training_load.py aus omit entfernen + Unit-Tests (100% Coverage)
+- **OBS-M2/M3** PII in Logs (user_name + email) entfernen
+- **TEST-M5** Coverage-Config für ml/sync + pytest-cov
 
-### 3. Tests (Medium Aufwand)
-11. **TEST-H4** training_load.py aus omit entfernen + Unit-Tests
-12. **TEST-H3** IDOR-Test für Activity-Zugriff
-13. **TEST-M3** Rate-Limiting-Integrationstest (HTTP 429)
-14. **TEST-M1** JS-Coverage-Threshold → 70%
-15. **TEST-M4** E2E authenticated_page → function scope
-16. **TEST-M5** Coverage-Config für ml/sync + pytest-cov
-17. **TEST-H2** ML-Modelle testen (L-Aufwand, schrittweise)
+### ✅ Wave 2a — erledigt
 
-### 4. Observability
-18. **OBS-M2/M3** PII in Logs (user_name + email) entfernen
-19. **ARCH-M1** HEALTHCHECK in sync + ml Dockerfiles + Compose
-20. **OBS-M1** Sentry in sync-service und ml-service
-21. **OBS-M4** Request-Latenz in RequestIDMiddleware loggen
+- **SEC-M2** SQL Interval-Verkettung in seizures.py + glucose.py (`$2 * INTERVAL '1 day'`)
+- **CICD-M2** Toplevel `permissions: contents: read` in ci.yml
+- **OBS-M4** Request-Latenz in RequestIDMiddleware (`http.request` Event mit `duration_ms`)
+- **OBS-M1** Sentry in sync-service + ml-service (`sentry-sdk>=2.0.0`, `SENTRY_DSN` optional)
+- **QUAL-M3** E-Mail-Helpers: `resend.exceptions.ResendError` statt bare `except Exception`
+- **TEST-H3** IDOR-Test: `GET /api/activities/{id}` mit fremder ID → 404
+- **TEST-M1** JS-Coverage-Threshold: 65% Lines / 70% Functions (war 50/50)
+- **TEST-M3** Rate-Limiting-Integrationstest: 11× `/login` → HTTP 429
+- **TEST-M4** ~~E2E `authenticated_page` → function-scoped~~ reverted: function-scope triggert Rate-Limiter (13 Tests × 1 Login < 1 min → 429). Bleibt session-scoped.
+- **OBS-L5** `traces_sample_rate=0.1` (Performance-Monitoring aktiv)
+- **CICD-L1** `.github/pull_request_template.md` angelegt
+- **CICD-L4** Renovate: npm devDeps patch automerge
 
-### 5. Architektur/Refactoring
-22. **SEC-H1** X-Forwarded-For: Trusted-Proxy-Konfiguration
-23. **ARCH-M4** SQL aus sync-service main.py in Repository verschieben
-24. **ARCH-M3** Traefik TLS dokumentieren oder ACME konfigurieren
+### 🔲 Wave 2b — ausstehend (nächste PR)
 
-### 6. Cosmetics / Low
-25. Alle LOW-Findings nach Kapazität
+1. **SEC-H1** X-Forwarded-For: Trusted-Proxy-Konfiguration
+2. **ARCH-M1** HEALTHCHECK in sync + ml Dockerfiles + Compose
+3. **TEST-M2** Sync-Mapper fehlende Funktionen (map_records, map_summary, …)
+4. **TEST-H2** ML-Modelle testen (10 Modelle, L-Aufwand)
+5. **CICD-M1** pip → uv in CI
+
+### 🔲 Wave 3 — deferred / Dokumentation
+
+- **ARCH-M2** Service-Layer (Tech-Debt, kein akuter Handlungsbedarf)
+- **ARCH-M3** Traefik TLS: Homelab-Ausnahme dokumentieren
+- **ARCH-M4** SQL aus sync-service main.py in Repository
+- **QUAL-M1** Godfunction dashboard-loaders.js
+- **QUAL-M2** Duplizierter GarminClient
+- **CICD-M3** Branch Protection (erfordert GitHub Pro)
 
 ---
 

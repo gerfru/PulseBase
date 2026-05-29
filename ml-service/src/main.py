@@ -591,6 +591,14 @@ async def main() -> None:
     settings = Settings()  # type: ignore[call-arg]
     await init_pool(settings.db_url)
 
+    if settings.sentry_dsn:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.0
+        )
+        logger.info("sentry.initialized")
+
     logger.info("ml.initial_run")
     await run_all_users(settings, include_training=True)
 
