@@ -35,8 +35,7 @@ def authenticate(email: str, password: str, token_dir: str) -> PyLibreLinkUp:
         "saved_at": datetime.now(timezone.utc).isoformat(),
     }
     _token_path(token_dir).write_text(json.dumps(token_data))
-    # nosemgrep: python-logger-credential-disclosure
-    logger.info("LibreLinkUp token saved to %s", token_dir)
+    logger.info("libre.connect.credentials_saved")
     return client
 
 
