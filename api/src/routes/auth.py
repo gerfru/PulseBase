@@ -6,6 +6,7 @@ import resend.exceptions as resend_exc
 import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
+from starlette.responses import Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from src.db import (
@@ -155,7 +156,7 @@ async def _send_verify_email(to_email: str, token: str) -> bool:
 
 
 @router.get("/login")
-async def login_form(request: Request):
+async def login_form(request: Request) -> Response:
     return templates.TemplateResponse(request, "login.html")
 
 
@@ -165,7 +166,7 @@ async def login(
     request: Request,
     email: str = Form(),
     password: str = Form(),
-):
+) -> Response:
     user = await get_user_by_email(email)
 
     if (
@@ -242,7 +243,7 @@ async def login(
 
 
 @router.get("/register")
-async def register_form(request: Request):
+async def register_form(request: Request) -> Response:
     return templates.TemplateResponse(request, "register.html")
 
 
@@ -257,7 +258,7 @@ async def register(
     consent_health: str = Form(default=""),
     consent_terms: str = Form(default=""),
     consent_age: str = Form(default=""),
-):
+) -> Response:
     if not consent_health:
         return templates.TemplateResponse(
             request,
@@ -325,19 +326,19 @@ async def register(
 
 
 @router.post("/logout")
-async def logout(request: Request):
+async def logout(request: Request) -> Response:
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
 
 
 @router.get("/auth/resend-verify")
-async def resend_verify_form(request: Request):
+async def resend_verify_form(request: Request) -> Response:
     return templates.TemplateResponse(request, "verify_pending.html")
 
 
 @router.post("/auth/resend-verify")
 @limiter.limit("3/hour")
-async def resend_verify(request: Request, email: str = Form()):
+async def resend_verify(request: Request, email: str = Form()) -> Response:
     user = await get_user_by_email(email)
     sent = False
     if user and not user["email_verified_at"]:
@@ -355,7 +356,7 @@ async def resend_verify(request: Request, email: str = Form()):
 
 
 @router.get("/auth/verify/{token}")
-async def verify_email(request: Request, token: str):
+async def verify_email(request: Request, token: str) -> Response:
     user_id = _verify_email_token(token)
     if not user_id:
         return templates.TemplateResponse(
@@ -369,13 +370,13 @@ async def verify_email(request: Request, token: str):
 
 
 @router.get("/auth/reset-request")
-async def reset_request_form(request: Request):
+async def reset_request_form(request: Request) -> Response:
     return templates.TemplateResponse(request, "reset_request.html")
 
 
 @router.post("/auth/reset-request")
 @limiter.limit("3/hour")
-async def reset_request(request: Request, email: str = Form()):
+async def reset_request(request: Request, email: str = Form()) -> Response:
     user = await get_user_by_email(email)
     if user:
         token = _make_reset_token(user["id"])
@@ -390,7 +391,7 @@ async def reset_request(request: Request, email: str = Form()):
 
 
 @router.get("/auth/reset/{token}")
-async def reset_password_form(request: Request, token: str):
+async def reset_password_form(request: Request, token: str) -> Response:
     if not _verify_reset_token(token):
         return templates.TemplateResponse(
             request,
@@ -408,7 +409,7 @@ async def reset_password(
     token: str,
     password: str = Form(),
     password_confirm: str = Form(),
-):
+) -> Response:
     user_id = _verify_reset_token(token)
     if not user_id:
         return templates.TemplateResponse(

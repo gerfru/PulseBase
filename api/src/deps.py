@@ -10,11 +10,10 @@ from fastapi.templating import Jinja2Templates
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 
-from src.db import Settings, get_user_by_id
+from src.db import get_user_by_id
+from src.db.pool import settings
 
 logger = structlog.get_logger(__name__)
-
-settings = Settings()  # type: ignore[call-arg]
 
 _TRUSTED_NETWORKS = [
     ipaddress.ip_network(cidr) for cidr in settings.trusted_proxy_cidrs

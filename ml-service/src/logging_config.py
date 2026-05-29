@@ -1,9 +1,11 @@
 import logging
+import sys
 
 import structlog
 
 
 def configure_logging() -> None:
+    """Configure structlog for JSON output with UTC timestamps and stdlib bridge."""
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -17,3 +19,9 @@ def configure_logging() -> None:
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
     )
+
+    # Bridge: route stdlib logs (APScheduler, httpx, etc.) through structlog's JSON output
+    logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.INFO)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
