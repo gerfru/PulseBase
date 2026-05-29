@@ -295,7 +295,7 @@ async def register(
         password_hash = hash_password(password)
         user = await create_user(name, email, password_hash)
     except asyncpg.UniqueViolationError:
-        logger.warning("auth.register.fail", reason="duplicate_email", email=email)
+        logger.warning("auth.register.fail", reason="duplicate_email")
         return templates.TemplateResponse(
             request,
             "register.html",
@@ -422,5 +422,6 @@ async def reset_password(
             status_code=400,
         )
     await update_password(user_id, hash_password(password))
+    request.session.clear()
     logger.info("auth.password_reset.success", user_id=user_id)
     return RedirectResponse("/login?reset=1", status_code=303)

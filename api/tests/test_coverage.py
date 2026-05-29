@@ -303,6 +303,124 @@ async def test_garmin_link_loads_existing_token(client):
 # ── Evidence Catalog ──────────────────────────────────────────────────────────
 
 
+# ── restore_token_dir — path traversal protection ────────────────────────────
+
+
+def test_restore_token_dir_rejects_path_traversal():
+    """Files with path-traversal components must not be written outside target_dir."""
+    import tempfile
+    from pathlib import Path
+    from src.crypto import restore_token_dir
+
+    with tempfile.TemporaryDirectory() as target_dir:
+        malicious_blob = json.dumps(
+            {
+                "../evil.txt": base64.b64encode(b"pwned").decode(),
+                "safe.json": base64.b64encode(b"ok").decode(),
+            }
+        ).encode()
+
+        restore_token_dir(malicious_blob, target_dir)
+
+        evil_path = Path(target_dir).parent / "evil.txt"
+        assert not evil_path.exists(), (
+            "Path traversal must not write outside target_dir"
+        )
+
+        safe_path = Path(target_dir) / "safe.json"
+        assert safe_path.exists()
+        assert safe_path.read_bytes() == b"ok"
+
+
+def test_restore_token_dir_rejects_absolute_path():
+    """Files with absolute path names are skipped entirely."""
+    import tempfile
+    from pathlib import Path
+    from src.crypto import restore_token_dir
+
+    with tempfile.TemporaryDirectory() as target_dir:
+        malicious_blob = json.dumps(
+            {
+                "/etc/cron.d/pwned": base64.b64encode(b"evil").decode(),
+            }
+        ).encode()
+
+        restore_token_dir(malicious_blob, target_dir)
+
+        assert list(Path(target_dir).iterdir()) == [], (
+            "Absolute path entry must be skipped"
+        )
+
+
+def test_restore_token_dir_normal_filenames_written_correctly():
+    """Normal filenames are written to target_dir without modification."""
+    import tempfile
+    from pathlib import Path
+    from src.crypto import restore_token_dir
+
+    with tempfile.TemporaryDirectory() as target_dir:
+        blob = json.dumps(
+            {
+                "oauth2_token.json": base64.b64encode(b'{"token": "abc"}').decode(),
+                "extra.bin": base64.b64encode(b"\x00\x01\x02").decode(),
+            }
+        ).encode()
+
+        restore_token_dir(blob, target_dir)
+
+        assert (
+            Path(target_dir) / "oauth2_token.json"
+        ).read_bytes() == b'{"token": "abc"}'
+        assert (Path(target_dir) / "extra.bin").read_bytes() == b"\x00\x01\x02"
+
+
+# ── FERNET_KEY validator ─────────────────────────────────────────────────────
+
+
+def test_fernet_key_validator_rejects_empty_value():
+    """Settings must raise ValidationError if FERNET_KEY is empty."""
+    import os
+    from pydantic import ValidationError
+
+    env_overrides = {
+        "DB_USER": "test",
+        "DB_PASSWORD": "test",  # pragma: allowlist secret
+        "DB_APP_USER": "test",
+        "DB_APP_PASSWORD": "test",  # pragma: allowlist secret
+        "SESSION_SECRET": "test-secret",  # pragma: allowlist secret
+        "FERNET_KEY": "",
+    }
+    with patch.dict(os.environ, env_overrides):
+        with pytest.raises(ValidationError, match="FERNET_KEY"):
+            from src.db.pool import Settings
+
+            Settings()
+
+
+def test_fernet_key_validator_accepts_valid_key():
+    """Settings must accept a valid 32-byte URL-safe base64 FERNET_KEY."""
+    import os
+    from cryptography.fernet import Fernet
+
+    valid_key = Fernet.generate_key().decode()
+    env_overrides = {
+        "DB_USER": "test",
+        "DB_PASSWORD": "test",  # pragma: allowlist secret
+        "DB_APP_USER": "test",
+        "DB_APP_PASSWORD": "test",  # pragma: allowlist secret
+        "SESSION_SECRET": "test-secret",  # pragma: allowlist secret
+        "FERNET_KEY": valid_key,
+    }
+    with patch.dict(os.environ, env_overrides):
+        from src.db.pool import Settings
+
+        s = Settings()  # type: ignore[call-arg]
+        assert s.fernet_key == valid_key
+
+
+# ── Evidence Catalog ──────────────────────────────────────────────────────────
+
+
 def test_evidence_catalog_required_fields():
     """Every entry must have the EN 62366-inspired fields added in this sprint."""
     from src.evidence_catalog import EVIDENCE

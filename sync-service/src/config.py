@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -13,7 +14,17 @@ class Settings(BaseSettings):
     sync_hour: int = 6
     sync_lookback_days: int = 30
     sync_daily_days: int = 2  # days synced on daily run and manual button
-    fernet_key: str = ""  # FERNET_KEY — empty = no encryption (startup warning)
+    fernet_key: str
+
+    @field_validator("fernet_key")
+    @classmethod
+    def fernet_key_must_not_be_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError(
+                "FERNET_KEY muss gesetzt sein. Generieren: "
+                'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+            )
+        return v
 
     @property
     def db_url(self) -> str:

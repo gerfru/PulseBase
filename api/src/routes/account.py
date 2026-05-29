@@ -10,9 +10,8 @@ from src.db import (
     delete_user,
     export_user_data,
     get_user_by_email,
-    get_user_by_id,
 )
-from src.deps import _get_real_ip, limiter, verify_password
+from src.deps import _get_real_ip, limiter, require_user, verify_password
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -34,13 +33,7 @@ async def delete_account(
     email: str = Form(),
     password: str = Form(),
 ):
-    user_id = int(request.session.get("user_id", 0))
-    if not user_id:
-        return RedirectResponse("/login", status_code=303)
-
-    user = await get_user_by_id(user_id)
-    if not user:
-        return RedirectResponse("/login", status_code=303)
+    user = await require_user(request)
 
     if email != user["email"]:
         return _settings_error(request, user, "E-Mail stimmt nicht überein.")
@@ -51,8 +44,8 @@ async def delete_account(
     ):
         return _settings_error(request, user, "Passwort falsch.")
 
-    await delete_user(user_id)
-    logger.info("auth.account.delete", user_id=user_id, ip=_get_real_ip(request))
+    await delete_user(user["id"])
+    logger.info("auth.account.delete", user_id=user["id"], ip=_get_real_ip(request))
     request.session.clear()
     return RedirectResponse("/login?deleted=1", status_code=303)
 
@@ -60,11 +53,8 @@ async def delete_account(
 @router.get("/account/export")
 @limiter.limit("10/hour")
 async def export_account(request: Request):
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return RedirectResponse("/login", status_code=303)
-
-    data = await export_user_data(int(user_id))
+    user = await require_user(request)
+    data = await export_user_data(user["id"])
     return JSONResponse(
         content=jsonable_encoder(data),
         headers={"Content-Disposition": "attachment; filename=pulsebase-export.json"},

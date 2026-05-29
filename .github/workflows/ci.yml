@@ -63,6 +63,12 @@ jobs:
         run: |
           pip install bandit
           bandit -r api/src/ sync-service/src/ ml-service/src/ -q
+      - name: semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/owasp-top-ten
 
   typecheck:
     name: Type Check
@@ -200,10 +206,12 @@ jobs:
           python-version: "3.12"
       - name: pytest api
         working-directory: api
-        run: pip install -e ".[dev]" && pytest -v --ignore=tests/e2e
+        run: pip install -e ".[dev]" && pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=70
+        env:
+          FERNET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       - name: pytest sync-service
         working-directory: sync-service
-        run: pip install -e ".[dev]" && pytest -v
+        run: pip install -e ".[dev]" && pytest -v --cov=src --cov-fail-under=20
       - name: pytest ml-service
         working-directory: ml-service
-        run: pip install -e ".[dev]" && pytest -v
+        run: pip install -e ".[dev]" && pytest -v --cov=src --cov-fail-under=15
