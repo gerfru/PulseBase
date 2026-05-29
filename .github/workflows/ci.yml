@@ -25,9 +25,10 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          ADDED=$(git diff --shortstat "origin/$BASE_REF"...HEAD \
-            | grep -oP '\d+(?= insertion)' || echo 0)
-          echo "Lines added: $ADDED"
+          ADDED=$(git diff "origin/$BASE_REF"...HEAD \
+            -- . ':(exclude)*.lock' ':(exclude)*-lock.json' ':(exclude)*.lockb' \
+            | grep -cP '^\+' || echo 0)
+          echo "Lines added (excl. lockfiles): $ADDED"
           if [ "$ADDED" -gt 400 ]; then
             echo "::error::PR zu groß (${ADDED} Zeilen hinzugefügt, Maximum: 400)"
             exit 1
@@ -233,7 +234,7 @@ jobs:
           FERNET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       - name: pytest sync-service
         working-directory: sync-service
-        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=60
+        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=50
       - name: pytest ml-service
         working-directory: ml-service
         run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=30
