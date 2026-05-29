@@ -11,6 +11,7 @@ import {
     TABS,
     CHART_HASHES,
 } from '../../src/static/dashboard-nav.js';
+import { charts } from '../../src/static/dashboard-utils.js';
 
 // Reset module state before each test since currentDays/currentOffset are module-level lets
 beforeEach(() => {
@@ -136,6 +137,18 @@ describe('setTab', () => {
         const btns = document.querySelectorAll('.tab-btn');
         const activeBtn = [...btns].find((b) => b.dataset.tab === 'verlauf');
         expect(activeBtn.classList.contains('active')).toBe(true);
+    });
+
+    it('calls resize() on all registered charts after 50 ms', async () => {
+        const mockChart = { resize: vi.fn() };
+        charts['nav-resize-test'] = mockChart;
+
+        vi.useFakeTimers();
+        setTab('training');
+        await vi.advanceTimersByTimeAsync(51);
+
+        expect(mockChart.resize).toHaveBeenCalledOnce();
+        delete charts['nav-resize-test'];
     });
 });
 

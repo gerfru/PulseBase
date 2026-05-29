@@ -27,6 +27,15 @@ def test_get_real_ip_uses_x_forwarded_for():
     assert _get_real_ip(FakeRequest()) == "1.2.3.4"
 
 
+def test_is_trusted_proxy_invalid_host_returns_false():
+    """Non-IP strings (hostnames, empty strings) trigger ValueError → False."""
+    from src.deps import _is_trusted_proxy
+
+    assert _is_trusted_proxy("not-an-ip") is False
+    assert _is_trusted_proxy("traefik.home.lab") is False
+    assert _is_trusted_proxy("") is False
+
+
 # ── _rate_limit_exceeded_handler ──────────────────────────────────────────────
 
 

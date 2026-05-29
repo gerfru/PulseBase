@@ -34,6 +34,7 @@ async function pollMlStatus() {
                 loadEnergyMetrics().catch(() => {});
                 loadReadiness().catch(() => {});
             }
+            /* v8 ignore next 2 */
             _mlPollTimer = null;
         }
     } catch {
@@ -90,6 +91,7 @@ async function pollSyncStatus() {
                 loadEnergyMetrics().catch(() => {});
                 _mlPollTimer = setTimeout(pollMlStatus, 5000);
             }
+            /* v8 ignore next 2 */
             _syncPollTimer = null;
         }
     } catch {

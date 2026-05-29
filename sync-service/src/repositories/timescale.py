@@ -297,6 +297,47 @@ class TimescaleRepository(
                 token_data,
             )
 
+    # ── Users ─────────────────────────────────────────────────────────────────
+
+    async def get_active_users(self) -> list[dict]:
+        async with self._db.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, name, garmin_email FROM users "
+                "WHERE garmin_linked = true AND is_active = true"
+            )
+        return [dict(r) for r in rows]
+
+    async def get_sync_requested_users(self) -> list[dict]:
+        async with self._db.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, name, garmin_email FROM users "
+                "WHERE garmin_linked = true AND is_active = true AND sync_requested = true"
+            )
+        return [dict(r) for r in rows]
+
+    async def get_libre_users(self) -> list[dict]:
+        async with self._db.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, name FROM users WHERE libre_linked = true AND is_active = true"
+            )
+        return [dict(r) for r in rows]
+
+    async def mark_sync_done(self, user_id: int) -> None:
+        async with self._db.acquire() as conn:
+            await conn.execute(
+                "UPDATE users SET sync_requested = false, last_sync_at = NOW() WHERE id = $1",
+                user_id,
+            )
+
+    async def set_ml_requested(self, user_id: int) -> None:
+        async with self._db.acquire() as conn:
+            await conn.execute(
+                "UPDATE users SET ml_requested = true WHERE id = $1",
+                user_id,
+            )
+
+    # ── Glucose ───────────────────────────────────────────────────────────────
+
     async def bulk_insert_glucose(self, user_id: int, rows: list[dict]) -> None:
         if not rows:
             return
