@@ -121,7 +121,7 @@ async def api_sleep(
 
 
 @router.get("/api/hrv", response_model=None)
-async def api_hrv(request: Request) -> dict | list:
+async def api_hrv(request: Request) -> dict | None:
     user = await _deps.require_user(request)
     return await get_latest_hrv(user["id"])
 
@@ -136,8 +136,8 @@ async def api_hrv_trend(
     return await get_hrv_trend(user["id"], days=days, end_date=end_date)
 
 
-@router.get("/api/training-status")
-async def api_training_status(request: Request) -> dict:
+@router.get("/api/training-status", response_model=None)
+async def api_training_status(request: Request) -> dict | None:
     user = await _deps.require_user(request)
     return await get_latest_training_status(user["id"])
 
@@ -195,12 +195,12 @@ async def api_ml_insights(request: Request) -> dict:
     return await get_ml_insights(user["id"])
 
 
-@router.get("/api/ml-history")
+@router.get("/api/ml-history", response_model=None)
 async def api_ml_history(
     request: Request,
     days: int = Query(default=30, ge=1, le=365),
     end_date: date | None = Query(default=None),
-) -> list:
+) -> dict:
     user = await _deps.require_user(request)
     return await get_ml_history(user["id"], days, end_date=end_date)
 

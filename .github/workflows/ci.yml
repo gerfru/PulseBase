@@ -22,8 +22,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Fail if PR adds more than 400 lines
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          ADDED=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD \
+          ADDED=$(git diff --shortstat "origin/$BASE_REF"...HEAD \
             | grep -oP '\d+(?= insertion)' || echo 0)
           echo "Lines added: $ADDED"
           if [ "$ADDED" -gt 400 ]; then
