@@ -348,3 +348,24 @@ SYNC_DAILY_DAYS=2
 ```
 ML_INFER_HOUR=7
 ```
+
+## Bewusste Tech-Debt-Entscheidungen (dokumentiert, nicht akuter Handlungsbedarf)
+
+### ARCH-M2: Kein Service-Layer (Routes → DB direkt)
+
+Routes importieren direkt aus `api/src/db/`. Eine dedizierte `api/src/services/`-Schicht fehlt.
+Begründung: Solo-Projekt, Komplexität rechtfertigt Schicht nicht. Bei Wachstum (>3 Entwickler, komplexe Business-Logik) einführen.
+
+### ARCH-M3: Traefik nutzt self-signed TLS (kein ACME/Let's Encrypt)
+
+`traefik/traefik.yml` hat kein `certificatesResolvers`. Traefik fällt auf selbst-signiertes Zertifikat zurück.
+Begründung: Bewusste Homelab-Ausnahme. `garmin.home.lab` ist nur im internen LAN erreichbar; ACME-DNS-Challenge würde öffentliche Domain oder Split-DNS erfordern. Risiko intern akzeptabel.
+
+### CICD-M3: Branch Protection nicht erzwingbar (privates Repo, Gratis-Plan)
+
+Direktpushes auf `main` sind technisch möglich; GitHub erzwingt Status Checks nicht für private Repos ohne Pro-Plan.
+Begründung: Solo-Projekt, Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-commit-to-branch`) sind die primäre Schutzebene. Upgrade auf Pro-Plan würde Branch Protection ermöglichen.
+
+### QUAL-M2: Duplizierter GarminClient in api/ und sync-service/
+
+`api/src/garmin/client.py` und `sync-service/src/garmin/client.py` sind absichtlich identisch gehalten (beide nutzen jetzt den vollständigen Sync-Client als Basis). Ein echtes shared-Package würde Docker-Build-Context-Änderungen und separates `pyproject.toml` erfordern. Bei signifikanter Divergenz: `shared/garmin_client/` als path-dependency in beiden Services einführen.

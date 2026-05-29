@@ -103,3 +103,40 @@ def test_get_stress(tmp_path):
     mock.get_stress_data.return_value = {"avgStressLevel": 30}
     client = _connected_client(mock, tmp_path)
     assert client.get_stress(date(2026, 5, 1)) == {"avgStressLevel": 30}
+
+
+def test_connect_token_only_no_password(tmp_path):
+    """Token-only path: empty password → login(token_dir) without fresh-login fallback."""
+    mock = MagicMock()
+    mock.login.return_value = None
+    with patch("garminconnect.Garmin", return_value=mock):
+        client = GarminClient("u@example.com", "", str(tmp_path))
+        client.connect()
+    mock.login.assert_called_once_with(str(tmp_path))
+    mock.garth.dump.assert_not_called()
+
+
+def test_save_token_dumps_garth_when_connected(tmp_path):
+    """save_token() writes the garth session to disk after a successful connect()."""
+    mock = MagicMock()
+    mock.login.return_value = None
+    client = _connected_client(mock, tmp_path)
+    client.save_token()
+    mock.garth.dump.assert_called_once_with(str(tmp_path))
+
+
+def test_save_token_no_op_when_not_connected(tmp_path):
+    """save_token() is a no-op when _client is None (connect never called)."""
+    client = GarminClient("u@example.com", "p", str(tmp_path))
+    client.save_token()  # must not raise
+
+
+def test_get_training_status(tmp_path):
+    """get_training_status() delegates to garminconnect and returns the dict."""
+    mock = MagicMock()
+    mock.login.return_value = None
+    mock.get_training_status.return_value = {"status": "PRODUCTIVE"}
+    client = _connected_client(mock, tmp_path)
+    result = client.get_training_status(date(2026, 5, 1))
+    assert result == {"status": "PRODUCTIVE"}
+    mock.get_training_status.assert_called_once_with("2026-05-01")

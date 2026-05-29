@@ -3,27 +3,7 @@ import { _heroData, buildHeroCard } from './dashboard-hero.js';
 import { buildWeeklyReview } from './dashboard-weekly.js';
 import { makeChart, showEmpty, hideEmpty, sportLabel, fmtDuration, fmtDist, secToH } from './dashboard-utils.js';
 
-export async function load(days, endDate = null) {
-    const ed = endDate ? `&end_date=${endDate}` : '';
-    const [activities, daily, sleep, hrv, hrvTrend, trainingStatus, mlHistory] = await Promise.all([
-        fetch(`/api/activities?days=${days}${ed}`).then((r) => r.json()),
-        fetch(`/api/daily?days=${days}${ed}`).then((r) => r.json()),
-        fetch(`/api/sleep?days=${days}${ed}`).then((r) => r.json()),
-        fetch('/api/hrv').then((r) => r.json()),
-        fetch(`/api/hrv/trend?days=${days}${ed}`).then((r) => r.json()),
-        fetch('/api/training-status').then((r) => r.json()),
-        fetch(`/api/ml-history?days=${days}${ed}`).then((r) => r.json()),
-    ]);
-
-    _heroData.daily = daily;
-    _heroData.sleep = sleep;
-    _heroData.hrv = hrv;
-    _heroData.hrvTrend = hrvTrend;
-    _heroData.trainingStatus = trainingStatus;
-    buildHeroCard();
-
-    buildWeeklyReview();
-
+function renderActivitiesTable(activities) {
     const actEl = document.getElementById('activities-container');
     if (!activities.length) {
         actEl.innerHTML = '<p class="empty">Noch keine Aktivitäten — Sync läuft täglich um 6 Uhr.</p>';
@@ -47,100 +27,100 @@ export async function load(days, endDate = null) {
                 .join('')}</tbody>
         </table></div>`;
     }
+}
 
-    {
-        const RUN_TYPES = new Set(['running', 'trail_running', 'hiking', 'walking']);
-        const RIDE_TYPES = new Set(['cycling', 'indoor_cycling']);
-        const dayMap = {};
-        for (const a of activities) {
-            const key = String(a.started_at).slice(0, 10);
-            if (!dayMap[key]) dayMap[key] = { run_km: 0, ride_km: 0, other_h: 0 };
-            const km = (a.distance_meters || 0) / 1000;
-            const h = (a.duration_seconds || 0) / 3600;
-            const st = a.sport_type || '';
-            if (RUN_TYPES.has(st)) dayMap[key].run_km += km;
-            else if (RIDE_TYPES.has(st)) dayMap[key].ride_km += km;
-            else dayMap[key].other_h += h;
-        }
-
-        function _isoDate(dt) {
-            return [
-                dt.getFullYear(),
-                String(dt.getMonth() + 1).padStart(2, '0'),
-                String(dt.getDate()).padStart(2, '0'),
-            ].join('-');
-        }
-        const endDt = endDate
-            ? (([y, m, d]) => new Date(y, m - 1, d))(endDate.split('-').map(Number))
-            : new Date(new Date().toDateString());
-        const startDt = new Date(endDt);
-        startDt.setDate(startDt.getDate() - days + 1);
-
-        const actLabels = [],
-            runKm = [],
-            rideKm = [],
-            otherH = [];
-        for (let dt = new Date(startDt); dt <= endDt; dt.setDate(dt.getDate() + 1)) {
-            const key = _isoDate(dt);
-            const v = dayMap[key] || { run_km: 0, ride_km: 0, other_h: 0 };
-            actLabels.push(fmtDate(key));
-            runKm.push(+v.run_km.toFixed(1));
-            rideKm.push(+v.ride_km.toFixed(1));
-            otherH.push(+v.other_h.toFixed(1));
-        }
-
-        const hasRun = runKm.some((v) => v > 0);
-        const hasRide = rideKm.some((v) => v > 0);
-        const hasOther = otherH.some((v) => v > 0);
-
-        if (hasRun || hasRide || hasOther) {
-            hideEmpty('weekly');
-            const actDatasets = [];
-            if (hasRun)
-                actDatasets.push({
-                    label: 'Ausdauer',
-                    data: runKm,
-                    backgroundColor: 'rgba(129,140,248,.75)',
-                    stack: 'km',
-                    borderRadius: 3,
-                });
-            if (hasRide)
-                actDatasets.push({
-                    label: 'Radfahren',
-                    data: rideKm,
-                    backgroundColor: 'rgba(245,158,11,.75)',
-                    stack: 'km',
-                    borderRadius: 3,
-                });
-            if (hasOther)
-                actDatasets.push({
-                    label: 'Sonstiges',
-                    data: otherH,
-                    backgroundColor: 'rgba(16,185,129,.65)',
-                    stack: 'st',
-                    borderRadius: 3,
-                    yAxisID: 'yh',
-                });
-            const actScales = hasOther
-                ? {
-                      x: { stacked: true },
-                      y: { stacked: true, title: { display: true, text: 'km' }, position: 'left' },
-                      yh: {
-                          stacked: true,
-                          title: { display: true, text: 'h' },
-                          position: 'right',
-                          grid: { drawOnChartArea: false },
-                      },
-                  }
-                : { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } };
-            makeChart('weekly-chart', 'bar', actLabels, actDatasets, { scales: actScales });
-        } else {
-            showEmpty('weekly');
-        }
+function buildActivityCharts(activities, days, endDate) {
+    const RUN_TYPES = new Set(['running', 'trail_running', 'hiking', 'walking']);
+    const RIDE_TYPES = new Set(['cycling', 'indoor_cycling']);
+    const dayMap = {};
+    for (const a of activities) {
+        const key = String(a.started_at).slice(0, 10);
+        if (!dayMap[key]) dayMap[key] = { run_km: 0, ride_km: 0, other_h: 0 };
+        const km = (a.distance_meters || 0) / 1000;
+        const h = (a.duration_seconds || 0) / 3600;
+        const st = a.sport_type || '';
+        if (RUN_TYPES.has(st)) dayMap[key].run_km += km;
+        else if (RIDE_TYPES.has(st)) dayMap[key].ride_km += km;
+        else dayMap[key].other_h += h;
     }
 
-    const labels = daily.map((d) => fmtDate(d.date));
+    function _isoDate(dt) {
+        return [
+            dt.getFullYear(),
+            String(dt.getMonth() + 1).padStart(2, '0'),
+            String(dt.getDate()).padStart(2, '0'),
+        ].join('-');
+    }
+    const endDt = endDate
+        ? (([y, m, d]) => new Date(y, m - 1, d))(endDate.split('-').map(Number))
+        : new Date(new Date().toDateString());
+    const startDt = new Date(endDt);
+    startDt.setDate(startDt.getDate() - days + 1);
 
+    const actLabels = [],
+        runKm = [],
+        rideKm = [],
+        otherH = [];
+    for (let dt = new Date(startDt); dt <= endDt; dt.setDate(dt.getDate() + 1)) {
+        const key = _isoDate(dt);
+        const v = dayMap[key] || { run_km: 0, ride_km: 0, other_h: 0 };
+        actLabels.push(fmtDate(key));
+        runKm.push(+v.run_km.toFixed(1));
+        rideKm.push(+v.ride_km.toFixed(1));
+        otherH.push(+v.other_h.toFixed(1));
+    }
+
+    const hasRun = runKm.some((v) => v > 0);
+    const hasRide = rideKm.some((v) => v > 0);
+    const hasOther = otherH.some((v) => v > 0);
+
+    if (hasRun || hasRide || hasOther) {
+        hideEmpty('weekly');
+        const actDatasets = [];
+        if (hasRun)
+            actDatasets.push({
+                label: 'Ausdauer',
+                data: runKm,
+                backgroundColor: 'rgba(129,140,248,.75)',
+                stack: 'km',
+                borderRadius: 3,
+            });
+        if (hasRide)
+            actDatasets.push({
+                label: 'Radfahren',
+                data: rideKm,
+                backgroundColor: 'rgba(245,158,11,.75)',
+                stack: 'km',
+                borderRadius: 3,
+            });
+        if (hasOther)
+            actDatasets.push({
+                label: 'Sonstiges',
+                data: otherH,
+                backgroundColor: 'rgba(16,185,129,.65)',
+                stack: 'st',
+                borderRadius: 3,
+                yAxisID: 'yh',
+            });
+        const actScales = hasOther
+            ? {
+                  x: { stacked: true },
+                  y: { stacked: true, title: { display: true, text: 'km' }, position: 'left' },
+                  yh: {
+                      stacked: true,
+                      title: { display: true, text: 'h' },
+                      position: 'right',
+                      grid: { drawOnChartArea: false },
+                  },
+              }
+            : { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'km' } } };
+        makeChart('weekly-chart', 'bar', actLabels, actDatasets, { scales: actScales });
+    } else {
+        showEmpty('weekly');
+    }
+}
+
+function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     if (daily.some((d) => d.steps)) {
         hideEmpty('steps');
         makeChart('steps-chart', 'bar', labels, [
@@ -413,6 +393,34 @@ export async function load(days, endDate = null) {
     } else {
         showEmpty('calories');
     }
+}
+
+export async function load(days, endDate = null) {
+    const ed = endDate ? `&end_date=${endDate}` : '';
+    const [activities, daily, sleep, hrv, hrvTrend, trainingStatus, mlHistory] = await Promise.all([
+        fetch(`/api/activities?days=${days}${ed}`).then((r) => r.json()),
+        fetch(`/api/daily?days=${days}${ed}`).then((r) => r.json()),
+        fetch(`/api/sleep?days=${days}${ed}`).then((r) => r.json()),
+        fetch('/api/hrv').then((r) => r.json()),
+        fetch(`/api/hrv/trend?days=${days}${ed}`).then((r) => r.json()),
+        fetch('/api/training-status').then((r) => r.json()),
+        fetch(`/api/ml-history?days=${days}${ed}`).then((r) => r.json()),
+    ]);
+
+    _heroData.daily = daily;
+    _heroData.sleep = sleep;
+    _heroData.hrv = hrv;
+    _heroData.hrvTrend = hrvTrend;
+    _heroData.trainingStatus = trainingStatus;
+    buildHeroCard();
+
+    buildWeeklyReview();
+
+    renderActivitiesTable(activities);
+
+    const labels = daily.map((d) => fmtDate(d.date));
+    buildActivityCharts(activities, days, endDate);
+    buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory);
 }
 
 export async function loadReadiness() {

@@ -175,14 +175,6 @@ async def sync_user(
     logger.info("sync.done", user_id=user["id"])
 
 
-async def get_libre_users(repo: TimescaleRepository) -> list[dict]:
-    async with repo._db.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT id, name FROM users WHERE libre_linked = true AND is_active = true"
-        )
-    return [dict(r) for r in rows]
-
-
 async def sync_libre_user(
     user: dict, repo: TimescaleRepository, settings: Settings
 ) -> None:
@@ -210,7 +202,7 @@ async def sync_libre_user(
 
 
 async def sync_all_libre(repo: TimescaleRepository, settings: Settings) -> None:
-    users = await get_libre_users(repo)
+    users = await repo.get_libre_users()
     if not users:
         return
     for user in users:
@@ -224,43 +216,10 @@ async def sync_all_libre(repo: TimescaleRepository, settings: Settings) -> None:
             )
 
 
-async def get_active_users(repo: TimescaleRepository) -> list[dict]:
-    async with repo._db.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT id, name, garmin_email FROM users WHERE garmin_linked = true AND is_active = true"
-        )
-    return [dict(r) for r in rows]
-
-
-async def get_sync_requested_users(repo: TimescaleRepository) -> list[dict]:
-    async with repo._db.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT id, name, garmin_email FROM users "
-            "WHERE garmin_linked = true AND is_active = true AND sync_requested = true"
-        )
-    return [dict(r) for r in rows]
-
-
-async def mark_sync_done(user_id: int, repo: TimescaleRepository) -> None:
-    async with repo._db.acquire() as conn:
-        await conn.execute(
-            "UPDATE users SET sync_requested = false, last_sync_at = NOW() WHERE id = $1",
-            user_id,
-        )
-
-
-async def set_ml_requested(user_id: int, repo: TimescaleRepository) -> None:
-    async with repo._db.acquire() as conn:
-        await conn.execute(
-            "UPDATE users SET ml_requested = true WHERE id = $1",
-            user_id,
-        )
-
-
 async def process_sync_requests(
     repo: TimescaleRepository, daily_days: int, settings: Settings
 ) -> None:
-    users = await get_sync_requested_users(repo)
+    users = await repo.get_sync_requested_users()
     for user in users:
         logger.info("sync.manual.started", user_id=user["id"])
         try:
@@ -270,14 +229,14 @@ async def process_sync_requests(
                 "sync.manual.failed", user_id=user["id"], error=str(e), exc_info=True
             )
         finally:
-            await set_ml_requested(user["id"], repo)
-            await mark_sync_done(user["id"], repo)
+            await repo.set_ml_requested(user["id"])
+            await repo.mark_sync_done(user["id"])
 
 
 async def sync_all_users(
     repo: TimescaleRepository, days: int, settings: Settings
 ) -> None:
-    users = await get_active_users(repo)
+    users = await repo.get_active_users()
     if not users:
         logger.info("sync.no_users")
         return
@@ -287,7 +246,7 @@ async def sync_all_users(
         except Exception as e:
             logger.error("sync.failed", user_id=user["id"], error=str(e), exc_info=True)
         finally:
-            await mark_sync_done(user["id"], repo)
+            await repo.mark_sync_done(user["id"])
 
 
 async def main() -> None:
