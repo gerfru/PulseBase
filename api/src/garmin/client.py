@@ -22,7 +22,7 @@ class GarminClient:
             self._client.login(self.token_dir)
             logger.info(f"Login via Token: {self.email}")
         except Exception as exc:
-            logger.warning(
+            logger.warning(  # nosemgrep: python-logger-credential-disclosure
                 "Token-Login fehlgeschlagen (%s), versuche frischen Login", exc
             )
             self._client.login()
