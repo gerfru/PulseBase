@@ -1,6 +1,14 @@
 const SEVERITY_LABELS = ['', 'Sehr leicht', 'Leicht', 'Mittel', 'Schwer', 'Sehr schwer'];
 let selectedSeverity = null;
 
+function esc(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function renderSeverityChips() {
     const container = document.getElementById('severity-chips');
     container.innerHTML = '';
@@ -84,11 +92,11 @@ async function loadEvents() {
             return `<div class="flex flex-col gap-1 px-4 py-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06]">
             <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-slate-700 dark:text-slate-200">${formatDate(e.occurred_at)}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">${TYPE_LABELS[e.type] || e.type}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">${TYPE_LABELS[e.type] || esc(e.type)}</span>
                 ${dur ? `<span class="text-xs text-slate-400">${dur}</span>` : ''}
             </div>
             ${sev ? `<div class="text-sm tracking-widest text-violet-400" title="Schwere ${e.severity}/5">${sev}</div>` : ''}
-            ${e.notes ? `<div class="text-xs text-slate-400 mt-0.5">${e.notes.replace(/</g, '&lt;')}</div>` : ''}
+            ${e.notes ? `<div class="text-xs text-slate-400 mt-0.5">${esc(e.notes)}</div>` : ''}
         </div>`;
         })
         .join('');

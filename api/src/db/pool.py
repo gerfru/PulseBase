@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     resend_from_email: str = "onboarding@resend.dev"
     app_base_url: str = "https://garmin.home.lab"
     fernet_key: str
-    trusted_proxy_cidrs: list[str] = ["172.0.0.0/8", "127.0.0.1/32"]
+    trusted_proxy_cidrs: list[str] = ["127.0.0.1/32"]
     sentry_dsn: str = ""  # SENTRY_DSN — empty = disabled
 
     @field_validator("fernet_key")

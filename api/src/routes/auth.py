@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 import asyncpg
@@ -21,7 +22,7 @@ from src.db import (
 )
 from src.deps import (
     DUMMY_HASH,
-    _get_real_ip,
+    _ip_hash,
     hash_password,
     limiter,
     settings,
@@ -72,87 +73,68 @@ def _verify_email_token(token: str) -> int | None:
         return None
 
 
-async def _send_lockout_email(to_email: str) -> bool:
+async def _send_email(to: str, subject: str, html: str, log_key: str) -> bool:
     if not settings.resend_api_key:
-        logger.warning("mail.lockout.skipped", reason="RESEND_API_KEY not set")
+        logger.warning(f"mail.{log_key}.skipped", reason="RESEND_API_KEY not set")
         return False
     resend_client.api_key = settings.resend_api_key
     try:
         resend_client.Emails.send(
             {
                 "from": settings.resend_from_email,
-                "to": to_email,
-                "subject": "PulseBase — Konto vorübergehend gesperrt",
-                "html": (
-                    "<p>Dein Konto wurde nach mehreren fehlgeschlagenen Login-Versuchen "
-                    f"für {_LOCKOUT_MINUTES} Minuten gesperrt.</p>"
-                    "<p>Falls du das nicht warst, ändere bitte dein Passwort über "
-                    f"<a href='{settings.app_base_url}/auth/reset-request'>"
-                    "Passwort zurücksetzen</a>.</p>"
-                ),
+                "to": to,
+                "subject": subject,
+                "html": html,
             }
         )
         return True
     except resend_exc.ResendError as e:
-        logger.warning("mail.lockout.failed", reason=e.message)
+        logger.warning(f"mail.{log_key}.failed", reason=e.message)
         return False
     except Exception:
-        logger.exception("mail.lockout.unexpected")
+        logger.exception(f"mail.{log_key}.unexpected")
         return False
+
+
+async def _send_lockout_email(to_email: str) -> bool:
+    return await _send_email(
+        to=to_email,
+        subject="PulseBase — Konto vorübergehend gesperrt",
+        html=(
+            "<p>Dein Konto wurde nach mehreren fehlgeschlagenen Login-Versuchen "
+            f"für {_LOCKOUT_MINUTES} Minuten gesperrt.</p>"
+            "<p>Falls du das nicht warst, ändere bitte dein Passwort über "
+            f"<a href='{settings.app_base_url}/auth/reset-request'>"
+            "Passwort zurücksetzen</a>.</p>"
+        ),
+        log_key="lockout",
+    )
 
 
 async def _send_reset_email(to_email: str, token: str) -> bool:
-    if not settings.resend_api_key:
-        logger.warning("mail.reset.skipped", reason="RESEND_API_KEY not set")
-        return False
-    resend_client.api_key = settings.resend_api_key
     url = f"{settings.app_base_url}/auth/reset/{token}"
-    try:
-        resend_client.Emails.send(
-            {
-                "from": settings.resend_from_email,
-                "to": to_email,
-                "subject": "PulseBase — Passwort zurücksetzen",
-                "html": (
-                    f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
-                    f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
-                ),
-            }
-        )
-        return True
-    except resend_exc.ResendError as e:
-        logger.warning("mail.reset.failed", reason=e.message)
-        return False
-    except Exception:
-        logger.exception("mail.reset.unexpected")
-        return False
+    return await _send_email(
+        to=to_email,
+        subject="PulseBase — Passwort zurücksetzen",
+        html=(
+            f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
+            f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
+        ),
+        log_key="reset",
+    )
 
 
 async def _send_verify_email(to_email: str, token: str) -> bool:
-    if not settings.resend_api_key:
-        logger.warning("mail.verify.skipped", reason="RESEND_API_KEY not set")
-        return False
-    resend_client.api_key = settings.resend_api_key
     url = f"{settings.app_base_url}/auth/verify/{token}"
-    try:
-        resend_client.Emails.send(
-            {
-                "from": settings.resend_from_email,
-                "to": to_email,
-                "subject": "PulseBase — E-Mail-Adresse bestätigen",
-                "html": (
-                    "<p>Klicke auf diesen Link um deine E-Mail-Adresse zu bestätigen "
-                    f"(gültig 24 Stunden):</p><p><a href='{url}'>{url}</a></p>"
-                ),
-            }
-        )
-        return True
-    except resend_exc.ResendError as e:
-        logger.warning("mail.verify.failed", reason=e.message)
-        return False
-    except Exception:
-        logger.exception("mail.verify.unexpected")
-        return False
+    return await _send_email(
+        to=to_email,
+        subject="PulseBase — E-Mail-Adresse bestätigen",
+        html=(
+            "<p>Klicke auf diesen Link um deine E-Mail-Adresse zu bestätigen "
+            f"(gültig 24 Stunden):</p><p><a href='{url}'>{url}</a></p>"
+        ),
+        log_key="verify",
+    )
 
 
 @router.get("/login")
@@ -184,7 +166,7 @@ async def login(
             "auth.login.fail",
             reason="locked",
             user_id=user["id"],
-            ip=_get_real_ip(request),
+            ip_hash=_ip_hash(request),
         )
         return templates.TemplateResponse(
             request,
@@ -208,8 +190,8 @@ async def login(
         logger.warning(
             "auth.login.fail",
             reason="bad_credentials",
-            email=email,
-            ip=_get_real_ip(request),
+            email_hash=hashlib.sha256(email.encode()).hexdigest()[:12],
+            ip_hash=_ip_hash(request),
         )
         return templates.TemplateResponse(
             request,
@@ -223,7 +205,7 @@ async def login(
             "auth.login.fail",
             reason="unverified",
             user_id=user["id"],
-            ip=_get_real_ip(request),
+            ip_hash=_ip_hash(request),
         )
         return templates.TemplateResponse(
             request,
@@ -238,7 +220,7 @@ async def login(
     await reset_failed_login(user["id"])
     request.session.clear()
     request.session["user_id"] = str(user["id"])
-    logger.info("auth.login.success", user_id=user["id"], ip=_get_real_ip(request))
+    logger.info("auth.login.success", user_id=user["id"], ip_hash=_ip_hash(request))
     return RedirectResponse("/", status_code=303)
 
 
@@ -317,7 +299,7 @@ async def register(
     await save_consent(user["id"], "health_data", True, ip)
     await save_consent(user["id"], "terms", True, ip)
     await save_consent(user["id"], "age_16plus", True, ip)
-    logger.info("auth.register.success", user_id=user["id"], ip=_get_real_ip(request))
+    logger.info("auth.register.success", user_id=user["id"], ip_hash=_ip_hash(request))
     token = _make_verify_token(user["id"])
     sent = await _send_verify_email(email, token)
     return RedirectResponse(

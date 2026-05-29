@@ -1,5 +1,6 @@
 import asyncio
 import json
+import signal
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -130,7 +131,7 @@ async def sync_user(
 
     blob = await repo.get_user_token(user["id"], "garmin")
     if blob is None:
-        file_dir = f"/app/tokens/{user['id']}"
+        file_dir = str(settings.token_base_dir / str(user["id"]))
         if Path(file_dir).exists():
             serialized = serialize_token_dir(file_dir)
             blob = (
@@ -180,7 +181,9 @@ async def sync_libre_user(
 ) -> None:
     blob = await repo.get_user_token(user["id"], "libre")
     if blob is None:
-        file_path = Path(f"/app/tokens/{user['id']}/libre/libre_token.json")
+        file_path = (
+            settings.token_base_dir / str(user["id"]) / "libre" / "libre_token.json"
+        )
         if file_path.exists():
             raw = file_path.read_bytes()
             blob = (
@@ -297,6 +300,9 @@ async def main() -> None:
     scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", sync_hour=settings.sync_hour)
+
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=False))
 
     await asyncio.Event().wait()
 
