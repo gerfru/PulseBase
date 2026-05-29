@@ -1,5 +1,5 @@
 import pytest
-from datetime import date
+from datetime import date, timezone
 
 from conftest import (
     RAW_ACTIVITY_MINIMAL,
@@ -12,8 +12,13 @@ from garmin.mapper import (
     _int_or_none,
     _pace_to_sec,
     map_activity,
+    map_body_battery,
     map_hrv,
+    map_records,
     map_sleep,
+    map_stress,
+    map_summary,
+    map_training_status,
 )
 from domain.models import SportType
 
@@ -105,3 +110,191 @@ class TestIntOrNone:
 
     def test_invalid_returns_none(self):
         assert _int_or_none("abc") is None
+
+
+_RAW_RECORDS = {
+    "activityDetailMetrics": [
+        {
+            "metricType": "directHeartRate",
+            "metrics": [
+                {"sequenceNumber": 0, "value": 140},
+                {"sequenceNumber": 1, "value": 145},
+            ],
+        },
+        {
+            "metricType": "directSpeed",
+            "metrics": [
+                {"sequenceNumber": 0, "value": 2.78},
+                {"sequenceNumber": 1, "value": 2.90},
+            ],
+        },
+    ],
+    "geoPolylineDTO": {
+        "polyline": [
+            {"time": 1745704800000, "lat": 48.20, "lon": 16.37},
+            {"time": 1745704860000, "lat": 48.21, "lon": 16.38},
+        ]
+    },
+}
+
+
+class TestMapRecords:
+    def test_returns_correct_count(self):
+        result = map_records(_RAW_RECORDS)
+        assert len(result) == 2
+
+    def test_fields_populated(self):
+        result = map_records(_RAW_RECORDS)
+        r = result[0]
+        assert r.heart_rate == 140
+        assert r.lat == pytest.approx(48.20)
+        assert r.lng == pytest.approx(16.37)
+        assert r.time.tzinfo == timezone.utc
+
+    def test_pace_derived_from_speed(self):
+        result = map_records(_RAW_RECORDS)
+        assert result[0].pace_sec_per_km is not None
+        assert result[0].pace_sec_per_km == pytest.approx(1000 / 2.78, rel=0.01)
+
+    def test_none_returns_empty_list(self):
+        assert map_records(None) == []
+
+    def test_missing_polyline_returns_empty_list(self):
+        assert map_records({}) == []
+
+    def test_record_without_timestamp_skipped(self):
+        raw = {
+            "activityDetailMetrics": [],
+            "geoPolylineDTO": {"polyline": [{"lat": 48.0, "lon": 16.0}]},
+        }
+        assert map_records(raw) == []
+
+
+_RAW_SUMMARY = {
+    "totalSteps": 8500,
+    "totalKilocalories": 2200,
+    "averageStressLevel": 35,
+    "maxStressLevel": 72,
+    "averageSpO2": 97,
+    "lowestSpO2": 94,
+    "bodyBatteryHighest": 85,
+    "bodyBatteryLowest": 22,
+    "restingHeartRate": 52,
+    "moderateIntensityMinutes": 20,
+    "vigorousIntensityMinutes": 10,
+}
+
+
+class TestMapSummary:
+    def test_maps_all_fields(self):
+        result = map_summary(_RAW_SUMMARY, user_id=1, day=date(2026, 4, 27))
+        assert result.steps == 8500
+        assert result.calories_total == 2200
+        assert result.avg_stress == 35
+        assert result.avg_spo2 == 97
+        assert result.body_battery_high == 85
+        assert result.body_battery_low == 22
+        assert result.resting_hr == 52
+        assert result.intensity_moderate == 20
+        assert result.intensity_vigorous == 10
+
+    def test_user_id_and_date_set(self):
+        result = map_summary({}, user_id=7, day=date(2026, 1, 1))
+        assert result.user_id == 7
+        assert result.date == date(2026, 1, 1)
+
+    def test_missing_optional_fields_are_none(self):
+        result = map_summary({}, user_id=1, day=date(2026, 4, 27))
+        assert result.steps is None
+        assert result.resting_hr is None
+        assert result.avg_spo2 is None
+
+
+class TestMapBodyBattery:
+    def test_maps_values(self):
+        raw = [
+            {"bodyBatteryValuesArray": [[1745704800000, 80], [1745708400000, 75]]},
+            {"bodyBatteryValuesArray": [[1745712000000, 70]]},
+        ]
+        result = map_body_battery(raw, user_id=1)
+        assert len(result) == 3
+        ts, val = result[0]
+        assert val == 80
+        assert ts.tzinfo == timezone.utc
+
+    def test_none_value_skipped(self):
+        raw = [{"bodyBatteryValuesArray": [[1745704800000, None], [1745708400000, 60]]}]
+        result = map_body_battery(raw, user_id=1)
+        assert len(result) == 1
+        assert result[0][1] == 60
+
+    def test_empty_input_returns_empty_list(self):
+        assert map_body_battery([], user_id=1) == []
+
+    def test_empty_battery_array_returns_empty_list(self):
+        assert map_body_battery([{"bodyBatteryValuesArray": []}], user_id=1) == []
+
+
+class TestMapStress:
+    def test_maps_values(self):
+        raw = {"stressValuesArray": [[1745704800000, 40], [1745708400000, 55]]}
+        result = map_stress(raw, user_id=1)
+        assert len(result) == 2
+        ts, val = result[0]
+        assert val == 40
+        assert ts.tzinfo == timezone.utc
+
+    def test_negative_stress_skipped(self):
+        raw = {"stressValuesArray": [[1745704800000, -1], [1745708400000, 30]]}
+        result = map_stress(raw, user_id=1)
+        assert len(result) == 1
+        assert result[0][1] == 30
+
+    def test_empty_array_returns_empty_list(self):
+        assert map_stress({"stressValuesArray": []}, user_id=1) == []
+
+    def test_missing_key_returns_empty_list(self):
+        assert map_stress({}, user_id=1) == []
+
+
+_RAW_TRAINING_STATUS = {
+    "mostRecentTrainingStatus": {
+        "latestTrainingStatusData": {
+            "device_1": {
+                "primaryTrainingDevice": True,
+                "trainingStatus": 7,
+            }
+        }
+    }
+}
+
+
+class TestMapTrainingStatus:
+    def test_maps_productive(self):
+        result = map_training_status(_RAW_TRAINING_STATUS)
+        assert result == "PRODUCTIVE"
+
+    def test_maps_each_status(self):
+        for code, expected in [
+            (2, "DETRAINING"),
+            (3, "OVERREACHING"),
+            (4, "UNPRODUCTIVE"),
+            (5, "RECOVERY"),
+            (6, "MAINTAINING"),
+            (7, "PRODUCTIVE"),
+        ]:
+            raw = {
+                "mostRecentTrainingStatus": {
+                    "latestTrainingStatusData": {
+                        "d": {"primaryTrainingDevice": True, "trainingStatus": code}
+                    }
+                }
+            }
+            assert map_training_status(raw) == expected
+
+    def test_empty_raw_returns_none(self):
+        assert map_training_status({}) is None
+
+    def test_missing_device_returns_none(self):
+        raw = {"mostRecentTrainingStatus": {"latestTrainingStatusData": {}}}
+        assert map_training_status(raw) is None
