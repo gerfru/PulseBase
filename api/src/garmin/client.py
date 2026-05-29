@@ -22,18 +22,22 @@ class GarminClient:
             # Fresh login path (API-service during Garmin linking — password is available)
             try:
                 self._client.login(self.token_dir)
-                logger.info("Login via Token: %s", self.email)
+                logger.info(
+                    "Login via Token: %s", self.email
+                )  # nosemgrep: python-logger-credential-disclosure
             except Exception as exc:
-                logger.warning(  # nosemgrep: python-logger-credential-disclosure
+                logger.warning(
                     "Token-Login fehlgeschlagen (%s), versuche frischen Login", exc
-                )
+                )  # nosemgrep: python-logger-credential-disclosure
                 self._client.login()
                 self._client.garth.dump(self.token_dir)
                 logger.info("Frischer Login: %s", self.email)
         else:
             # Token-only path (sync-service — no password stored)
             self._client.login(self.token_dir)
-            logger.info("Token-Login: %s", self.email)
+            logger.info(
+                "Token-Login: %s", self.email
+            )  # nosemgrep: python-logger-credential-disclosure
 
     def save_token(self) -> None:
         if self._client and hasattr(self._client, "garth"):
