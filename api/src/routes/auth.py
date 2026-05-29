@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import asyncpg
 import resend as resend_client
+import resend.exceptions as resend_exc
 import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
@@ -91,8 +92,11 @@ async def _send_lockout_email(to_email: str) -> bool:
             }
         )
         return True
+    except resend_exc.ResendError as e:
+        logger.warning("mail.lockout.failed", reason=e.message)
+        return False
     except Exception:
-        logger.exception("mail.lockout.failed", to=to_email)
+        logger.exception("mail.lockout.unexpected")
         return False
 
 
@@ -115,8 +119,11 @@ async def _send_reset_email(to_email: str, token: str) -> bool:
             }
         )
         return True
+    except resend_exc.ResendError as e:
+        logger.warning("mail.reset.failed", reason=e.message)
+        return False
     except Exception:
-        logger.exception("mail.reset.failed", to=to_email)
+        logger.exception("mail.reset.unexpected")
         return False
 
 
@@ -139,8 +146,11 @@ async def _send_verify_email(to_email: str, token: str) -> bool:
             }
         )
         return True
+    except resend_exc.ResendError as e:
+        logger.warning("mail.verify.failed", reason=e.message)
+        return False
     except Exception:
-        logger.exception("mail.verify.failed", to=to_email)
+        logger.exception("mail.verify.unexpected")
         return False
 
 

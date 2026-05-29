@@ -1,3 +1,4 @@
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -59,7 +60,16 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         request_id = str(uuid.uuid4())[:8]
         clear_contextvars()
         bind_contextvars(request_id=request_id)
+        start = time.perf_counter()
         response = await call_next(request)
+        duration_ms = round((time.perf_counter() - start) * 1000, 1)
+        logger.info(
+            "http.request",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            duration_ms=duration_ms,
+        )
         response.headers["X-Request-ID"] = request_id
         return response
 
@@ -98,7 +108,7 @@ async def lifespan(app: FastAPI):  # pragma: no cover
             dsn=settings.sentry_dsn,
             integrations=[StarletteIntegration(), FastApiIntegration()],
             send_default_pii=False,
-            traces_sample_rate=0.0,
+            traces_sample_rate=0.1,
         )
         logger.info("sentry.initialized")
     yield

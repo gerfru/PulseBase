@@ -752,3 +752,73 @@ async def test_register_saves_age_consent_to_db(client):
                 )
     consent_types = [call[0][1] for call in mock_consent.call_args_list]
     assert "age_16plus" in consent_types
+
+
+# ── Rate Limiting ─────────────────────────────────────────────────────────────
+
+
+async def test_login_rate_limit_returns_429(client):
+    """11 consecutive failed login attempts → last request returns HTTP 429."""
+    for _ in range(11):
+        with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=None)):
+            r = await client.post(
+                "/login",
+                data={
+                    "email": "x@example.com",
+                    "password": "wrong",  # pragma: allowlist secret
+                },
+            )
+    assert r.status_code == 429
+
+
+# ── Email helpers — ResendError branch ────────────────────────────────────────
+
+
+def _resend_error():
+    import resend.exceptions as resend_exc
+
+    return resend_exc.ResendError(
+        code="429",
+        error_type="rate_limit_exceeded",
+        message="rate limit",
+        suggested_action="",
+    )
+
+
+async def test_lockout_email_resend_error_returns_false(client):
+    with patch("src.routes.auth.settings") as mock_settings:
+        mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+        mock_settings.resend_from_email = "noreply@example.com"
+        mock_settings.app_base_url = "https://example.com"
+        with patch("src.routes.auth.resend_client") as mock_resend:
+            mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
+            from src.routes.auth import _send_lockout_email
+
+            result = await _send_lockout_email("victim@example.com")
+    assert result is False
+
+
+async def test_reset_email_resend_error_returns_false(client):
+    with patch("src.routes.auth.settings") as mock_settings:
+        mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+        mock_settings.resend_from_email = "noreply@example.com"
+        mock_settings.app_base_url = "https://example.com"
+        with patch("src.routes.auth.resend_client") as mock_resend:
+            mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
+            from src.routes.auth import _send_reset_email
+
+            result = await _send_reset_email("user@example.com", "tok")
+    assert result is False
+
+
+async def test_verify_email_resend_error_returns_false(client):
+    with patch("src.routes.auth.settings") as mock_settings:
+        mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+        mock_settings.resend_from_email = "noreply@example.com"
+        mock_settings.app_base_url = "https://example.com"
+        with patch("src.routes.auth.resend_client") as mock_resend:
+            mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
+            from src.routes.auth import _send_verify_email
+
+            result = await _send_verify_email("user@example.com", "tok")
+    assert result is False

@@ -8,11 +8,11 @@ async def get_glucose_recent(user_id: int, hours: int = 24) -> list[dict]:
         SELECT time, value_mgdl, trend, is_high, is_low
         FROM glucose_readings
         WHERE user_id = $1
-          AND time >= NOW() - ($2 || ' hours')::interval
+          AND time >= NOW() - ($2 * INTERVAL '1 hour')
         ORDER BY time DESC
         """,
         user_id,
-        str(hours),
+        hours,
     )
     return [
         {

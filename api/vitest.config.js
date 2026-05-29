@@ -16,8 +16,8 @@ export default defineConfig({
                 'src/static/dashboard-status.js',
             ],
             thresholds: {
-                lines: 50,
-                functions: 50,
+                lines: 65,
+                functions: 70,
             },
         },
     },
