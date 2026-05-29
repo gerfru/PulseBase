@@ -301,6 +301,30 @@ async def test_reset_password_invalid_token_returns_400(client):
     assert r.status_code == 400
 
 
+async def test_reset_password_success_clears_session(client):
+    """After password reset the session is cleared — old session cannot be reused."""
+    from src.routes.auth import _make_reset_token
+    from tests.conftest import make_session
+
+    make_session(client, user_id=TEST_USER["id"])
+    assert client.cookies.get("session")  # session was planted
+
+    token = _make_reset_token(TEST_USER["id"])
+    with patch("src.routes.auth.update_password", AsyncMock()):
+        r = await client.post(
+            f"/auth/reset/{token}",
+            data={
+                "password": "newpassword12",  # pragma: allowlist secret
+                "password_confirm": "newpassword12",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/login?reset=1"
+    # Starlette SessionMiddleware sends Max-Age=0 when session is cleared
+    set_cookie = r.headers.get("set-cookie", "")
+    assert "max-age=0" in set_cookie.lower() or "session=" in set_cookie
+
+
 # ── Account lockout ───────────────────────────────────────────────────────────
 
 

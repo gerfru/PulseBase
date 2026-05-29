@@ -83,15 +83,12 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):  # pragma: no cover
     await get_pool()
     logger.info("db.pool_initialized")
-    if not settings.fernet_key:
-        logger.warning("fernet_key.missing", detail="tokens stored unencrypted in DB")
-    else:
-        try:
-            from cryptography.fernet import Fernet
+    try:
+        from cryptography.fernet import Fernet
 
-            Fernet(settings.fernet_key.encode())
-        except Exception:
-            raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
+        Fernet(settings.fernet_key.encode())
+    except Exception:
+        raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
     if settings.sentry_dsn:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
