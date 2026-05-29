@@ -369,3 +369,23 @@ Begründung: Solo-Projekt, Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-com
 ### QUAL-M2: Duplizierter GarminClient in api/ und sync-service/
 
 `api/src/garmin/client.py` und `sync-service/src/garmin/client.py` sind absichtlich identisch gehalten (beide nutzen jetzt den vollständigen Sync-Client als Basis). Ein echtes shared-Package würde Docker-Build-Context-Änderungen und separates `pyproject.toml` erfordern. Bei signifikanter Divergenz: `shared/garmin_client/` als path-dependency in beiden Services einführen.
+
+### ARCH-L2: Technisch-basierte db/-Ordnerstruktur
+
+`api/src/db/` ist technisch strukturiert (kein Feature-Split). Eine Feature-basierte Struktur (`api/src/activities/`, `api/src/health/`) würde ~20 Dateien betreffen.
+Begründung: Solo-Projekt, kein konkreter Nutzen gegenüber aktuellem Overhead. Refactoring erst bei deutlichem Wachstum der Codebasis.
+
+### ARCH-L3: API nicht versioniert (kein `/api/v1/`-Präfix)
+
+Alle Endpunkte laufen unter `/api/*` ohne Versionsprefix.
+Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-Fetch-Aufrufe und Tests brechen. Einführen erst wenn externe API-Stabilität verlangt wird.
+
+### OBS-L1: Kein externes Uptime-Monitoring
+
+Kein UptimeRobot oder ähnliches konfiguriert. Internes Docker-Healthcheck ist vorhanden (`/health`, `/ready`).
+Reminder: `https://garmin.home.lab/health` als Monitor-URL bei UptimeRobot konfigurieren.
+
+### TEST-L1: Mock-Qualität für `require_user` in Route-Tests
+
+Route-Tests patchen `src.deps.require_user` via `AsyncMock(return_value=TEST_USER)`. Kein `assert_called_once()`.
+Begründung: Tests verifizieren korrektes Verhalten (Status-Codes, Response-Inhalte). Die Mock-Stelle ist korrekt (`src.deps`, nicht `fastapi`). `assert_called_once()` wäre redundant da jeder Auth-Fehler den Test bereits fehlschlagen lässt.

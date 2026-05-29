@@ -141,7 +141,7 @@ class TimescaleRepository(
                 """,
                 rows,
             )
-        logger.info(f"Inserted {len(rows)} GPS records for activity {activity_id}")
+        logger.info("Inserted %d GPS records for activity %d", len(rows), activity_id)
 
     # ── Daily Summary ─────────────────────────────────────────────────────────
 
@@ -268,7 +268,9 @@ class TimescaleRepository(
                 f"INSERT INTO {table} (time, user_id, value) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING",  # nosec B608 — table validated against allowlist above
                 [(ts, user_id, val) for ts, val in readings],
             )
-        logger.info(f"Inserted {len(readings)} rows into {table} for user {user_id}")
+        logger.info(
+            "Inserted %d rows into %s for user %d", len(readings), table, user_id
+        )
 
     # ── Tokens ────────────────────────────────────────────────────────────────
 
@@ -360,4 +362,4 @@ class TimescaleRepository(
                     for r in rows
                 ],
             )
-        logger.info(f"Inserted {len(rows)} glucose readings for user {user_id}")
+        logger.info("Inserted %d glucose readings for user %d", len(rows), user_id)
