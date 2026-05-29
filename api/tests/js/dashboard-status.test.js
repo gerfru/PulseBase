@@ -205,6 +205,32 @@ describe('pollMlStatus (via loadMlStatus timer)', () => {
     });
 });
 
+describe('pollSyncStatus reschedules when still pending', () => {
+    it('sets a new poll timer when pending=true during poll (line 80)', async () => {
+        vi.useFakeTimers();
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce({
+                json: () => Promise.resolve({ pending: true }),
+            })
+            .mockResolvedValueOnce({
+                json: () => Promise.resolve({ pending: true, last_sync_at: null }),
+            })
+            .mockResolvedValue({
+                json: () =>
+                    Promise.resolve({ pending: false, last_sync_at: '2024-01-15T12:00:00Z' }),
+            });
+
+        await loadSyncStatus();
+        // First poll fires → pending=true → reschedules (line 80)
+        await vi.advanceTimersByTimeAsync(5001);
+        expect(global.fetch).toHaveBeenCalledTimes(2);
+        // Second poll fires → pending=false → done
+        await vi.advanceTimersByTimeAsync(5001);
+        expect(document.getElementById('sync-btn').classList.contains('sync-loading')).toBe(false);
+        vi.clearAllTimers();
+    });
+});
+
 describe('pollSyncStatus (via loadSyncStatus timer)', () => {
     it('clears sync-loading and shows toast when poll finds pending=false', async () => {
         vi.useFakeTimers();

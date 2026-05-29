@@ -18,16 +18,27 @@ class GarminClient:
     def connect(self) -> None:
         Path(self.token_dir).mkdir(parents=True, exist_ok=True)
         self._client = garminconnect.Garmin(email=self.email, password=self.password)
-        try:
+        if self.password:
+            # Fresh login path (API-service during Garmin linking — password is available)
+            try:
+                self._client.login(self.token_dir)
+                logger.info(f"Login via Token: {self.email}")
+            except Exception as exc:
+                logger.warning(  # nosemgrep: python-logger-credential-disclosure
+                    "Token-Login fehlgeschlagen (%s), versuche frischen Login", exc
+                )
+                self._client.login()
+                self._client.garth.dump(self.token_dir)
+                logger.info(f"Frischer Login: {self.email}")
+        else:
+            # Token-only path (sync-service — no password stored)
             self._client.login(self.token_dir)
-            logger.info(f"Login via Token: {self.email}")
-        except Exception as exc:
-            logger.warning(  # nosemgrep: python-logger-credential-disclosure
-                "Token-Login fehlgeschlagen (%s), versuche frischen Login", exc
-            )
-            self._client.login()
+            logger.info(f"Token-Login: {self.email}")
+
+    def save_token(self) -> None:
+        if self._client and hasattr(self._client, "garth"):
             self._client.garth.dump(self.token_dir)
-            logger.info(f"Frischer Login: {self.email}")
+            logger.debug("Garmin token auf Disk gespeichert")
 
     def get_activities(self, start: date, end: date) -> list[dict[str, Any]]:
         return (
@@ -52,3 +63,6 @@ class GarminClient:
 
     def get_stress(self, day: date) -> dict[str, Any]:
         return self._client.get_stress_data(day.isoformat()) or {}
+
+    def get_training_status(self, day: date) -> dict[str, Any]:
+        return self._client.get_training_status(day.isoformat()) or {}
