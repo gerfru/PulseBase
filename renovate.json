@@ -17,6 +17,12 @@
       "matchManagers": ["docker-compose"],
       "matchUpdateTypes": ["digest"],
       "automerge": true
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
     }
   ]
 }

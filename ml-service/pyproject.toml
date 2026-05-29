@@ -13,6 +13,7 @@ dependencies = [
     "numpy>=2.0.0",
     "joblib>=1.4.0",
     "structlog>=24.4.0",
+    "sentry-sdk>=2.0.0",
 ]
 
 [project.optional-dependencies]
