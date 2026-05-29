@@ -67,7 +67,7 @@ jobs:
           pip install bandit
           bandit -r api/src/ sync-service/src/ ml-service/src/ -q
       - name: semgrep
-        uses: semgrep/semgrep-action@v1
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
         with:
           config: >-
             p/python
