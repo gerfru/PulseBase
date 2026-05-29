@@ -34,10 +34,10 @@ async def get_seizures(user_id: int, days: int = 365) -> list[dict]:
         """SELECT id, occurred_at, duration_seconds, type, severity, notes
            FROM seizure_events
            WHERE user_id = $1
-             AND occurred_at >= NOW() - ($2 || ' days')::interval
+             AND occurred_at >= NOW() - ($2 * INTERVAL '1 day')
            ORDER BY occurred_at DESC""",
         user_id,
-        str(days),
+        days,
     )
     result = []
     for r in rows:
