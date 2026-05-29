@@ -14,7 +14,7 @@ vi.mock('../../src/static/dashboard-loaders.js', () => ({
     loadEnergyMetrics: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { fmtSyncAge, showToast, loadSyncStatus, triggerSync } = await import(
+const { fmtSyncAge, showToast, loadSyncStatus, loadMlStatus, triggerSync } = await import(
     '../../src/static/dashboard-status.js'
 );
 
@@ -126,5 +126,120 @@ describe('triggerSync', () => {
         global.fetch = vi.fn();
         await triggerSync();
         expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe('loadMlStatus', () => {
+    it('shows ml-status with age when not pending and last_ml_at present', async () => {
+        vi.useFakeTimers({ now: new Date('2024-01-15T12:10:00Z') });
+        global.fetch = vi.fn().mockResolvedValue({
+            json: () => Promise.resolve({ last_ml_at: '2024-01-15T12:00:00Z', pending: false }),
+        });
+        await loadMlStatus();
+        const el = document.getElementById('ml-status');
+        expect(el.style.display).not.toBe('none');
+        expect(el.textContent).toContain('vor 10m');
+    });
+
+    it('leaves ml-status unchanged when not pending and no last_ml_at', async () => {
+        global.fetch = vi.fn().mockResolvedValue({
+            json: () => Promise.resolve({ pending: false }),
+        });
+        const el = document.getElementById('ml-status');
+        el.textContent = '';
+        await loadMlStatus();
+        expect(el.textContent).toBe('');
+        expect(el.style.display).toBe('');
+    });
+
+    it('shows loading text and schedules poll when pending', async () => {
+        vi.useFakeTimers();
+        global.fetch = vi.fn().mockResolvedValue({
+            json: () => Promise.resolve({ pending: true }),
+        });
+        await loadMlStatus();
+        expect(document.getElementById('ml-status').textContent).toBe('🤖 ML läuft…');
+        vi.clearAllTimers();
+    });
+
+    it('does not throw on fetch error', async () => {
+        global.fetch = vi.fn().mockRejectedValue(new Error('network'));
+        await expect(loadMlStatus()).resolves.toBeUndefined();
+    });
+});
+
+describe('pollMlStatus (via loadMlStatus timer)', () => {
+    it('shows toast and triggers reload when poll finds pending=false', async () => {
+        vi.useFakeTimers();
+        const { loadMlInsights } = await import('../../src/static/dashboard-loaders.js');
+
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce({
+                json: () => Promise.resolve({ pending: true }),
+            })
+            .mockResolvedValue({
+                json: () =>
+                    Promise.resolve({ pending: false, last_ml_at: '2024-01-15T11:00:00Z' }),
+            });
+
+        await loadMlStatus();
+        // Advance past the 8 s poll interval, flush all micro-tasks
+        await vi.advanceTimersByTimeAsync(8001);
+
+        expect(document.getElementById('toast').textContent).toBe('ML Einblicke aktualisiert');
+        expect(loadMlInsights).toHaveBeenCalled();
+        vi.clearAllTimers();
+    });
+
+    it('continues polling while still pending', async () => {
+        vi.useFakeTimers();
+        global.fetch = vi.fn().mockResolvedValue({
+            json: () => Promise.resolve({ pending: true }),
+        });
+
+        await loadMlStatus();
+        await vi.advanceTimersByTimeAsync(8001);
+        // A second poll should have been scheduled
+        expect(global.fetch).toHaveBeenCalledTimes(2);
+        vi.clearAllTimers();
+    });
+});
+
+describe('pollSyncStatus (via loadSyncStatus timer)', () => {
+    it('clears sync-loading and shows toast when poll finds pending=false', async () => {
+        vi.useFakeTimers();
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce({
+                json: () => Promise.resolve({ pending: true }),
+            })
+            .mockResolvedValue({
+                json: () =>
+                    Promise.resolve({ pending: false, last_sync_at: '2024-01-15T11:50:00Z' }),
+            });
+
+        await loadSyncStatus();
+        await vi.advanceTimersByTimeAsync(5001);
+
+        expect(document.getElementById('sync-btn').classList.contains('sync-loading')).toBe(false);
+        expect(document.getElementById('toast').textContent).toBe('Sync abgeschlossen');
+        vi.clearAllTimers();
+    });
+
+    it('updates sync-last timestamp when last_sync_at arrives during poll', async () => {
+        vi.useFakeTimers({ now: new Date('2024-01-15T12:05:00Z') });
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce({
+                json: () => Promise.resolve({ pending: true }),
+            })
+            .mockResolvedValue({
+                json: () =>
+                    Promise.resolve({ pending: false, last_sync_at: '2024-01-15T12:00:00Z' }),
+            });
+
+        await loadSyncStatus();
+        await vi.advanceTimersByTimeAsync(5001);
+
+        expect(document.getElementById('sync-last').textContent).toBe('vor 5m');
+        vi.clearAllTimers();
     });
 });
