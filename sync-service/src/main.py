@@ -126,7 +126,7 @@ async def _sync_day(
 async def sync_user(
     user: dict, repo: TimescaleRepository, days: int, settings: Settings
 ) -> None:
-    logger.info("sync.started", user=user["name"], days=days)
+    logger.info("sync.started", user_id=user["id"], days=days)
 
     blob = await repo.get_user_token(user["id"], "garmin")
     if blob is None:
@@ -172,7 +172,7 @@ async def sync_user(
         )
         await repo.save_user_token(user["id"], "garmin", encrypted)
 
-    logger.info("sync.done", user=user["name"])
+    logger.info("sync.done", user_id=user["id"])
 
 
 async def get_libre_users(repo: TimescaleRepository) -> list[dict]:
@@ -262,12 +262,12 @@ async def process_sync_requests(
 ) -> None:
     users = await get_sync_requested_users(repo)
     for user in users:
-        logger.info("sync.manual.started", user=user["name"])
+        logger.info("sync.manual.started", user_id=user["id"])
         try:
             await sync_user(user, repo, days=daily_days, settings=settings)
         except Exception as e:
             logger.error(
-                "sync.manual.failed", user=user["name"], error=str(e), exc_info=True
+                "sync.manual.failed", user_id=user["id"], error=str(e), exc_info=True
             )
         finally:
             await set_ml_requested(user["id"], repo)
@@ -285,22 +285,19 @@ async def sync_all_users(
         try:
             await sync_user(user, repo, days=days, settings=settings)
         except Exception as e:
-            logger.error("sync.failed", user=user["name"], error=str(e), exc_info=True)
+            logger.error("sync.failed", user_id=user["id"], error=str(e), exc_info=True)
         finally:
             await mark_sync_done(user["id"], repo)
 
 
 async def main() -> None:
     settings = Settings()  # type: ignore[call-arg]
-    if not settings.fernet_key:
-        logger.warning("fernet_key.missing", detail="tokens stored unencrypted in DB")
-    else:
-        try:
-            from cryptography.fernet import Fernet
+    try:
+        from cryptography.fernet import Fernet
 
-            Fernet(settings.fernet_key.encode())
-        except Exception:
-            raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
+        Fernet(settings.fernet_key.encode())
+    except Exception:
+        raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
 
     repo = TimescaleRepository(settings.db_url)
     await repo.init()

@@ -26,4 +26,7 @@ def restore_token_dir(data: bytes, token_dir: str) -> None:
     """Write files from a serialized JSON blob back into token_dir."""
     Path(token_dir).mkdir(parents=True, exist_ok=True)
     for name, b64 in json.loads(data).items():
-        Path(token_dir, name).write_bytes(base64.b64decode(b64))
+        safe_name = Path(name).name
+        if not safe_name or safe_name != name:
+            continue
+        Path(token_dir, safe_name).write_bytes(base64.b64decode(b64))

@@ -16,7 +16,7 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: no-commit-to-branch
-        args: [--branch, dev, --branch, master]
+        args: [--branch, main, --branch, dev, --branch, master]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.4
@@ -29,9 +29,9 @@ repos:
     rev: 1.8.3
     hooks:
       - id: bandit
-        args: [-r, api/src/, sync-service/src/]
+        args: [-r, api/src/, sync-service/src/, ml-service/src/]
         pass_filenames: false
-        files: ^(api|sync-service)/src/
+        files: ^(api|sync-service|ml-service)/src/
 
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
