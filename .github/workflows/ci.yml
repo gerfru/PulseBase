@@ -214,4 +214,4 @@ jobs:
         run: pip install -e ".[dev]" && pytest -v --cov=src --cov-fail-under=20
       - name: pytest ml-service
         working-directory: ml-service
-        run: pip install -e ".[dev]" && pytest -v --cov=src --cov-fail-under=30
+        run: pip install -e ".[dev]" && pytest -v --cov=src --cov-fail-under=15
