@@ -304,13 +304,29 @@ Aufwand: **S**
 - **CICD-L1** `.github/pull_request_template.md` angelegt
 - **CICD-L4** Renovate: npm devDeps patch automerge
 
-### 🔲 Wave 2b — ausstehend (nächste PR)
+### ✅ Wave 2b — erledigt
 
-1. **SEC-H1** X-Forwarded-For: Trusted-Proxy-Konfiguration
-2. **ARCH-M1** HEALTHCHECK in sync + ml Dockerfiles + Compose
-3. **TEST-M2** Sync-Mapper fehlende Funktionen (map_records, map_summary, …)
-4. **TEST-H2** ML-Modelle testen (10 Modelle, L-Aufwand)
-5. **CICD-M1** pip → uv in CI
+- **SEC-H1** X-Forwarded-For: Trusted-Proxy-CIDR-Allowlist in `deps.py` + `pool.py`
+- **ARCH-M1** HEALTHCHECK Sentinel-File in sync + ml Dockerfiles + Compose
+- **TEST-M2** Sync-Mapper fehlende Tests: `map_records`, `map_summary`, `map_body_battery`, `map_stress`, `map_training_status`, `map_reading` (Libre) — 46 Tests gesamt
+- **TEST-H2** 10 ML-Modelle getestet: hrv_recovery, hrv_status, intensity_minutes, running_economy, sleep_metrics, sleep_score, spo2_metrics, stress_metrics, training_effect, training_load — 80+ Tests
+- **CICD-M1** CI von pip → uv migriert (`uv sync --frozen --extra dev`)
+
+### ✅ Wave 4 — erledigt
+
+- **TEST-M6** Neue Testdateien: `sync-service/tests/test_repository.py` (TimescaleRepository, 16 Tests) + `sync-service/tests/test_libre_client.py` (LibreClient, 8 Tests)
+- **ARCH-L1** DB_HOST/PORT/NAME für ml-service in `docker-compose.yml` ergänzt
+- **ARCH-L4** Flyway-Image: `latest@digest` → `10@digest` (explizite Major-Version)
+- **ARCH-L5** Doppeltes `Settings()` entfernt: Einzige Instanz in `pool.py`, `deps.py` importiert von dort
+- **OBS-L2** structlog stdlib-Bridge in api + ml-service `logging_config.py` (third-party Logs auf WARNING, stdlib-Bridge via `logging.basicConfig`)
+- **OBS-L3** Flyway: Resource-Limits (256M/0.25 CPU) + Log-Rotation (5m/2 Files) in Compose
+- **OBS-L4** Traefik: Resource-Limits (128M/0.25 CPU) + Log-Rotation (10m/3 Files) in Compose
+- **QUAL-L1** 9 f-String-Logger-Aufrufe → lazy `%s` (stdlib) in 4 Dateien
+- **QUAL-L2** Return-Type-Annotationen für 36 Route-Handler (`-> Response` / `-> dict`)
+- **CICD-L2** PR-Größen-Check (>400 LOC → fail) als neuer CI-Job
+- **CICD-L3** uv-Caching (`enable-caching: true`) in allen 3 `setup-uv`-Steps
+- **TEST-L2** E2E Screenshot-on-failure in `conftest.py`
+- **ARCH-L2/L3, OBS-L1, TEST-L1** Als akzeptierter Tech-Debt in CLAUDE.md dokumentiert
 
 ### ✅ Wave 3 — erledigt
 

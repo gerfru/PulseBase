@@ -1,4 +1,5 @@
 import os
+import pathlib
 import pytest
 from playwright.async_api import async_playwright, BrowserContext, Page
 
@@ -36,3 +37,30 @@ async def authenticated_page(browser_context: BrowserContext) -> Page:
     await p.wait_for_url("**/dashboard", timeout=10000)
     yield p
     await p.close()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Capture a screenshot when an E2E test fails."""
+    outcome = yield
+    rep = outcome.get_result()
+    if rep.when == "call" and rep.failed:
+        page: Page | None = item.funcargs.get(
+            "authenticated_page"
+        ) or item.funcargs.get("page")
+        if page is not None:
+            out_dir = pathlib.Path("test-results")
+            out_dir.mkdir(exist_ok=True)
+            safe_name = item.nodeid.replace("/", "_").replace("::", "__")
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(page.screenshot(path=out_dir / f"{safe_name}.png"))
+                else:
+                    loop.run_until_complete(
+                        page.screenshot(path=out_dir / f"{safe_name}.png")
+                    )
+            except Exception:
+                pass
