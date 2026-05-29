@@ -316,15 +316,15 @@ Aufwand: **S**
 
 - **TEST-M6** Neue Testdateien: `sync-service/tests/test_repository.py` (TimescaleRepository, 16 Tests) + `sync-service/tests/test_libre_client.py` (LibreClient, 8 Tests)
 - **ARCH-L1** DB_HOST/PORT/NAME für ml-service in `docker-compose.yml` ergänzt
-- **ARCH-L4** Flyway-Image: `latest@digest` → `10@digest` (explizite Major-Version)
+- **ARCH-L4** Flyway-Image: `latest@digest` → versionierter Digest (explizite Major-Version)
 - **ARCH-L5** Doppeltes `Settings()` entfernt: Einzige Instanz in `pool.py`, `deps.py` importiert von dort
 - **OBS-L2** structlog stdlib-Bridge in api + ml-service `logging_config.py` (third-party Logs auf WARNING, stdlib-Bridge via `logging.basicConfig`)
 - **OBS-L3** Flyway: Resource-Limits (256M/0.25 CPU) + Log-Rotation (5m/2 Files) in Compose
 - **OBS-L4** Traefik: Resource-Limits (128M/0.25 CPU) + Log-Rotation (10m/3 Files) in Compose
-- **QUAL-L1** 9 f-String-Logger-Aufrufe → lazy `%s` (stdlib) in 4 Dateien
+- **QUAL-L1** 9 f-String-Logger-Aufrufe → lazy `%s` (stdlib) in 4 Dateien; GarminClient-Logs ohne PII (E-Mail-Adresse entfernt, strukturierte Event-Namen)
 - **QUAL-L2** Return-Type-Annotationen für 36 Route-Handler (`-> Response` / `-> dict`)
-- **CICD-L2** PR-Größen-Check (>400 LOC → fail) als neuer CI-Job
-- **CICD-L3** uv-Caching (`enable-caching: true`) in allen 3 `setup-uv`-Steps
+- **CICD-L2** PR-Größen-Check (>400 LOC → fail) als neuer CI-Job (Shell-Injection via `env:` gesichert)
+- **CICD-L3** uv-Caching (`enable-cache: true`) in allen 3 `setup-uv`-Steps
 - **TEST-L2** E2E Screenshot-on-failure in `conftest.py`
 - **ARCH-L2/L3, OBS-L1, TEST-L1** Als akzeptierter Tech-Debt in CLAUDE.md dokumentiert
 
