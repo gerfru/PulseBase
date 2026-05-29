@@ -1,5 +1,6 @@
 import asyncio
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -602,6 +603,9 @@ async def main() -> None:
     logger.info("ml.initial_run")
     await run_all_users(settings, include_training=True)
 
+    async def _write_alive_sentinel() -> None:
+        Path("/tmp/ml_alive").touch()
+
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         run_all_users,
@@ -622,6 +626,7 @@ async def main() -> None:
         args=[settings],
         id="on_request",
     )
+    scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", infer_hour=settings.ml_infer_hour)
 
