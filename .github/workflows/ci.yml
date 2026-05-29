@@ -78,24 +78,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
-      - name: Install api + mypy
-        run: pip install -e api/ mypy --quiet
       - name: mypy api
         working-directory: api
-        run: mypy src/ --ignore-missing-imports --explicit-package-bases
-      - name: Install sync + mypy
-        run: pip install -e sync-service/ mypy --quiet
+        run: uv sync --frozen --extra dev && uv run mypy src/ --ignore-missing-imports --explicit-package-bases
       - name: mypy sync-service
         working-directory: sync-service
-        run: mypy src/ --ignore-missing-imports --explicit-package-bases
-      - name: Install ml + mypy
-        run: pip install -e ml-service/ mypy --quiet
+        run: uv sync --frozen --extra dev && uv run mypy src/ --ignore-missing-imports --explicit-package-bases
       - name: mypy ml-service
         working-directory: ml-service
-        run: mypy src/ --ignore-missing-imports --explicit-package-bases
+        run: uv sync --frozen --extra dev && uv run mypy src/ --ignore-missing-imports --explicit-package-bases
 
   trivy:
     name: Trivy Image Scan
@@ -164,16 +158,16 @@ jobs:
       - name: Start test stack
         run: docker compose --env-file env/.env -f docker-compose.test.yml up -d --wait
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
 
       - name: Install api dev deps
-        run: pip install -e ".[dev]" -q
+        run: uv sync --frozen --extra dev
         working-directory: api
 
       - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
+        run: uv run playwright install chromium --with-deps
         working-directory: api
 
       - name: Create CI test user
@@ -185,14 +179,14 @@ jobs:
         run: |
           export DB_USER=$(grep ^DB_USER ../env/.env | cut -d= -f2)
           export DB_PASSWORD=$(grep ^DB_PASSWORD ../env/.env | cut -d= -f2)
-          python tests/e2e/create_ci_user.py
+          uv run python tests/e2e/create_ci_user.py
 
       - name: Run E2E smoke tests
         working-directory: api
         env:
           TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}  # pragma: allowlist secret
-        run: pytest tests/e2e/ -v
+        run: uv run pytest tests/e2e/ -v
 
       - name: Stop test stack
         if: always()
@@ -204,17 +198,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
       - name: pytest api
         working-directory: api
-        run: pip install -e ".[dev]" && pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=70
+        run: uv sync --frozen --extra dev && uv run pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=70
         env:
           FERNET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       - name: pytest sync-service
         working-directory: sync-service
-        run: pip install -e ".[dev]" && pytest -v --cov=src --cov-fail-under=20
+        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=20
       - name: pytest ml-service
         working-directory: ml-service
-        run: pip install -e ".[dev]" && pytest -v --cov=src --cov-fail-under=15
+        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=15

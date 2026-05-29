@@ -14,4 +14,6 @@ COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
 USER appuser
 COPY src/ ./src/
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
+  CMD find /tmp/sync_alive -mmin -2 || exit 1
 CMD ["python", "src/main.py"]

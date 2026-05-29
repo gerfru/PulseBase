@@ -13,12 +13,22 @@ from models.battery_pattern import extract_features
 from models.body_battery import _sleep_quality, compute_body_battery
 from models.correlation import compute_sleep_hrv_correlation
 from models.energy_metrics import compute_autonomic_energy, compute_cognitive_energy
+from models.hrv_recovery import compute_hrv_recovery_trajectory
+from models.hrv_status import classify_hrv_status
+from models.intensity_minutes import compute_intensity_minutes
 from models.readiness import (
     predict_tomorrow,
     prepare_training_data,
     train_and_save,
     _energy_based_score,
 )
+from models.running_economy import compute_running_economy
+from models.sleep_metrics import compute_sleep_consistency
+from models.sleep_score import compute_custom_sleep_score
+from models.spo2_metrics import compute_spo2_trend
+from models.stress_metrics import compute_stress_score
+from models.training_effect import compute_banister_trimp, compute_training_effect_today
+from models.training_load import compute_acwr, compute_training_monotony
 
 
 # ── Body Battery ───────────────────────────────────────────────────────────
@@ -466,3 +476,418 @@ def test_extract_features_ok():
     }
     assert feat["daily_range"] >= 0
     assert 0 <= feat["auc"] <= 100
+
+
+# ── HRV Status ─────────────────────────────────────────────────────────────
+
+
+def test_hrv_status_insufficient_data():
+    result = classify_hrv_status([50.0] * 5)
+    assert result["status"] is None
+    assert "reason" in result
+
+
+def test_hrv_status_balanced():
+    history = [50.0] * 20
+    result = classify_hrv_status(history)
+    assert result["status"] == "BALANCED"
+    assert result["score"] is not None
+
+
+def test_hrv_status_low_hrv_unbalanced():
+    baseline = [55.0] * 20
+    suppressed = [35.0] * 7
+    result = classify_hrv_status(baseline + suppressed)
+    assert result["status"] in {"UNBALANCED", "LOW", "POOR"}
+
+
+def test_hrv_status_returns_deviation_fields():
+    history = [50.0] * 20
+    result = classify_hrv_status(history)
+    assert "deviation" in result
+    assert "baseline_mean" in result
+    assert "hrv_7d_mean" in result
+
+
+# ── HRV Recovery ────────────────────────────────────────────────────────────
+
+
+def test_hrv_recovery_insufficient_hrv():
+    result = compute_hrv_recovery_trajectory(
+        hrv_history=[50.0] * 10,
+        act_rows=[],
+        hrmax=185.0,
+        today=__import__("datetime").date.today(),
+    )
+    assert result["score"] is None
+    assert result["reason"] == "insufficient_hrv_data"
+
+
+def test_hrv_recovery_no_training_events():
+    hrv = [50.0] * 60
+    result = compute_hrv_recovery_trajectory(
+        hrv_history=hrv,
+        act_rows=[],
+        hrmax=185.0,
+        today=__import__("datetime").date.today(),
+    )
+    assert result["score"] is None
+    assert result["reason"] == "no_recovery_events"
+
+
+def test_hrv_recovery_with_training_events():
+    from datetime import date, timedelta
+
+    today = date(2026, 4, 27)
+    hrv = [50.0] * 60
+
+    act_rows = []
+    for i in range(0, 60, 10):
+        d = today - timedelta(days=i)
+        act_rows.append(
+            {
+                "activity_date": d,
+                "avg_hr": 165,
+                "duration_seconds": 3600,
+                "resting_hr": 52,
+            }
+        )
+
+    result = compute_hrv_recovery_trajectory(
+        hrv_history=hrv,
+        act_rows=act_rows,
+        hrmax=185.0,
+        today=today,
+    )
+    assert result.get("n_events", 0) >= 0
+
+
+# ── Intensity Minutes ────────────────────────────────────────────────────────
+
+
+def test_intensity_minutes_no_data():
+    result = compute_intensity_minutes([], resting_hr=55.0, hrmax=185.0)
+    assert result["score"] is None
+    assert result["reason"] == "insufficient_data"
+
+
+def test_intensity_minutes_invalid_hrmax():
+    result = compute_intensity_minutes([130, 140], resting_hr=185.0, hrmax=185.0)
+    assert result["score"] is None
+
+
+def test_intensity_minutes_all_moderate():
+    # Karvonen 50–70% with resting_hr=60, hrmax=180 → threshold at 60+0.5×120=120
+    hr_records = [130] * 3600  # 1 hour at 130bpm → moderate zone
+    result = compute_intensity_minutes(hr_records, resting_hr=60.0, hrmax=180.0)
+    assert result["moderate_minutes"] == 60
+    assert result["vigorous_minutes"] == 0
+    assert result["score"] > 0
+
+
+def test_intensity_minutes_vigorous_counts_double():
+    # vigorous_min × 2 in WHO equivalent
+    hr_records = [160] * 1800  # 30 min vigorous
+    result = compute_intensity_minutes(hr_records, resting_hr=60.0, hrmax=180.0)
+    assert result["vigorous_minutes"] == 30
+    weekly_eq = result["moderate_minutes"] + result["vigorous_minutes"] * 2
+    assert weekly_eq == 60
+
+
+# ── Sleep Score ─────────────────────────────────────────────────────────────
+
+
+def test_sleep_score_no_data():
+    result = compute_custom_sleep_score({})
+    assert result["score"] is None
+    assert result["reason"] == "no_sleep_data"
+
+
+def test_sleep_score_duration_only():
+    result = compute_custom_sleep_score({"total_sleep_seconds": 7 * 3600})
+    assert result["score"] is not None
+    assert 0 <= result["score"] <= 100
+
+
+def test_sleep_score_ideal_phases_higher_than_poor():
+    ideal = compute_custom_sleep_score(
+        {
+            "total_sleep_seconds": 8 * 3600,
+            "deep_sleep_seconds": int(0.20 * 8 * 3600),
+            "rem_sleep_seconds": int(0.22 * 8 * 3600),
+            "awake_seconds": 600,
+        }
+    )
+    poor = compute_custom_sleep_score(
+        {
+            "total_sleep_seconds": 8 * 3600,
+            "deep_sleep_seconds": 300,
+            "rem_sleep_seconds": 300,
+            "awake_seconds": int(0.30 * 8 * 3600),
+        }
+    )
+    assert ideal["score"] > poor["score"]
+
+
+def test_sleep_score_capped_at_100():
+    result = compute_custom_sleep_score(
+        {
+            "total_sleep_seconds": 12 * 3600,
+            "deep_sleep_seconds": int(0.25 * 12 * 3600),
+            "rem_sleep_seconds": int(0.25 * 12 * 3600),
+            "awake_seconds": 0,
+        }
+    )
+    assert result["score"] <= 100.0
+
+
+# ── Sleep Metrics (Consistency) ──────────────────────────────────────────────
+
+
+def test_sleep_consistency_insufficient_data():
+    rows = [{"start_h": 23.0, "end_h": 7.0}] * 3
+    result = compute_sleep_consistency(rows)
+    assert result["score"] is None
+    assert result["reason"] == "insufficient_data"
+
+
+def test_sleep_consistency_perfect():
+    rows = [{"start_h": 23.0, "end_h": 7.0}] * 10
+    result = compute_sleep_consistency(rows)
+    assert result["score"] == pytest.approx(100.0)
+    assert result["std_wake_h"] == pytest.approx(0.0)
+
+
+def test_sleep_consistency_high_variance_lower_score():
+    import random
+
+    random.seed(42)
+    rows = [
+        {"start_h": 23.0 + random.uniform(-2, 2), "end_h": 7.0 + random.uniform(-2, 2)}
+        for _ in range(10)
+    ]
+    result = compute_sleep_consistency(rows)
+    assert result["score"] is not None
+    assert result["score"] < 100.0
+    assert result["n_nights"] == 10
+
+
+# ── Stress Metrics ──────────────────────────────────────────────────────────
+
+
+def test_stress_score_insufficient_data():
+    result = compute_stress_score([50.0] * 5, avg_stress=None)
+    assert result["score"] is None
+    assert result["reason"] == "insufficient_hrv_data"
+
+
+def test_stress_score_low_stress():
+    history = [60.0] * 30
+    result = compute_stress_score(history, avg_stress=20.0)
+    assert result["score"] is not None
+    assert result["score"] < 60
+
+
+def test_stress_score_high_stress_from_suppressed_hrv():
+    baseline = [60.0] * 23
+    suppressed = [30.0]
+    result = compute_stress_score(baseline + suppressed, avg_stress=None)
+    assert result["score"] is not None
+    assert result["score"] > 50
+
+
+def test_stress_score_blends_garmin_stress():
+    history = [60.0] * 30
+    with_garmin = compute_stress_score(history, avg_stress=80.0)
+    without_garmin = compute_stress_score(history, avg_stress=None)
+    assert with_garmin["score"] != without_garmin["score"]
+
+
+# ── SpO2 Metrics ─────────────────────────────────────────────────────────────
+
+
+def test_spo2_no_data():
+    result = compute_spo2_trend([])
+    assert result["mean_spo2"] is None
+    assert result["reason"] == "no_spo2_data"
+
+
+def test_spo2_normal():
+    rows = [{"avg_spo2": 97, "min_spo2": 94}] * 7
+    result = compute_spo2_trend(rows)
+    assert result["mean_spo2"] == pytest.approx(97.0)
+    assert result["apnea_flag"] is False
+    assert result["trend"] == "stable"
+
+
+def test_spo2_apnea_flag_triggered():
+    rows = [{"avg_spo2": 95, "min_spo2": 88}] * 3 + [
+        {"avg_spo2": 97, "min_spo2": 95}
+    ] * 4
+    result = compute_spo2_trend(rows)
+    assert result["apnea_flag"] is True
+    assert result["apnea_nights"] >= 2
+
+
+def test_spo2_falling_trend():
+    rows = [{"avg_spo2": 98 - i, "min_spo2": 95} for i in range(7)]
+    result = compute_spo2_trend(rows)
+    assert result["trend"] == "falling"
+    assert result["slope"] < 0
+
+
+# ── Training Effect (Banister TRIMP) ─────────────────────────────────────────
+
+
+def test_training_effect_rest_day():
+    result = compute_training_effect_today(
+        trimp_today=0.0, ctl=20.0, resting_hr=55.0, hrmax=185.0
+    )
+    assert result["effect"] == pytest.approx(0.0)
+    assert result["score"] == pytest.approx(0.0)
+
+
+def test_training_effect_hard_session():
+    result = compute_training_effect_today(
+        trimp_today=80.0, ctl=20.0, resting_hr=55.0, hrmax=185.0
+    )
+    assert result["effect"] > 3.0
+    assert result["score"] <= 100.0
+
+
+def test_training_effect_capped_at_5():
+    result = compute_training_effect_today(
+        trimp_today=1000.0, ctl=5.0, resting_hr=55.0, hrmax=185.0
+    )
+    assert result["effect"] <= 5.0
+
+
+def test_banister_trimp_rest_day():
+    result = compute_banister_trimp(activity_rows=[], sex="m", hrmax=185.0)
+    assert result["trimp_today"] == 0.0
+    assert result["atl"] == pytest.approx(0.0)
+
+
+def test_banister_trimp_with_activity():
+    from datetime import date
+
+    rows = [
+        {
+            "activity_date": date.today(),
+            "avg_hr": 155,
+            "duration_seconds": 3600,
+            "resting_hr": 52,
+        }
+    ]
+    result = compute_banister_trimp(rows, sex="m", hrmax=185.0)
+    assert result["trimp_today"] > 0
+    assert result["sex"] == "m"
+
+
+# ── Training Load (ACWR + Monotony) ──────────────────────────────────────────
+
+
+def test_acwr_no_ctl():
+    result = compute_acwr(atl=10.0, ctl=0.0)
+    assert result["acwr"] is None
+    assert result["reason"] == "no_ctl"
+
+
+def test_acwr_green_zone():
+    result = compute_acwr(atl=20.0, ctl=20.0)
+    assert result["acwr"] == pytest.approx(1.0)
+    assert result["level"] == "green"
+
+
+def test_acwr_red_zone_high():
+    result = compute_acwr(atl=35.0, ctl=20.0)
+    assert result["acwr"] > 1.5
+    assert result["level"] == "red"
+
+
+def test_acwr_red_zone_low():
+    result = compute_acwr(atl=5.0, ctl=20.0)
+    assert result["acwr"] < 0.8
+    assert result["level"] == "red"
+
+
+def test_training_monotony_no_data():
+    from datetime import date
+
+    result = compute_training_monotony([], hrmax=185.0, today=date.today())
+    assert result["monotony"] is None
+    assert result["reason"] == "no_training_data"
+
+
+def test_training_monotony_varied_load():
+    from datetime import date, timedelta
+
+    today = date(2026, 4, 27)
+    rows = []
+    for i, hr in enumerate([155, 130, 160, 145, 150, 135, 165]):
+        rows.append(
+            {
+                "activity_date": today - timedelta(days=6 - i),
+                "avg_hr": hr,
+                "duration_seconds": 3600,
+                "resting_hr": 52,
+            }
+        )
+    result = compute_training_monotony(rows, hrmax=185.0, today=today)
+    assert result["monotony"] is not None
+    assert result["monotony"] > 0
+    assert len(result["trimp_values"]) == 7
+
+
+# ── Running Economy ───────────────────────────────────────────────────────────
+
+
+def test_running_economy_no_data():
+    result = compute_running_economy([])
+    assert result["score"] is None
+    assert result["reason"] == "no_biomechanics_data"
+
+
+def test_running_economy_no_gct():
+    result = compute_running_economy(
+        [{"avg_ground_contact_time": None, "avg_speed_kmh": 10}]
+    )
+    assert result["score"] is None
+
+
+def test_running_economy_ideal_gct():
+    activities = [
+        {
+            "avg_ground_contact_time": 200,
+            "avg_vertical_oscillation": 60,
+            "avg_vertical_ratio": 6.0,
+        }
+    ] * 3
+    result = compute_running_economy(activities)
+    assert result["score"] is not None
+    assert result["score"] == pytest.approx(100.0)
+
+
+def test_running_economy_poor_biomechanics():
+    activities = [
+        {
+            "avg_ground_contact_time": 280,
+            "avg_vertical_oscillation": 90,
+            "avg_vertical_ratio": 12.0,
+        }
+    ] * 3
+    result = compute_running_economy(activities)
+    assert result["score"] is not None
+    assert result["score"] < 50.0
+
+
+def test_running_economy_uses_up_to_5_recent():
+    activities = [
+        {
+            "avg_ground_contact_time": 200,
+            "avg_vertical_oscillation": 60,
+            "avg_vertical_ratio": 6.0,
+        }
+    ] * 10
+    result = compute_running_economy(activities)
+    assert result["n_activities"] == 5
