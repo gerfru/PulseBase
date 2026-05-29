@@ -9,7 +9,7 @@ from fastapi.responses import RedirectResponse
 import src.deps as _deps
 from src.crypto import fernet_encrypt
 from src.db import save_user_token, set_libre_linked, set_libre_unlinked
-from src.deps import _get_real_ip
+from src.deps import _ip_hash
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -46,14 +46,14 @@ async def libre_link(
         )
         await save_user_token(user["id"], "libre", blob)
         await set_libre_linked(user["id"], libre_email)
-        logger.info("libre.link.success", user_id=user["id"], ip=_get_real_ip(request))
+        logger.info("libre.link.success", user_id=user["id"], ip_hash=_ip_hash(request))
         return RedirectResponse("/dashboard", status_code=303)
     except LibreAuthError:
         logger.warning(
             "libre.link.fail",
             reason="auth",
             user_id=user["id"],
-            ip=_get_real_ip(request),
+            ip_hash=_ip_hash(request),
         )
         return _deps.templates.TemplateResponse(
             request,
@@ -69,7 +69,7 @@ async def libre_link(
             "libre.link.fail",
             reason=type(e).__name__,
             user_id=user["id"],
-            ip=_get_real_ip(request),
+            ip_hash=_ip_hash(request),
         )
         return _deps.templates.TemplateResponse(
             request,
@@ -89,5 +89,5 @@ async def libre_unlink(request: Request):
     token_dir = Path(f"/app/tokens/{user['id']}/libre")
     if token_dir.exists():
         shutil.rmtree(token_dir)
-    logger.info("libre.unlink", user_id=user["id"], ip=_get_real_ip(request))
+    logger.info("libre.unlink", user_id=user["id"], ip_hash=_ip_hash(request))
     return RedirectResponse("/libre/link", status_code=303)

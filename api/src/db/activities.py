@@ -57,9 +57,11 @@ async def get_activity_detail(user_id: int, activity_id: int) -> dict | None:
                elevation, distance, lat, lng
         FROM activity_records
         WHERE activity_id = $1
+          AND EXISTS (SELECT 1 FROM activities a WHERE a.id = $1 AND a.user_id = $2)
         ORDER BY time ASC
         """,
         activity_id,
+        user_id,
     )
     detail["records"] = [dict(r) for r in records]
     return detail

@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -74,13 +75,16 @@ configure_logging()
 logger = structlog.get_logger(__name__)
 
 
+_DEFAULT_RHR = 60.0
+
+
 def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -> float:
     """TRIMP for a given date using HRF² formula; returns 0 when data is missing."""
     rows = [r for r in act_rows if r.get("activity_date") == target]
     if not rows or not rows[0].get("avg_hr") or not rows[0].get("duration_seconds"):
         return 0.0
     row = rows[0]
-    rhr = row.get("resting_hr") or 60.0
+    rhr = row.get("resting_hr") or _DEFAULT_RHR
     denom = hrmax - rhr
     if denom <= 0:
         return 0.0
@@ -88,74 +92,78 @@ def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -
     return (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
 
 
-async def _run_anomaly(user_id: int, today: date) -> None:
-    history = await get_resting_hr_history(user_id)
-    today_hr = await get_today_resting_hr(user_id)
-    anomaly = detect_metric_anomaly(history, today_hr)
-    await save_prediction(user_id, today, "anomaly_hr", anomaly.get("z_score"), anomaly)
+async def _run_anomaly_for(
+    user_id: int,
+    today: date,
+    history_fn: Callable,
+    today_fn: Callable,
+    model_key: str,
+    log_key: str,
+) -> None:
+    history = await history_fn(user_id)
+    today_val = await today_fn(user_id)
+    result = detect_metric_anomaly(history, today_val)
+    await save_prediction(user_id, today, model_key, result.get("z_score"), result)
     logger.info(
-        "anomaly_hr.done",
+        f"{log_key}.done",
         user_id=user_id,
-        z=anomaly.get("z_score"),
-        is_anomaly=anomaly.get("is_anomaly"),
+        z=result.get("z_score"),
+        is_anomaly=result.get("is_anomaly"),
+    )
+
+
+async def _run_anomaly(user_id: int, today: date) -> None:
+    await _run_anomaly_for(
+        user_id,
+        today,
+        get_resting_hr_history,
+        get_today_resting_hr,
+        "anomaly_hr",
+        "anomaly_hr",
     )
 
 
 async def _run_anomaly_spo2(user_id: int, today: date) -> None:
-    history = await get_spo2_history_flat(user_id)
-    today_val = await get_today_spo2(user_id)
-    result = detect_metric_anomaly(history, today_val)
-    await save_prediction(user_id, today, "anomaly_spo2", result.get("z_score"), result)
-    logger.info(
-        "anomaly_spo2.done",
-        user_id=user_id,
-        z=result.get("z_score"),
-        is_anomaly=result.get("is_anomaly"),
+    await _run_anomaly_for(
+        user_id,
+        today,
+        get_spo2_history_flat,
+        get_today_spo2,
+        "anomaly_spo2",
+        "anomaly_spo2",
     )
 
 
 async def _run_anomaly_sleep(user_id: int, today: date) -> None:
-    history = await get_sleep_duration_history(user_id)
-    today_val = await get_today_sleep_duration(user_id)
-    result = detect_metric_anomaly(history, today_val)
-    await save_prediction(
-        user_id, today, "anomaly_sleep_duration", result.get("z_score"), result
-    )
-    logger.info(
-        "anomaly_sleep.done",
-        user_id=user_id,
-        z=result.get("z_score"),
-        is_anomaly=result.get("is_anomaly"),
+    await _run_anomaly_for(
+        user_id,
+        today,
+        get_sleep_duration_history,
+        get_today_sleep_duration,
+        "anomaly_sleep_duration",
+        "anomaly_sleep",
     )
 
 
 async def _run_anomaly_steps(user_id: int, today: date) -> None:
-    history = await get_steps_history(user_id)
-    today_val = await get_today_steps(user_id)
-    result = detect_metric_anomaly(history, today_val)
-    await save_prediction(
-        user_id, today, "anomaly_steps", result.get("z_score"), result
-    )
-    logger.info(
-        "anomaly_steps.done",
-        user_id=user_id,
-        z=result.get("z_score"),
-        is_anomaly=result.get("is_anomaly"),
+    await _run_anomaly_for(
+        user_id,
+        today,
+        get_steps_history,
+        get_today_steps,
+        "anomaly_steps",
+        "anomaly_steps",
     )
 
 
 async def _run_anomaly_stress(user_id: int, today: date) -> None:
-    history = await get_stress_history(user_id)
-    today_val = await get_today_stress(user_id)
-    result = detect_metric_anomaly(history, today_val)
-    await save_prediction(
-        user_id, today, "anomaly_stress", result.get("z_score"), result
-    )
-    logger.info(
-        "anomaly_stress.done",
-        user_id=user_id,
-        z=result.get("z_score"),
-        is_anomaly=result.get("is_anomaly"),
+    await _run_anomaly_for(
+        user_id,
+        today,
+        get_stress_history,
+        get_today_stress,
+        "anomaly_stress",
+        "anomaly_stress",
     )
 
 

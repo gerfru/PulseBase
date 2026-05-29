@@ -64,7 +64,7 @@ export const SPORT_LABEL = {
 
 export function sportLabel(type) {
     const emoji = SPORT_EMOJI[type] || SPORT_EMOJI.default;
-    const name = SPORT_LABEL[type] || (type || 'Sonstige').replace(/_/g, ' ');
+    const name = SPORT_LABEL[type] || esc(type || 'Sonstige').replace(/_/g, ' ');
     return `${emoji} ${name}`;
 }
 

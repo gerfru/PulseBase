@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
@@ -16,6 +18,7 @@ class Settings(BaseSettings):
     sync_daily_days: int = 2  # days synced on daily run and manual button
     fernet_key: str
     sentry_dsn: str = ""
+    token_base_dir: Path = Path("/app/tokens")
 
     @field_validator("fernet_key")
     @classmethod
