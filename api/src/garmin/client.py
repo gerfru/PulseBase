@@ -23,8 +23,8 @@ class GarminClient:
             try:
                 self._client.login(self.token_dir)
                 logger.info("garmin.connect.token_login")
-            except Exception as exc:
-                logger.warning("garmin.connect.token_login_failed: %s", exc)
+            except Exception:
+                logger.warning("garmin.connect.failed — retrying with fresh login")
                 self._client.login()
                 self._client.garth.dump(self.token_dir)
                 logger.info("garmin.connect.fresh_login")
