@@ -604,7 +604,7 @@ async def main() -> None:
     await run_all_users(settings, include_training=True)
 
     async def _write_alive_sentinel() -> None:
-        Path("/tmp/ml_alive").touch()
+        Path("/tmp/ml_alive").touch()  # nosec B108
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(

@@ -314,7 +314,7 @@ async def main() -> None:
     await sync_all_users(repo, days=settings.sync_lookback_days, settings=settings)
 
     async def _write_alive_sentinel() -> None:
-        Path("/tmp/sync_alive").touch()
+        Path("/tmp/sync_alive").touch()  # nosec B108
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(

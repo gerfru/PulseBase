@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
     scoreLabel,
     scoreColor,
@@ -8,6 +8,10 @@ import {
     esc,
     sparklineSvg,
     sportLabel,
+    makeChart,
+    showEmpty,
+    hideEmpty,
+    openFormulaDialog,
 } from '../../src/static/dashboard-utils.js';
 
 describe('scoreLabel', () => {
@@ -172,5 +176,107 @@ describe('sportLabel', () => {
     it('returns default label for null/undefined', () => {
         expect(sportLabel(null)).toContain('Sonstige');
         expect(sportLabel(undefined)).toContain('Sonstige');
+    });
+});
+
+describe('makeChart', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '<canvas id="test-chart"></canvas>';
+        vi.clearAllMocks();
+    });
+
+    it('creates a new Chart instance on the canvas', () => {
+        makeChart('test-chart', 'line', ['A', 'B'], [{ data: [1, 2] }]);
+        expect(global.Chart).toHaveBeenCalledOnce();
+        const [canvas, config] = global.Chart.mock.calls[0];
+        expect(canvas).toBe(document.getElementById('test-chart'));
+        expect(config.type).toBe('line');
+        expect(config.data.labels).toEqual(['A', 'B']);
+    });
+
+    it('destroys an existing chart before creating a new one', () => {
+        makeChart('test-chart', 'bar', [], [{ data: [] }]);
+        const firstInstance = global.Chart.mock.results[0].value;
+        makeChart('test-chart', 'line', [], [{ data: [] }]);
+        expect(firstInstance.destroy).toHaveBeenCalledOnce();
+        expect(global.Chart).toHaveBeenCalledTimes(2);
+    });
+
+    it('sets beginAtZero true for bar charts', () => {
+        makeChart('test-chart', 'bar', [], [{ data: [] }]);
+        const config = global.Chart.mock.calls[0][1];
+        expect(config.options.scales.y.beginAtZero).toBe(true);
+    });
+
+    it('passes custom scales from extra', () => {
+        const customScales = { y: { min: 0, max: 100 } };
+        makeChart('test-chart', 'line', [], [{ data: [] }], { scales: customScales });
+        const config = global.Chart.mock.calls[0][1];
+        expect(config.options.scales.y.min).toBe(0);
+    });
+
+    it('hides legend when only one dataset', () => {
+        makeChart('test-chart', 'line', [], [{ data: [] }]);
+        const config = global.Chart.mock.calls[0][1];
+        expect(config.options.plugins.legend.display).toBe(false);
+    });
+
+    it('shows legend when multiple datasets', () => {
+        makeChart('test-chart', 'line', [], [{ data: [] }, { data: [] }]);
+        const config = global.Chart.mock.calls[0][1];
+        expect(config.options.plugins.legend.display).toBe(true);
+    });
+});
+
+describe('showEmpty / hideEmpty', () => {
+    beforeEach(() => {
+        document.body.innerHTML =
+            '<canvas id="act-chart"></canvas>' +
+            '<div id="act-empty" style="display:none"></div>';
+    });
+
+    it('showEmpty hides canvas and shows empty placeholder', () => {
+        showEmpty('act');
+        expect(document.getElementById('act-chart').style.display).toBe('none');
+        expect(document.getElementById('act-empty').style.display).toBe('block');
+    });
+
+    it('hideEmpty shows canvas and hides empty placeholder', () => {
+        showEmpty('act');
+        hideEmpty('act');
+        expect(document.getElementById('act-chart').style.display).toBe('');
+        expect(document.getElementById('act-empty').style.display).toBe('none');
+    });
+
+    it('showEmpty does not throw when elements are absent', () => {
+        expect(() => showEmpty('missing')).not.toThrow();
+    });
+
+    it('hideEmpty does not throw when elements are absent', () => {
+        expect(() => hideEmpty('missing')).not.toThrow();
+    });
+});
+
+describe('openFormulaDialog', () => {
+    beforeEach(() => {
+        const dialog = document.createElement('dialog');
+        dialog.id = 'formula-dialog';
+        dialog.showModal = vi.fn();
+        document.body.innerHTML = '';
+        document.body.appendChild(dialog);
+        dialog.insertAdjacentHTML(
+            'beforeend',
+            '<span id="formula-dialog-title"></span>' +
+            '<div id="formula-dialog-body"></div>' +
+            '<a id="formula-dialog-link"></a>',
+        );
+    });
+
+    it('sets title, body html and link href, then calls showModal', () => {
+        openFormulaDialog('HRV', '<p>Formel</p>', '/help#hrv');
+        expect(document.getElementById('formula-dialog-title').textContent).toBe('HRV');
+        expect(document.getElementById('formula-dialog-body').innerHTML).toBe('<p>Formel</p>');
+        expect(document.getElementById('formula-dialog-link').href).toContain('/help#hrv');
+        expect(document.getElementById('formula-dialog').showModal).toHaveBeenCalledOnce();
     });
 });
