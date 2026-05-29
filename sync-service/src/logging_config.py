@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import structlog
 
@@ -17,6 +18,7 @@ def configure_logging() -> None:
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
     )
+    logging.basicConfig(format="%(message)s", stream=sys.stdout)
     logging.getLogger("garminconnect").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)

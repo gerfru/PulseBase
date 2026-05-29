@@ -31,7 +31,7 @@ services:
         max-file: "3"
 
   flyway:
-    image: flyway/flyway:latest@sha256:57a9325140febe1d574e7fae9cd664bb72f61248a963d1e2cd9a722b7953fa3d
+    image: flyway/flyway:11@sha256:57a9325140febe1d574e7fae9cd664bb72f61248a963d1e2cd9a722b7953fa3d
     container_name: garmin-flyway
     command: migrate
     volumes:
@@ -67,8 +67,8 @@ services:
     profiles:
       - standalone
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

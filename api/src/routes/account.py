@@ -11,7 +11,7 @@ from src.db import (
     export_user_data,
     get_user_by_email,
 )
-from src.deps import _get_real_ip, limiter, require_user, verify_password
+from src.deps import _ip_hash, limiter, require_user, verify_password
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -45,7 +45,7 @@ async def delete_account(
         return _settings_error(request, user, "Passwort falsch.")
 
     await delete_user(user["id"])
-    logger.info("auth.account.delete", user_id=user["id"], ip=_get_real_ip(request))
+    logger.info("auth.account.delete", user_id=user["id"], ip_hash=_ip_hash(request))
     request.session.clear()
     return RedirectResponse("/login?deleted=1", status_code=303)
 

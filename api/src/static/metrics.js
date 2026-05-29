@@ -1,4 +1,5 @@
 import './chart-utils.js';
+import { esc } from './dashboard-utils.js';
 import { GARMIN_METRICS } from './metrics-garmin.js';
 import { ENERGY_METRICS } from './metrics-energy.js';
 import { ML_METRICS } from './metrics-ml.js';
@@ -65,11 +66,11 @@ async function load() {
                     const d = k.delta;
                     const deltaHtml =
                         d != null && d !== 0
-                            ? `<div class="kpi-delta ${d > 0 ? 'kpi-delta-up' : 'kpi-delta-down'}">${d > 0 ? '↑ +' : '↓ '}${d}</div>`
+                            ? `<div class="kpi-delta ${d > 0 ? 'kpi-delta-up' : 'kpi-delta-down'}">${d > 0 ? '↑ +' : '↓ '}${esc(String(d))}</div>`
                             : '';
                     return `<div class="metrics-kpi-tile card">
-                    <div class="metrics-kpi-label">${k.label}</div>
-                    <div class="metrics-kpi-value">${k.value}</div>
+                    <div class="metrics-kpi-label">${esc(k.label)}</div>
+                    <div class="metrics-kpi-value">${esc(k.value)}</div>
                     ${deltaHtml}
                 </div>`;
                 })

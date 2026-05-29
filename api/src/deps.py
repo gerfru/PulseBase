@@ -1,3 +1,4 @@
+import hashlib
 import ipaddress
 import time
 from pathlib import Path
@@ -37,6 +38,10 @@ def _get_real_ip(request: Request) -> str:
     return client_host
 
 
+def _ip_hash(request: Request) -> str:
+    return hashlib.sha256(_get_real_ip(request).encode()).hexdigest()[:12]
+
+
 limiter = Limiter(key_func=_get_real_ip)
 
 DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt()).decode()
@@ -50,7 +55,9 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-async def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+async def _rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
     return JSONResponse(
         status_code=429,
         content={"error": {"code": "RATE_LIMITED", "message": "Too many requests."}},
