@@ -38,7 +38,8 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.coverage.run]
-omit = ["src/db.py", "src/training_load.py"]
+omit = ["src/db.py"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
+fail_under = 70

@@ -242,7 +242,7 @@ structlog.get_logger().warning("auth.login.fail", email=email, ip=ip)
 **Architektur:**
 - `FERNET_KEY` in `env/.env.api` und `env/.env.sync` (gleicher Wert, 32-byte URL-safe base64)
 - Generieren: `make gen-secrets`
-- Startup-Validation: API und Sync-Service prüfen Key beim Start (Warning wenn leer, ValueError wenn ungültig)
+- Startup-Validation: API und Sync-Service crashen beim Start wenn `FERNET_KEY` fehlt oder leer ist (Pydantic `ValidationError` — kein Plaintext-Fallback mehr). ValueError wenn Key-Format ungültig.
 - `ON DELETE CASCADE` — Token wird beim Konto-Löschen automatisch mitgelöscht
 - Transparente Migration: bestehende Token-Files werden beim ersten Sync in die DB migriert
 

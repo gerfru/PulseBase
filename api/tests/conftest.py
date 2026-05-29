@@ -1,4 +1,6 @@
+import json
 import os
+from base64 import b64encode
 from datetime import datetime, timezone
 
 # Must be set before src.main is imported so Settings() reads them
@@ -8,12 +10,25 @@ os.environ.setdefault("DB_APP_USER", "test")
 os.environ.setdefault("DB_APP_PASSWORD", "test")
 os.environ.setdefault("SESSION_SECRET", "test-secret-key-for-testing-only!")
 os.environ.setdefault("HTTPS_ONLY", "false")
+os.environ.setdefault("FERNET_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 
 import pytest
 from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient, ASGITransport
 
 from src.main import app
+
+
+def make_session(client, user_id: int = 1) -> None:
+    """Inject a signed session cookie into the test client (shared helper)."""
+    from itsdangerous import TimestampSigner
+    from src.deps import settings
+
+    signer = TimestampSigner(settings.session_secret)
+    data = b64encode(json.dumps({"user_id": str(user_id)}).encode("utf-8"))
+    signed = signer.sign(data).decode("utf-8")
+    client.cookies.set("session", signed)
+
 
 TEST_USER = {
     "id": 1,

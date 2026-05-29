@@ -185,6 +185,34 @@ async def test_ml_cards_in_tabs(authenticated_page):
     assert await authenticated_page.locator("#ml-erholung-card").count() == 1
 
 
+# ── Account export ───────────────────────────────────────────────────────────
+
+
+async def test_account_export_button_visible_on_settings(authenticated_page):
+    """Authenticated user sees the data-export link on the settings page."""
+    await authenticated_page.goto("/settings")
+    await authenticated_page.wait_for_load_state("networkidle")
+    export_link = authenticated_page.locator("a[href='/account/export']")
+    assert await export_link.count() >= 1, (
+        "Export link must be present on settings page"
+    )
+
+
+async def test_account_export_unauthenticated_redirects_to_login():
+    """Accessing /account/export without a session redirects to login.
+
+    Uses an isolated browser so session cookies from authenticated_page don't leak.
+    """
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        ctx = await browser.new_context(base_url=BASE_URL)
+        p = await ctx.new_page()
+        await p.goto("/account/export")
+        await p.wait_for_url("**/login**", timeout=5000)
+        assert "/login" in p.url
+        await browser.close()
+
+
 # ── Sync button ───────────────────────────────────────────────────────────────
 
 
