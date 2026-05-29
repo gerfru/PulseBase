@@ -31,7 +31,7 @@ services:
         max-file: "3"
 
   flyway:
-    image: flyway/flyway:latest@sha256:3a6be8355102c0a45fb1b869615beea8510fd0dc44ffc48d5583808a1b00c19f
+    image: flyway/flyway:10@sha256:3a6be8355102c0a45fb1b869615beea8510fd0dc44ffc48d5583808a1b00c19f
     container_name: garmin-flyway
     command: migrate
     volumes:
@@ -49,6 +49,16 @@ services:
         condition: service_healthy
     networks:
       - internal
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.25'
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   traefik:
     image: traefik:v3.3.4@sha256:cc11989f418e2cfe5e60fc40c92c1813be847f58eda15eced7d5ac890255ad9e
@@ -64,6 +74,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - proxy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.25'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api:
     build: ./api
@@ -151,6 +171,9 @@ services:
       - env/.env.ml
     environment:
       MODEL_DIR: /app/models
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: garmin
     volumes:
       - ml-models:/app/models
     networks:

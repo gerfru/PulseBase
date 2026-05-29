@@ -13,6 +13,24 @@ permissions:
   contents: read
 
 jobs:
+  check-pr-size:
+    name: PR Size Check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+      - name: Fail if PR adds more than 400 lines
+        run: |
+          ADDED=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD \
+            | grep -oP '\d+(?= insertion)' || echo 0)
+          echo "Lines added: $ADDED"
+          if [ "$ADDED" -gt 400 ]; then
+            echo "::error::PR zu groß (${ADDED} Zeilen hinzugefügt, Maximum: 400)"
+            exit 1
+          fi
+
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
@@ -81,6 +99,7 @@ jobs:
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
+          enable-cache: true
       - name: mypy api
         working-directory: api
         run: uv sync --frozen --extra dev && uv run mypy src/ --ignore-missing-imports --explicit-package-bases
@@ -161,6 +180,7 @@ jobs:
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
+          enable-cache: true
 
       - name: Install api dev deps
         run: uv sync --frozen --extra dev
@@ -201,6 +221,7 @@ jobs:
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
+          enable-cache: true
       - name: pytest api
         working-directory: api
         run: uv sync --frozen --extra dev && uv run pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=70

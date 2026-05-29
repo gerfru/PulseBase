@@ -51,15 +51,17 @@ async def api_activities(
     days: int = Query(default=7, ge=1, le=365),
     limit: int = Query(default=500, ge=1, le=500),
     end_date: date | None = Query(default=None),
-):
+) -> list:
     user = await _deps.require_user(request)
     return await get_recent_activities(
         user["id"], limit=limit, days=days, end_date=end_date
     )
 
 
-@router.get("/api/activities/{activity_id}")
-async def api_activity_detail(request: Request, activity_id: int):
+@router.get("/api/activities/{activity_id}", response_model=None)
+async def api_activity_detail(
+    request: Request, activity_id: int
+) -> dict | JSONResponse:
     user = await _deps.require_user(request)
     detail = await get_activity_detail(user["id"], activity_id)
     if not detail:
@@ -81,8 +83,10 @@ class RpeBody(BaseModel):
         return v
 
 
-@router.patch("/api/activities/{activity_id}/rpe")
-async def api_set_rpe(request: Request, activity_id: int, body: RpeBody):
+@router.patch("/api/activities/{activity_id}/rpe", response_model=None)
+async def api_set_rpe(
+    request: Request, activity_id: int, body: RpeBody
+) -> dict | JSONResponse:
     user = await _deps.require_user(request)
     updated = await set_activity_rpe(user["id"], activity_id, body.rpe)
     if not updated:
@@ -101,7 +105,7 @@ async def api_daily(
     request: Request,
     days: int = Query(default=30, ge=1, le=365),
     end_date: date | None = Query(default=None),
-):
+) -> list:
     user = await _deps.require_user(request)
     return await get_daily_summaries(user["id"], days=days, end_date=end_date)
 
@@ -111,13 +115,13 @@ async def api_sleep(
     request: Request,
     days: int = Query(default=14, ge=1, le=365),
     end_date: date | None = Query(default=None),
-):
+) -> list:
     user = await _deps.require_user(request)
     return await get_sleep_sessions(user["id"], days=days, end_date=end_date)
 
 
-@router.get("/api/hrv")
-async def api_hrv(request: Request):
+@router.get("/api/hrv", response_model=None)
+async def api_hrv(request: Request) -> dict | list:
     user = await _deps.require_user(request)
     return await get_latest_hrv(user["id"])
 
@@ -127,13 +131,13 @@ async def api_hrv_trend(
     request: Request,
     days: int = Query(default=30, ge=1, le=365),
     end_date: date | None = Query(default=None),
-):
+) -> list:
     user = await _deps.require_user(request)
     return await get_hrv_trend(user["id"], days=days, end_date=end_date)
 
 
 @router.get("/api/training-status")
-async def api_training_status(request: Request):
+async def api_training_status(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_latest_training_status(user["id"])
 
@@ -143,19 +147,19 @@ async def api_weekly(
     request: Request,
     weeks: int = Query(default=12, ge=1, le=56),
     end_date: date | None = Query(default=None),
-):
+) -> list:
     user = await _deps.require_user(request)
     return await get_weekly_stats(user["id"], weeks=weeks, end_date=end_date)
 
 
 @router.get("/api/readiness")
-async def api_readiness(request: Request):
+async def api_readiness(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_readiness(user["id"])
 
 
 @router.get("/api/energy")
-async def api_energy(request: Request):
+async def api_energy(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_energy_metrics(user["id"])
 
@@ -164,7 +168,7 @@ async def api_energy(request: Request):
 async def api_training_load(
     request: Request,
     lookback_days: int = Query(default=None, ge=1, le=365),
-):
+) -> dict:
     user = await _deps.require_user(request)
     rows, hrmax, sex = await asyncio.gather(
         get_training_load_inputs(user["id"]),
@@ -186,7 +190,7 @@ async def api_training_load(
 
 
 @router.get("/api/ml-insights")
-async def api_ml_insights(request: Request):
+async def api_ml_insights(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_ml_insights(user["id"])
 
@@ -196,13 +200,13 @@ async def api_ml_history(
     request: Request,
     days: int = Query(default=30, ge=1, le=365),
     end_date: date | None = Query(default=None),
-):
+) -> list:
     user = await _deps.require_user(request)
     return await get_ml_history(user["id"], days, end_date=end_date)
 
 
 @router.get("/api/ml-status")
-async def api_ml_status(request: Request):
+async def api_ml_status(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_ml_status(user["id"])
 
@@ -210,8 +214,8 @@ async def api_ml_status(request: Request):
 # ── Sync ──────────────────────────────────────────────────────────────────────
 
 
-@router.post("/api/sync")
-async def api_sync(request: Request):
+@router.post("/api/sync", response_model=None)
+async def api_sync(request: Request) -> dict | JSONResponse:
     user = await _deps.require_user(request)
     if not user.get("garmin_linked"):
         return JSONResponse(
@@ -225,7 +229,7 @@ async def api_sync(request: Request):
 
 
 @router.get("/api/sync-status")
-async def api_sync_status(request: Request):
+async def api_sync_status(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_sync_status(user["id"])
 
@@ -255,7 +259,7 @@ class ProfileBody(BaseModel):
 
 
 @router.patch("/api/profile")
-async def api_update_profile(request: Request, body: ProfileBody):
+async def api_update_profile(request: Request, body: ProfileBody) -> dict:
     user = await _deps.require_user(request)
     fields = body.model_fields_set
     if "epilepsy_mode" in fields and body.epilepsy_mode is not None:
@@ -293,7 +297,7 @@ class SeizureBody(BaseModel):
 
 
 @router.post("/api/seizures")
-async def api_log_seizure(request: Request, body: SeizureBody):
+async def api_log_seizure(request: Request, body: SeizureBody) -> dict:
     user = await _deps.require_user(request)
     id_ = await save_seizure(
         user["id"],
@@ -310,13 +314,13 @@ async def api_log_seizure(request: Request, body: SeizureBody):
 async def api_get_seizures(
     request: Request,
     days: int = Query(default=365, ge=1, le=365),
-):
+) -> list:
     user = await _deps.require_user(request)
     return await get_seizures(user["id"], days)
 
 
 @router.get("/api/seizures/risk")
-async def api_seizure_risk(request: Request):
+async def api_seizure_risk(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_seizure_risk(user["id"])
 
@@ -325,7 +329,9 @@ async def api_seizure_risk(request: Request):
 
 
 @router.get("/api/glucose")
-async def api_glucose(request: Request, hours: int = Query(default=24, ge=1, le=168)):
+async def api_glucose(
+    request: Request, hours: int = Query(default=24, ge=1, le=168)
+) -> list:
     user = await _deps.require_user(request)
     return await get_glucose_recent(user["id"], hours)
 
@@ -333,7 +339,7 @@ async def api_glucose(request: Request, hours: int = Query(default=24, ge=1, le=
 @router.get("/api/glucose/stats")
 async def api_glucose_stats(
     request: Request, days: int = Query(default=14, ge=1, le=90)
-):
+) -> dict:
     user = await _deps.require_user(request)
     return await get_glucose_stats(user["id"], days)
 
@@ -342,5 +348,5 @@ async def api_glucose_stats(
 
 
 @router.get("/api/evidence")
-async def api_evidence():
+async def api_evidence() -> dict:
     return EVIDENCE
