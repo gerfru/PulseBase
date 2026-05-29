@@ -313,6 +313,9 @@ async def main() -> None:
     logger.info("sync.initial", lookback_days=settings.sync_lookback_days)
     await sync_all_users(repo, days=settings.sync_lookback_days, settings=settings)
 
+    async def _write_alive_sentinel() -> None:
+        Path("/tmp/sync_alive").touch()  # nosec B108
+
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         sync_all_users,
@@ -332,6 +335,7 @@ async def main() -> None:
         args=[repo, settings],
         id="libre_sync",
     )
+    scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", sync_hour=settings.sync_hour)
 

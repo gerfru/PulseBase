@@ -1,7 +1,10 @@
-# Essential Rules
+<!-- DEV-BEST-PRACTICES:START — via /dev-best-practices:install-rules aktualisieren -->
+<!-- Version: essential-rules.md @ 2026-05-29 | Umfang: essential -->
+
+## Dev Best Practices
 
 Die wichtigsten Regeln fuer jedes Projekt -- kompakt genug fuer CLAUDE.md.
-Ausfuehrlichere Regeln: `./claude/app-rules.md` (importiert unten)
+Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.md`
 
 ---
 
@@ -76,6 +79,8 @@ Ausfuehrlichere Regeln: `./claude/app-rules.md` (importiert unten)
 - Gesetzlich Pflicht (EU Accessibility Act, BFSG)
 - Semantisches HTML, Heading-Hierarchie, alt auf Bildern, Fokus-Styles nicht entfernen
 - Testen: axe-core + Lighthouse (automatisch), Tastatur + Screen Reader (manuell)
+
+<!-- DEV-BEST-PRACTICES:END -->
 
 ---
 

@@ -1,3 +1,4 @@
+import ipaddress
 import time
 from pathlib import Path
 
@@ -15,12 +16,26 @@ logger = structlog.get_logger(__name__)
 
 settings = Settings()  # type: ignore[call-arg]
 
+_TRUSTED_NETWORKS = [
+    ipaddress.ip_network(cidr) for cidr in settings.trusted_proxy_cidrs
+]
+
+
+def _is_trusted_proxy(host: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(host)
+        return any(addr in net for net in _TRUSTED_NETWORKS)
+    except ValueError:
+        return False
+
 
 def _get_real_ip(request: Request) -> str:
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "127.0.0.1"
+    client_host = request.client.host if request.client else "127.0.0.1"
+    if _is_trusted_proxy(client_host):
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return client_host
 
 
 limiter = Limiter(key_func=_get_real_ip)
