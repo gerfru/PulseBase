@@ -31,7 +31,7 @@ services:
         max-file: "3"
 
   flyway:
-    image: flyway/flyway:11@sha256:57a9325140febe1d574e7fae9cd664bb72f61248a963d1e2cd9a722b7953fa3d
+    image: flyway/flyway:11@sha256:782c5c207ffb5ac6336139fda4f4295bd9991ef63ad36919406d4268740069bb
     container_name: garmin-flyway
     command: migrate
     volumes:
