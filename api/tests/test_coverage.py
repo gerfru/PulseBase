@@ -179,7 +179,7 @@ async def test_libre_unlink_removes_existing_token_dir(client):
         patch("pathlib.Path.exists", return_value=True),
         patch("shutil.rmtree"),
     ):
-        r = await client.post("/libre/unlink")
+        r = await client.post("/libre/unlink", data={"csrf_token": ""})
     assert r.status_code == 303
 
 
@@ -540,3 +540,104 @@ def test_libre_link_has_rate_limit_decorator():
         and "/libre/link" in str(r.path)
     ]
     assert len(post_routes) == 1
+
+
+# ── verify_csrf_token ─────────────────────────────────────────────────────────
+
+
+def test_verify_csrf_token_matching_tokens():
+    from src.deps import verify_csrf_token
+
+    class FakeRequest:
+        session = {"csrf_token": "secure-token-abc"}
+
+    assert verify_csrf_token(FakeRequest(), "secure-token-abc") is True
+
+
+def test_verify_csrf_token_mismatched_tokens():
+    from src.deps import verify_csrf_token
+
+    class FakeRequest:
+        session = {"csrf_token": "correct-token"}
+
+    assert verify_csrf_token(FakeRequest(), "wrong-token") is False
+
+
+def test_verify_csrf_token_empty_session():
+    from src.deps import verify_csrf_token
+
+    class FakeRequest:
+        session = {}
+
+    assert verify_csrf_token(FakeRequest(), "any-token") is False
+
+
+def test_verify_csrf_token_none_form_token():
+    from src.deps import verify_csrf_token
+
+    class FakeRequest:
+        session = {"csrf_token": "abc123"}
+
+    assert verify_csrf_token(FakeRequest(), None) is False
+
+
+# ── _verify_reset_token ───────────────────────────────────────────────────────
+
+
+async def test_internal_verify_reset_token_found():
+    with patch("src.routes.auth.get_reset_token_user_id", AsyncMock(return_value=42)):
+        from src.routes.auth import _verify_reset_token
+
+        result = await _verify_reset_token("test-token-xyz")
+    assert result == 42
+
+
+async def test_internal_verify_reset_token_not_found():
+    with patch("src.routes.auth.get_reset_token_user_id", AsyncMock(return_value=None)):
+        from src.routes.auth import _verify_reset_token
+
+        result = await _verify_reset_token("invalid-token")
+    assert result is None
+
+
+# ── DB: reset token functions ─────────────────────────────────────────────────
+
+
+async def test_save_reset_token_calls_pool():
+    from datetime import datetime, timezone
+
+    mock_pool = AsyncMock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=mock_pool)):
+        from src.db.users import save_reset_token
+
+        await save_reset_token(1, "hash123", datetime.now(timezone.utc))
+    mock_pool.execute.assert_awaited_once()
+
+
+async def test_get_reset_token_user_id_found():
+    mock_pool = AsyncMock()
+    mock_pool.fetchrow = AsyncMock(return_value={"id": 7})
+    with patch("src.db.users.get_pool", AsyncMock(return_value=mock_pool)):
+        from src.db.users import get_reset_token_user_id
+
+        result = await get_reset_token_user_id("valid-hash")
+    assert result == 7
+
+
+async def test_get_reset_token_user_id_not_found():
+    mock_pool = AsyncMock()
+    mock_pool.fetchrow = AsyncMock(return_value=None)
+    with patch("src.db.users.get_pool", AsyncMock(return_value=mock_pool)):
+        from src.db.users import get_reset_token_user_id
+
+        result = await get_reset_token_user_id("unknown-hash")
+    assert result is None
+
+
+async def test_clear_reset_token_calls_pool():
+    mock_pool = AsyncMock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=mock_pool)):
+        from src.db.users import clear_reset_token
+
+        await clear_reset_token(1)
+    mock_pool.execute.assert_awaited_once()

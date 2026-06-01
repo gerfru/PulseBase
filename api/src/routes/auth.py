@@ -1,4 +1,5 @@
 import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import asyncpg
@@ -13,22 +14,27 @@ from starlette.responses import Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from src.db import (
+    clear_reset_token,
     create_user,
+    get_reset_token_user_id,
     get_user_by_email,
     increment_failed_login,
     lock_user_until,
     reset_failed_login,
     save_consent,
+    save_reset_token,
     set_email_verified,
     update_password,
 )
 from src.deps import (
     DUMMY_HASH,
     _ip_hash,
+    generate_csrf_token,
     hash_password,
     limiter,
     settings,
     templates,
+    verify_csrf_token,
     verify_password,
 )
 
@@ -43,20 +49,17 @@ _MAX_ATTEMPTS = 5
 _LOCKOUT_MINUTES = 15
 
 
-def _make_reset_token(user_id: int) -> str:
-    return URLSafeTimedSerializer(settings.session_secret).dumps(
-        user_id, salt=_RESET_SALT
-    )
+async def _make_reset_token(user_id: int) -> str:
+    raw = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw.encode()).hexdigest()
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=_RESET_MAX_AGE)
+    await save_reset_token(user_id, token_hash, expires_at)
+    return raw
 
 
-def _verify_reset_token(token: str) -> int | None:
-    try:
-        user_id = URLSafeTimedSerializer(settings.session_secret).loads(
-            token, salt=_RESET_SALT, max_age=_RESET_MAX_AGE
-        )
-        return int(user_id)
-    except (BadSignature, SignatureExpired):
-        return None
+async def _verify_reset_token(token: str) -> int | None:
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    return await get_reset_token_user_id(token_hash)
 
 
 def _make_verify_token(user_id: int) -> str:
@@ -372,7 +375,7 @@ async def reset_request_form(request: Request) -> Response:
 async def reset_request(request: Request, email: str = Form()) -> Response:
     user = await get_user_by_email(email)
     if user:
-        token = _make_reset_token(user["id"])
+        token = await _make_reset_token(user["id"])
         await _send_reset_email(email, token)
     return templates.TemplateResponse(
         request,
@@ -385,14 +388,18 @@ async def reset_request(request: Request, email: str = Form()) -> Response:
 
 @router.get("/auth/reset/{token}")
 async def reset_password_form(request: Request, token: str) -> Response:
-    if not _verify_reset_token(token):
+    if not await _verify_reset_token(token):
         return templates.TemplateResponse(
             request,
             "reset_request.html",
             {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
             status_code=400,
         )
-    return templates.TemplateResponse(request, "reset_password.html", {"token": token})
+    return templates.TemplateResponse(
+        request,
+        "reset_password.html",
+        {"token": token, "csrf_token": generate_csrf_token(request)},
+    )
 
 
 @router.post("/auth/reset/{token}")
@@ -402,8 +409,16 @@ async def reset_password(
     token: str,
     password: str = Form(),
     password_confirm: str = Form(),
+    csrf_token: str | None = Form(default=None),
 ) -> Response:
-    user_id = _verify_reset_token(token)
+    if not verify_csrf_token(request, csrf_token):
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"token": token, "error": "Ungültige Anfrage. Bitte neu laden."},
+            status_code=403,
+        )
+    user_id = await _verify_reset_token(token)
     if not user_id:
         return templates.TemplateResponse(
             request,
@@ -426,6 +441,7 @@ async def reset_password(
             status_code=400,
         )
     await update_password(user_id, hash_password(password))
+    await clear_reset_token(user_id)
     request.session.clear()
     logger.info("auth.password_reset.success", user_id=user_id)
     return RedirectResponse("/login?reset=1", status_code=303)

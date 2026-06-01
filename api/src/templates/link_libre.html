@@ -12,6 +12,7 @@
                 Aktuell verknüpft als <strong class="font-semibold text-emerald-200">{{ user.libre_email }}</strong>.
             </div>
             <form method="post" action="/libre/unlink" class="flex flex-col gap-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit"
                         class="w-full py-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white text-sm font-medium transition-colors">
                     Verbindung trennen &amp; Daten löschen
@@ -33,6 +34,7 @@
             {% endif %}
 
             <form method="post" action="/libre/link" class="flex flex-col gap-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
                     <label for="libre_email" class="block text-sm font-medium text-slate-300 mb-1.5">LibreLinkUp E-Mail</label>
                     <input type="email" id="libre_email" name="libre_email" required autocomplete="email" placeholder="deine@email.com"

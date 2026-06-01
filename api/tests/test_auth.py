@@ -204,25 +204,29 @@ async def test_reset_request_unknown_email_returns_200(client):
 
 
 async def test_reset_request_valid_email_returns_200(client):
-    with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)):
+    with (
+        patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.auth.save_reset_token", AsyncMock()),
+    ):
         r = await client.post("/auth/reset-request", data={"email": TEST_USER["email"]})
     assert r.status_code == 200
 
 
 async def test_reset_request_sends_email_when_api_key_set(client):
-    with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)):
-        with patch("src.routes.auth.settings") as mock_settings:
-            mock_settings.session_secret = (
-                "test-secret-key-for-testing-only!"  # pragma: allowlist secret
-            )
-            mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
-            mock_settings.resend_from_email = "noreply@example.com"
-            mock_settings.app_base_url = "https://example.com"
-            with patch("src.routes.auth.resend_client") as mock_resend:
-                mock_resend.Emails.send = MagicMock()
-                r = await client.post(
-                    "/auth/reset-request", data={"email": TEST_USER["email"]}
-                )
+    with (
+        patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.auth.save_reset_token", AsyncMock()),
+        patch("src.routes.auth.settings") as mock_settings,
+        patch("src.routes.auth.resend_client") as mock_resend,
+    ):
+        mock_settings.session_secret = (
+            "test-secret-key-for-testing-only!"  # pragma: allowlist secret
+        )
+        mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+        mock_settings.resend_from_email = "noreply@example.com"
+        mock_settings.app_base_url = "https://example.com"
+        mock_resend.Emails.send = MagicMock()
+        r = await client.post("/auth/reset-request", data={"email": TEST_USER["email"]})
     assert r.status_code == 200
     mock_resend.Emails.send.assert_called_once()
 
@@ -231,15 +235,16 @@ async def test_reset_request_sends_email_when_api_key_set(client):
 
 
 async def test_reset_form_valid_token_returns_200(client):
-    from src.routes.auth import _make_reset_token
-
-    token = _make_reset_token(TEST_USER["id"])
-    r = await client.get(f"/auth/reset/{token}")
+    with patch(
+        "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
+    ):
+        r = await client.get("/auth/reset/any-token")
     assert r.status_code == 200
 
 
 async def test_reset_form_invalid_token_returns_400(client):
-    r = await client.get("/auth/reset/not-a-valid-token")
+    with patch("src.routes.auth._verify_reset_token", AsyncMock(return_value=None)):
+        r = await client.get("/auth/reset/not-a-valid-token")
     assert r.status_code == 400
 
 
@@ -247,12 +252,16 @@ async def test_reset_form_invalid_token_returns_400(client):
 
 
 async def test_reset_password_success_redirects_to_login(client):
-    from src.routes.auth import _make_reset_token
-
-    token = _make_reset_token(TEST_USER["id"])
-    with patch("src.routes.auth.update_password", AsyncMock()):
+    with (
+        patch(
+            "src.routes.auth._verify_reset_token",
+            AsyncMock(return_value=TEST_USER["id"]),
+        ),
+        patch("src.routes.auth.update_password", AsyncMock()),
+        patch("src.routes.auth.clear_reset_token", AsyncMock()),
+    ):
         r = await client.post(
-            f"/auth/reset/{token}",
+            "/auth/reset/any-token",
             data={
                 "password": "newpassword1",  # pragma: allowlist secret
                 "password_confirm": "newpassword1",  # pragma: allowlist secret
@@ -263,56 +272,62 @@ async def test_reset_password_success_redirects_to_login(client):
 
 
 async def test_reset_password_mismatch_returns_400(client):
-    from src.routes.auth import _make_reset_token
-
-    token = _make_reset_token(TEST_USER["id"])
-    r = await client.post(
-        f"/auth/reset/{token}",
-        data={
-            "password": "newpassword1",  # pragma: allowlist secret
-            "password_confirm": "different99",  # pragma: allowlist secret
-        },
-    )
+    with patch(
+        "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
+    ):
+        r = await client.post(
+            "/auth/reset/any-token",
+            data={
+                "password": "newpassword1",  # pragma: allowlist secret
+                "password_confirm": "different99",  # pragma: allowlist secret
+            },
+        )
     assert r.status_code == 400
 
 
 async def test_reset_password_too_short_returns_400(client):
-    from src.routes.auth import _make_reset_token
-
-    token = _make_reset_token(TEST_USER["id"])
-    r = await client.post(
-        f"/auth/reset/{token}",
-        data={
-            "password": "short",  # pragma: allowlist secret
-            "password_confirm": "short",  # pragma: allowlist secret
-        },
-    )
+    with patch(
+        "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
+    ):
+        r = await client.post(
+            "/auth/reset/any-token",
+            data={
+                "password": "short",  # pragma: allowlist secret
+                "password_confirm": "short",  # pragma: allowlist secret
+            },
+        )
     assert r.status_code == 400
 
 
 async def test_reset_password_invalid_token_returns_400(client):
-    r = await client.post(
-        "/auth/reset/not-a-valid-token",
-        data={
-            "password": "newpassword1",  # pragma: allowlist secret
-            "password_confirm": "newpassword1",  # pragma: allowlist secret
-        },
-    )
+    with patch("src.routes.auth._verify_reset_token", AsyncMock(return_value=None)):
+        r = await client.post(
+            "/auth/reset/not-a-valid-token",
+            data={
+                "password": "newpassword1",  # pragma: allowlist secret
+                "password_confirm": "newpassword1",  # pragma: allowlist secret
+            },
+        )
     assert r.status_code == 400
 
 
 async def test_reset_password_success_clears_session(client):
     """After password reset the session is cleared — old session cannot be reused."""
-    from src.routes.auth import _make_reset_token
     from tests.conftest import make_session
 
     make_session(client, user_id=TEST_USER["id"])
     assert client.cookies.get("session")  # session was planted
 
-    token = _make_reset_token(TEST_USER["id"])
-    with patch("src.routes.auth.update_password", AsyncMock()):
+    with (
+        patch(
+            "src.routes.auth._verify_reset_token",
+            AsyncMock(return_value=TEST_USER["id"]),
+        ),
+        patch("src.routes.auth.update_password", AsyncMock()),
+        patch("src.routes.auth.clear_reset_token", AsyncMock()),
+    ):
         r = await client.post(
-            f"/auth/reset/{token}",
+            "/auth/reset/any-token",
             data={
                 "password": "newpassword12",  # pragma: allowlist secret
                 "password_confirm": "newpassword12",  # pragma: allowlist secret
