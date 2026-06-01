@@ -61,7 +61,7 @@ make up           # alles auf einmal
 ## Datenbank
 
 ```bash
-make migrate      # Flyway-Migrationen ausführen (V1–V20+)
+make migrate      # Flyway-Migrationen ausführen (V1–V22)
 make db           # psql-Shell öffnen
 make db SQL="SELECT ..." # SQL direkt ausführen
 ```

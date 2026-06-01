@@ -164,10 +164,17 @@ sync-service/src/
     └── timescale.py  TimescaleRepository (upsert, bulk_insert)
 
 ml-service/src/
-├── main.py           APScheduler: Inference täglich (ML_INFER_HOUR), Training Sonntag 3h
-├── config.py         Settings (DB_APP_USER/PASSWORD, MODEL_DIR, ML_INFER_HOUR)
-├── db.py             asyncpg: Trainingsdaten laden + Predictions speichern
-├── backfill.py       Prediction-Backfill (make backfill-battery / backfill-energy)
+├── main.py              APScheduler + Orchestrierung (run_inference/run_training/run_on_request/run_all_users)
+├── inference_anomaly.py _run_anomaly_* (5×) + _run_anomaly_for + _run_correlations
+├── inference_models.py  _run_readiness/battery_pattern/energy/training_effect/sleep/hrv/body_battery/running
+├── config.py            Settings (DB_APP_USER/PASSWORD, MODEL_DIR, ML_INFER_HOUR)
+├── db/
+│   ├── __init__.py      Re-Exports aller öffentlichen Symbole (from db import … bleibt kompatibel)
+│   ├── pool.py          asyncpg Connection Pool (init_pool, close_pool, get_pool)
+│   ├── users_ml.py      User-Queries + ML-Management + save_prediction/get_yesterday_prediction
+│   ├── health.py        Sleep, HRV, Daily-Metrics, SPO2, Body-Battery, Stress Queries
+│   └── activities.py    Activity-TRIMP, Features, Correlation-Pairs, Running-Economy Queries
+├── backfill.py          Prediction-Backfill (make backfill-battery / backfill-energy)
 └── models/
     ├── anomaly.py         Z-Score: resting_hr, spo2, sleep_duration, steps, stress
     ├── correlation.py     Pearson r: sleep→HRV, sleep→RHR, body battery→RHR (min. 10 Paare)
@@ -200,7 +207,7 @@ Namespace-Pakete nicht eindeutig und meldet Duplikat-Modul-Fehler (`domain.model
 - **bcrypt direkt** (nicht passlib) — passlib inkompatibel mit bcrypt>=4.0
 - **Starlette 1.0 TemplateResponse-API** — `TemplateResponse(request, "name.html", ctx)` nicht die alte Form mit `{"request": request}` im Context
 - **Garmin-Passwörter nie speichern** — Login-Token Fernet-verschlüsselt in `user_tokens`-Tabelle (V20)
-- **asyncpg direkt** (kein ORM) — alle Queries als Prepared Statements in `db.py`
+- **asyncpg direkt** (kein ORM) — alle Queries als Prepared Statements in `ml-service/src/db/` (Package)
 
 ## mypy-Quirks
 
