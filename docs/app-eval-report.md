@@ -16,6 +16,7 @@
 | 2026-06-01 | Eval 2 — Vollständiges App-Audit (alle 6 Achsen) | 7H · 21M · 24L (neu entdeckt, vor Wave 1) |
 | 2026-06-01 | Wave 1 — Bug Fixes & Security Quick Wins | H-02, H-03, M-01–05, L-11 gefixt |
 | 2026-06-01 | Wave 2 — CSRF + Reset-Token-Invalidierung | H-01, M-06 gefixt |
+| 2026-06-01 | Wave 3 — CI/CD-Härtung | H-06, M-15–18, L-14–16 gefixt |
 
 ---
 
@@ -27,7 +28,7 @@
 | Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | — |
 | Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | M-07–12 offen |
 | Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | H-04/H-05, M-14, M-30, M-31 offen |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟡 | H-06, M-15–18 offen |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | — |
 | Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | H-07 Sentry DSN (manuell), M-20 offen |
 
 ---
@@ -47,7 +48,7 @@
 | H-03 | ✅ | W1 | **`upsert_training_status` überkreuzte `$1/$2/$3`-Reihenfolge** | `sync-service/src/repositories/timescale.py:185` | Code-Qualität |
 | H-04 | ❌ | W6 | **ML-Service Coverage-Gate 30%** — `db.py`, `main.py`, `backfill.py` ungetestet | `ml-service/pyproject.toml:36` | Tests |
 | H-05 | ❌ | W6 | **Sync-Service `main.py` Orchestrierung komplett ungetestet** | `sync-service/src/main.py` | Tests |
-| H-06 | ❌ | W3 | **Kein `ci-ok` All-Green-Gate-Job** — `lint`/`security`/`typecheck` nicht in `e2e`-Voraussetzungen | `.github/workflows/ci.yml:168` | CI/CD |
+| H-06 | ✅ | W3 | **Kein `ci-ok` All-Green-Gate-Job** — `lint`/`security`/`typecheck` nicht in `e2e`-Voraussetzungen | `.github/workflows/ci.yml:168` | CI/CD |
 | H-07 | ❌ | — | **Sentry nicht konfiguriert** — kein Error Tracking in Produktion (manuell: DSN eintragen) | `env/.env.*` | Observability |
 | H-08 | ✅ | W0 | **Auth: `is_active`-Flag nicht geprüft** | `api/src/db/users.py` | Security |
 | H-09 | ✅ | W0 | **BOLA: `activity_records` ohne User-Bindung** | `api/src/db/activities.py` | Security |
@@ -73,10 +74,10 @@
 | M-12 | ❌ | W4 | **`battery_pattern._assign_pattern_labels` Verschachtelung >4** | `ml-service/src/models/battery_pattern.py:48` | Code-Qualität |
 | M-13 | ✅ | W1 | **`api/pyproject.toml` `[tool.coverage.run]` ohne `source`** | `api/pyproject.toml:41` | Tests |
 | M-14 | ❌ | W6 | **E2E: 7× `wait_for_timeout()` — flaky-Risiko** | `api/tests/e2e/test_smoke.py:56ff` | Tests |
-| M-15 | ❌ | W3 | **Python 3.12 in CI vs. 3.14 in Dockerfiles** | `.github/workflows/ci.yml:103` | CI/CD |
-| M-16 | ❌ | W3 | **semgrep/bandit/pip-audit ohne Versions-Pin** | `.github/workflows/ci.yml:80` | CI/CD |
-| M-17 | ❌ | W3 | **Semgrep fehlt in Pre-commit-Hooks** | `.pre-commit-config.yaml` | CI/CD |
-| M-18 | ❌ | W3 | **GitHub-native Secret Scanning undokumentiert** | `.github/` | CI/CD |
+| M-15 | ✅ | W3 | **Python 3.12 in CI vs. 3.14 in Dockerfiles** | `.github/workflows/ci.yml:103` | CI/CD |
+| M-16 | ✅ | W3 | **semgrep/bandit/pip-audit ohne Versions-Pin** | `.github/workflows/ci.yml:80` | CI/CD |
+| M-17 | ✅ | W3 | **Semgrep fehlt in Pre-commit-Hooks** | `.pre-commit-config.yaml` | CI/CD |
+| M-18 | ✅ | W3 | **GitHub-native Secret Scanning undokumentiert** | `.github/` | CI/CD |
 | M-19 | ❌ | — | **Uptime-Monitoring nicht eingerichtet** (manuell: UptimeRobot) | — | Observability |
 | M-20 | ❌ | W7 | **Traffic + Saturation nicht messbar** (2 von 4 goldenen Signalen) | `api/src/main.py:66` | Observability |
 | M-21 | ✅ | W0 | **PII-Logging: E-Mail bei Login-Fail** | `api/src/routes/auth.py` | Security |
@@ -110,9 +111,9 @@
 | L-11 | ✅ | W1 | **`asyncio.get_event_loop()` deprecated** | `sync-service/src/main.py:304` | Code-Qualität |
 | L-12 | ❌ | W6 | **E2E: 3 conditional `pytest.skip`** | `api/tests/e2e/test_smoke.py:108` | Tests |
 | L-13 | — | — | **JS-Coverage nur 4/24 Static-JS-Dateien** (dokumentierte Ausnahme TEST-L2) | `api/vitest.config.js:10` | Tests |
-| L-14 | ❌ | W3 | **Renovate: `minor`-Updates undokumentiert** | `renovate.json:7` | CI/CD |
-| L-15 | ❌ | W3 | **GitHub-Actions Kommentar-Tags falsch** (`# v6` statt `# v4`) | `ci.yml:21,75` | CI/CD |
-| L-16 | ❌ | W3 | **E2E-Job: DB-Credentials via `grep` aus `.env`** | `ci.yml:205` | CI/CD |
+| L-14 | ✅ | W3 | **Renovate: `minor`-Updates undokumentiert** | `renovate.json:7` | CI/CD |
+| L-15 | ✅ | W3 | **GitHub-Actions Kommentar-Tags falsch** (`# v6` statt `# v4`) | `ci.yml:21,75` | CI/CD |
+| L-16 | ✅ | W3 | **E2E-Job: DB-Credentials via `grep` aus `.env`** | `ci.yml:205` | CI/CD |
 | L-17 | ❌ | W4 | **`logging_config.py` (sync-service): `level=logging.INFO` fehlt** | `sync-service/src/logging_config.py:21` | Observability |
 | L-18 | ❌ | W4 | **`garmin/client.py` + `libre/client.py`: stdlib statt structlog** | mehrere | Observability |
 | L-19 | ❌ | W4 | **`LibreAuthError`-String enthält `user_id` doppelt** | `sync-service/src/main.py:194` | Observability |
@@ -134,7 +135,7 @@
 | Wave | Findings |
 |------|---------|
 | **W2** (CSRF + Reset) | ✅ H-01, M-06 — erledigt |
-| **W3** (CI/CD) | H-06, M-15, M-16, M-17, M-18, L-14, L-15, L-16 |
+| **W3** (CI/CD) | ✅ H-06, M-15–18, L-14–16 — erledigt |
 | **W4** (Code-Qualität) | M-07, M-08, M-09, M-11, M-12, L-06, L-07, L-08, L-09, L-10, L-17, L-18, L-19 |
 | **W5** (ML Restrukturierung) | M-10 |
 | **W6** (Tests) | H-04, H-05, M-14, M-30, M-31, L-12, L-22, L-23 |

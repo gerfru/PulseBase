@@ -4,25 +4,64 @@
   "pinDigests": true,
   "packageRules": [
     {
+      "description": "Python patch-Updates: sicher, automatisch mergen",
       "matchManagers": ["pep621"],
       "matchUpdateTypes": ["patch"],
       "automerge": true
     },
     {
+      "description": "Python minor-Updates: manueller Review — kann Breaking Changes enthalten",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["minor"],
+      "automerge": false,
+      "labels": ["dependencies", "review-needed"]
+    },
+    {
+      "description": "Python major-Updates: manueller Review",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "review-needed"]
+    },
+    {
+      "description": "GitHub Actions patch-Updates: sicher, automatisch mergen",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["patch"],
       "automerge": true
     },
     {
+      "description": "GitHub Actions minor/major-Updates: manueller Review (Actions können Code ausführen)",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "labels": ["dependencies", "review-needed"]
+    },
+    {
+      "description": "Docker Digest-Updates (gleiche Version, neuer Digest): sicher, automatisch mergen",
       "matchManagers": ["docker-compose"],
       "matchUpdateTypes": ["digest"],
       "automerge": true
     },
     {
+      "description": "Docker minor/major-Updates: manueller Review (TimescaleDB-Upgrades benötigen pg_upgrade)",
+      "matchManagers": ["docker-compose"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "labels": ["dependencies", "review-needed"]
+    },
+    {
+      "description": "npm devDep patch-Updates: sicher, automatisch mergen",
       "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["patch"],
       "automerge": true
+    },
+    {
+      "description": "npm minor/major-Updates: manueller Review",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "labels": ["dependencies", "review-needed"]
     }
   ]
 }

@@ -1,0 +1,749 @@
+# PulseBase — Security Reference
+
+Dieses Dokument erklärt **warum** PulseBase welche Sicherheitsmaßnahmen trifft, nicht nur was implementiert ist. Es ist die zentrale Referenz für alle Sicherheitsentscheidungen — von der Entwurfsphase bis zur laufenden Wartung.
+
+**Verwandte Dokumente:**
+- [`production-hardening.md`](production-hardening.md) — Deployment-Checkliste und konkrete Befehle
+- [`app-eval-report.md`](app-eval-report.md) — Offene und geschlossene Findings (ASVS-Audit)
+- [`architecture.md`](architecture.md) — Systemaufbau und Datenflüsse
+
+---
+
+## 1. Threat Model
+
+### 1.1 Was schützen wir?
+
+PulseBase speichert Gesundheitsdaten. Diese fallen unter **Art. 9 DSGVO** ("besondere Kategorien personenbezogener Daten") und sind damit der höchsten gesetzlichen Schutzklasse zugeordnet.
+
+| Asset | Kritikalität | Beispiel |
+|-------|-------------|---------|
+| Gesundheitsdaten (HRV, Schlaf, Glukose, Aktivitäten) | Sehr hoch | Epilepsie-Events, HRV-Trends |
+| Garmin/LibreLink-Zugangsdaten (Token) | Sehr hoch | Ermöglicht Zugriff auf externen Health-Account |
+| Benutzerkonto (E-Mail, Passwort-Hash) | Hoch | Identität, Login-Möglichkeit |
+| Session-Token (Cookie) | Hoch | Aktive Sitzung aller Nutzer |
+| App-Secrets (SESSION_SECRET, FERNET_KEY) | Sehr hoch | Kompromittierung betrifft alle Nutzer |
+
+### 1.2 Wer greift an?
+
+PulseBase ist ein Homelab-Projekt ohne öffentliche Benutzer. Das ändert das Threat Model erheblich: Das Hauptrisiko ist kein gezielter Angreifer, sondern systematisches Scannen und opportunistische Angriffe.
+
+| Threat Actor | Motivation | Wahrscheinlichkeit |
+|---|---|---|
+| Automatisierte Scanner (Shodan, Masscan) | Credential Stuffing, bekannte CVEs ausnutzen | Hoch |
+| Opportunistische Angreifer | Niedrig hängende Früchte (schwache Passwörter, Standard-Credentials) | Mittel |
+| Insider (anderer Homelab-Nutzer im selben Netz) | Daten einsehen, Konto übernehmen | Niedrig |
+| Supply Chain (kompromittierte Abhängigkeit) | Code-Ausführung im Container | Mittel |
+| Physischer Zugriff (Mac mini gestohlen) | Daten-Dump, Token-Extraktion | Sehr niedrig |
+
+### 1.3 Angriffsfläche
+
+```
+[Internet]
+     │
+     ▼ 443/tcp (einziger eingehender Vektor)
+[Caddy / Traefik]
+     │
+     ▼ HTTP intern
+[FastAPI]   ←── [Garmin Connect API] (ausgehend, OAuth-ähnlich mit Token)
+     │           [LibreLink API] (ausgehend, Token-Auth)
+     │
+     ▼ asyncpg
+[TimescaleDB]  (nicht exponiert, nur internes Docker-Netz)
+```
+
+**Eingehende Angriffsvektoren:**
+1. HTTP-Endpunkte (Auth-Bypass, IDOR, Injection, CSRF, XSS)
+2. Login-Formulare (Brute Force, Credential Stuffing)
+3. File-Upload-ähnliche Eingaben (z.B. Seizure Notes mit Nutzerdaten)
+
+**Ausgehende Risiken:**
+1. SSRF durch manipulierte Garmin/Libre-Credentials (kein User-Input in URL-Aufbau — mitigiert)
+2. Kompromittierter Upstream (Garmin Connect oder LibreLink) liefert manipulierte Daten
+
+### 1.4 Explizit außerhalb des Scope
+
+- **DDoS:** Mitigation durch Cloudflare/Caddy; kein eigener Schutz implementiert
+- **Seitenkanal-Angriffe** auf der Hardware (Homelab-Ausnahme)
+- **Angriffe nach vollständiger Host-Kompromittierung** (root auf Mac mini)
+
+---
+
+## 2. Datenschutzeinstufung
+
+### 2.1 Datenkategorien und Speicherort
+
+| Datenkategorie | DSGVO-Klasse | Gespeichert in | Schutz |
+|---|---|---|---|
+| Gesundheitsdaten (Aktivitäten, HRV, Schlaf, Glukose, Anfälle) | Art. 9 (hoch) | TimescaleDB | DB auf internem Netz, kein direkter Zugriff |
+| Garmin/LibreLink Auth-Token | Art. 9 indirekt (Zugriff auf Gesundheitsdaten) | `user_tokens`-Tabelle | Fernet-verschlüsselt at rest |
+| E-Mail, Passwort-Hash | Art. 6 | `users`-Tabelle | bcrypt, nie Plaintext |
+| Session-Cookie | — | Client-Browser | httpOnly, secure, sameSite=Lax |
+| Consent-Audit-Log | Art. 5(2) Rechenschaftspflicht | `user_consents`-Tabelle | IP als SHA-256-Hash (keine Reverse-Lookup-Möglichkeit) |
+| Strukturierte Logs | — | stdout / Container-Log | Keine PII (E-Mail, IP nie geloggt) |
+| ML-Modelle | — | `ml-models`-Volume | Aggregiert, kein Rückschluss auf Individuen |
+
+### 2.2 Datenminimierung (Privacy by Design)
+
+- Garmin-Passwörter werden **nie** gespeichert — nur der nach Login erhaltene Session-Token
+- IP-Adressen werden im Consent-Log nur als SHA-256-Hash gespeichert (V21-Migration)
+- `export_user_data` schließt `password_hash` explizit aus
+- Logs enthalten keine E-Mail-Adressen, keine Passwörter, keine IP-Adressen
+
+---
+
+## 3. Authentication & Session Management
+
+### 3.1 Passwort-Sicherheit
+
+**Warum bcrypt direkt (nicht passlib)?**
+passlib ist mit `bcrypt>=4.0` inkompatibel — es würde ohne Fehler einen schwächeren Hash-Algorithmus fallen. bcrypt direkt gibt beim Start einen Fehler wenn die Library-Version nicht unterstützt wird.
+
+```python
+# Sicherheitsrelevante Parameter:
+bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12))
+```
+
+- `rounds=12` bedeutet 2¹² = 4096 Hash-Iterationen — ~300ms pro Versuch, macht Brute Force unpraktikabel
+- Timing-sicherer Vergleich: `bcrypt.checkpw()` ist constant-time (keine timing-basierten Enumeration-Angriffe)
+
+**Warum DUMMY_HASH?**
+Ohne Dummy-Hash: Login mit nicht-existierender E-Mail → ~0ms Response (kein bcrypt-Aufruf). Login mit falscher E-Mail bei existierendem User → ~300ms (bcrypt läuft). Angreifer kann E-Mails validieren durch Timing-Messung.
+
+```python
+DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt()).decode()
+# Einmal beim App-Start berechnet, dann immer genutzt wenn User nicht existiert
+```
+
+### 3.2 Session-Management
+
+PulseBase nutzt **signierte Cookie-Sessions** (Starlette `SessionMiddleware`) statt JWT.
+
+**Warum kein JWT?**
+JWT erfordert Token-Invalidierung (z.B. bei Konto-Kompromittierung) entweder via Datenbank-Lookup (dann verliert man Statelessness) oder via kurze TTL + Refresh-Token-Rotation (erhöhte Komplexität). Für ein Single-Server-Homelab bringt JWT keinen Vorteil.
+
+**Session-Cookie-Eigenschaften:**
+- `httpOnly=True` — kein JavaScript-Zugriff (verhindert Cookie-Diebstahl via XSS)
+- `secure=True` (wenn `HTTPS_ONLY=true`) — Cookie nur über HTTPS übertragen
+- `sameSite="lax"` — Schutz gegen CSRF bei Navigation (POST-Requests von anderen Domains werden blockiert)
+- TTL: Starlette-Default (Session endet beim Schließen des Browsers, keine persistente Speicherung)
+
+**Session-Fixation verhindern:**
+```python
+request.session.clear()           # Alte Session-ID wegwerfen
+request.session["user_id"] = ...  # Neue Session beginnen
+```
+Ohne `clear()` könnte ein Angreifer eine Session-ID in einen Link einbauen, das Opfer damit einloggen lassen und dann die vorbekannte Session-ID nutzen.
+
+### 3.3 Account-Lockout
+
+**Warum konto-basiert statt nur IP-basiert?**
+IP-basiertes Rate Limiting (slowapi) schützt gegen volumetrische Brute Force. Konto-basierter Lockout schützt gegen verteilte Angriffe (viele IPs, ein Ziel-Account).
+
+```
+5 Fehlversuche → locked_until = NOW() + 15 Minuten
+Fehlversuch während Lockout → kein neuer bcrypt-Aufruf (Timing-safe, keine Lockout-Extension)
+Erfolgreicher Login → failed_login_attempts = 0
+```
+
+**DoS-Gegenmaßnahme:** Der Lockout könnte von einem Angreifer genutzt werden um legitime User auszusperren. Mitigation: E-Mail-Benachrichtigung informiert den echten Nutzer, `locked_until` läuft automatisch ab (kein Admin-Eingriff nötig).
+
+### 3.4 Password-Reset-Flow
+
+**Design-Prinzip: Non-leaking**
+`POST /auth/reset-request` antwortet immer mit HTTP 200 und gleicher Message, unabhängig ob die E-Mail-Adresse existiert. Würde der Server differenzieren, könnten Angreifer den Endpunkt zur E-Mail-Enumeration nutzen.
+
+**Token-Design (itsdangerous):**
+```python
+# Salt trennt Reset-Token von Verify-Token — kein Token-Reuse möglich
+signer = URLSafeTimedSerializer(SESSION_SECRET, salt="password-reset")
+token = signer.dumps(user_id)  # HMAC-signiert mit SESSION_SECRET
+```
+
+- Signiert mit `SESSION_SECRET` — Fälschung ohne Key nicht möglich
+- 1h TTL — kurzes Fenster reduziert Risiko bei abgefangener E-Mail
+- **Token-Invalidierung nach Verwendung** (W2-Fix): Nach erfolgreichem Reset wird das neue Passwort gesetzt und ein Zeitstempel in der DB gespeichert. Replay-Angriffe mit demselben Token schlagen fehl.
+
+### 3.5 Garmin/LibreLink Credential-Handling
+
+Garmin-Passwörter werden **niemals** gespeichert. Der Flow:
+1. User gibt Garmin-Credentials im `/garmin/link`-Formular ein
+2. `garminconnect`-Library authenticiert sich gegen Garmin Connect und erhält einen Session-Token
+3. Nur dieser Token wird Fernet-verschlüsselt in der DB gespeichert
+4. Credentials sind nach dem Request aus dem Speicher weg
+
+**Fernet-Verschlüsselung:**
+```python
+from cryptography.fernet import Fernet
+f = Fernet(settings.fernet_key)
+encrypted = f.encrypt(token_data)   # AES-128-CBC + HMAC-SHA256
+decrypted = f.decrypt(encrypted)
+```
+
+Fernet bietet authenticated encryption — manipulierte Ciphertext-Blöcke werden erkannt und verworfen. Der `FERNET_KEY` wird beim App-Start validiert; die App crasht mit `ValueError` wenn der Key ungültig oder leer ist.
+
+---
+
+## 4. Autorisierung
+
+### 4.1 Defense in Depth: 3 Schichten
+
+```
+Request
+  │
+  ▼ Schicht 1: SessionMiddleware
+  │   └── Prüft ob session["user_id"] existiert
+  │       → 401 / Redirect /login wenn nicht
+  │
+  ▼ Schicht 2: require_user() Dependency (deps.py)
+  │   └── Lädt User aus DB, prüft is_active + email_verified_at
+  │       → 401 wenn User deaktiviert oder unverifiziert
+  │
+  ▼ Schicht 3: Data Access Layer (db/*.py)
+      └── Jede Query bindet user_id: WHERE user_id = $1
+          → BOLA unmöglich — andere User-Daten nicht abrufbar
+```
+
+**Warum die 3. Schicht die wichtigste ist:**
+Schicht 1 und 2 können durch Fehler im Routing oder durch vergessene `require_user()`-Dependency umgangen werden. Die 3. Schicht ist schwerer zu vergessen, weil jede Query explizit `user_id` als Parameter haben muss.
+
+### 4.2 BOLA (Broken Object Level Authorization)
+
+Gefahr ohne BOLA-Schutz: `GET /api/activities/12345` würde Aktivität 12345 zurückgeben, egal welchem User sie gehört.
+
+Schutz in `api/src/db/activities.py`:
+```sql
+SELECT * FROM activities WHERE id = $1 AND user_id = $2
+```
+Beide Parameter müssen passen. Wenn `$2` (eingeloggte User-ID) nicht zum Datensatz passt → `None` zurück → 404.
+
+---
+
+## 5. Transport Security
+
+### 5.1 TLS und HSTS
+
+**Produktiv (homelab-gateway):** Caddy terminiert TLS mit self-signed Zertifikat für `garmin.home.lab`. HSTS ist aktiviert (`max-age=31536000; includeSubDomains`) — Browser merken sich, dass diese Domain nur per HTTPS erreichbar ist.
+
+**Warum self-signed akzeptabel im Homelab:**
+Die Domain `garmin.home.lab` ist ausschließlich im internen Tailscale-Netz erreichbar. Ein MITM-Angriff erfordert Zugriff auf das interne Netz (bereits kompromittiert). Let's Encrypt würde DNS-01-Challenge oder öffentliche Domain erfordern. Dokumentierte Ausnahme: ARCH-M3.
+
+**Standalone (Traefik):** Gleiche Situation, ebenfalls self-signed.
+
+### 5.2 Security Headers
+
+Alle HTTP-Responses enthalten diese Headers (gesetzt in `api/src/main.py`):
+
+| Header | Wert | Schutz gegen |
+|---|---|---|
+| `Content-Security-Policy` | Nonce-basiert + `'strict-dynamic'` | XSS |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Downgrade-Angriffe, SSL-Stripping |
+| `X-Content-Type-Options` | `nosniff` | MIME-Sniffing (IE/Edge-Exploit) |
+| `X-Frame-Options` | `DENY` | Clickjacking |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Referrer-Leakage |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=()` | Browser-Feature-Missbrauch |
+
+**Offene Punkte (L-05):**
+`worker-src` und `manifest-src` fehlen noch in der CSP. Diese wären für Service Workers und Web App Manifests nötig — PulseBase nutzt beides nicht, aber ein fehlender `worker-src`-Wert bedeutet, dass es auf den `script-src`-Wert fällt.
+
+---
+
+## 6. Injection-Schutz
+
+### 6.1 SQL Injection
+
+**Alle** Datenbankzugriffe laufen über asyncpg Prepared Statements:
+```python
+await conn.fetch("SELECT * FROM activities WHERE user_id = $1", user_id)
+```
+
+`$1`, `$2`, usw. sind **Platzhalter für Parameter** — asyncpg trennt SQL-Code von Daten auf Protokollebene. User-Input landet nie im SQL-String. Kein ORM, kein Query Builder — direktes Prepared-Statement-API verhindert versehentliche String-Konkatenation.
+
+### 6.2 DOM XSS
+
+**Risiko:** Seizure Notes, Event-Type-Strings, Metriken-Labels kommen aus der DB (also ursprünglich vom User) und werden in der UI dargestellt.
+
+**Mitigation:** Kein `innerHTML` mit User-Daten. Stattdessen `textContent` für reinen Text und `DOMPurify.sanitize()` für Fälle wo HTML erwünscht ist (epilepsy.js, dashboard-utils.js, metrics.js).
+
+```javascript
+// Sicher:
+element.textContent = userInput;
+
+// Unsicher (nie so verwenden):
+element.innerHTML = userInput;  // ← XSS
+
+// Wenn HTML nötig:
+element.innerHTML = DOMPurify.sanitize(userInput);
+```
+
+### 6.3 Server-Side: Keine Shell-Kommandos mit User-Input
+
+PulseBase startet keine Subprozesse mit User-kontrollierten Parametern. Der einzige externe Call ist die Garmin/LibreLink-Library, die intern HTTP-Requests baut.
+
+---
+
+## 7. CSRF-Schutz
+
+### 7.1 Warum CSRF ein reales Risiko ist
+
+CSRF (Cross-Site Request Forgery) nutzt aus, dass Browser Cookies automatisch mitsenden. Eine bösartige Seite kann einen POST-Request an `https://garmin.home.lab/account/delete` schicken — der Browser hängt das Session-Cookie an, die App sieht einen "authentifizierten" Request.
+
+**Gefährdete Endpunkte (alle POST-Routen mit State-Change):**
+- `/garmin/link`, `/libre/link` — Verknüpfung externer Accounts
+- `/account/delete` — Konto-Löschung
+- `/auth/reset` — Passwort-Reset
+
+### 7.2 Double-Submit-Cookie-Pattern
+
+PulseBase implementiert das **Double-Submit-Cookie-Pattern** (kein `SameSite=Strict` ausreichend, da Navigations-POSTs noch funktionieren müssen):
+
+```python
+# Generierung (GET-Endpoint):
+csrf_token = secrets.token_hex(32)  # Kryptographisch stark
+request.session["csrf_token"] = csrf_token
+# Token im HTML-Formular als <input type="hidden">
+
+# Validierung (POST-Endpoint):
+session_token = request.session.get("csrf_token")
+form_token = form_data.get("csrf_token")
+if not session_token or not hmac.compare_digest(session_token, form_token):
+    raise HTTPException(status_code=403)
+```
+
+`hmac.compare_digest()` statt `==` verhindert Timing-Angriffe auf den Token-Vergleich.
+
+**Warum nicht nur `sameSite=lax` reicht:**
+`lax` blockt Cross-Site-POSTs über Formulare — aber nicht wenn der Angreifer per JavaScript `fetch()` mit `credentials: include` und `mode: 'no-cors'` arbeitet. Double-Submit ist robuster.
+
+---
+
+## 8. Input-Validierung
+
+### 8.1 Schema-Validierung mit Pydantic
+
+Alle API-Eingaben werden an der System-Grenze gegen Pydantic-Schemas validiert:
+
+```python
+class SeizureBody(BaseModel):
+    notes: str = Field(default="", max_length=1000)  # Ohne max_length: DoS durch riesige Payloads
+    severity: int = Field(ge=1, le=10)
+    trigger: str = Field(max_length=100)
+```
+
+Pydantic wirft `ValidationError` (→ HTTP 422) bevor der Handler-Code ausgeführt wird.
+
+### 8.2 E-Mail-Format-Validierung
+
+```python
+class RegisterBody(BaseModel):
+    email: EmailStr  # Pydantic EmailStr: RFC-5322-konform
+```
+
+Ohne `EmailStr` könnten Nutzer beliebige Strings als E-Mail registrieren, was den Verifikations-Flow bricht und E-Mail-Injection ermöglicht (SMTP-Header-Injection über Newlines in der Adresse).
+
+### 8.3 Rate Limiting
+
+Zusätzlich zur Schema-Validierung sind folgende Endpunkte rate-limitiert (slowapi):
+
+| Endpunkt | Limit | Schutz gegen |
+|---|---|---|
+| `POST /login` | 10/min | Brute Force |
+| `POST /register` | 5/min | Account-Spam |
+| `POST /auth/reset-request` | 3/h | E-Mail-Flooding |
+| `GET/POST /garmin/link` | 5/h | Credential-Stuffing gegen Garmin API |
+| `GET/POST /libre/link` | 5/h | Credential-Stuffing gegen LibreLink API |
+
+---
+
+## 9. Secrets Management
+
+### 9.1 Secret-Übersicht
+
+| Secret | Zweck | Scope | Rotation |
+|---|---|---|---|
+| `SESSION_SECRET` | Cookie-Signierung (HMAC) | API | Rotieren erzwingt alle User auszuloggen |
+| `FERNET_KEY` | Token-Verschlüsselung at rest | API + Sync | Rotation erfordert Re-Encrypt aller Tokens |
+| `DB_APP_PASSWORD` | DB-Verbindung (Least Privilege User) | API + Sync + ML | Standard DB-Rotation |
+| `DB_PASSWORD` | DB-Admin (nur für Migrations) | Flyway | Selten |
+| `RESEND_API_KEY` | E-Mail-Versand | API | Bei Verdacht |
+
+### 9.2 Secret-Isolation per Service
+
+Jeder Service bekommt nur die Secrets die er braucht (Principle of Least Privilege):
+
+```
+env/.env       → alle Services (DB-Credentials, HOST_IP)
+env/.env.api   → nur api (SESSION_SECRET, FERNET_KEY, RESEND_API_KEY)
+env/.env.sync  → nur sync-service (FERNET_KEY, Sync-Config)
+env/.env.ml    → nur ml-service (ML_INFER_HOUR, kein FERNET_KEY nötig)
+```
+
+Verifikation:
+```bash
+docker exec garmin-sync env | grep SESSION_SECRET   # → leer (korrekt)
+docker exec garmin-ml   env | grep FERNET_KEY       # → leer (korrekt)
+```
+
+### 9.3 Secret-Generierung
+
+```bash
+make gen-secrets    # Generiert SESSION_SECRET und FERNET_KEY
+```
+
+Beide werden mit `secrets.token_urlsafe(32)` bzw. `Fernet.generate_key()` erzeugt — kryptographisch starke Zufallszahlen aus dem OS-CSPRNG.
+
+### 9.4 Session-Secret-Rotation
+
+`SESSION_SECRET` rotieren invalidiert alle aktiven Sessions sofort:
+```bash
+# Neues Secret generieren und in env/.env.api eintragen
+make gen-secrets
+make dashboard   # Container neu starten mit neuem Secret
+```
+
+**Wann rotieren:** Bei Verdacht auf Kompromittierung, oder präventiv nach Incident. Alle eingeloggten User werden automatisch ausgeloggt — das ist der gewünschte Effekt.
+
+### 9.5 FERNET_KEY-Rotation
+
+Komplexer als Session-Secret, da bestehende verschlüsselte Token re-encrypt werden müssen:
+
+```python
+# Ablauf:
+# 1. Neuen Key generieren
+new_key = Fernet.generate_key()
+
+# 2. MultiFernet: dekodiert mit altem Key, kann mit neuem verschlüsseln
+from cryptography.fernet import MultiFernet
+f = MultiFernet([Fernet(new_key), Fernet(old_key)])
+
+# 3. Alle Tokens in user_tokens re-encrypten
+tokens = await conn.fetch("SELECT id, token_data FROM user_tokens")
+for row in tokens:
+    re_encrypted = f.rotate(row["token_data"])
+    await conn.execute("UPDATE user_tokens SET token_data = $1 WHERE id = $2",
+                       re_encrypted, row["id"])
+
+# 4. Alten Key aus env entfernen, nur neuen Key stehen lassen
+```
+
+---
+
+## 10. Infrastruktur-Sicherheit
+
+### 10.1 Docker-Härtung
+
+**Multi-Stage Builds:**
+```dockerfile
+FROM python:3.14-slim AS builder
+# ... Build-Abhängigkeiten installieren ...
+
+FROM python:3.14-slim AS runner
+# Nur Runtime-Dateien kopieren, keine Build-Tools im finalen Image
+COPY --from=builder /app /app
+```
+
+Warum: Kleineres Image = kleinere Angriffsfläche. Build-Tools (gcc, pip, etc.) sind nicht im laufenden Container.
+
+**Non-root User:**
+```dockerfile
+RUN adduser --system --no-create-home appuser
+USER appuser
+```
+
+Warum: Wenn ein Angreifer Code-Execution erlangt (z.B. durch eine FastAPI-Schwachstelle), läuft er als `appuser` ohne Schreibrechte auf das Dateisystem. Container-Escape via `root` wird deutlich schwerer.
+
+**Digest-Pins für Base Images:**
+```yaml
+image: python:3.14-slim@sha256:abc123...
+```
+
+Warum: Ein `latest`-Tag kann sich über Nacht ändern. Ein kompromittierter Registry-Uploader könnte ein Backdoor-Image mit demselben Tag hochladen. Digest-Pins verhindern das.
+
+### 10.2 Netzwerk-Isolation
+
+```
+┌─────────────────── internal (Docker-intern) ─────────────────┐
+│  garmin-api  ←──→  garmin-db                                  │
+│  garmin-sync ←──→  garmin-db                                  │
+│  garmin-ml   ←──→  garmin-db                                  │
+└───────────────────────────────────────────────────────────────┘
+         │
+         │ (nur garmin-api ist Mitglied beider Netze)
+         ▼
+┌─────── proxy (externe Docker-Netz) ──────┐
+│  gateway-caddy  ←──→  garmin-api         │
+└──────────────────────────────────────────┘
+```
+
+Die Datenbank ist **nie** direkt exponiert. Sync- und ML-Service kommunizieren nur intern. Kein Service bindet Ports auf `0.0.0.0`.
+
+### 10.3 Container-Scanning mit Trivy
+
+In der CI-Pipeline läuft Trivy gegen jedes gebaute Image:
+```yaml
+trivy image --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed garmin-api:latest
+```
+
+`--ignore-unfixed`: Findings ohne verfügbaren Fix werden ignoriert — der Developer kann diese nicht beheben, sie erhöhen nur den Lärm. `--exit-code 1` bricht den CI-Build ab wenn CRITICAL oder HIGH Findings mit verfügbarem Fix existieren.
+
+### 10.4 Host-Härtung (Homelab, Mac mini)
+
+- SSH: Nur Key-Auth (`PasswordAuthentication no`)
+- UFW: Nur 22, 80, 443 offen
+- Automatische Security-Updates (`unattended-upgrades` auf Linux)
+- `env/`-Dateien: `chmod 600` (nur Owner lesbar)
+
+---
+
+## 11. Supply Chain Security
+
+### 11.1 Dependency-Management mit Renovate
+
+Renovate erstellt automatisch PRs für veraltete Abhängigkeiten:
+
+| Abhängigkeitstyp | Strategie | Begründung |
+|---|---|---|
+| devDependencies (patch) | Automerge | Patch-Updates sind fast immer sicher |
+| Python-Pakete (minor/patch) | PR + manueller Review | Könnte Breaking Changes enthalten |
+| Docker-Image-Digests | Automerge | Nur neuer Digest für gleiche Version |
+| Docker-Image-Tags (major) | Manueller Review | Z.B. Python 3.14 → 3.15 |
+| GitHub Actions | PR + Review | Actions können Code ausführen |
+
+### 11.2 SAST (Static Application Security Testing)
+
+**bandit** (per Pre-commit + CI):
+```bash
+bandit -r api/src/ sync-service/src/ -l -i
+```
+Scannt auf bekannte Python-Sicherheitsmuster: eval(), shell=True, hardcoded Passwörter, unsichere MD5-Nutzung, etc.
+
+**semgrep** (nur CI):
+```bash
+semgrep --config=auto .
+```
+Cross-file Taint-Analyse — erkennt wenn User-Input einen gefährlichen Codepfad erreicht, auch über mehrere Dateien hinweg. Aufwändiger als bandit, läuft deshalb nur in CI (nicht pre-commit).
+
+### 11.3 SCA (Software Composition Analysis)
+
+**pip-audit** (CI):
+```bash
+pip-audit --requirement api/requirements.txt
+```
+Prüft gegen die Python Packaging Advisory Database (GHSA + PyPI). Nicht Safety (veraltet, kommerziell).
+
+### 11.4 Pre-commit Hook-Reihenfolge
+
+```
+gitleaks      ← Secrets-Scan zuerst (Commit mit Secret sofort verhindern)
+ruff          ← Lint + Fix
+bandit        ← SAST
+detect-secrets ← Baseline-basierter Secret-Scan (ergänzt gitleaks)
+mypy          ← Type Check (findet implizite None-Dereferenzierungen)
+```
+
+gitleaks läuft zuerst: Selbst wenn spätere Hooks fehlschlagen und der Commit abbricht, ist sichergestellt dass kein Secret committed wurde.
+
+### 11.5 GitHub Actions: Digest-Pins
+
+Alle Actions sind mit `@sha256:...` gepinnt, nicht mit `@v3` oder ähnlichem:
+```yaml
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+```
+
+Warum: Ein Angreifer könnte einen neuen Commit auf den `v3`-Tag pushen. SHA256-Digest ist unveränderlich.
+
+---
+
+## 12. Security im Entwicklungsprozess (SDLC)
+
+### 12.1 Designphase
+
+**Threat Modeling vor neuen Features:**
+Für signifikante neue Features (neuer Datentyp, neuer externer Service, neue Auth-Methode) ein kurzes STRIDE-Modell erstellen:
+
+| STRIDE | Frage | Mitigation |
+|---|---|---|
+| **S**poofing | Wer kann sich als jemand anderes ausgeben? | Starke Auth, Token-Binding |
+| **T**ampering | Wer kann Daten manipulieren? | HMAC, Prepared Statements |
+| **R**epudiation | Kann ein User Aktionen abstreiten? | Audit-Log |
+| **I**nformation Disclosure | Welche Daten könnten leaken? | Least Privilege, Encryption |
+| **D**enial of Service | Was kann den Service lahmlegen? | Rate Limiting, Input-Größen |
+| **E**levation of Privilege | Wie kann jemand mehr Rechte bekommen? | Defense in Depth |
+
+**ASVS 5.0 als Prüfrahmen:**
+Neue Features gegen die relevanten ASVS-Chapters prüfen (V2 Auth, V3 Session, V4 Access Control, V5 Validation, V13 API).
+
+### 12.2 Entwicklungsphase
+
+**Checkliste vor jedem PR:**
+- [ ] Kein `innerHTML` mit User-Daten (DOM XSS)
+- [ ] Alle DB-Queries als Prepared Statements
+- [ ] Neue POST-Endpunkte mit State-Change haben CSRF-Schutz
+- [ ] Neue Eingabefelder haben Pydantic-Validierung mit `max_length`
+- [ ] Keine Secrets in Logs oder Error-Responses
+- [ ] Neue Endpunkte mit Auth haben `require_user()` als Dependency
+
+### 12.3 CI/CD-Phase
+
+```
+Pre-commit:  gitleaks → bandit → mypy
+CI Lint:     ruff (Python) + Biome (JS)
+CI Security: gitleaks + pip-audit + bandit + semgrep
+CI Type:     mypy (alle 3 Services)
+CI Test:     pytest + Playwright E2E
+CI Image:    Trivy (CRITICAL+HIGH, ignore-unfixed)
+```
+
+**Offenes Gap (H-06):** Es gibt noch keinen `ci-ok`-All-Green-Gate-Job der verhindert, dass ein PR gemergt werden kann wenn security/lint/typecheck nicht grün sind.
+
+### 12.4 Deployment-Phase
+
+Vor jedem Deployment auf Produktion:
+```bash
+make migrate    # Migrations anwenden (Flyway macht das automatisch beim Start)
+make dashboard  # API neu bauen + starten
+make analytics  # ML-Service neu bauen + starten
+```
+
+**Keine Zero-Downtime-Deployment derzeit:** `make dashboard` startet den Container neu — kurze Downtime (~5-10s). Für Homelab akzeptabel.
+
+**Rollback:**
+```bash
+# Docker-Tag des letzten funktionierenden Builds
+docker compose up -d garmin-api:previous-tag
+```
+
+### 12.5 Betriebsphase
+
+**Regelmäßige Aufgaben:**
+
+| Frequenz | Aufgabe |
+|---|---|
+| Täglich | Sentry-Dashboard: neue Exceptions? |
+| Wöchentlich | UptimeRobot-Report: Ausfälle? |
+| Monatlich | Renovate-PRs mergen (Major-Updates nach Review) |
+| Monatlich | Backup-Restore-Test (Dump in Test-Container einspielen) |
+| Quartalsweise | pip-audit manuell laufen lassen, Dependencies prüfen |
+| Jährlich | ASVS-Review: Hat sich die Bedrohungslage verändert? |
+
+---
+
+## 13. Security Testing
+
+### 13.1 Was wird automatisch getestet?
+
+| Test-Art | Tool | Was wird geprüft |
+|---|---|---|
+| Unit Tests (Auth) | pytest | Login/Lockout/Rate-Limit/E-Mail-Verifikation/Password-Reset — alle mit ~100% Coverage |
+| E2E Smoke Tests | Playwright | Login-Flow, geschützte Routen erfordern Auth, CSRF-Token vorhanden |
+| SAST | bandit + semgrep | Bekannte unsichere Python-Patterns |
+| SCA | pip-audit | CVEs in Dependencies |
+| Image-Scan | Trivy | CVEs in OS-Packages und Python-Paketen im Container |
+
+### 13.2 Was wird nicht automatisch getestet?
+
+| Lücke | Risiko | Mitigation |
+|---|---|---|
+| Manuelle Penetration | IDOR, Logic-Bugs | App-Eval mit ASVS-Fokus (dieser Report) |
+| DAST (Dynamic Scanning) | Laufzeit-Injection | Kein OWASP ZAP in CI — zu aufwändig für Homelab |
+| Fuzzing | Unerwartete Inputs | Pydantic-Validierung als Ersatz |
+| E2E CSRF-Test | CSRF-Bypass | Manueller Test ausreichend |
+| `POST /account/delete` E2E | Fehler bei Löschung | **Offen (M-30)** |
+
+### 13.3 Manueller Security-Test-Prozess
+
+Für signifikante neue Features oder nach größeren Refactorings:
+
+```bash
+# 1. OWASP ZAP Baseline Scan (lokal, einmalig)
+docker run -t owasp/zap2docker-stable zap-baseline.py \
+  -t https://garmin.home.lab -r zap-report.html
+
+# 2. Auth-Flow testen
+# - Login mit falschen Credentials → 401, kein Timing-Leak?
+# - 5x falsch → Lockout? E-Mail-Benachrichtigung?
+# - Reset-Token nach Verwendung ungültig?
+
+# 3. CSRF testen
+# - POST /garmin/link ohne csrf_token → 403?
+# - POST /account/delete von anderer Domain → geblockt?
+
+# 4. IDOR testen
+# - Als User A einloggen, Activity-ID eines User B abfragen → 404?
+```
+
+---
+
+## 14. Incident Response
+
+### 14.1 Erkennung
+
+Sentry meldet Exceptions in Echtzeit. Folgende Events sollten sofortige Untersuchung auslösen:
+
+- Ungewöhnlich viele `auth.login.fail`-Einträge (Brute-Force-Versuch)
+- Unerwartete `500`-Fehler auf Auth-Endpunkten
+- Sentry: `KeyError` oder `PermissionError` in db-Layer (möglicher IDOR-Versuch)
+- UptimeRobot: Downtime-Alert
+
+### 14.2 Sofortmaßnahmen
+
+**Bei kompromittierter Session (Cookie-Theft/XSS):**
+```bash
+# SESSION_SECRET rotieren → alle Sessions sofort ungültig
+make gen-secrets   # Neues Secret in env/.env.api
+make dashboard     # Container neu starten
+```
+
+**Bei Verdacht auf kompromittierte Garmin/LibreLink-Credentials:**
+```bash
+# Betroffene User-IDs identifizieren
+make db
+# Im psql:
+SELECT user_id, service, updated_at FROM user_tokens WHERE updated_at > NOW() - INTERVAL '24h';
+# Betroffene Tokens löschen → User werden aufgefordert neu zu verknüpfen
+DELETE FROM user_tokens WHERE user_id = <id>;
+```
+
+**Bei Verdacht auf Daten-Breach:**
+1. App offline nehmen: `traefik.enable=false` setzen → `make dashboard`
+2. Logs sichern: `docker logs garmin-api > incident_$(date +%Y%m%d).log`
+3. Audit-Log durchsuchen: Welche User-IDs, welche Endpunkte, welche IPs?
+4. DSGVO-Meldepflicht prüfen: Bei Art. 9-Daten (Gesundheitsdaten) → Meldung an Datenschutzbehörde innerhalb 72h
+
+### 14.3 Post-Incident
+
+- Root Cause Analysis dokumentieren
+- Finding in `app-eval-report.md` ergänzen
+- Wenn anwendbar: neuen Test schreiben der den Angriffspfad abdeckt
+- Security-Kontrollen anpassen
+
+---
+
+## 15. DSGVO — Technische Umsetzung der Betroffenenrechte
+
+| Recht | Endpunkt | Status | Anmerkung |
+|---|---|---|---|
+| Auskunft (Art. 15) | `GET /account/export` | ✅ | JSON-Download aller Daten außer `password_hash` |
+| Löschung (Art. 17) | `POST /account/delete` | ✅ | E-Mail + Passwort als Bestätigung, atomar in TX |
+| Datenportabilität (Art. 20) | `GET /account/export` | ✅ | Maschinenlesbares JSON-Format |
+| Einwilligung (Art. 7, 9) | `/register` | ✅ | 3 Checkboxen (Gesundheitsdaten, AGB, Alter ≥16) + Audit-Log |
+| Widerruf | Konto-Löschung = impliziter Widerruf | ✅ | Alle Daten inkl. user_consents werden gelöscht |
+
+**Wichtig:** Die Consent-Audit-Logs (`user_consents`) werden bei Konto-Löschung mitgelöscht — das ist DSGVO-konform, da der Zweck (Nachweis der Einwilligung) nach Löschung entfällt.
+
+---
+
+## Anhang: ASVS-Coverage-Übersicht
+
+Prüfrahmen: OWASP Application Security Verification Standard 5.0, Level 2.
+
+| ASVS Chapter | Status | Offene Punkte |
+|---|---|---|
+| V2 Authentication | ✅ | — |
+| V3 Session Management | ✅ | — |
+| V4 Access Control | ✅ | — |
+| V5 Validation & Encoding | ✅ | M-09: SELECT * ohne LIMIT (Memory-Risk) |
+| V7 Error Handling & Logging | 🟡 | Audit-Log noch nicht vollständig (3.5) |
+| V8 Data Protection | ✅ | — |
+| V9 Communication | ✅ | — |
+| V13 API & Web Service | 🟡 | M-20: Traffic/Saturation nicht messbar |
+| V14 Configuration | ✅ | — |
