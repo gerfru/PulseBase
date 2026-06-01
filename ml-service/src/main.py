@@ -168,7 +168,7 @@ async def main() -> None:
         import sentry_sdk
 
         sentry_sdk.init(
-            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.0
+            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.1
         )
         logger.info("sentry.initialized")
 
