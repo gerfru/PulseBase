@@ -45,7 +45,7 @@ services:
     ports:
       - "8001:8000"
     env_file:
-      - env/.env
+      - env/.env.app
       - env/.env.api
     environment:
       DB_HOST: db-test

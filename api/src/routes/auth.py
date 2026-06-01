@@ -144,7 +144,9 @@ async def _send_verify_email(to_email: str, token: str) -> bool:
 
 @router.get("/login")
 async def login_form(request: Request) -> Response:
-    return templates.TemplateResponse(request, "login.html")
+    return templates.TemplateResponse(
+        request, "login.html", {"csrf_token": generate_csrf_token(request)}
+    )
 
 
 @router.post("/login")
@@ -153,7 +155,15 @@ async def login(
     request: Request,
     email: str = Form(),
     password: str = Form(),
+    csrf_token: str | None = Form(default=None),
 ) -> Response:
+    if not verify_csrf_token(request, csrf_token):
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "Ungültige Anfrage.", "csrf_token": generate_csrf_token(request)},
+            status_code=400,
+        )
     user = await get_user_by_email(email)
 
     if (
@@ -177,7 +187,8 @@ async def login(
             request,
             "login.html",
             {
-                "error": f"Account gesperrt. Bitte in {remaining} Minuten erneut versuchen."
+                "error": f"Account gesperrt. Bitte in {remaining} Minuten erneut versuchen.",
+                "csrf_token": generate_csrf_token(request),
             },
             status_code=400,
         )
@@ -201,7 +212,10 @@ async def login(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "E-Mail oder Passwort falsch."},
+            {
+                "error": "E-Mail oder Passwort falsch.",
+                "csrf_token": generate_csrf_token(request),
+            },
             status_code=400,
         )
 
@@ -218,6 +232,7 @@ async def login(
             {
                 "error": "Bitte bestätige zuerst deine E-Mail-Adresse.",
                 "show_resend": True,
+                "csrf_token": generate_csrf_token(request),
             },
             status_code=400,
         )
@@ -231,13 +246,18 @@ async def login(
 
 def _register_error(request: Request, msg: str) -> Response:
     return templates.TemplateResponse(
-        request, "register.html", {"error": msg}, status_code=400
+        request,
+        "register.html",
+        {"error": msg, "csrf_token": generate_csrf_token(request)},
+        status_code=400,
     )
 
 
 @router.get("/register")
 async def register_form(request: Request) -> Response:
-    return templates.TemplateResponse(request, "register.html")
+    return templates.TemplateResponse(
+        request, "register.html", {"csrf_token": generate_csrf_token(request)}
+    )
 
 
 @router.post("/register")
@@ -251,7 +271,10 @@ async def register(
     consent_health: str = Form(default=""),
     consent_terms: str = Form(default=""),
     consent_age: str = Form(default=""),
+    csrf_token: str | None = Form(default=None),
 ) -> Response:
+    if not verify_csrf_token(request, csrf_token):
+        return _register_error(request, "Ungültige Anfrage.")
     if not consent_health:
         return _register_error(
             request, "Bitte stimme der Verarbeitung deiner Gesundheitsdaten zu."
