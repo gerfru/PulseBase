@@ -158,10 +158,21 @@ test-e2e: ## Playwright E2E — alles automatisch, Stack wird auch bei Fehler ge
 	  ( cd api && TEST_EMAIL=$(TEST_EMAIL) TEST_PASSWORD=$(TEST_PASSWORD) .venv/bin/pytest tests/e2e/ -v ); \
 	  EXIT=$$?; $(MAKE) test-env-down; exit $$EXIT
 
-test-coverage: ## Coverage-Report (Terminal + HTML unter api/htmlcov/index.html)
+test-coverage: ## Coverage-Report aller 3 Services (Terminal + HTML unter */htmlcov/index.html)
+	@echo "── api ─────────────────────────────────────────────────────────"
 	cd api && .venv/bin/pytest tests/ --ignore=tests/e2e \
 	  --cov=src --cov-report=term-missing --cov-report=html:htmlcov
-	@echo "→ open api/htmlcov/index.html"
+	@echo "── sync-service ─────────────────────────────────────────────────"
+	cd sync-service && .venv/bin/pytest tests/ \
+	  --cov=src --cov-report=term-missing --cov-report=html:htmlcov
+	@echo "── ml-service ───────────────────────────────────────────────────"
+	cd ml-service && .venv/bin/pytest tests/ \
+	  --cov=src --cov-report=term-missing --cov-report=html:htmlcov
+	@echo ""
+	@echo "HTML-Reports:"
+	@echo "  → open api/htmlcov/index.html"
+	@echo "  → open sync-service/htmlcov/index.html"
+	@echo "  → open ml-service/htmlcov/index.html"
 
 test-js: ## JS Unit Tests (Vitest)
 	cd api && npm test

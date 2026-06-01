@@ -65,3 +65,11 @@ class TestMapLibreReading:
     def test_trend_int_passed_through(self):
         result = map_reading(_make_reading(trend=5), user_id=1)
         assert result["trend"] == 5
+
+    def test_trend_arrow_none_maps_to_none(self):
+        result = map_reading(_make_reading(trend=None), user_id=1)
+        assert result["trend"] is None
+
+    def test_value_mgdl_none_maps_to_none(self):
+        result = map_reading(_make_reading(value_mgdl=None), user_id=1)
+        assert result["value_mgdl"] is None
