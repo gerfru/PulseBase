@@ -245,3 +245,35 @@ async def test_ml_status_authenticated(client):
         r = await client.get("/api/ml-status")
     assert r.status_code == 200
     assert "pending" in r.json()
+
+
+# ── SeizureBody Validierung ───────────────────────────────────────────────────
+
+
+async def test_seizure_notes_too_long_rejected(client):
+    """POST /api/seizures with notes > 2000 chars must return 422."""
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.post(
+            "/api/seizures",
+            json={
+                "occurred_at": "2026-01-01T10:00:00Z",
+                "notes": "x" * 2001,
+            },
+        )
+    assert r.status_code == 422
+
+
+async def test_seizure_notes_at_limit_accepted(client):
+    """POST /api/seizures with notes == 2000 chars must succeed."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.save_seizure", AsyncMock(return_value=1)),
+    ):
+        r = await client.post(
+            "/api/seizures",
+            json={
+                "occurred_at": "2026-01-01T10:00:00Z",
+                "notes": "x" * 2000,
+            },
+        )
+    assert r.status_code == 200

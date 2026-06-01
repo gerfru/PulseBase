@@ -1,4 +1,5 @@
 import asyncio
+import signal
 from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
@@ -637,6 +638,9 @@ async def main() -> None:
     scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", infer_hour=settings.ml_infer_hour)
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=False))
 
     try:
         await asyncio.Event().wait()

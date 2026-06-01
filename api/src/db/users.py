@@ -260,22 +260,22 @@ async def save_consent(
     user_id: int,
     consent_type: str,
     accepted: bool,
-    ip_address: str | None,
+    ip_address_hash: str | None,
     policy_version: str = "v1.0",
 ) -> None:
     pool = await get_pool()
     await pool.execute(
         """
         INSERT INTO user_consents
-            (user_id, consent_type, accepted, ip_address, privacy_policy_version)
-        VALUES ($1, $2, $3, $4::inet, $5)
+            (user_id, consent_type, accepted, ip_address_hash, privacy_policy_version)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (user_id, consent_type) DO UPDATE
-            SET accepted = $3, timestamp = NOW(), ip_address = $4::inet
+            SET accepted = $3, timestamp = NOW(), ip_address_hash = $4
         """,
         user_id,
         consent_type,
         accepted,
-        ip_address,
+        ip_address_hash,
         policy_version,
     )
 

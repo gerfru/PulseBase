@@ -891,3 +891,46 @@ def test_running_economy_uses_up_to_5_recent():
     ] * 10
     result = compute_running_economy(activities)
     assert result["n_activities"] == 5
+
+
+# ── DB: get_today_daily_summary ──────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_today_daily_summary_returns_none_when_no_today_data():
+    """get_today_daily_summary must return None when no row exists for today."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    from db import get_today_daily_summary
+
+    mock_pool = MagicMock()
+    mock_pool.fetchrow = AsyncMock(return_value=None)
+
+    with patch("db.get_pool", AsyncMock(return_value=mock_pool)):
+        with patch("db._pool_or_raise", return_value=mock_pool):
+            result = await get_today_daily_summary(user_id=1)
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_today_daily_summary_returns_todays_row():
+    """get_today_daily_summary returns dict when today's row is present."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from db import get_today_daily_summary
+
+    fake_row = {"avg_stress": 30.0, "body_battery_high": 80, "body_battery_low": 40}
+    mock_pool = MagicMock()
+    mock_pool.fetchrow = AsyncMock(return_value=fake_row)
+
+    with patch("db._pool_or_raise", return_value=mock_pool):
+        result = await get_today_daily_summary(user_id=1)
+
+    assert result is not None
+    assert result["avg_stress"] == 30.0
+    # Verify that CURRENT_DATE filter was used (query arg = only user_id, no date arg)
+    call_args = mock_pool.fetchrow.call_args
+    assert call_args[0][1] == 1  # $1 = user_id
+    assert len(call_args[0]) == 2  # only query + user_id, no extra date arg

@@ -9,7 +9,7 @@ from fastapi.responses import RedirectResponse
 import src.deps as _deps
 from src.crypto import fernet_encrypt
 from src.db import save_user_token, set_libre_linked, set_libre_unlinked
-from src.deps import _ip_hash
+from src.deps import _ip_hash, limiter
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -22,6 +22,7 @@ async def libre_link_form(request: Request):
 
 
 @router.post("/libre/link")
+@limiter.limit("5/hour")
 async def libre_link(
     request: Request,
     libre_email: str = Form(),

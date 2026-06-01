@@ -117,9 +117,21 @@ class TestUpsertTrainingStatus:
         repo, conn = mock_repo
         await repo.upsert_training_status(1, date(2026, 5, 1), "PRODUCTIVE")
         args = conn.execute.call_args.args
-        assert "PRODUCTIVE" in args
-        assert 1 in args
-        assert date(2026, 5, 1) in args
+        # args[0] = query string, args[1] = $1=user_id, args[2] = $2=day, args[3] = $3=status
+        assert args[1] == 1
+        assert args[2] == date(2026, 5, 1)
+        assert args[3] == "PRODUCTIVE"
+
+    async def test_param_order_matches_query_placeholders(self, mock_repo):
+        """$1=user_id, $2=date, $3=status must match argument order."""
+        repo, conn = mock_repo
+        await repo.upsert_training_status(42, date(2026, 1, 15), "RECOVERY")
+        args = conn.execute.call_args.args
+        query: str = args[0]
+        assert "VALUES ($1, $2, $3)" in query
+        assert args[1] == 42  # $1 = user_id
+        assert args[2] == date(2026, 1, 15)  # $2 = date
+        assert args[3] == "RECOVERY"  # $3 = status
 
 
 # ── Sleep ─────────────────────────────────────────────────────────────────────

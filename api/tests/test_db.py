@@ -1150,11 +1150,23 @@ async def test_save_consent_executes_upsert():
 
     pool = _pool_mock()
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
-        await save_consent(1, "health_data", True, "127.0.0.1")
+        await save_consent(1, "health_data", True, "test-ip-hash")
     pool.execute.assert_awaited_once()
     sql = pool.execute.call_args[0][0]
     assert "user_consents" in sql
     assert "ON CONFLICT" in sql
+
+
+async def test_save_consent_uses_ip_address_hash_column():
+    """ip_address_hash column name must be used (not ip_address)."""
+    from src.db.users import save_consent
+
+    pool = _pool_mock()
+    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+        await save_consent(1, "terms", True, "test-ip-hash")
+    sql = pool.execute.call_args[0][0]
+    assert "ip_address_hash" in sql
+    assert "::inet" not in sql  # must not cast as INET (raw hash is TEXT)
 
 
 async def test_delete_user_removes_token_dir_when_exists():
