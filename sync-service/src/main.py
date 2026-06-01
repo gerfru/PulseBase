@@ -301,7 +301,7 @@ async def main() -> None:
     scheduler.start()
     logger.info("scheduler.started", sync_hour=settings.sync_hour)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=False))
 
     await asyncio.Event().wait()

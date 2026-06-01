@@ -6,6 +6,8 @@ import resend as resend_client
 import resend.exceptions as resend_exc
 import structlog
 from fastapi import APIRouter, Form, Request
+from pydantic import TypeAdapter, ValidationError
+from pydantic.networks import EmailStr
 from fastapi.responses import RedirectResponse
 from starlette.responses import Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -263,6 +265,15 @@ async def register(
             status_code=400,
         )
     email = email.lower().strip()
+    try:
+        TypeAdapter(EmailStr).validate_python(email)
+    except ValidationError:
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": "Bitte gib eine gültige E-Mail-Adresse ein."},
+            status_code=400,
+        )
     if not (1 <= len(name.strip()) <= 100):
         return templates.TemplateResponse(
             request,
@@ -295,10 +306,10 @@ async def register(
             {"error": "Diese E-Mail ist bereits registriert."},
             status_code=400,
         )
-    ip = request.client.host if request.client else None
-    await save_consent(user["id"], "health_data", True, ip)
-    await save_consent(user["id"], "terms", True, ip)
-    await save_consent(user["id"], "age_16plus", True, ip)
+    ip_hash = _ip_hash(request)
+    await save_consent(user["id"], "health_data", True, ip_hash)
+    await save_consent(user["id"], "terms", True, ip_hash)
+    await save_consent(user["id"], "age_16plus", True, ip_hash)
     logger.info("auth.register.success", user_id=user["id"], ip_hash=_ip_hash(request))
     token = _make_verify_token(user["id"])
     sent = await _send_verify_email(email, token)
