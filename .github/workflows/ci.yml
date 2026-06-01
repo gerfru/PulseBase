@@ -119,29 +119,29 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Build api image
-        run: docker build -t garmin-api:ci api/
+        run: docker build -t pulsebase-api:ci api/
       - name: Scan api
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: garmin-api:ci
+          image-ref: pulsebase-api:ci
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
       - name: Build sync image
-        run: docker build -t garmin-sync:ci sync-service/
+        run: docker build -t pulsebase-sync:ci sync-service/
       - name: Scan sync
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: garmin-sync:ci
+          image-ref: pulsebase-sync:ci
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
       - name: Build ml image
-        run: docker build -t garmin-ml:ci ml-service/
+        run: docker build -t pulsebase-ml:ci ml-service/
       - name: Scan ml
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: garmin-ml:ci
+          image-ref: pulsebase-ml:ci
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true

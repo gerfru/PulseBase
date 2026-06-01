@@ -170,7 +170,7 @@ Konfiguration in `env/.env.api`:
 ```bash
 RESEND_API_KEY=re_...          # leer lassen = Reset-Link nur im Log (kein Mailversand)
 RESEND_FROM_EMAIL=onboarding@resend.dev
-APP_BASE_URL=https://garmin.home.lab
+APP_BASE_URL=https://your-domain.com
 ```
 
 ### 3.2 Per-Service Secrets Isolation ✅
@@ -189,8 +189,8 @@ Dateiberechtigungen: `make secure-env` setzt `chmod 600` auf alle Secret-Files.
 
 Verifikation:
 ```bash
-docker exec garmin-sync env | grep SESSION_SECRET   # → leer
-docker exec garmin-api env | grep SESSION_SECRET    # → vorhanden
+docker exec pulsebase-sync env | grep SESSION_SECRET   # → leer
+docker exec pulsebase-api env | grep SESSION_SECRET    # → vorhanden
 ```
 
 ### 3.3 E-Mail-Verifikation bei Registrierung ✅
@@ -320,7 +320,7 @@ BACKUP_DIR="/opt/pulsebase/backups"
 mkdir -p "$BACKUP_DIR"
 
 # PostgreSQL-Dump
-docker exec garmin-db pg_dump -U garmin garmin | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
+docker exec pulsebase-db pg_dump -U garmin garmin | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
 
 # Offsite-Upload (Backblaze B2, rclone konfigurieren: rclone config → b2)
 rclone copy "$BACKUP_DIR" b2:pulsebase-backups --include "*$DATE*"
@@ -371,7 +371,7 @@ Version aus den Datenbankdateien und startet nicht, wenn die neue Image-Version 
 Ablauf für ein TimescaleDB-Minor-Upgrade (z.B. 2.26.4 → 2.27.x):
 ```bash
 # 1. Backup machen (Pflicht!)
-make backup   # oder manuell: docker exec garmin-db pg_dump -U garmin garmin | gzip > backup.sql.gz
+make backup   # oder manuell: docker exec pulsebase-db pg_dump -U garmin garmin | gzip > backup.sql.gz
 
 # 2. Image in docker-compose.yml auf neue Version + Digest updaten
 
@@ -395,7 +395,7 @@ nie nur das Image tauschen.
 | **Isolieren** | Traefik-Label `traefik.enable=false` setzen → `make dashboard` |
 | **Sessions invalidieren** | `SESSION_SECRET` rotieren → `make dashboard` (alle Logins sofort ungültig) |
 | **Passwörter** | Alle User per Mail informieren, Reset-Links senden |
-| **Logs sichern** | `docker logs garmin-api > incident_$(date +%Y%m%d).log` bevor Container neu gestartet |
+| **Logs sichern** | `docker logs pulsebase-api > incident_$(date +%Y%m%d).log` bevor Container neu gestartet |
 | **Analyse** | Logs + Audit-Log auf ungewöhnliche Events durchsuchen |
 
 ---

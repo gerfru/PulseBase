@@ -39,24 +39,24 @@ Two levels — pick what you need:
 
 ## Quickstart
 
-Requires [homelab-gateway](https://github.com/gerfru/homelab-gateway) running for `garmin.home.lab` DNS + HTTPS.
-
 ```bash
-cp env/.env.example env/.env          # fill in DB credentials
-cp env/.env.api.example env/.env.api  # fill in SESSION_SECRET (make gen-secrets)
+cp env/.env.example env/.env          # fill in DB credentials + HOST_IP=your-domain.com
+cp env/.env.api.example env/.env.api  # fill in SESSION_SECRET (make gen-secrets) + APP_BASE_URL
 cp env/.env.sync.example env/.env.sync
 cp env/.env.ml.example env/.env.ml
-make up                     # build + start all services
-# → https://garmin.home.lab/register  (accept self-signed cert warning once)
-# → https://garmin.home.lab/garmin/link
+make up                     # build + start all services (requires a reverse proxy on the proxy network)
+# → https://your-domain.com/register
+# → https://your-domain.com/garmin/link
 make sync                   # trigger first sync immediately
-# → https://garmin.home.lab/dashboard
+# → https://your-domain.com/dashboard
 ```
 
-**Standalone (without homelab-gateway):**
+**Standalone (with bundled Traefik, self-signed cert):**
 ```bash
-make up-standalone          # starts with bundled Traefik instead
+make up-standalone          # starts with bundled Traefik — ideal for local/homelab use
 ```
+
+**Homelab with [homelab-gateway](https://github.com/gerfru/homelab-gateway):** use `make up` after starting homelab-gateway.
 
 Full walkthrough: [docs/setup.md](docs/setup.md)
 

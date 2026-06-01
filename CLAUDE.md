@@ -93,7 +93,7 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 ## Stack
 
 FastAPI · TimescaleDB (PostgreSQL 16) · Docker Compose · Chart.js · scikit-learn
-Zugriff: `https://garmin.home.lab` (via homelab-gateway) oder `make up-standalone` mit Traefik
+Zugriff: `https://<APP_BASE_URL>` — eigener Reverse Proxy (homelab-gateway) oder `make up-standalone` mit Traefik
 
 ## Entwicklungs-Workflow
 
@@ -330,7 +330,7 @@ DB_USER=garmin
 DB_PASSWORD=
 DB_APP_USER=garmin_app
 DB_APP_PASSWORD=
-HOST_IP=garmin.home.lab
+HOST_IP=your-domain.com
 ```
 
 **`env/.env.api`** — nur API:
@@ -341,7 +341,7 @@ TRIMP_LOOKBACK_DAYS=7
 TRIMP_FORECAST_DAYS=7
 RESEND_API_KEY=     # optional — leer = Reset-Link nur im Log
 RESEND_FROM_EMAIL=onboarding@resend.dev
-APP_BASE_URL=https://garmin.home.lab
+APP_BASE_URL=https://your-domain.com
 ```
 
 **`env/.env.sync`** — nur sync-service:
@@ -363,10 +363,10 @@ ML_INFER_HOUR=7
 Routes importieren direkt aus `api/src/db/`. Eine dedizierte `api/src/services/`-Schicht fehlt.
 Begründung: Solo-Projekt, Komplexität rechtfertigt Schicht nicht. Bei Wachstum (>3 Entwickler, komplexe Business-Logik) einführen.
 
-### ARCH-M3: Traefik nutzt self-signed TLS (kein ACME/Let's Encrypt)
+### ARCH-M3: Traefik (standalone) nutzt self-signed TLS (kein ACME/Let's Encrypt)
 
 `traefik/traefik.yml` hat kein `certificatesResolvers`. Traefik fällt auf selbst-signiertes Zertifikat zurück.
-Begründung: Bewusste Homelab-Ausnahme. `garmin.home.lab` ist nur im internen LAN erreichbar; ACME-DNS-Challenge würde öffentliche Domain oder Split-DNS erfordern. Risiko intern akzeptabel.
+Für lokalen/internen Betrieb akzeptabel. Für öffentliches Deployment: `certificatesResolvers` mit ACME (HTTP-01 oder DNS-01) in `traefik/traefik.yml` ergänzen, oder eigenen Reverse Proxy (Caddy, nginx) mit automatischem HTTPS vorschalten.
 
 ### CICD-M3: Branch Protection nicht erzwingbar (privates Repo, Gratis-Plan)
 
@@ -390,7 +390,7 @@ Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-
 ### OBS-L1: Kein externes Uptime-Monitoring
 
 Kein UptimeRobot oder ähnliches konfiguriert. Internes Docker-Healthcheck ist vorhanden (`/health`, `/ready`).
-Reminder: `https://garmin.home.lab/health` als Monitor-URL bei UptimeRobot konfigurieren.
+Reminder: `https://<APP_BASE_URL>/health` als Monitor-URL bei UptimeRobot konfigurieren.
 
 ### TEST-L1: Mock-Qualität für `require_user` in Route-Tests
 
