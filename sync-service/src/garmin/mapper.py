@@ -1,6 +1,7 @@
-import logging
 from datetime import datetime, date, timezone
 from typing import Any
+
+import structlog
 
 from domain.models import (
     Activity,
@@ -11,7 +12,7 @@ from domain.models import (
     SportType,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _SPORT_TYPE_MAP = {s.value for s in SportType}
 

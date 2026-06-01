@@ -71,26 +71,10 @@ from models.spo2_metrics import compute_spo2_trend
 from models.stress_metrics import compute_stress_score
 from models.training_effect import compute_banister_trimp, compute_training_effect_today
 from models.training_load import compute_acwr, compute_training_monotony
+from models.trimp import compute_trimp
 
 configure_logging()
 logger = structlog.get_logger(__name__)
-
-
-_DEFAULT_RHR = 60.0
-
-
-def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -> float:
-    """TRIMP for a given date using HRF² formula; returns 0 when data is missing."""
-    rows = [r for r in act_rows if r.get("activity_date") == target]
-    if not rows or not rows[0].get("avg_hr") or not rows[0].get("duration_seconds"):
-        return 0.0
-    row = rows[0]
-    rhr = row.get("resting_hr") or _DEFAULT_RHR
-    denom = hrmax - rhr
-    if denom <= 0:
-        return 0.0
-    hfr = max(0.0, (row["avg_hr"] - rhr) / denom)
-    return (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
 
 
 async def _run_anomaly_for(
@@ -426,7 +410,9 @@ async def _run_body_battery_and_stress(
         last_night_rem,
         hrv_last,
         hrv_baseline,
-        _compute_trimp(act_rows, hrmax, today),
+        compute_trimp(
+            next((r for r in act_rows if r.get("activity_date") == today), {}), hrmax
+        ),
         daily_today.get("avg_stress") if daily_today else None,
     )
     if bb_result.get("score") is not None:
