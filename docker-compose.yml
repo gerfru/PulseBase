@@ -2,7 +2,7 @@ services:
 
   db:
     image: timescale/timescaledb:2.27.1-pg16@sha256:87f39af0a38cb42e4add367d9dfad2087a53fe5c9b24b5bc0dc66bd204b0665f
-    container_name: garmin-db
+    container_name: pulsebase-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: garmin
@@ -32,7 +32,7 @@ services:
 
   flyway:
     image: flyway/flyway:11@sha256:782c5c207ffb5ac6336139fda4f4295bd9991ef63ad36919406d4268740069bb
-    container_name: garmin-flyway
+    container_name: pulsebase-flyway
     command: migrate
     volumes:
       - ./db/migrations:/flyway/sql
@@ -62,7 +62,7 @@ services:
 
   traefik:
     image: traefik:v3.3.4@sha256:cc11989f418e2cfe5e60fc40c92c1813be847f58eda15eced7d5ac890255ad9e
-    container_name: garmin-traefik
+    container_name: pulsebase-traefik
     restart: unless-stopped
     profiles:
       - standalone
@@ -87,7 +87,7 @@ services:
 
   api:
     build: ./api
-    container_name: garmin-api
+    container_name: pulsebase-api
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -128,7 +128,7 @@ services:
 
   sync-service:
     build: ./sync-service
-    container_name: garmin-sync
+    container_name: pulsebase-sync
     restart: unless-stopped
     depends_on:
       flyway:
@@ -161,7 +161,7 @@ services:
 
   ml-service:
     build: ./ml-service
-    container_name: garmin-ml
+    container_name: pulsebase-ml
     restart: unless-stopped
     stop_grace_period: 60s
     depends_on:

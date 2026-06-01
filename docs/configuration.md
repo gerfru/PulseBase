@@ -50,7 +50,7 @@ python3 -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).dec
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
-| `HOST_IP` | string | — | `garmin.home.lab` | Hostname (wird in `docker-compose.yml` als Traefik-Rule verwendet) |
+| `HOST_IP` | string | — | `your-domain.com` | Hostname/Domain (wird in `docker-compose.yml` als Traefik-Rule verwendet) |
 
 ---
 
@@ -86,7 +86,7 @@ python3 -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).dec
 |----------|-----|---------|---------|--------------|
 | `RESEND_API_KEY` | string | — | `""` | API-Key von [resend.com](https://resend.com). Leer = kein Mail-Versand, Reset-Link erscheint nur im Log. |
 | `RESEND_FROM_EMAIL` | string | — | `onboarding@resend.dev` | Absender-Adresse. Eigene Domain nach Verifizierung in Resend eintragen. |
-| `APP_BASE_URL` | string | — | `https://garmin.home.lab` | Basis-URL für Links in Reset-Mails. Muss öffentlich erreichbar sein. |
+| `APP_BASE_URL` | string | — | `https://your-domain.com` | Basis-URL für Links in Reset-Mails. Muss öffentlich erreichbar sein. |
 
 ### Error Tracking
 

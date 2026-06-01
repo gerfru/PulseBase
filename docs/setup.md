@@ -5,7 +5,7 @@
 - Docker + Docker Compose
 - `make`
 - A Garmin Connect account
-- [homelab-gateway](https://github.com/gerfru/homelab-gateway) running (for `garmin.home.lab` access)
+- [homelab-gateway](https://github.com/gerfru/homelab-gateway) running (optional, for homelab proxy setup)
 
 > **Standalone (no homelab-gateway):** Use `make up-standalone` — starts Traefik alongside
 > PulseBase. Suitable for Windows/WSL or any machine without homelab-gateway.
@@ -30,7 +30,7 @@ DB_USER=garmin
 DB_PASSWORD=<strong password>
 DB_APP_USER=garmin_app
 DB_APP_PASSWORD=<strong password>
-HOST_IP=garmin.home.lab
+HOST_IP=your-domain.com
 ```
 
 Edit `env/.env.sync`:
@@ -75,14 +75,14 @@ make logs
 ```
 
 > **Standalone (without homelab-gateway):** Use `make up-standalone` instead.
-> This starts Traefik for HTTPS. Open `https://garmin.home.lab` and accept the
+> This starts Traefik for HTTPS. Open `https://your-domain.com` and accept the
 > self-signed certificate warning once.
 
 ---
 
 ## 4. Register your account
 
-Open `https://garmin.home.lab/register` in a browser.
+Open `https://your-domain.com/register` in a browser.
 
 The browser will show a certificate warning (self-signed cert from Caddy) — accept it
 once and it won't appear again for this subdomain.
@@ -105,7 +105,7 @@ the email service is not configured).
 **If `RESEND_API_KEY` is not set (local/homelab):** The token is printed to the API log.
 Copy the token from `make logs-dashboard` and open:
 ```
-https://garmin.home.lab/auth/verify/<token>
+https://your-domain.com/auth/verify/<token>
 ```
 
 If the link expires (24h TTL) or never arrived, use `/auth/resend-verify` to request a new one.
@@ -114,7 +114,7 @@ If the link expires (24h TTL) or never arrived, use `/auth/resend-verify` to req
 
 ## 7. Link Garmin
 
-Go to `https://garmin.home.lab/garmin/link` (or click the link on the dashboard).
+Go to `https://your-domain.com/garmin/link` (or click the link on the dashboard).
 
 Enter your Garmin Connect email and password. The password is used once to fetch a
 session token and then deleted from memory — it is never stored anywhere.
@@ -134,7 +134,7 @@ days for all linked users. Watch progress with:
 make logs-sync
 ```
 
-After sync completes, go to `https://garmin.home.lab/dashboard`.
+After sync completes, go to `https://your-domain.com/dashboard`.
 
 ---
 
@@ -169,7 +169,7 @@ No manual action needed after initial setup.
 
 ## Adding a second user
 
-1. Open `https://garmin.home.lab/register` in a browser (or incognito window)
+1. Open `https://your-domain.com/register` in a browser (or incognito window)
 2. Register the new account
 3. Verify the email (see Step 5 above)
 4. Log in and go to `/garmin/link`
