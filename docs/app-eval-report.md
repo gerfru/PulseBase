@@ -18,14 +18,14 @@
 | 2026-06-01 | Wave 2 — CSRF + Reset-Token-Invalidierung | H-01, M-06 gefixt |
 | 2026-06-01 | Wave 3 — CI/CD-Härtung | H-06, M-15–18, L-14–16 gefixt |
 | 2026-06-01 | Wave 4 — Code-Qualität | M-07–09, M-11–12, L-06–10, L-17–19 gefixt |
+| 2026-06-01 | Wave 5 — ML Restrukturierung | M-10 gefixt |
 
 ---
 
-## Achsen-Übersicht (Stand: nach Wave 2)
+## Achsen-Übersicht (Stand: nach Wave 5)
 
-| Achse | Eval 1 | Eval 2 | Nach Wave 1 | Nach Wave 2 | Noch offen |
-|---|---|---|---|---|---|
-| Achse | Eval 1 | Eval 2 | Nach Wave 1 | Nach Wave 2 | Nach Wave 4 | Noch offen |
+| Achse | Eval 1 | Eval 2 | Nach Wave 1 | Nach Wave 2 | Nach Wave 5 | Noch offen |
+|---|---|---|---|---|---|---|
 | Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | L-01/02/03/04/05 offen |
 | Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | — |
 | Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | — |
@@ -71,7 +71,7 @@
 | M-07 | ✅ | W4 | **Fehlende Return-Type-Annotierungen** in Route-Handlern, Middleware, `_garmin_call` | `api/src/routes/pages.py`, `sync-service/src/main.py:41` | Code-Qualität |
 | M-08 | ✅ | W4 | **stdlib `logging` statt `structlog`** in `ml-service/src/db.py`, `timescale.py`, `mapper.py`, `garmin/client.py` | mehrere | Code-Qualität |
 | M-09 | ✅ | W4 | **`export_user_data` `SELECT *` ohne LIMIT** — Memory-Risk bei mehrjährigen Daten | `api/src/db/users.py:296` | Code-Qualität |
-| M-10 | ❌ | W5 | **`ml-service/src/db.py` (670 Z.) + `main.py` (648 Z.)** überschreiten 400-Zeilen-Schwelle | `ml-service/src/` | Code-Qualität |
+| M-10 | ✅ | W5 | **`ml-service/src/db.py` (670 Z.) + `main.py` (648 Z.)** überschreiten 400-Zeilen-Schwelle | `ml-service/src/` | Code-Qualität |
 | M-11 | ✅ | W4 | **TRIMP-Formel dreifach dupliziert** mit bereits vorhandenen Abweichungen | `ml-service/src/models/trimp.py` (neu) | Code-Qualität |
 | M-12 | ✅ | W4 | **`battery_pattern._assign_pattern_labels` Verschachtelung >4** | `ml-service/src/models/battery_pattern.py:48` | Code-Qualität |
 | M-13 | ✅ | W1 | **`api/pyproject.toml` `[tool.coverage.run]` ohne `source`** | `api/pyproject.toml:41` | Tests |
@@ -139,7 +139,7 @@
 | **W2** (CSRF + Reset) | ✅ H-01, M-06 — erledigt |
 | **W3** (CI/CD) | ✅ H-06, M-15–18, L-14–16 — erledigt |
 | **W4** (Code-Qualität) | ✅ M-07–09, M-11–12, L-06–10, L-17–19 — erledigt |
-| **W5** (ML Restrukturierung) | M-10 |
+| **W5** (ML Restrukturierung) | ✅ M-10 — erledigt |
 | **W6** (Tests) | H-04, H-05, M-14, M-30, M-31, L-12, L-22, L-23 |
 | **W7** (Observability/Docker) | M-20, L-01, L-02, L-03, L-04, L-05, L-20, L-24, L-25 |
 | **W8** (Dokumentation) | L-26 |

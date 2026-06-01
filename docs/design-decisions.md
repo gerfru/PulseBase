@@ -45,7 +45,7 @@ bcrypt.checkpw(password.encode(), hashed.encode())
 
 ## asyncpg directly (no ORM)
 
-All queries are written as prepared statements in `db.py`. No SQLAlchemy, no Tortoise,
+All queries are written as prepared statements in the `db/` layer (`api/src/db/`, `ml-service/src/db/`). No SQLAlchemy, no Tortoise,
 no Prisma. Reasons:
 
 - Full control over SQL (important for time-series queries with TimescaleDB-specific syntax)

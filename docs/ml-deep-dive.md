@@ -1,7 +1,7 @@
 # ML Deep Dive — Technische Dokumentation
 
 Vollständige technische Spezifikation aller ML-Modelle in PulseBase.
-Implementierung: `ml-service/src/models/`, Scheduling: `ml-service/src/main.py`.
+Implementierung: `ml-service/src/models/`, Scheduling + Orchestrierung: `ml-service/src/main.py`, Inferenz-Runner: `inference_anomaly.py` + `inference_models.py`.
 
 Für eine verständliche Erklärung ohne Mathekenntnisse: [eli5.md](eli5.md).
 
@@ -276,7 +276,7 @@ Prediction date = morgen (`date.today() + timedelta(days=1)`).
 
 ## 4. Body Battery K-Means Clustering
 
-**Datei:** `ml-service/src/models/battery_pattern.py` (inferenz in `main.py`)
+**Datei:** `ml-service/src/models/battery_pattern.py` (Runner: `inference_models.py`)
 **Inferenz:** Täglich | **Training:** Wöchentlich (Sonntag 03:00)
 
 ### Feature-Extraktion aus Intraday-Daten
