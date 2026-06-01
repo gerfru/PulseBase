@@ -12,6 +12,7 @@
             {% endif %}
 
             <form method="post" action="/register" class="flex flex-col gap-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
                     <label for="name" class="block text-sm font-medium text-slate-300 mb-1.5">Name</label>
                     <input type="text" id="name" name="name" required autofocus placeholder="z.B. Gerald" autocomplete="name"

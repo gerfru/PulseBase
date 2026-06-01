@@ -1,6 +1,6 @@
 .PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-coverage test-js test-js-coverage secure-env
 
-DC := docker compose --env-file env/.env
+DC := docker compose --env-file env/.env --env-file env/.env.app
 
 # E2E Test-Credentials (lokal, kein echter Account)
 TEST_EMAIL  ?= e2e@pulsebase.test
