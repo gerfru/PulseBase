@@ -229,6 +229,12 @@ async def login(
     return RedirectResponse("/", status_code=303)
 
 
+def _register_error(request: Request, msg: str) -> Response:
+    return templates.TemplateResponse(
+        request, "register.html", {"error": msg}, status_code=400
+    )
+
+
 @router.get("/register")
 async def register_form(request: Request) -> Response:
     return templates.TemplateResponse(request, "register.html")
@@ -247,68 +253,32 @@ async def register(
     consent_age: str = Form(default=""),
 ) -> Response:
     if not consent_health:
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Bitte stimme der Verarbeitung deiner Gesundheitsdaten zu."},
-            status_code=400,
+        return _register_error(
+            request, "Bitte stimme der Verarbeitung deiner Gesundheitsdaten zu."
         )
     if not consent_terms:
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Bitte akzeptiere die Nutzungsbedingungen."},
-            status_code=400,
-        )
+        return _register_error(request, "Bitte akzeptiere die Nutzungsbedingungen.")
     if not consent_age:
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Du musst mindestens 16 Jahre alt sein, um PulseBase zu nutzen."},
-            status_code=400,
+        return _register_error(
+            request, "Du musst mindestens 16 Jahre alt sein, um PulseBase zu nutzen."
         )
     email = email.lower().strip()
     try:
         TypeAdapter(EmailStr).validate_python(email)
     except ValidationError:
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Bitte gib eine gültige E-Mail-Adresse ein."},
-            status_code=400,
-        )
+        return _register_error(request, "Bitte gib eine gültige E-Mail-Adresse ein.")
     if not (1 <= len(name.strip()) <= 100):
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Name muss 1–100 Zeichen haben."},
-            status_code=400,
-        )
+        return _register_error(request, "Name muss 1–100 Zeichen haben.")
     if password != password_confirm:
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Passwörter stimmen nicht überein."},
-            status_code=400,
-        )
+        return _register_error(request, "Passwörter stimmen nicht überein.")
     if len(password) < 12:
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Passwort muss mindestens 12 Zeichen haben."},
-            status_code=400,
-        )
+        return _register_error(request, "Passwort muss mindestens 12 Zeichen haben.")
     try:
         password_hash = hash_password(password)
         user = await create_user(name, email, password_hash)
     except asyncpg.UniqueViolationError:
         logger.warning("auth.register.fail", reason="duplicate_email")
-        return templates.TemplateResponse(
-            request,
-            "register.html",
-            {"error": "Diese E-Mail ist bereits registriert."},
-            status_code=400,
-        )
+        return _register_error(request, "Diese E-Mail ist bereits registriert.")
     ip_hash = _ip_hash(request)
     await save_consent(user["id"], "health_data", True, ip_hash)
     await save_consent(user["id"], "terms", True, ip_hash)
