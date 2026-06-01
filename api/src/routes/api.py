@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from src.evidence_catalog import EVIDENCE
 
@@ -279,7 +279,7 @@ class SeizureBody(BaseModel):
     duration_seconds: int | None = None
     type: str = "unknown"
     severity: int | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000)
 
     @field_validator("type")
     @classmethod

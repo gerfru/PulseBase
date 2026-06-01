@@ -17,7 +17,7 @@ from src.db import (
     set_garmin_linked,
     set_garmin_unlinked,
 )
-from src.deps import _ip_hash
+from src.deps import _ip_hash, limiter
 from src.garmin.client import GarminClient
 
 logger = structlog.get_logger(__name__)
@@ -31,6 +31,7 @@ async def garmin_link_form(request: Request):
 
 
 @router.post("/garmin/link")
+@limiter.limit("5/hour")
 async def garmin_link(
     request: Request,
     garmin_email: str = Form(),

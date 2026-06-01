@@ -189,13 +189,13 @@ class TimescaleRepository(
             await conn.execute(
                 """
                 INSERT INTO daily_summary (user_id, date, training_status)
-                VALUES ($2, $3, $1)
+                VALUES ($1, $2, $3)
                 ON CONFLICT (user_id, date)
                 DO UPDATE SET training_status = EXCLUDED.training_status
                 """,
-                status,
                 user_id,
                 day,
+                status,
             )
 
     # ── Sleep ─────────────────────────────────────────────────────────────────
