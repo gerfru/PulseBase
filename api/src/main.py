@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -48,6 +49,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "img-src 'self' data: https:; "
             "media-src 'self' data:; "
             "connect-src 'self'; "
+            "worker-src 'none'; "
+            "manifest-src 'self'; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
             "form-action 'self'"
@@ -55,13 +58,26 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+_active_requests: int = 0
+_total_requests: int = 0
+_metrics_lock = asyncio.Lock()
+
+
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        global _active_requests, _total_requests
+        async with _metrics_lock:
+            _active_requests += 1
+            _total_requests += 1
         request_id = str(uuid.uuid4())[:8]
         clear_contextvars()
         bind_contextvars(request_id=request_id)
         start = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        finally:
+            async with _metrics_lock:
+                _active_requests -= 1
         duration_ms = round((time.perf_counter() - start) * 1000, 1)
         logger.info(
             "http.request",
@@ -69,6 +85,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
             path=request.url.path,
             status=response.status_code,
             duration_ms=duration_ms,
+            active_requests=_active_requests,
         )
         response.headers["X-Request-ID"] = request_id
         return response
@@ -144,7 +161,11 @@ async def needs_login_handler(request: Request, exc: NeedsLogin):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "active_requests": _active_requests,
+        "total_requests": _total_requests,
+    }
 
 
 @app.get("/ready")
@@ -152,6 +173,11 @@ async def ready():
     try:
         pool = await get_pool()
         await pool.fetchval("SELECT 1")
+        migrations_ok = await pool.fetchval(
+            "SELECT COUNT(*) FROM flyway_schema_history WHERE success = TRUE"
+        )
+        if not migrations_ok:
+            return JSONResponse(status_code=503, content={"status": "no_migrations"})
         return {"status": "ready"}
     except Exception:
         return JSONResponse(status_code=503, content={"status": "unavailable"})

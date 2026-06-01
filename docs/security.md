@@ -242,8 +242,7 @@ Alle HTTP-Responses enthalten diese Headers (gesetzt in `api/src/main.py`):
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Referrer-Leakage |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=()` | Browser-Feature-Missbrauch |
 
-**Offene Punkte (L-05):**
-`worker-src` und `manifest-src` fehlen noch in der CSP. Diese wären für Service Workers und Web App Manifests nötig — PulseBase nutzt beides nicht, aber ein fehlender `worker-src`-Wert bedeutet, dass es auf den `script-src`-Wert fällt.
+**Wave 7 (L-05):** `worker-src 'none'` und `manifest-src 'self'` sind seit Wave 7 in der CSP gesetzt (`api/src/main.py`).
 
 ---
 

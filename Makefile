@@ -49,7 +49,7 @@ logs-sync:
 logs-all:
 	$(DC) logs -f
 
-migrate:
+migrate: network
 	$(DC) up flyway
 
 backfill-energy:
@@ -63,7 +63,7 @@ backfill-battery: ## Force-recompute body_battery_custom with new model (deletes
 status:
 	$(DC) ps
 
-db:
+db: network
 	@export $$(grep -v '^#' env/.env | xargs) 2>/dev/null; \
 	if [ -n "$(SQL)" ]; then \
 		$(DC) exec -T db psql -U $${DB_APP_USER} -d garmin -c "$(SQL)"; \

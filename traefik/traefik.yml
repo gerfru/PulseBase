@@ -16,3 +16,5 @@ providers:
 api:
   dashboard: false
   insecure: false
+
+accessLog: {}
