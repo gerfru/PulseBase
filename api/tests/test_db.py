@@ -1150,12 +1150,7 @@ async def test_save_consent_executes_upsert():
 
     pool = _pool_mock()
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
-        await save_consent(
-            1,
-            "health_data",
-            True,
-            "a1b2c3d4e5f6",  # pragma: allowlist secret
-        )
+        await save_consent(1, "health_data", True, "test-ip-hash")
     pool.execute.assert_awaited_once()
     sql = pool.execute.call_args[0][0]
     assert "user_consents" in sql
@@ -1168,7 +1163,7 @@ async def test_save_consent_uses_ip_address_hash_column():
 
     pool = _pool_mock()
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
-        await save_consent(1, "terms", True, "abc123def456")  # pragma: allowlist secret
+        await save_consent(1, "terms", True, "test-ip-hash")
     sql = pool.execute.call_args[0][0]
     assert "ip_address_hash" in sql
     assert "::inet" not in sql  # must not cast as INET (raw hash is TEXT)
