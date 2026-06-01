@@ -2,7 +2,7 @@ services:
 
   db-test:
     image: timescale/timescaledb:2.27.1-pg16@sha256:87f39af0a38cb42e4add367d9dfad2087a53fe5c9b24b5bc0dc66bd204b0665f
-    container_name: garmin-db-test
+    container_name: pulsebase-db-test
     restart: unless-stopped
     ports:
       - "127.0.0.1:5434:5432"
@@ -20,7 +20,7 @@ services:
 
   flyway-test:
     image: flyway/flyway:latest@sha256:57a9325140febe1d574e7fae9cd664bb72f61248a963d1e2cd9a722b7953fa3d
-    container_name: garmin-flyway-test
+    container_name: pulsebase-flyway-test
     command: migrate
     volumes:
       - ./db/migrations:/flyway/sql
@@ -40,7 +40,7 @@ services:
 
   api-test:
     build: ./api
-    container_name: garmin-api-test
+    container_name: pulsebase-api-test
     restart: unless-stopped
     ports:
       - "8001:8000"

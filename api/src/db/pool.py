@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     trimp_forecast_days: int = 7
     resend_api_key: str = ""
     resend_from_email: str = "onboarding@resend.dev"
-    app_base_url: str = "https://garmin.home.lab"
+    app_base_url: str = ""
     fernet_key: str
     trusted_proxy_cidrs: list[str] = ["127.0.0.1/32"]
     sentry_dsn: str = ""  # SENTRY_DSN — empty = disabled

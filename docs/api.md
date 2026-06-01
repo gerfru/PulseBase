@@ -1,8 +1,8 @@
 # API Reference
 
-All endpoints are served by the FastAPI container (`garmin-api`) behind Caddy (homelab-gateway).
+All endpoints are served by the FastAPI container (`pulsebase-api`) behind a reverse proxy.
 
-Base URL: `https://garmin.home.lab`
+Base URL: `https://your-domain.com` (set via `APP_BASE_URL` in `env/.env.api`)
 
 ---
 

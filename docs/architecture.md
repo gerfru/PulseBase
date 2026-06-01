@@ -12,7 +12,7 @@ third-party analytics.
 Browser (Tailnet device)
   │
   ▼
-CoreDNS  (garmin.home.lab → Tailscale IP, via homelab-gateway repo)
+CoreDNS / DNS (your-domain.com → server IP, via homelab-gateway or your DNS provider)
   │
   ▼
 Caddy  (HTTPS termination, shared proxy network, homelab-gateway repo)
@@ -50,11 +50,11 @@ FastAPI  ...
 
 | Container | Image / Build | Role |
 |-----------|--------------|------|
-| `garmin-db` | `timescale/timescaledb:latest-pg16` | Time-series database |
-| `garmin-flyway` | `flyway/flyway:latest` | Runs DB migrations on startup, then exits |
-| `garmin-api` | `./api` (FastAPI) | Web app: auth, HTML pages, JSON API |
-| `garmin-sync` | `./sync-service` (Python) | Daily Garmin data pull |
-| `garmin-ml` | `./ml-service` (Python) | ML inference daily + training weekly |
+| `pulsebase-db` | `timescale/timescaledb:latest-pg16` | Time-series database |
+| `pulsebase-flyway` | `flyway/flyway:latest` | Runs DB migrations on startup, then exits |
+| `pulsebase-api` | `./api` (FastAPI) | Web app: auth, HTML pages, JSON API |
+| `pulsebase-sync` | `./sync-service` (Python) | Daily Garmin data pull |
+| `pulsebase-ml` | `./ml-service` (Python) | ML inference daily + training weekly |
 
 HTTPS is handled externally:
 - **homelab-gateway** (default): Caddy on the shared `proxy` Docker network
@@ -144,19 +144,19 @@ Browser GET /dashboard
 ## Network
 
 PulseBase services communicate on the internal `internal` Docker network by service name
-(`db`, `api`, etc.). The `garmin-api` container also joins the external `proxy` network,
+(`db`, `api`, etc.). The `pulsebase-api` container also joins the external `proxy` network,
 which is shared with homelab-gateway's Caddy container.
 
 ```
 proxy (external Docker network)
   ├── gateway-caddy  (homelab-gateway)
-  └── garmin-api     (PulseBase)
+  └── pulsebase-api     (PulseBase)
 
 internal (PulseBase-only)
-  ├── garmin-api
-  ├── garmin-db
-  ├── garmin-flyway
-  └── garmin-sync
+  ├── pulsebase-api
+  ├── pulsebase-db
+  ├── pulsebase-flyway
+  └── pulsebase-sync
 ```
 
 No ports are exposed to the host in the default setup — all traffic enters via Caddy
