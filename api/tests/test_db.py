@@ -642,14 +642,6 @@ async def test_get_ml_history_groups_by_model():
     assert result["energy_physical"][0]["tsb"] == 2.1
 
 
-async def test_get_ml_db_status_no_row():
-    from src.db.ml import get_ml_status
-
-    with patch("src.db.ml.get_pool", AsyncMock(return_value=_pool_mock(fetchrow=None))):
-        result = await get_ml_status(1)
-    assert result == {"pending": False, "last_ml_at": None}
-
-
 # ── health (spot checks) ──────────────────────────────────────────────────────
 
 

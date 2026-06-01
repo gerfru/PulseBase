@@ -45,6 +45,22 @@ def extract_features(records: list[dict[str, Any]]) -> dict[str, float] | None:
     }
 
 
+def _fill_missing_labels(labels: dict[int, str], n: int) -> None:
+    """Assign fallback labels to any cluster not yet covered by the primary heuristic."""
+    used = set(labels.values())
+    fallbacks = ["erholung", "erschoepft", "stabil_hoch"]
+    for cid in range(n):
+        if cid in labels:
+            continue
+        for fb in fallbacks:
+            if fb not in used:
+                labels[cid] = fb
+                used.add(fb)
+                break
+        else:
+            labels[cid] = "erholung"
+
+
 def _assign_pattern_labels(kmeans: KMeans) -> dict[int, str]:
     """Map cluster IDs to semantic labels based on cluster centers.
 
@@ -82,19 +98,7 @@ def _assign_pattern_labels(kmeans: KMeans) -> dict[int, str]:
         else:
             labels[cid] = "erschoepft"
 
-    # Fill any unassigned clusters
-    used = set(labels.values())
-    fallbacks = ["erholung", "erschoepft", "stabil_hoch"]
-    for cid in range(_N_CLUSTERS):
-        if cid not in labels:
-            for fb in fallbacks:
-                if fb not in used:
-                    labels[cid] = fb
-                    used.add(fb)
-                    break
-            if cid not in labels:
-                labels[cid] = "erholung"
-
+    _fill_missing_labels(labels, _N_CLUSTERS)
     return labels
 
 

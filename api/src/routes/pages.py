@@ -2,6 +2,7 @@ from datetime import date
 
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from starlette.responses import Response
 
 import src.deps as _deps
 from src.db import get_activity_detail
@@ -40,19 +41,19 @@ _VALID_METRICS = {
 
 
 @router.get("/")
-async def index(request: Request):
+async def index(request: Request) -> Response:
     await _deps.require_user(request)
     return RedirectResponse("/dashboard", status_code=303)
 
 
 @router.get("/dashboard")
-async def dashboard(request: Request):
+async def dashboard(request: Request) -> Response:
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(request, "dashboard.html", {"user": user})
 
 
 @router.get("/settings")
-async def settings_page(request: Request):
+async def settings_page(request: Request) -> Response:
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(
         request,
@@ -66,13 +67,13 @@ async def settings_page(request: Request):
 
 
 @router.get("/help")
-async def help_page(request: Request):
+async def help_page(request: Request) -> Response:
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(request, "help.html", {"user": user})
 
 
 @router.get("/metrics")
-async def metrics_overview_page(request: Request):
+async def metrics_overview_page(request: Request) -> Response:
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(
         request, "metrics_overview.html", {"user": user}
@@ -80,7 +81,7 @@ async def metrics_overview_page(request: Request):
 
 
 @router.get("/metrics/{name}")
-async def metrics_detail_page(request: Request, name: str):
+async def metrics_detail_page(request: Request, name: str) -> Response:
     user = await _deps.require_user(request)
     if name not in _VALID_METRICS:
         return RedirectResponse("/dashboard", status_code=303)
@@ -92,7 +93,7 @@ async def metrics_detail_page(request: Request, name: str):
 
 
 @router.get("/activity/{activity_id}")
-async def activity_detail_page(request: Request, activity_id: int):
+async def activity_detail_page(request: Request, activity_id: int) -> Response:
     user = await _deps.require_user(request)
     activity = await get_activity_detail(user["id"], activity_id)
     if not activity:
@@ -103,7 +104,7 @@ async def activity_detail_page(request: Request, activity_id: int):
 
 
 @router.get("/epilepsy")
-async def epilepsy_page(request: Request):
+async def epilepsy_page(request: Request) -> Response:
     user = await _deps.require_user(request)
     if not user.get("epilepsy_mode"):
         return RedirectResponse("/settings", status_code=303)
@@ -114,22 +115,22 @@ async def epilepsy_page(request: Request):
 
 
 @router.get("/ml/anomaly")
-async def ml_anomaly_redirect():
+async def ml_anomaly_redirect() -> Response:
     return RedirectResponse("/metrics/hr-zscore", status_code=301)
 
 
 @router.get("/ml/readiness")
-async def ml_readiness_redirect():
+async def ml_readiness_redirect() -> Response:
     return RedirectResponse("/metrics/readiness-rf", status_code=301)
 
 
 @router.get("/ml/correlations")
-async def ml_correlations_redirect():
+async def ml_correlations_redirect() -> Response:
     return RedirectResponse("/metrics/correlations", status_code=301)
 
 
 @router.get("/ml/battery")
-async def ml_battery_redirect():
+async def ml_battery_redirect() -> Response:
     return RedirectResponse("/metrics/battery-pattern", status_code=301)
 
 
@@ -137,20 +138,20 @@ async def ml_battery_redirect():
 
 
 @router.get("/privacy")
-async def privacy(request: Request):
+async def privacy(request: Request) -> Response:
     return _deps.templates.TemplateResponse(request, "privacy.html")
 
 
 @router.get("/terms")
-async def terms(request: Request):
+async def terms(request: Request) -> Response:
     return _deps.templates.TemplateResponse(request, "terms.html")
 
 
 @router.get("/imprint")
-async def imprint(request: Request):
+async def imprint(request: Request) -> Response:
     return _deps.templates.TemplateResponse(request, "imprint.html")
 
 
 @router.get("/accessibility")
-async def accessibility(request: Request):
+async def accessibility(request: Request) -> Response:
     return _deps.templates.TemplateResponse(request, "accessibility.html")

@@ -4,6 +4,8 @@ import math
 from datetime import date, timedelta
 from typing import Any
 
+from .trimp import compute_trimp
+
 # ─────────────────────────────────────────────────────────────────────────────
 # EWM-Konstanten für das Banister Fitness-Fatigue-Modell
 # Quelle: Banister & Calvert (1991); popularisiert durch TrainingPeaks / Coggan
@@ -80,13 +82,7 @@ def compute_physical_energy(
     for i in range(window_days, -1, -1):
         d = today - timedelta(days=i)
         row = by_date.get(d)
-        trimp = 0.0
-        if row and row.get("avg_hr") and row.get("duration_seconds"):
-            rhr = row.get("resting_hr") or 60.0
-            denom = hrmax - rhr
-            if denom > 0:
-                hfr = max(0.0, (row["avg_hr"] - rhr) / denom)
-                trimp = (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
+        trimp = compute_trimp(row or {}, hrmax)
         atl = atl * _EWM_TAU7 + trimp * _ALPHA7
         ctl = ctl * _EWM_TAU42 + trimp * _ALPHA42
 

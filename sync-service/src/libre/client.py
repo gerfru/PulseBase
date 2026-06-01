@@ -1,11 +1,11 @@
 import json
-import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import structlog
 from pylibrelinkup import PyLibreLinkUp  # type: ignore[import-untyped]
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _TOKEN_FILE = "libre_token.json"  # nosec B105 — filename, not a credential
 

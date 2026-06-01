@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 from typing import Any
 
+from .trimp import compute_trimp
+
 
 def compute_hrv_recovery_trajectory(
     hrv_history: list[float | None],
@@ -20,19 +22,12 @@ def compute_hrv_recovery_trajectory(
     for i in range(lookback - 1, -1, -1):
         d = today - timedelta(days=i)
         row = by_date.get(d)
-        trimp = 0.0
-
-        if row and row.get("avg_hr") and row.get("duration_seconds"):
-            rhr = row.get("resting_hr") or 60.0
-            denom = hrmax - rhr
-            if denom > 0:
-                hfr = max(0.0, (row["avg_hr"] - rhr) / denom)
-                trimp = (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
+        trimp = compute_trimp(row or {}, hrmax)
 
         trimps.append(trimp)
 
     hrv_slice = hrv_history[-(lookback):]
-    hrv_vals = [v for v in hrv_slice]
+    hrv_vals = list(hrv_slice)
 
     valid_hrv = [v for v in hrv_vals if v is not None]
     if len(valid_hrv) < 14:
