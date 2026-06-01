@@ -2,8 +2,10 @@ import asyncio
 import json
 import signal
 import tempfile
+from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
+from typing import TypeVar
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -38,7 +40,10 @@ configure_logging()
 logger = structlog.get_logger(__name__)
 
 
-def _garmin_call(fn):
+_T = TypeVar("_T")
+
+
+def _garmin_call(fn: Callable[[], _T]) -> _T:
     """Call a synchronous Garmin API function with up to 3 retries and exponential backoff."""
     for attempt in Retrying(
         stop=stop_after_attempt(3),
@@ -47,6 +52,7 @@ def _garmin_call(fn):
     ):
         with attempt:
             return fn()
+    raise RuntimeError("unreachable: tenacity reraises on exhaustion")
 
 
 async def _sync_activities(
@@ -191,9 +197,7 @@ async def sync_libre_user(
             )
             await repo.save_user_token(user["id"], "libre", blob)
     if blob is None:
-        raise LibreAuthError(
-            f"Kein LibreLinkUp-Token für User {user['id']} — Neu-Verknüpfung erforderlich"
-        )
+        raise LibreAuthError("Kein LibreLinkUp-Token — Neu-Verknüpfung erforderlich")
 
     raw = fernet_decrypt(blob, settings.fernet_key) if settings.fernet_key else blob
     token_data = json.loads(raw)

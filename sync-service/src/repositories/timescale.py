@@ -1,8 +1,8 @@
-import logging
 from datetime import date
 from typing import Any
 
 import asyncpg
+import structlog
 
 from domain.models import Activity, DailySummary, HRVDaily, SleepSession
 from repositories.base import (
@@ -14,7 +14,7 @@ from repositories.base import (
     SleepRepository,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class TimescaleRepository(
