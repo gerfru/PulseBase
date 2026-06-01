@@ -11,7 +11,7 @@ from src.db import (
     export_user_data,
     get_user_by_email,
 )
-from src.deps import _ip_hash, limiter, require_user, verify_password
+from src.deps import _ip_hash, limiter, require_user, verify_csrf_token, verify_password
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -32,8 +32,12 @@ async def delete_account(
     request: Request,
     email: str = Form(),
     password: str = Form(),
+    csrf_token: str | None = Form(default=None),
 ):
     user = await require_user(request)
+
+    if not verify_csrf_token(request, csrf_token):
+        return _settings_error(request, user, "Ungültige Anfrage. Bitte neu laden.")
 
     if email != user["email"]:
         return _settings_error(request, user, "E-Mail stimmt nicht überein.")

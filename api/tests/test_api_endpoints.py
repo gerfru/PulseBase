@@ -218,7 +218,7 @@ async def test_garmin_unlink_redirects(client):
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_GARMIN)),
         patch("src.routes.garmin.set_garmin_unlinked", AsyncMock(return_value=None)),
     ):
-        r = await client.post("/garmin/unlink")
+        r = await client.post("/garmin/unlink", data={"csrf_token": ""})
     assert r.status_code == 303
 
 
@@ -230,7 +230,7 @@ async def test_libre_unlink_redirects(client):
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch("src.routes.libre.set_libre_unlinked", AsyncMock(return_value=None)),
     ):
-        r = await client.post("/libre/unlink")
+        r = await client.post("/libre/unlink", data={"csrf_token": ""})
     assert r.status_code == 303
 
 
