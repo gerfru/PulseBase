@@ -89,32 +89,32 @@ setup:
 	@echo ""
 	@echo "Schritt 1 — Session Secret generieren:"
 	@echo "  make gen-secrets"
-	@echo "  → Wert in .env eintragen"
+	@echo "  → Wert in env/.env.api eintragen"
 	@echo ""
-	@echo "Schritt 2 — garmin.local in hosts eintragen:"
-	@echo "  Windows (Admin-PowerShell):"
-	@echo "    Add-Content C:\\Windows\\System32\\drivers\\etc\\hosts '127.0.0.1 garmin.local'"
-	@echo "  Linux / Mini PC:"
-	@echo "    make add-host"
+	@echo "Schritt 2 — Domain konfigurieren:"
+	@echo "  env/.env:     HOST_IP=<deine-domain>"
+	@echo "  env/.env.api: APP_BASE_URL=https://<deine-domain>"
+	@echo "  Standalone/lokal: HOST_IP=pulsebase.local + Hosts-Eintrag via make add-host"
 	@echo ""
 	@echo "Schritt 3 — Datenbank migrieren:"
 	@echo "  make migrate"
 	@echo ""
 	@echo "Schritt 4 — Starten:"
-	@echo "  make up"
+	@echo "  make up              (mit eigenem Reverse Proxy / homelab-gateway)"
+	@echo "  make up-standalone   (mit eingebautem Traefik)"
 	@echo ""
 	@echo "Schritt 5 — Registrieren und Garmin verknüpfen:"
-	@echo "  https://garmin.local/register"
-	@echo "  https://garmin.local/garmin/link"
+	@echo "  https://<deine-domain>/register"
+	@echo "  https://<deine-domain>/garmin/link"
 
 add-host:
-	@grep -q "garmin.local" /etc/hosts && echo "garmin.local ist bereits eingetragen." || (echo "127.0.0.1 garmin.local" | sudo tee -a /etc/hosts && echo "garmin.local hinzugefügt.")
+	@grep -q "pulsebase.local" /etc/hosts && echo "pulsebase.local ist bereits eingetragen." || (echo "127.0.0.1 pulsebase.local" | sudo tee -a /etc/hosts && echo "pulsebase.local hinzugefügt.")
 
 setup-user:
 	@echo "Neuen User anlegen:"
-	@echo "  https://garmin.local/register"
+	@echo "  https://<deine-domain>/register"
 	@echo "Garmin verknüpfen:"
-	@echo "  https://garmin.local/garmin/link"
+	@echo "  https://<deine-domain>/garmin/link"
 
 tailwind-build:
 	@echo "=== Tailwind CLI Build ==="
@@ -140,9 +140,9 @@ test-env-down: ## Test-Stack stoppen
 	$(DC) -f docker-compose.test.yml down
 
 test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren — vollständiger pg_dump (nur bei Bedarf)
-	docker exec garmin-db pg_dump \
+	docker exec pulsebase-db pg_dump \
 	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin \
-	  | docker exec -i garmin-db-test psql \
+	  | docker exec -i pulsebase-db-test psql \
 	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin_test
 
 test-user: ## Test-User in garmin_test anlegen — reicht für E2E

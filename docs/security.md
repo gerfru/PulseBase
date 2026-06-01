@@ -222,10 +222,10 @@ Beide Parameter müssen passen. Wenn `$2` (eingeloggte User-ID) nicht zum Datens
 
 ### 5.1 TLS und HSTS
 
-**Produktiv (homelab-gateway):** Caddy terminiert TLS mit self-signed Zertifikat für `garmin.home.lab`. HSTS ist aktiviert (`max-age=31536000; includeSubDomains`) — Browser merken sich, dass diese Domain nur per HTTPS erreichbar ist.
+**TLS:** Caddy oder Traefik terminiert TLS. Für öffentliches Deployment: ACME/Let's Encrypt. Für internen Betrieb: self-signed Zertifikat akzeptabel. HSTS ist aktiviert (`max-age=31536000; includeSubDomains`) — Browser merken sich, dass diese Domain nur per HTTPS erreichbar ist.
 
 **Warum self-signed akzeptabel im Homelab:**
-Die Domain `garmin.home.lab` ist ausschließlich im internen Tailscale-Netz erreichbar. Ein MITM-Angriff erfordert Zugriff auf das interne Netz (bereits kompromittiert). Let's Encrypt würde DNS-01-Challenge oder öffentliche Domain erfordern. Dokumentierte Ausnahme: ARCH-M3.
+Die Domain `your-domain.com` ist ausschließlich im internen Tailscale-Netz erreichbar. Ein MITM-Angriff erfordert Zugriff auf das interne Netz (bereits kompromittiert). Let's Encrypt würde DNS-01-Challenge oder öffentliche Domain erfordern. Dokumentierte Ausnahme: ARCH-M3.
 
 **Standalone (Traefik):** Gleiche Situation, ebenfalls self-signed.
 
@@ -284,7 +284,7 @@ PulseBase startet keine Subprozesse mit User-kontrollierten Parametern. Der einz
 
 ### 7.1 Warum CSRF ein reales Risiko ist
 
-CSRF (Cross-Site Request Forgery) nutzt aus, dass Browser Cookies automatisch mitsenden. Eine bösartige Seite kann einen POST-Request an `https://garmin.home.lab/account/delete` schicken — der Browser hängt das Session-Cookie an, die App sieht einen "authentifizierten" Request.
+CSRF (Cross-Site Request Forgery) nutzt aus, dass Browser Cookies automatisch mitsenden. Eine bösartige Seite kann einen POST-Request an `https://your-domain.com/account/delete` schicken — der Browser hängt das Session-Cookie an, die App sieht einen "authentifizierten" Request.
 
 **Gefährdete Endpunkte (alle POST-Routen mit State-Change):**
 - `/garmin/link`, `/libre/link` — Verknüpfung externer Accounts
@@ -378,8 +378,8 @@ env/.env.ml    → nur ml-service (ML_INFER_HOUR, kein FERNET_KEY nötig)
 
 Verifikation:
 ```bash
-docker exec garmin-sync env | grep SESSION_SECRET   # → leer (korrekt)
-docker exec garmin-ml   env | grep FERNET_KEY       # → leer (korrekt)
+docker exec pulsebase-sync env | grep SESSION_SECRET   # → leer (korrekt)
+docker exec pulsebase-ml   env | grep FERNET_KEY       # → leer (korrekt)
 ```
 
 ### 9.3 Secret-Generierung
@@ -461,15 +461,15 @@ Warum: Ein `latest`-Tag kann sich über Nacht ändern. Ein kompromittierter Regi
 
 ```
 ┌─────────────────── internal (Docker-intern) ─────────────────┐
-│  garmin-api  ←──→  garmin-db                                  │
-│  garmin-sync ←──→  garmin-db                                  │
-│  garmin-ml   ←──→  garmin-db                                  │
+│  pulsebase-api  ←──→  pulsebase-db                                  │
+│  pulsebase-sync ←──→  pulsebase-db                                  │
+│  pulsebase-ml   ←──→  pulsebase-db                                  │
 └───────────────────────────────────────────────────────────────┘
          │
-         │ (nur garmin-api ist Mitglied beider Netze)
+         │ (nur pulsebase-api ist Mitglied beider Netze)
          ▼
 ┌─────── proxy (externe Docker-Netz) ──────┐
-│  gateway-caddy  ←──→  garmin-api         │
+│  gateway-caddy  ←──→  pulsebase-api         │
 └──────────────────────────────────────────┘
 ```
 
@@ -479,7 +479,7 @@ Die Datenbank ist **nie** direkt exponiert. Sync- und ML-Service kommunizieren n
 
 In der CI-Pipeline läuft Trivy gegen jedes gebaute Image:
 ```yaml
-trivy image --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed garmin-api:latest
+trivy image --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed pulsebase-api:latest
 ```
 
 `--ignore-unfixed`: Findings ohne verfügbaren Fix werden ignoriert — der Developer kann diese nicht beheben, sie erhöhen nur den Lärm. `--exit-code 1` bricht den CI-Build ab wenn CRITICAL oder HIGH Findings mit verfügbarem Fix existieren.
@@ -608,7 +608,7 @@ make analytics  # ML-Service neu bauen + starten
 **Rollback:**
 ```bash
 # Docker-Tag des letzten funktionierenden Builds
-docker compose up -d garmin-api:previous-tag
+docker compose up -d pulsebase-api:previous-tag
 ```
 
 ### 12.5 Betriebsphase
@@ -655,7 +655,7 @@ Für signifikante neue Features oder nach größeren Refactorings:
 ```bash
 # 1. OWASP ZAP Baseline Scan (lokal, einmalig)
 docker run -t owasp/zap2docker-stable zap-baseline.py \
-  -t https://garmin.home.lab -r zap-report.html
+  -t https://your-domain.com -r zap-report.html
 
 # 2. Auth-Flow testen
 # - Login mit falschen Credentials → 401, kein Timing-Leak?
@@ -704,7 +704,7 @@ DELETE FROM user_tokens WHERE user_id = <id>;
 
 **Bei Verdacht auf Daten-Breach:**
 1. App offline nehmen: `traefik.enable=false` setzen → `make dashboard`
-2. Logs sichern: `docker logs garmin-api > incident_$(date +%Y%m%d).log`
+2. Logs sichern: `docker logs pulsebase-api > incident_$(date +%Y%m%d).log`
 3. Audit-Log durchsuchen: Welche User-IDs, welche Endpunkte, welche IPs?
 4. DSGVO-Meldepflicht prüfen: Bei Art. 9-Daten (Gesundheitsdaten) → Meldung an Datenschutzbehörde innerhalb 72h
 

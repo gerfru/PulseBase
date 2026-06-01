@@ -43,7 +43,7 @@ make migrate
 make up
 ```
 
-Für den Homelab-Betrieb via `garmin.home.lab`: `make setup` zeigt die vollständige Schritt-für-Schritt-Anleitung.
+Für lokalen Betrieb: `make setup` zeigt die vollständige Schritt-für-Schritt-Anleitung.
 
 ---
 
@@ -249,8 +249,8 @@ semgrep --config p/python --config p/owasp-top-ten .
 
 **`trivy` schlägt fehl:**
 ```bash
-docker build -t garmin-api:local api/
-trivy image --severity CRITICAL,HIGH --ignore-unfixed garmin-api:local
+docker build -t pulsebase-api:local api/
+trivy image --severity CRITICAL,HIGH --ignore-unfixed pulsebase-api:local
 ```
 
 ---
