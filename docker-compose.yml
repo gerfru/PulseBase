@@ -97,7 +97,7 @@ services:
       - "traefik.http.routers.api.priority=1"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
     env_file:
-      - env/.env
+      - env/.env.app
       - env/.env.api
     environment:
       DB_HOST: db
@@ -134,7 +134,7 @@ services:
       flyway:
         condition: service_completed_successfully
     env_file:
-      - env/.env
+      - env/.env.app
       - env/.env.sync
     environment:
       DB_HOST: db
@@ -168,7 +168,7 @@ services:
       flyway:
         condition: service_completed_successfully
     env_file:
-      - env/.env
+      - env/.env.app
       - env/.env.ml
     environment:
       MODEL_DIR: /app/models

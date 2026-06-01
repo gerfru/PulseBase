@@ -1037,8 +1037,6 @@ def test_settings_db_url_format():
     from src.db.pool import Settings
 
     s = Settings(  # type: ignore[call-arg]  # pragma: allowlist secret
-        db_user="admin",
-        db_password="secret",  # pragma: allowlist secret
         db_app_user="app",
         db_app_password="pass",  # pragma: allowlist secret
         session_secret="s",  # pragma: allowlist secret

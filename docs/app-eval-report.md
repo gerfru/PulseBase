@@ -21,19 +21,27 @@
 | 2026-06-01 | Wave 5 — ML Restrukturierung | M-10 gefixt |
 | 2026-06-01 | Wave 6 — Tests | H-04, H-05, M-14, M-30, M-31, L-12, L-22, L-23 gefixt |
 | 2026-06-01 | Wave 7 — Observability & Docker-Härtung | M-20, L-01–05, L-20, L-24, L-25 gefixt |
+| 2026-06-01 | Wave 8 — Code-Qualität (Return-Annotations) | L-26 gefixt |
+| 2026-06-01 | Eval 3 — Re-Audit nach Wave 8 (6 Subagenten parallel) | 5H · 8M · 6L neu entdeckt |
+| 2026-06-01 | Wave 9 Runde 1 — Security Quick Wins | H-11, M-32, M-33, L-30 gefixt |
 
 ---
 
-## Achsen-Übersicht (Stand: nach Wave 7)
+## Achsen-Übersicht
 
-| Achse | Eval 1 | Eval 2 | Nach Wave 1 | Nach Wave 2 | Nach Wave 5 | Nach Wave 6 | Nach Wave 7 | Noch offen |
-|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | — |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | — |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | — |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | — |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | — |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | H-07 Sentry DSN (manuell), M-19 UptimeRobot (manuell) |
+| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | Noch offen |
+|---|---|---|---|---|---|---|---|---|---|
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | M-34, M-35, L-31 |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | — |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | H-12, H-13, H-14, H-15 |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | M-38, M-39, L-33 |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | M-37, L-32, L-35 |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | H-07 (manuell), M-19 (manuell), M-36, L-34 |
+
+**Eval 3 Begründung:**
+- **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
+- **Code-Qualität 🔴:** 4 neue High-Befunde (DAL-Bypass backfill.py, Dateigrößen, lange Funktionen).
+- **Security/Tests/CI/Obs 🟡:** Jeweils 1–3 mittlere Befunde, kein systemisches Versagen.
 
 ---
 
@@ -57,6 +65,11 @@
 | H-08 | ✅ | W0 | **Auth: `is_active`-Flag nicht geprüft** | `api/src/db/users.py` | Security |
 | H-09 | ✅ | W0 | **BOLA: `activity_records` ohne User-Bindung** | `api/src/db/activities.py` | Security |
 | H-10 | ✅ | W0 | **DOM XSS: Seizure Notes / Event-Type / Sport-Type / Metrics** | `epilepsy.js`, `dashboard-utils.js`, `metrics.js` | Security |
+| H-11 | ✅ | W9 | **Admin-Credentials (`DB_USER`/`DB_PASSWORD`) in allen App-Service-Environments** — Least-Privilege-Verletzung; Admin-Creds über `/proc/<pid>/environ` einsehbar | `docker-compose.yml:99-101,136-138,170-172` | Architektur |
+| H-12 | ❌ | — | **DAL-Bypass: Raw SQL in `backfill.py` außerhalb `ml-service/src/db/`** — `_load_activity_hrv_data()`, `_load_sleep_daily_gaps()`, SQL in `_backfill_custom_scores()`; `get_yesterday_prediction()` bereits in db/ vorhanden | `ml-service/src/backfill.py:43–140,198` | Code-Qualität |
+| H-13 | ❌ | — | **`evidence_catalog.py` 485 Zeilen (>400)** — reine Datenkonstante als Python-Modul; jede Erweiterung bläht sie weiter auf | `api/src/evidence_catalog.py` | Code-Qualität |
+| H-14 | ❌ | — | **`auth.py` 417 Zeilen: E-Mail-Helpers im Router** — `_send_email`, `_send_lockout_email`, `_send_reset_email`, `_send_verify_email` (Zeilen 52–145) gehören nicht in eine Router-Datei | `api/src/routes/auth.py` | Code-Qualität |
+| H-15 | ❌ | — | **`login()` Funktion 78 Zeilen** — Account-Lockout-Block (Zeilen 159–183) isoliert extrahierbar | `api/src/routes/auth.py:152` | Code-Qualität |
 
 ---
 
@@ -95,6 +108,14 @@
 | M-29 | ✅ | W0 | **npm statt pnpm in CI** | `.github/workflows/ci.yml` | CI/CD |
 | M-30 | ✅ | W6 | **E2E-Test für `POST /account/delete` fehlt** | `api/tests/e2e/test_smoke.py` | Tests |
 | M-31 | ✅ | W6 | **Mapper-Tests ohne `None`-Feld-Edge-Cases** | `sync-service/tests/test_mapper.py` | Tests |
+| M-32 | ✅ | W9 | **DOM XSS: `training_status` ohne `esc()` in `innerHTML`** — Fallback-Label direkt aus DB-Wert eingesetzt; bestehende `esc()`-Funktion nicht genutzt | `api/src/static/activity.js:285–289` | Security |
+| M-33 | ✅ | W9 | **DOM XSS: `metric-value` via `innerHTML` mit API-String-Daten** — `hrv_status`-Strings aus Garmin-Sync ohne Escaping; `textContent` ausreichend | `api/src/static/metrics.js:38` | Security |
+| M-34 | ❌ | — | **`stop_grace_period` fehlt bei `api` + `sync-service`** — Docker-Default 10s < uvicorn graceful-shutdown 30s; W7 adressierte nur ml-service (L-01) | `docker-compose.yml:88,129` | Architektur |
+| M-35 | ❌ | — | **sync-service SIGTERM: `scheduler.shutdown(wait=False)` bricht laufende Token-Rotation ab** — `save_user_token()` wird nicht mehr aufgerufen wenn Garmin-Sync >10s läuft | `sync-service/src/main.py:309` | Architektur |
+| M-36 | ❌ | — | **Traefik: kein Health Check + kein `restart: unless-stopped`** — abgestürzter Traefik-Prozess wird nicht als unhealthy markiert; kein automatischer Neustart | `docker-compose.yml:63–86` | Observability |
+| M-37 | ❌ | — | **`docker-compose.test.yml`: `flyway:latest`-Tag statt gepinnter Version** — `docker-compose.yml` nutzt gepinnten Digest, Test-Compose nicht | `docker-compose.test.yml:22` | CI/CD |
+| M-38 | ❌ | — | **sync-service `crypto.py` komplett ungetestet** — Fernet-Encrypt/Decrypt + Token-Dir-Serialisierung ohne Roundtrip-Tests (api/ hat äquivalente Tests in test_coverage.py:242–384) | Lücke: `sync-service/src/crypto.py` | Tests |
+| M-39 | ❌ | — | **sync-service `garmin/client.py` komplett ungetestet** — H-05 (W6) testete Orchestrierung; Client-Logik (Token-Login, Fallback, save_token) weiterhin ohne Test | Lücke: `sync-service/src/garmin/client.py` | Tests |
 
 ---
 
@@ -131,21 +152,40 @@
 | L-27 | ✅ | W0 | **HEALTHCHECK `start_period` fehlt im api Dockerfile** | `api/Dockerfile` | Architektur |
 | L-28 | — | — | **HSTS bei self-signed TLS** (dokumentierte Ausnahme SEC-L1) | `api/src/main.py` | Security |
 | L-29 | ✅ | W0 | Renovate GitHub-Actions minor/patch automerge · trivy nicht in needs-Chain · pre-commit mypy ohne `--explicit-package-bases` · `.dockerignore` unvollständig · coverage omit veraltet · Magic Number `_DEFAULT_RHR` · Return-Annotation `_rate_limit_exceeded_handler` | mehrere | diverse |
+| L-30 | ✅ | W9 | **CSRF-Token fehlt auf Login + Register POST** — `verify_csrf_token()`-Infrastruktur vorhanden; nur auf garmin/link, libre/link, account/delete verwendet; ASVS 5.0 V4.10.1 | `api/src/routes/auth.py:150–291` | Security |
+| L-31 | ❌ | — | **ml-service SIGTERM: `joblib.dump()` nicht atomar** — Modell-Datei auf Named Volume kann in unvollständigem Zustand hinterlassen werden; Temp-Pfad + `Path.rename()` als atomare Alternative | `ml-service/src/main.py:206` | Architektur |
+| L-32 | ❌ | — | **Semgrep pre-commit ohne OWASP-Top-10-Ruleset** — CI nutzt `p/python + p/owasp-top-ten`; pre-commit Hook nur `p/python` → Cross-file-Taint-Findings erst in CI sichtbar | `.pre-commit-config.yaml:48` | CI/CD |
+| L-33 | ❌ | — | **JS-Vitest: `dashboard-hero.js` fehlt in `coverage.include`** — dedizierter Testfile vorhanden, aber Datei erscheint nicht im Coverage-Report | `api/vitest.config.js:12–16` | Tests |
+| L-34 | ❌ | — | **Traefik accessLog: kein JSON-Format** — Common Log Format (CLF) statt JSON; inkompatibel mit structlog-Logging der anderen Services | `traefik/traefik.yml:20` | Observability |
+| L-35 | ❌ | — | **pip-audit scannt Verzeichnis, nicht `uv.lock`** — `pip-audit api/` löst Abhängigkeiten neu auf statt eingefrorenes Lockfile zu prüfen | `ci.yml:76–86` | CI/CD |
 
 ---
 
-## Offene Findings — nach Wave gruppiert
+## Offene Findings (Eval 3)
 
 | Wave | Findings |
 |------|---------|
-| **W2** (CSRF + Reset) | ✅ H-01, M-06 — erledigt |
-| **W3** (CI/CD) | ✅ H-06, M-15–18, L-14–16 — erledigt |
-| **W4** (Code-Qualität) | ✅ M-07–09, M-11–12, L-06–10, L-17–19 — erledigt |
-| **W5** (ML Restrukturierung) | ✅ M-10 — erledigt |
-| **W6** (Tests) | ✅ H-04, H-05, M-14, M-30, M-31, L-12, L-22, L-23 — erledigt |
-| **W7** (Observability/Docker) | ✅ M-20, L-01, L-02, L-03, L-04, L-05, L-20, L-24, L-25 — erledigt |
-| **W8** (Code-Qualität) | ✅ L-26 — erledigt (Annotierungen waren bereits vorhanden) |
-| **Manuell** | H-07 (Sentry DSN), M-19 (UptimeRobot) |
+| **W2–W8** (abgeschlossen) | ✅ H-01–H-06, H-08–H-10, M-01–M-18, M-20–M-31, L-01–L-12, L-14–L-20, L-22–L-27, L-29 |
+| **Manuell** | ❌ H-07 (Sentry DSN), M-19 (UptimeRobot) |
+| **Wave 9 Runde 1 — Security** | ✅ H-11, M-32, M-33, L-30 gefixt |
+| **Wave 9 — Architektur/Disposability** | ❌ M-34, M-35, L-31 |
+| **Wave 9 — Code-Qualität** | ❌ H-12, H-13, H-14, H-15 |
+| **Wave 9 — Tests** | ❌ M-38, M-39, L-33 |
+| **Wave 9 — CI/CD + Obs** | ❌ M-36, M-37, L-32, L-34, L-35 |
+| **Wave 9 — Architektur Low** | ❌ L-31 |
+
+**Empfohlene Reihenfolge Wave 9:**
+1. H-11 (Admin-Creds env-Trennung — löst L-31-ähnlichen Nebeneffekt mit) · M
+2. M-32 + M-33 (DOM XSS activity.js + metrics.js — `esc()` 1-Liner) · S
+3. L-30 (CSRF Login/Register — Infrastruktur vorhanden) · S
+4. M-34 + M-35 (stop_grace_period + SIGTERM wait=True) · S+M
+5. M-38 + M-39 (crypto.py + garmin/client Tests) · S+S
+6. H-12 (DAL-Bypass backfill.py → db/) · M
+7. H-13 (evidence_catalog.py → JSON) · M
+8. H-14 + H-15 (auth.py Email-Helpers + login() aufteilen) · S+S
+9. M-36 + M-37 (Traefik Health Check + flyway:latest test-compose) · S+S
+10. L-32 + L-34 + L-35 (Semgrep OWASP + accessLog JSON + pip-audit lockfile) · S+S+M
+11. L-31 + L-33 (joblib atomar + dashboard-hero coverage) · M+S
 
 ---
 
@@ -169,10 +209,12 @@
 - **bcrypt**: direkt (ohne passlib), DUMMY\_HASH für Timing-Safety
 - **Fernet-Verschlüsselung**: Garmin-Tokens korrekt verschlüsselt, Key-Validierung beim Start
 - **Sentry PII**: `send_default_pii=False` in allen Services
-- **Docker-Hygiene**: Multi-Stage Builds, Digest-Pins, Non-root User, HEALTHCHECK, Resource Limits, Log-Rotation
+- **Docker-Hygiene**: Multi-Stage Builds, SHA256-Digest-Pins (alle Images), Non-root User, HEALTHCHECK, Resource Limits, Log-Rotation — vollständig
 - **Auth-Suite**: Login/Lockout/Rate-Limit/E-Mail-Verifikation/Password-Reset/DSGVO vollständig getestet
 - **ML-Modelle**: 14 Modelle, 80 Unit-Tests inkl. Randfälle
-- **Action-Digests**: Alle GitHub Actions mit `@sha256:...` gepinnt
+- **Action-Digests**: Alle GitHub Actions mit Commit-SHA gepinnt
+- **structlog JSON + UTC**: alle 3 Services; keine Secrets in Logs
+- **/health + /ready**: Liveness (kein DB-Call) + Readiness (SELECT 1 + Flyway-Check) — überdurchschnittlich gut
 
 ---
 

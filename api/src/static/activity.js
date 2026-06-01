@@ -286,7 +286,12 @@ async function load() {
             cls: 'badge-unbalanced',
         };
         document.getElementById('training-status-row').style.display = '';
-        document.getElementById('training-status-badge').innerHTML = `<span class="badge ${ts.cls}">${ts.label}</span>`;
+        const span = document.createElement('span');
+        span.className = `badge ${ts.cls}`;
+        span.textContent = ts.label;
+        const badge = document.getElementById('training-status-badge');
+        badge.textContent = '';
+        badge.appendChild(span);
     }
 
     const records = a.records || [];

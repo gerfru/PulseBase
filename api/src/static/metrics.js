@@ -35,7 +35,7 @@ async function load() {
         const data = await def.fetch();
         const result = def.render(data);
 
-        document.getElementById('metric-value').innerHTML = result.value;
+        document.getElementById('metric-value').textContent = result.value;
         if (result.sub) document.getElementById('metric-sub').textContent = result.sub;
 
         // Inline summary (1-2 sentences from eli5)
