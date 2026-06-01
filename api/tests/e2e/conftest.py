@@ -1,6 +1,8 @@
 import os
 import pathlib
 import pytest
+import asyncpg
+import bcrypt
 from playwright.async_api import async_playwright, BrowserContext, Page
 
 BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8001")
@@ -37,6 +39,79 @@ async def authenticated_page(browser_context: BrowserContext) -> Page:
     await p.wait_for_url("**/dashboard", timeout=10000)
     yield p
     await p.close()
+
+
+def _read_env_file() -> dict[str, str]:
+    """Read key=value pairs from env/.env (two levels above api/).
+
+    The unit-test conftest sets DB_USER=test via os.environ.setdefault, which
+    poisons os.getenv() for fixtures that need real DB credentials. Reading the
+    .env file directly mirrors what `make test-user` does via shell substitution.
+    """
+    env_path = pathlib.Path(__file__).parent.parent.parent.parent / "env" / ".env"
+    result: dict[str, str] = {}
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                result[k.strip()] = v.strip()
+    return result
+
+
+@pytest.fixture
+async def delete_test_user():
+    """Creates a disposable DB user for the account-delete E2E test.
+
+    Bypasses HTTP registration (email-verification requirement) by inserting
+    directly into the test DB — same approach as create_ci_user.py.
+    Teardown deletes the user if the test did not already do so.
+
+    Credentials are read from env/.env rather than os.getenv() because the
+    unit-test conftest poisons the environment with DB_USER=test.
+    """
+    env = _read_env_file()
+    email = "delete-test@e2e.local"
+    password = "DeleteMe!2026Test"  # pragma: allowlist secret
+    pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+    conn = await asyncpg.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "5434")),
+        database=os.getenv("DB_NAME", "garmin_test"),
+        user=env.get("DB_USER", "garmin"),
+        password=env.get("DB_PASSWORD", ""),  # pragma: allowlist secret
+    )
+    try:
+        user_id = await conn.fetchval(
+            """
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active)
+            VALUES ($1, $2, $3, NOW(), TRUE)
+            ON CONFLICT (email) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    email_verified_at = NOW(),
+                    is_active = TRUE
+            RETURNING id
+            """,
+            "Delete Test",
+            email,
+            pw_hash,
+        )
+        for consent_type in ("health_data", "terms", "age_16plus"):
+            await conn.execute(
+                """
+                INSERT INTO user_consents
+                    (user_id, consent_type, accepted, ip_address_hash, privacy_policy_version)
+                VALUES ($1, $2, TRUE, NULL, '1.0')
+                ON CONFLICT (user_id, consent_type) DO NOTHING
+                """,
+                user_id,
+                consent_type,
+            )
+        yield {"email": email, "password": password, "id": user_id}
+    finally:
+        await conn.execute("DELETE FROM users WHERE email = $1", email)
+        await conn.close()
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
