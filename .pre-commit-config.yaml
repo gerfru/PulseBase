@@ -41,6 +41,16 @@ repos:
 
   - repo: local
     hooks:
+      - id: semgrep
+        name: semgrep
+        entry: semgrep
+        language: system
+        args: [scan, api/src/, sync-service/src/, ml-service/src/, --config, p/python, --error]
+        pass_filenames: false
+        files: ^(api|sync-service|ml-service)/src/.*\.py$
+
+  - repo: local
+    hooks:
       - id: biome-check
         name: biome check (JS lint + format)
         entry: npx --yes @biomejs/biome@2.4.16 check --write api/src/static/
