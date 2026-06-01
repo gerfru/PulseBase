@@ -175,13 +175,14 @@ jobs:
       - name: Prepare env files
         run: |
           cp env/.env.example env/.env
+          cp env/.env.app.example env/.env.app
           cp env/.env.api.example env/.env.api
           sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -hex 32)|" env/.env.api
-          sed -i "s|^FERNET_KEY=.*|FERNET_KEY=$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" env/.env
+          sed -i "s|^FERNET_KEY=.*|FERNET_KEY=$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" env/.env.app
           sed -i "s|^HTTPS_ONLY=.*|HTTPS_ONLY=false|" env/.env.api
 
       - name: Start test stack
-        run: docker compose --env-file env/.env -f docker-compose.test.yml up -d --wait
+        run: docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.test.yml up -d --wait
 
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
@@ -216,7 +217,7 @@ jobs:
 
       - name: Stop test stack
         if: always()
-        run: docker compose --env-file env/.env -f docker-compose.test.yml down
+        run: docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.test.yml down
 
   test:
     name: Tests
