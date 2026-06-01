@@ -604,8 +604,7 @@ async def get_today_daily_summary(user_id: int) -> dict[str, Any] | None:
         """
         SELECT avg_stress, body_battery_high, body_battery_low
         FROM daily_summary
-        WHERE user_id = $1
-        ORDER BY date DESC LIMIT 1
+        WHERE user_id = $1 AND date = CURRENT_DATE
         """,
         user_id,
     )

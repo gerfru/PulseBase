@@ -822,3 +822,69 @@ async def test_verify_email_resend_error_returns_false(client):
 
             result = await _send_verify_email("user@example.com", "tok")
     assert result is False
+
+
+# ── Email-Format-Validierung ─────────────────────────────────────────────────
+
+
+async def test_register_rejects_invalid_email(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "not-an-email",
+            "password": "strongpassword1",  # pragma: allowlist secret
+            "password_confirm": "strongpassword1",  # pragma: allowlist secret
+            "consent_health": "on",
+            "consent_terms": "on",
+            "consent_age": "on",
+        },
+    )
+    assert r.status_code == 400
+    assert "E-Mail" in r.text
+
+
+async def test_register_rejects_email_without_domain(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "user@",
+            "password": "strongpassword1",  # pragma: allowlist secret
+            "password_confirm": "strongpassword1",  # pragma: allowlist secret
+            "consent_health": "on",
+            "consent_terms": "on",
+            "consent_age": "on",
+        },
+    )
+    assert r.status_code == 400
+
+
+# ── Consent IP-Hash ───────────────────────────────────────────────────────────
+
+
+async def test_register_consent_stores_ip_hash_not_raw_ip(client):
+    """save_consent is called with a hex hash, not a raw IP address."""
+    with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
+        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+            with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
+                await client.post(
+                    "/register",
+                    data={
+                        "name": "User",
+                        "email": "hash@example.com",
+                        "password": "strongpassword1",  # pragma: allowlist secret
+                        "password_confirm": "strongpassword1",  # pragma: allowlist secret
+                        "consent_health": "on",
+                        "consent_terms": "on",
+                        "consent_age": "on",
+                    },
+                )
+    assert mock_consent.await_count == 3
+    # ip_address_hash argument (4th positional) must look like a hex string, not an IP
+    for call in mock_consent.call_args_list:
+        ip_arg = call[0][3]
+        assert ip_arg is not None
+        # SHA-256 prefix: 12 hex chars (from _ip_hash which returns hexdigest()[:12])
+        assert len(ip_arg) == 12
+        assert all(c in "0123456789abcdef" for c in ip_arg)

@@ -43,8 +43,8 @@ async def main() -> None:
             await conn.execute(
                 """
                 INSERT INTO user_consents
-                    (user_id, consent_type, accepted, ip_address, privacy_policy_version)
-                VALUES ($1, $2, TRUE, '127.0.0.1', '1.0')
+                    (user_id, consent_type, accepted, ip_address_hash, privacy_policy_version)
+                VALUES ($1, $2, TRUE, NULL, '1.0')
                 ON CONFLICT (user_id, consent_type) DO NOTHING
                 """,
                 user_id,
