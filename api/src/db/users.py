@@ -256,6 +256,33 @@ async def save_user_token(user_id: int, service: str, token_data: bytes) -> None
     )
 
 
+async def save_reset_token(user_id: int, token_hash: str, expires_at: datetime) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET password_reset_token_hash = $2, password_reset_expires_at = $3 WHERE id = $1",
+        user_id,
+        token_hash,
+        expires_at,
+    )
+
+
+async def get_reset_token_user_id(token_hash: str) -> int | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT id FROM users WHERE password_reset_token_hash = $1 AND password_reset_expires_at > NOW()",
+        token_hash,
+    )
+    return int(row["id"]) if row else None
+
+
+async def clear_reset_token(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET password_reset_token_hash = NULL, password_reset_expires_at = NULL WHERE id = $1",
+        user_id,
+    )
+
+
 async def save_consent(
     user_id: int,
     consent_type: str,
