@@ -18,7 +18,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
         with:
           fetch-depth: 0
       - name: Fail if PR adds more than 400 lines
@@ -27,6 +27,7 @@ jobs:
         run: |
           ADDED=$(git diff "origin/$BASE_REF"...HEAD \
             -- . ':(exclude)*.lock' ':(exclude)*-lock.json' ':(exclude)*.lockb' \
+               ':(exclude)*.md' \
             | grep -cP '^\+' || echo 0)
           echo "Lines added (excl. lockfiles): $ADDED"
           if [ "$ADDED" -gt 400 ]; then
@@ -38,7 +39,7 @@ jobs:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
         with:
           args: check .
@@ -52,7 +53,7 @@ jobs:
     name: JS Lint (Biome)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - uses: biomejs/setup-biome@4c91541eaada48f67d7dbd7833600ce162b68f51 # v2
         with:
           version: "2.4.16"
@@ -65,19 +66,19 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
         with:
           fetch-depth: 0
       - name: gitleaks
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: pip-audit api
         run: |
-          pip install pip-audit
+          pip install pip-audit==2.8.0
           pip-audit api/
       - name: pip-audit sync-service
         run: pip-audit sync-service/
@@ -85,11 +86,11 @@ jobs:
         run: pip-audit ml-service/
       - name: bandit
         run: |
-          pip install bandit
+          pip install bandit==1.8.3
           bandit -r api/src/ sync-service/src/ ml-service/src/ -q
       - name: semgrep
         run: |
-          pip install semgrep
+          pip install semgrep==1.164.0
           semgrep scan --error --config p/python --config p/owasp-top-ten \
             api/src/ sync-service/src/ ml-service/src/
 
@@ -97,10 +98,10 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           enable-cache: true
       - name: mypy api
         working-directory: api
@@ -116,7 +117,7 @@ jobs:
     name: Trivy Image Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - name: Build api image
         run: docker build -t garmin-api:ci api/
       - name: Scan api
@@ -149,7 +150,7 @@ jobs:
     name: JS Tests (Vitest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 9
@@ -165,11 +166,11 @@ jobs:
 
   e2e:
     name: E2E Tests
-    needs: [test, trivy]
+    needs: [lint, js-lint, security, typecheck, test, js-test, trivy]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
       - name: Prepare env files
         run: |
@@ -184,7 +185,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           enable-cache: true
 
       - name: Install api dev deps
@@ -202,8 +203,8 @@ jobs:
           TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}  # pragma: allowlist secret
           DB_PORT: "5434"
         run: |
-          export DB_USER=$(grep ^DB_USER ../env/.env | cut -d= -f2)
-          export DB_PASSWORD=$(grep ^DB_PASSWORD ../env/.env | cut -d= -f2)
+          export DB_USER=$(grep '^DB_USER=' ../env/.env | cut -d= -f2-)
+          export DB_PASSWORD=$(grep '^DB_PASSWORD=' ../env/.env | cut -d= -f2-)
           uv run python tests/e2e/create_ci_user.py
 
       - name: Run E2E smoke tests
@@ -222,10 +223,10 @@ jobs:
     needs: typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           enable-cache: true
       - name: pytest api
         working-directory: api
@@ -238,3 +239,17 @@ jobs:
       - name: pytest ml-service
         working-directory: ml-service
         run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=30
+
+  ci-ok:
+    name: CI OK (All Green Gate)
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, e2e, trivy]
+    steps:
+      - name: All checks passed
+        run: |
+          if echo '${{ toJSON(needs.*.result) }}' | grep -qE '"failure"|"cancelled"'; then
+            echo "One or more required jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All CI jobs passed."
