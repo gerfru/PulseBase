@@ -907,9 +907,8 @@ async def test_get_today_daily_summary_returns_none_when_no_today_data():
     mock_pool = MagicMock()
     mock_pool.fetchrow = AsyncMock(return_value=None)
 
-    with patch("db.get_pool", AsyncMock(return_value=mock_pool)):
-        with patch("db._pool_or_raise", return_value=mock_pool):
-            result = await get_today_daily_summary(user_id=1)
+    with patch("db.health._pool_or_raise", return_value=mock_pool):
+        result = await get_today_daily_summary(user_id=1)
 
     assert result is None
 
@@ -925,7 +924,7 @@ async def test_get_today_daily_summary_returns_todays_row():
     mock_pool = MagicMock()
     mock_pool.fetchrow = AsyncMock(return_value=fake_row)
 
-    with patch("db._pool_or_raise", return_value=mock_pool):
+    with patch("db.health._pool_or_raise", return_value=mock_pool):
         result = await get_today_daily_summary(user_id=1)
 
     assert result is not None
