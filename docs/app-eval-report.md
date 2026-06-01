@@ -127,7 +127,7 @@
 | L-23 | ✅ | W6 | **E2E: kein Test für `/metrics` und `/help`** | `api/tests/e2e/test_smoke.py` | Tests |
 | L-24 | ✅ | W7 | **Health-Check: Python-Interpreter statt `curl`** | `api/Dockerfile` | Observability |
 | L-25 | ✅ | W7 | **Readiness-Probe prüft keine Migration** | `api/src/main.py:150` | Observability |
-| L-26 | ❌ | W8 | **Fehlende Return-Annotierungen in `training_load.py`** | `api/src/training_load.py` | Code-Qualität |
+| L-26 | ✅ | W8 | **Fehlende Return-Annotierungen in `training_load.py`** | `api/src/training_load.py` | Code-Qualität |
 | L-27 | ✅ | W0 | **HEALTHCHECK `start_period` fehlt im api Dockerfile** | `api/Dockerfile` | Architektur |
 | L-28 | — | — | **HSTS bei self-signed TLS** (dokumentierte Ausnahme SEC-L1) | `api/src/main.py` | Security |
 | L-29 | ✅ | W0 | Renovate GitHub-Actions minor/patch automerge · trivy nicht in needs-Chain · pre-commit mypy ohne `--explicit-package-bases` · `.dockerignore` unvollständig · coverage omit veraltet · Magic Number `_DEFAULT_RHR` · Return-Annotation `_rate_limit_exceeded_handler` | mehrere | diverse |
@@ -144,7 +144,7 @@
 | **W5** (ML Restrukturierung) | ✅ M-10 — erledigt |
 | **W6** (Tests) | ✅ H-04, H-05, M-14, M-30, M-31, L-12, L-22, L-23 — erledigt |
 | **W7** (Observability/Docker) | ✅ M-20, L-01, L-02, L-03, L-04, L-05, L-20, L-24, L-25 — erledigt |
-| **W8** (Code-Qualität) | L-26 |
+| **W8** (Code-Qualität) | ✅ L-26 — erledigt (Annotierungen waren bereits vorhanden) |
 | **Manuell** | H-07 (Sentry DSN), M-19 (UptimeRobot) |
 
 ---
