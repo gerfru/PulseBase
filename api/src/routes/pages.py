@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 
 import src.deps as _deps
 from src.db import get_activity_detail
+from src.deps import generate_csrf_token
 
 router = APIRouter()
 
@@ -56,7 +57,11 @@ async def settings_page(request: Request):
     return _deps.templates.TemplateResponse(
         request,
         "settings.html",
-        {"user": user, "today": date.today().isoformat()},
+        {
+            "user": user,
+            "today": date.today().isoformat(),
+            "csrf_token": generate_csrf_token(request),
+        },
     )
 
 

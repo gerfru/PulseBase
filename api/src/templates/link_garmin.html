@@ -17,6 +17,7 @@
             {% endif %}
 
             <form method="post" action="/garmin/link" class="flex flex-col gap-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
                     <label for="garmin_email" class="block text-sm font-medium text-slate-300 mb-1.5">Garmin Connect E-Mail</label>
                     <input type="email" id="garmin_email" name="garmin_email" required autocomplete="email" placeholder="deine@email.com"

@@ -1,5 +1,7 @@
 import hashlib
+import hmac
 import ipaddress
+import secrets
 import time
 from pathlib import Path
 
@@ -80,3 +82,16 @@ async def require_user(request: Request) -> dict:
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals["v"] = str(int(time.time()))
+
+
+def generate_csrf_token(request: Request) -> str:
+    if "csrf_token" not in request.session:
+        request.session["csrf_token"] = secrets.token_urlsafe(32)
+    return request.session["csrf_token"]
+
+
+def verify_csrf_token(request: Request, form_token: str | None) -> bool:
+    session_token = request.session.get("csrf_token", "")
+    if not session_token or not form_token:
+        return False
+    return hmac.compare_digest(session_token, form_token)

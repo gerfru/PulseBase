@@ -60,6 +60,18 @@ def _reset_rate_limiter():
     limiter._storage.reset()
 
 
+@pytest.fixture(autouse=True)
+def _bypass_csrf():
+    """Bypass CSRF validation in all unit tests — CSRF is tested via E2E."""
+    with (
+        patch("src.routes.account.verify_csrf_token", return_value=True),
+        patch("src.routes.auth.verify_csrf_token", return_value=True),
+        patch("src.routes.garmin.verify_csrf_token", return_value=True),
+        patch("src.routes.libre.verify_csrf_token", return_value=True),
+    ):
+        yield
+
+
 @pytest.fixture
 async def client():
     with patch("src.main.get_pool", AsyncMock(return_value=AsyncMock())):

@@ -7,9 +7,10 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 import src.deps as _deps
+from fastapi import HTTPException
 from src.crypto import fernet_encrypt
 from src.db import save_user_token, set_libre_linked, set_libre_unlinked
-from src.deps import _ip_hash, limiter
+from src.deps import _ip_hash, generate_csrf_token, limiter, verify_csrf_token
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -18,7 +19,11 @@ router = APIRouter()
 @router.get("/libre/link")
 async def libre_link_form(request: Request):
     user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(request, "link_libre.html", {"user": user})
+    return _deps.templates.TemplateResponse(
+        request,
+        "link_libre.html",
+        {"user": user, "csrf_token": generate_csrf_token(request)},
+    )
 
 
 @router.post("/libre/link")
@@ -27,11 +32,23 @@ async def libre_link(
     request: Request,
     libre_email: str = Form(),
     libre_password: str = Form(),
+    csrf_token: str | None = Form(default=None),
 ):
     from libre.client import LibreAuthError
     from libre.client import authenticate as libre_authenticate
 
     user = await _deps.require_user(request)
+    if not verify_csrf_token(request, csrf_token):
+        return _deps.templates.TemplateResponse(
+            request,
+            "link_libre.html",
+            {
+                "user": user,
+                "error": "Ungültige Anfrage. Bitte neu laden.",
+                "csrf_token": generate_csrf_token(request),
+            },
+            status_code=403,
+        )
     settings = _deps.settings
     try:
         client = libre_authenticate(
@@ -84,8 +101,10 @@ async def libre_link(
 
 
 @router.post("/libre/unlink")
-async def libre_unlink(request: Request):
+async def libre_unlink(request: Request, csrf_token: str | None = Form(default=None)):
     user = await _deps.require_user(request)
+    if not verify_csrf_token(request, csrf_token):
+        raise HTTPException(status_code=403, detail="Ungültige Anfrage.")
     await set_libre_unlinked(user["id"])
     token_dir = Path(f"/app/tokens/{user['id']}/libre")
     if token_dir.exists():
