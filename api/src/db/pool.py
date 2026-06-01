@@ -7,8 +7,6 @@ class Settings(BaseSettings):
     db_host: str = "db"
     db_port: int = 5432
     db_name: str = "garmin"
-    db_user: str
-    db_password: str
     db_app_user: str
     db_app_password: str
     session_secret: str
