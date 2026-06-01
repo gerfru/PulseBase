@@ -57,6 +57,36 @@ class TestMapActivity:
         result = map_activity(RAW_ACTIVITY_RUNNING, user_id=1)
         assert result.avg_speed_kmh == pytest.approx(10.0, rel=0.01)
 
+    def test_sub_activity_type_none_falls_back_to_activity_type(self):
+        raw = {
+            **RAW_ACTIVITY_RUNNING,
+            "subActivityType": None,  # explicit None, not missing key
+        }
+        result = map_activity(raw, user_id=1)
+        assert result.sport_type == SportType.RUNNING
+
+    def test_average_speed_none_gives_none_speed_fields(self):
+        raw = {**RAW_ACTIVITY_RUNNING, "averageSpeed": None}
+        result = map_activity(raw, user_id=1)
+        assert result.avg_speed_kmh is None
+        assert result.avg_pace_sec_per_km is None
+
+    def test_optional_running_fields_explicitly_none(self):
+        raw = {
+            **RAW_ACTIVITY_RUNNING,
+            "avgGroundContactTime": None,
+            "avgVerticalOscillation": None,
+            "avgStrideLength": None,
+            "avgVerticalRatio": None,
+            "avgRunningPower": None,
+        }
+        result = map_activity(raw, user_id=1)
+        assert result.avg_ground_contact_time is None
+        assert result.avg_vertical_oscillation is None
+        assert result.avg_stride_length is None
+        assert result.avg_vertical_ratio is None
+        assert result.avg_running_power is None
+
 
 class TestPaceToSec:
     def test_converts_correctly(self):
@@ -85,6 +115,20 @@ class TestMapSleep:
         raw = {"dailySleepDTO": {"id": 1}}
         assert map_sleep(raw, user_id=1) is None
 
+    def test_daily_sleep_dto_explicitly_none_returns_none(self):
+        assert map_sleep({"dailySleepDTO": None}, user_id=1) is None
+
+    def test_sleep_score_value_none_maps_to_none(self):
+        raw = {
+            "dailySleepDTO": {
+                **RAW_SLEEP["dailySleepDTO"],
+                "sleepScores": {"overall": {"value": None}},
+            }
+        }
+        result = map_sleep(raw, user_id=1)
+        assert result is not None
+        assert result.sleep_score is None
+
 
 class TestMapHRV:
     def test_maps_all_fields(self):
@@ -96,6 +140,14 @@ class TestMapHRV:
 
     def test_empty_raw_returns_none(self):
         assert map_hrv({}, user_id=1, day=date(2026, 4, 27)) is None
+
+    def test_hrv_summary_with_none_values(self):
+        raw = {"hrvSummary": {"lastNightAvg": None, "weeklyAvg": None, "status": None}}
+        result = map_hrv(raw, user_id=1, day=date(2026, 4, 27))
+        assert result is not None
+        assert result.hrv_last_night is None
+        assert result.hrv_weekly_avg is None
+        assert result.hrv_status is None
 
 
 class TestIntOrNone:
@@ -162,6 +214,38 @@ class TestMapRecords:
     def test_missing_polyline_returns_empty_list(self):
         assert map_records({}) == []
 
+    def test_both_speed_metrics_none_gives_no_pace(self):
+        raw = {
+            "activityDetailMetrics": [
+                {
+                    "metricType": "directSpeed",
+                    "metrics": [{"sequenceNumber": 0, "value": None}],
+                },
+                {
+                    "metricType": "directEnhancedSpeed",
+                    "metrics": [{"sequenceNumber": 0, "value": None}],
+                },
+            ],
+            "geoPolylineDTO": {
+                "polyline": [{"time": 1745704800000, "lat": 48.20, "lon": 16.37}]
+            },
+        }
+        result = map_records(raw)
+        assert len(result) == 1
+        assert result[0].pace_sec_per_km is None
+
+    def test_polyline_point_with_none_coords(self):
+        raw = {
+            "activityDetailMetrics": [],
+            "geoPolylineDTO": {
+                "polyline": [{"time": 1745704800000, "lat": None, "lon": None}]
+            },
+        }
+        result = map_records(raw)
+        assert len(result) == 1
+        assert result[0].lat is None
+        assert result[0].lng is None
+
     def test_record_without_timestamp_skipped(self):
         raw = {
             "activityDetailMetrics": [],
@@ -208,6 +292,25 @@ class TestMapSummary:
         assert result.steps is None
         assert result.resting_hr is None
         assert result.avg_spo2 is None
+
+    def test_explicit_none_fields_map_to_none(self):
+        raw = {
+            "totalSteps": None,
+            "totalKilocalories": None,
+            "averageStressLevel": None,
+            "averageSpO2": None,
+            "bodyBatteryHighest": None,
+            "bodyBatteryLowest": None,
+            "restingHeartRate": None,
+            "moderateIntensityMinutes": None,
+            "vigorousIntensityMinutes": None,
+        }
+        result = map_summary(raw, user_id=1, day=date(2026, 4, 27))
+        assert result.steps is None
+        assert result.resting_hr is None
+        assert result.avg_spo2 is None
+        assert result.body_battery_high is None
+        assert result.intensity_moderate is None
 
 
 class TestMapBodyBattery:

@@ -17,7 +17,9 @@ def map_reading(reading: Any, user_id: int) -> dict:
     return {
         "time": ts,
         "user_id": user_id,
-        "value_mgdl": float(reading.value_in_mg_per_dl),
+        "value_mgdl": float(reading.value_in_mg_per_dl)
+        if reading.value_in_mg_per_dl is not None
+        else None,
         "trend": trend,
         "is_high": bool(reading.is_high) if reading.is_high is not None else None,
         "is_low": bool(reading.is_low) if reading.is_low is not None else None,
