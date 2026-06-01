@@ -31,6 +31,8 @@ production database — always add a new migration file.
 | `V18__email_verification.sql` | Adds `email_verified_at TIMESTAMPTZ` to `users`; backfills existing users |
 | `V19__user_consents.sql` | Creates `user_consents` audit table for DSGVO Art. 5(2) accountability |
 | `V20__user_tokens.sql` | Creates `user_tokens` table for Fernet-encrypted Garmin/LibreLink session tokens |
+| `V21__consent_ip_hash.sql` | Replaces `ip_address INET` (PII) with `ip_address_hash TEXT` (SHA-256 prefix) in `user_consents` |
+| `V22__password_reset_token.sql` | Adds `password_reset_token_hash TEXT`, `password_reset_expires_at TIMESTAMPTZ` to `users` |
 
 ---
 
@@ -57,6 +59,8 @@ production database — always add a new migration file.
 | `failed_login_attempts` | `SMALLINT DEFAULT 0` | Brute-force counter; resets on success (V17) |
 | `locked_until` | `TIMESTAMPTZ` | Account locked until this time after 5 failures (V17) |
 | `email_verified_at` | `TIMESTAMPTZ` | Set on first email verification; NULL = unverified (V18) |
+| `password_reset_token_hash` | `TEXT` | bcrypt hash of active reset token; NULL when no reset pending (V22) |
+| `password_reset_expires_at` | `TIMESTAMPTZ` | Expiry of active reset token; token cleared after use (V22) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 ---
@@ -219,7 +223,7 @@ Audit log for user consent (DSGVO Art. 5(2) — Rechenschaftspflicht). Added in 
 | `consent_type` | `TEXT NOT NULL` | e.g. `health_data` (Art. 9 explicit consent) |
 | `accepted` | `BOOLEAN NOT NULL` | `true` = consent given |
 | `timestamp` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | When consent was recorded |
-| `ip_address` | `INET` | Request IP at time of consent |
+| `ip_address_hash` | `TEXT` | SHA-256 prefix hash of request IP (DSGVO Art. 5(1)(c) data minimisation, V21) |
 | `privacy_policy_version` | `TEXT NOT NULL DEFAULT 'v1.0'` | Policy version the user consented to |
 
 UNIQUE on `(user_id, consent_type)` — upserted on re-registration via `ON CONFLICT DO UPDATE`.
