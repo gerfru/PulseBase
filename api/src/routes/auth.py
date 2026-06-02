@@ -116,7 +116,7 @@ async def login_form(request: Request) -> Response:
 @limiter.limit("10/minute")
 async def login(
     request: Request,
-    email: str = Form(),
+    email: str = Form(max_length=320),
     password: str = Form(),
     csrf_token: str | None = Form(default=None),
 ) -> Response:
@@ -138,8 +138,8 @@ async def login(
 
     if not user or not valid:
         if user:
-            await increment_failed_login(user["id"])
-            if user["failed_login_attempts"] + 1 >= _MAX_ATTEMPTS:
+            new_attempts = await increment_failed_login(user["id"])
+            if new_attempts >= _MAX_ATTEMPTS:
                 until = datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)
                 await lock_user_until(user["id"], until)
                 await send_lockout_email(user["email"], _LOCKOUT_MINUTES)
@@ -255,7 +255,16 @@ async def register(
 
 
 @router.post("/logout")
-async def logout(request: Request) -> Response:
+async def logout(
+    request: Request, csrf_token: str | None = Form(default=None)
+) -> Response:
+    if not verify_csrf_token(request, csrf_token):
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "Ungültige Anfrage.", "csrf_token": generate_csrf_token(request)},
+            status_code=403,
+        )
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
 
@@ -267,7 +276,9 @@ async def resend_verify_form(request: Request) -> Response:
 
 @router.post("/auth/resend-verify")
 @limiter.limit("3/hour")
-async def resend_verify(request: Request, email: str = Form()) -> Response:
+async def resend_verify(
+    request: Request, email: str = Form(max_length=320)
+) -> Response:
     user = await get_user_by_email(email)
     sent = False
     if user and not user["email_verified_at"]:
@@ -305,7 +316,9 @@ async def reset_request_form(request: Request) -> Response:
 
 @router.post("/auth/reset-request")
 @limiter.limit("3/hour")
-async def reset_request(request: Request, email: str = Form()) -> Response:
+async def reset_request(
+    request: Request, email: str = Form(max_length=320)
+) -> Response:
     user = await get_user_by_email(email)
     if user:
         token = await _make_reset_token(user["id"])
@@ -328,6 +341,9 @@ async def reset_password_form(request: Request, token: str) -> Response:
             {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
             status_code=400,
         )
+    request.session["reset_token_hash"] = hashlib.sha256(token.encode()).hexdigest()[
+        :16
+    ]
     return templates.TemplateResponse(
         request,
         "reset_password.html",
@@ -349,6 +365,14 @@ async def reset_password(
             request,
             "reset_password.html",
             {"token": token, "error": "Ungültige Anfrage. Bitte neu laden."},
+            status_code=403,
+        )
+    expected_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+    if request.session.pop("reset_token_hash", None) != expected_hash:
+        return templates.TemplateResponse(
+            request,
+            "reset_request.html",
+            {"error": "Sitzung abgelaufen. Bitte neu anfordern."},
             status_code=403,
         )
     user_id = await _verify_reset_token(token)

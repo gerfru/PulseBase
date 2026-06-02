@@ -19,13 +19,16 @@ from httpx import AsyncClient, ASGITransport
 from src.main import app
 
 
-def make_session(client, user_id: int = 1) -> None:
+def make_session(client, user_id: int = 1, extra: dict | None = None) -> None:
     """Inject a signed session cookie into the test client (shared helper)."""
     from itsdangerous import TimestampSigner
     from src.deps import settings
 
     signer = TimestampSigner(settings.session_secret)
-    data = b64encode(json.dumps({"user_id": str(user_id)}).encode("utf-8"))
+    session_data: dict = {"user_id": str(user_id)}
+    if extra:
+        session_data.update(extra)
+    data = b64encode(json.dumps(session_data).encode("utf-8"))
     signed = signer.sign(data).decode("utf-8")
     client.cookies.set("session", signed)
 

@@ -26,6 +26,50 @@ def _bypass_csrf():
     yield
 
 
+# ── auth/login ───────────────────────────────────────────────────────────────
+
+
+async def test_login_csrf_failure_returns_400(client):
+    r = await client.post(
+        "/login",
+        data={
+            "email": "x@example.com",
+            "password": "wrong",  # pragma: allowlist secret
+        },
+    )
+    assert r.status_code == 400
+    assert "Ungültige Anfrage" in r.text
+
+
+# ── auth/register ─────────────────────────────────────────────────────────────
+
+
+async def test_register_csrf_failure_returns_400(client):
+    r = await client.post(
+        "/register",
+        data={
+            "name": "User",
+            "email": "x@example.com",
+            "password": "strongpassword1",  # pragma: allowlist secret
+            "password_confirm": "strongpassword1",  # pragma: allowlist secret
+            "consent_health": "on",
+            "consent_terms": "on",
+            "consent_age": "on",
+        },
+    )
+    assert r.status_code == 400
+    assert "Ungültige Anfrage" in r.text
+
+
+# ── logout ────────────────────────────────────────────────────────────────────
+
+
+async def test_logout_csrf_failure_returns_403(client):
+    r = await client.post("/logout")
+    assert r.status_code == 403
+    assert "Ungültige Anfrage" in r.text
+
+
 # ── account/delete ────────────────────────────────────────────────────────────
 
 

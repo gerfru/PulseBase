@@ -52,7 +52,9 @@ def _garmin_call(fn: Callable[[], _T]) -> _T:
     ):
         with attempt:
             return fn()
-    raise RuntimeError("unreachable: tenacity reraises on exhaustion")
+    raise RuntimeError(
+        "unreachable: tenacity reraises on exhaustion"
+    )  # pragma: no cover
 
 
 async def _sync_activities(
@@ -256,7 +258,7 @@ async def sync_all_users(
             await repo.mark_sync_done(user["id"])
 
 
-async def main() -> None:
+async def main() -> None:  # pragma: no cover
     settings = Settings()  # type: ignore[call-arg]
     try:
         from cryptography.fernet import Fernet
@@ -320,5 +322,5 @@ async def main() -> None:
     logger.info("shutdown.complete")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     asyncio.run(main())

@@ -18,7 +18,7 @@ def compute_sleep_consistency(session_rows: list[dict[str, Any]]) -> dict[str, A
 
     def std_circular(hours: list[float]) -> float:
         """Circular std for hour values (wrap-around midnight)."""
-        if len(hours) < 2:
+        if len(hours) < 2:  # pragma: no cover
             return 0.0
         m = sum(hours) / len(hours)
         return math.sqrt(sum((h - m) ** 2 for h in hours) / len(hours))

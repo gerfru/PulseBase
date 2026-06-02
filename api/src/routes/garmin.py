@@ -60,12 +60,7 @@ async def garmin_link(
         with tempfile.TemporaryDirectory() as tmpdir:
             existing = await get_user_token(user["id"], "garmin")
             if existing:
-                raw = (
-                    fernet_decrypt(existing, settings.fernet_key)
-                    if settings.fernet_key
-                    else existing
-                )
-                restore_token_dir(raw, tmpdir)
+                restore_token_dir(fernet_decrypt(existing, settings.fernet_key), tmpdir)
 
             client = GarminClient(
                 email=garmin_email,
@@ -75,12 +70,7 @@ async def garmin_link(
             client.connect()
             del garmin_password
 
-            serialized = serialize_token_dir(tmpdir)
-            blob = (
-                fernet_encrypt(serialized, settings.fernet_key)
-                if settings.fernet_key
-                else serialized
-            )
+            blob = fernet_encrypt(serialize_token_dir(tmpdir), settings.fernet_key)
             await save_user_token(user["id"], "garmin", blob)
 
         await set_garmin_linked(user["id"], garmin_email)

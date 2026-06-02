@@ -4,7 +4,7 @@
 **Regelquelle:** Dev-Best-Practices Plugin (essential/app/github/architecture-rules.md)
 **ASVS-Level:** L2 (Auth + sensible Gesundheitsdaten, DSGVO, Epilepsie-Modus)
 **Team:** Solo · Homelab
-**Dokumentierte Ausnahmen (nicht gemeldet):** ARCH-M2, ARCH-M3, ARCH-L2, ARCH-L3, CICD-M3, QUAL-M2, OBS-L1, TEST-L1, SEC-L1, OBS-L2, TEST-L2, CICD-L4
+**Dokumentierte Ausnahmen (nicht gemeldet):** ARCH-M2, ARCH-M3, ARCH-L2, ARCH-L3, ARCH-L4, CICD-M3, QUAL-M2, OBS-L1, OBS-L2, TEST-L1, TEST-L2, TEST-L3, SEC-L1, CICD-L4
 
 ---
 
@@ -28,30 +28,40 @@
 | 2026-06-02 | Wave 9 Runde 3 — Tests | M-38, M-39 gefixt · L-33 → TEST-L3 · E2E: Register, E-Mail-Verify, Passwort-Reset, Öffentliche Seiten, Epilepsie-Seite ergänzt |
 | 2026-06-02 | Wave 9 Runde 4 — Code-Qualität | H-12 (DAL-Bypass backfill.py → db/), H-13 (evidence_catalog.py → JSON), H-14 (mail.py extrahiert), H-15 (login() aufgeteilt) gefixt |
 | 2026-06-02 | Wave 9 Runde 5 — CI/CD + Observability | M-36 (Traefik ping HEALTHCHECK), M-37 (flyway:11 Test-Compose), L-31 (joblib atomar), L-32 (semgrep OWASP), L-34 (accessLog JSON), L-35 (pip-audit uv.lock) gefixt |
+| 2026-06-02 | Eval 4 — Vollständiger Re-Audit nach Wave 9 (6 Subagenten parallel) | 2H · 17M · 25L (neu entdeckt) |
+| 2026-06-02 | Wave 10 Runde 1 — Security Quick Wins | H-16, H-17, M-40, M-41, M-43, M-44, L-36–39 gefixt · L-59 ✅ resolved · M-52 ❌ confirmed open |
 
 ---
 
 ## Achsen-Übersicht
 
-| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | Noch offen |
-|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | — |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | — |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | — |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | — |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | — |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | H-07 (manuell), M-19 (manuell) |
+| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | Noch offen |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-45, M-46, L-40–43 |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-42 (Nonce, Aufwand hoch), L-28 (Ausnahme) |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟡 | M-50–52, L-44–46, L-57–60 |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-53–55, L-47–50 |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-19 (manuell), M-56, L-51 |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-47–49, L-52–56 |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
 - **Code-Qualität 🔴:** 4 neue High-Befunde (DAL-Bypass backfill.py, Dateigrößen, lange Funktionen).
 - **Security/Tests/CI/Obs 🟡:** Jeweils 1–3 mittlere Befunde, kein systemisches Versagen.
 
+**Eval 4 Begründung (nach Wave 9):**
+- **Security 🟡:** H-16 (Fernet dead-code Guard), 5 neue Mediums (CSRF /logout, Lockout Race Condition, CSP ohne Nonce, Reset-Token GET-Leck, DAL Auth fehlt). Positive Basis bleibt stark: keine SQLi, Rate Limiting vollständig, CSRF auf allen anderen Routen korrekt.
+- **Architektur 🟡:** M-45 (ml-service SIGTERM wait=False — M-01 W1 adressierte nur den Handler, nicht das wait-Flag), M-46 (api-test Port auf 0.0.0.0). Prod-Architektur 🟢.
+- **Code-Qualität 🟡:** 3 neue Mediums (God-Functions in inference_models.py, login() immer noch 67Z nach H-15-Teilfix). Kein Critical, keine strukturellen Mängel.
+- **Tests 🟡:** H-17 (is_active=False Login-Test — H-08 W0 fixte Implementation, Test fehlt weiterhin), 3 Mediums (@requires_data in CI nie ausgeführt, inference_models.py Tests fehlen, fail_under Drift).
+- **CI/CD 🟢:** Nur 1 Medium (Trivy ohne Artefakt) + wenige Lows. DORA-Profil: High Performer.
+- **Observability 🟡:** 3 Mediums (stdlib ProcessorFormatter Bridge fehlt, Compose-Healthcheck /health statt /ready, SentryProcessor fehlt). Grundinfrastruktur (structlog JSON, /health + /ready, Sentry optional) ist vorhanden.
+
 ---
 
 ## Alle Befunde — nach Severity sortiert
 
-**Legende:** ✅ Umgesetzt · ❌ Offen · 🔧 Teilweise · — Dokumentierte Ausnahme
+**Legende:** ✅ Umgesetzt · ❌ Offen · 🔧 Teilweise · — Dokumentierte Ausnahme · [?] zu verifizieren
 
 ---
 
@@ -74,6 +84,8 @@
 | H-13 | ✅ | W9 | **`evidence_catalog.py` 485 Zeilen (>400)** — reine Datenkonstante als Python-Modul; jede Erweiterung bläht sie weiter auf | `api/src/evidence_catalog.py` | Code-Qualität |
 | H-14 | ✅ | W9 | **`auth.py` 417 Zeilen: E-Mail-Helpers im Router** — `_send_email`, `_send_lockout_email`, `_send_reset_email`, `_send_verify_email` (Zeilen 52–145) gehören nicht in eine Router-Datei | `api/src/routes/auth.py` | Code-Qualität |
 | H-15 | ✅ | W9 | **`login()` Funktion 78 Zeilen** — Account-Lockout-Block (Zeilen 159–183) isoliert extrahierbar | `api/src/routes/auth.py:152` | Code-Qualität |
+| H-16 | ✅ | W10 | **Fernet dead-code: Garmin-Token potentiell unverschlüsselt** — `if settings.fernet_key`-Guards implizieren Code-Pfad ohne Verschlüsselung; Key ist als Pflichtfeld validiert, aber `else`-Zweig bleibt latent im Code | `api/src/routes/garmin.py:63–83` | Security |
+| H-17 | ✅ | W10 | **Login mit `is_active=False` nicht getestet** — H-08 (W0) fixte die Implementation; ein Test für den deaktivierten-User-Pfad fehlt weiterhin (`TEST_USER` hat kein `is_active`-Feld) | `api/tests/test_auth.py` | Tests |
 
 ---
 
@@ -120,6 +132,23 @@
 | M-37 | ✅ | W9 | **`docker-compose.test.yml`: `flyway:latest`-Tag statt gepinnter Version** — `docker-compose.yml` nutzt gepinnten Digest, Test-Compose nicht | `docker-compose.test.yml:22` | CI/CD |
 | M-38 | ✅ | W9 | **sync-service `crypto.py` komplett ungetestet** — Fernet-Encrypt/Decrypt + Token-Dir-Serialisierung ohne Roundtrip-Tests (api/ hat äquivalente Tests in test_coverage.py:242–384) | Lücke: `sync-service/src/crypto.py` | Tests |
 | M-39 | ✅ | W9 | **sync-service `garmin/client.py` komplett ungetestet** — H-05 (W6) testete Orchestrierung; Client-Logik (Token-Login, Fallback, save_token) weiterhin ohne Test | Lücke: `sync-service/src/garmin/client.py` | Tests |
+| M-40 | ✅ | W10 | **Kein CSRF-Schutz auf `POST /logout`** — Forced-Logout via Cross-Site-POST möglich; alle anderen mutativen Routen korrekt geschützt · Fix: `verify_csrf_token()` analog zu `garmin_unlink` | `api/src/routes/auth.py:257–260` | Security |
+| M-41 | ✅ | W10 | **Account-Lockout Race Condition** — `failed_login_attempts` wird vor `increment_failed_login` gelesen + manuell +1 addiert; parallele Requests können Lockout-Trigger umgehen · Fix: `UPDATE ... SET failed_login_attempts = failed_login_attempts + 1 RETURNING failed_login_attempts` | `api/src/routes/auth.py:142–143` | Security |
+| M-42 | ❌ | E4 | **CSP ohne Nonce — Gold-Standard nicht erreicht** — `script-src 'self'` ohne Nonce; laut app-rules.md ist nonce-basiert mit `'strict-dynamic'` der Soll-Standard · Fix: Nonce-Middleware + `script-src 'nonce-{n}' 'strict-dynamic'` · Vorher im Report-Only-Modus testen | `api/src/main.py:44–57` | Security |
+| M-43 | ✅ | W10 | **Password-Reset-Token nach GET-Aufruf weiterhin gültig** — M-06 (W2) fixte Invalidierung nach POST; GET rendert Formular ohne Token zu invalidieren; Angreifer mit abgegriffenem Token kann weiterhin POST senden · verifiziert: GET-Case offen · Fix: `request.session["reset_token_hash"]` beim GET setzen, beim POST prüfen + entfernen | `api/src/routes/auth.py:322–335` | Security |
+| M-44 | ✅ | W10 | **Auth fehlt am Data Access Layer (3. Schicht)** — DB-Funktionen akzeptieren `user_id: int` ohne Ownership-Prüfung; defense-in-depth gemäß app-rules.md fehlt · Fix (kurzfristig): `assert user_id > 0` + `# CALLER MUST verify session ownership` auf kritischen Schreibops (`delete_user`, `update_password`, `save_user_token`) | `api/src/db/users.py` | Security |
+| M-45 | ❌ | E4 | **ml-service SIGTERM `wait=False` — laufende ML-Jobs werden abgebrochen** — M-01 (W1) adressierte fehlenden Handler; `wait=False` bricht laufende `fit()`/`predict()`-Jobs trotz `stop_grace_period: 60s` ab; sync-service löst das korrekt (M-35 W9) · Fix: SIGTERM-Handler analog zu sync-service mit `asyncio.Event` + `scheduler.shutdown(wait=True)` | `ml-service/src/main.py:206` | Architektur |
+| M-46 | ❌ | E4 | **api-test Port 8001 nicht auf `127.0.0.1` gebunden** — `"8001:8000"` bindet auf `0.0.0.0`; Test-Stack läuft auf demselben Mac mini wie Prod; API-Test-Container ohne Auth von LAN erreichbar · Fix: `"127.0.0.1:8001:8000"` | `docker-compose.test.yml:46` | Architektur |
+| M-47 | ❌ | E4 | **Stdlib-Logs nicht JSON (split log format)** — `logging.basicConfig(format="%(message)s")` leitet uvicorn/APScheduler/garminconnect-Logs als Plain-Text; M-08 (W4) fixte interne structlog-Calls, aber `ProcessorFormatter`-Bridge für Third-Party-Logger fehlt weiterhin · Fix: `structlog.stdlib.ProcessorFormatter` mit `foreign_pre_chain` als Root-Logger-Handler | `api/src/logging_config.py:24`, `sync-service/src/logging_config.py:21`, `ml-service/src/logging_config.py:24` | Observability |
+| M-48 | ❌ | E4 | **Compose-Healthcheck trifft `/health` statt `/ready`** — Docker prüft Liveness, nicht Readiness; Container gilt als `healthy` auch wenn DB-Verbindung noch nicht steht · Fix: `test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]` | `docker-compose.yml:120` | Observability |
+| M-49 | ❌ | E4 | **`logger.error(...)` landet nicht in Sentry (kein `SentryProcessor`)** — FastAPI-Integration fängt nur unhandled Exceptions; explizite `logger.error(..., exc_info=True)`-Aufrufe in sync/ml-service erzeugen keine Sentry-Events · Fix: `structlog.SentryProcessor(level=logging.ERROR)` vor `JSONRenderer` in alle drei `logging_config.py` | `api/src/logging_config.py`, alle Services | Observability |
+| M-50 | ❌ | E4 | **`_run_energy_metrics()` God-Function (63 Zeilen, 5 Concerns)** — berechnet und persistiert physical energy, ACWR, training monotony, autonomic energy, cognitive energy in einer Funktion; verhindert Einzel-Tests · Fix: in fünf `_run_*`-Funktionen aufteilen | `ml-service/src/inference_models.py:82` | Code-Qualität |
+| M-51 | ❌ | E4 | **`_run_body_battery_and_stress()` 60 Zeilen mit Inline-Berechnung** — manualle HRV-Baseline-Berechnung (Z. 264–268) inline statt in dedizierter Model-Funktion · Fix: `compute_hrv_baseline()` extrahieren; Funktion aufteilen | `ml-service/src/inference_models.py:248` | Code-Qualität |
+| M-52 | ❌ | E4 | **`login()` immer noch 70 Zeilen nach H-15-Teilfix** — H-15 (W9) extrahierte Lockout-Block; verifiziert: Z.115–184 = 70Z, weiterhin >50Z-Schwelle | `api/src/routes/auth.py:117` | Code-Qualität |
+| M-53 | ❌ | E4 | **`fail_under = 80` in ml-service ≠ CLAUDE.md-Dokumentation „30%"** — Dokumentations-Drift; CI bricht bei Coverage < 80% ab · Fix: CLAUDE.md korrigieren auf 80% | `ml-service/pyproject.toml:37` | Tests |
+| M-54 | ❌ | E4 | **`@requires_data` E2E-Tests werden in CI nie ausgeführt** — `test_formula_modal_opens_on_score_click` + `test_activity_detail_page_loads` übersprungen ohne `CI_HAS_DATA=true`; JS-Interaktionen nie in CI getestet · Fix: E2E-Stack mit Seed-Daten; `CI_HAS_DATA=true` setzen | `api/tests/e2e/test_smoke.py:21–23` | Tests |
+| M-55 | ❌ | E4 | **`inference_models.py` ohne Unit-Tests** — `_run_readiness`, `_run_body_battery`, `_run_hrv_status` u.a. (8 `_run_*`-Funktionen) nicht abgedeckt; bei `fail_under=80` ist das ein Coverage-Risiko · Fix: Unit-Tests für alle 8 `_run_*`-Funktionen | `ml-service/tests/` | Tests |
+| M-56 | ❌ | E4 | **Trivy `ignore-unfixed: true` ohne Artefakt/Audit-Spur** — Pipeline ist grün bei CRITICAL-CVEs ohne verfügbaren Fix, ohne jede Spur im Job-Log · Fix: `format: table` + `actions/upload-artifact` ergänzen, oder `.trivyignore` mit dokumentierten Ausnahmen | `.github/workflows/ci.yml:135,143,151` | CI/CD |
 
 ---
 
@@ -159,26 +188,51 @@
 | L-30 | ✅ | W9 | **CSRF-Token fehlt auf Login + Register POST** — `verify_csrf_token()`-Infrastruktur vorhanden; nur auf garmin/link, libre/link, account/delete verwendet; ASVS 5.0 V4.10.1 | `api/src/routes/auth.py:150–291` | Security |
 | L-31 | ✅ | W9 | **ml-service SIGTERM: `joblib.dump()` nicht atomar** — Modell-Datei auf Named Volume kann in unvollständigem Zustand hinterlassen werden; Temp-Pfad + `Path.rename()` als atomare Alternative | `ml-service/src/models/readiness.py:94` | Architektur |
 | L-32 | ✅ | W9 | **Semgrep pre-commit ohne OWASP-Top-10-Ruleset** — CI nutzt `p/python + p/owasp-top-ten`; pre-commit Hook nur `p/python` → Cross-file-Taint-Findings erst in CI sichtbar | `.pre-commit-config.yaml:48` | CI/CD |
-| L-33 | — | — | **JS-Vitest: `dashboard-hero.js` fehlt in `coverage.include`** — dedizierter Testfile vorhanden, aber Datei erscheint nicht im Coverage-Report | `api/vitest.config.js:12–16` | Tests |
+| L-33 | — | — | **JS-Vitest: `dashboard-hero.js` fehlt in `coverage.include`** — dedizierter Testfile vorhanden, aber Datei erscheint nicht im Coverage-Report (dokumentierte Ausnahme TEST-L3) | `api/vitest.config.js:12–16` | Tests |
 | L-34 | ✅ | W9 | **Traefik accessLog: kein JSON-Format** — Common Log Format (CLF) statt JSON; inkompatibel mit structlog-Logging der anderen Services | `traefik/traefik.yml:20` | Observability |
 | L-35 | ✅ | W9 | **pip-audit scannt Verzeichnis, nicht `uv.lock`** — `pip-audit api/` löst Abhängigkeiten neu auf statt eingefrorenes Lockfile zu prüfen | `ci.yml:76–86` | CI/CD |
+| L-36 | ✅ | W10 | **HSTS wird auch bei `https_only=false` gesetzt** — HSTS in Dev/Test-Umgebungen kann Browser-HSTS-State für die Domain setzen und HTTP dauerhaft blockieren · Fix: `if settings.https_only:` Guard um HSTS-Header | `api/src/main.py:41–43` | Security |
+| L-37 | ✅ | W10 | **Fehlende Längenvalidierung für `email`-Felder in Auth-Formularen** — `Form()` ohne `max_length` auf `/login`, `/auth/resend-verify`, `/auth/reset-request`; sehr lange E-Mails erreichen bcrypt/structlog ungefiltert · Fix: `Form(max_length=320)` | `api/src/routes/auth.py:119,270,308` | Security |
+| L-38 | ✅ | W10 | **`service`-Parameter in `get_user_token`/`save_user_token` ohne Whitelist** — akzeptiert beliebigen String; erlaubte Werte sind implizit `"garmin"` und `"libre"` · Fix: `Literal["garmin", "libre"]` Typ-Annotation | `api/src/db/users.py:234` | Security |
+| L-39 | ✅ | W10 | **`httpOnly`-Cookie-Flag nicht explizit durch Test abgesichert** — Starlette `SessionMiddleware` setzt `httponly=True` per Default; kein Vertrag-Test der `set-cookie`-Header · Fix: Unit-Test `assert "httponly" in response.headers["set-cookie"].lower()` | `api/src/main.py:148–154` | Security |
+| L-40 | ❌ | E4 | **`docker-compose.test.yml` ohne Resource Limits und Log-Rotation** — Prod-Compose hat vollständige `deploy.resources.limits` + `json-file logging`; Test-Compose läuft auf demselben Mac mini wie Prod · Fix: pragmatische Limits (db-test: 512 MB, api-test: 256 MB) + `logging: json-file` | `docker-compose.test.yml` | Architektur |
+| L-41 | — | — | **3-Service-Splitting ohne explizite Begründung in CLAUDE.md** — bewusstes Splitting wegen Scheduling-Isolation, ML-Workload-Trennung, unabhängiger Restart-Zyklen, unterschiedlicher Memory-Limits (dokumentierte Ausnahme ARCH-L4) | `CLAUDE.md` | Architektur |
+| L-42 | ❌ | E4 | **`routes/api.py` domain-übergreifend (352 Zeilen, wächst)** — alle 20+ JSON-Endpunkte quer über alle Domains in einer Datei; wächst mit jeder neuen Domain · Fix: Subdomain-Router (`routes/api/activities.py`, `routes/api/health.py`, …) oder als ARCH-L5 dokumentieren | `api/src/routes/api.py` | Architektur |
+| L-43 | ❌ | E4 | **ML-Healthcheck prüft keine Modell-Integrität** — prüft nur ob APScheduler-Loop lebt; korrumpierte `.joblib`-Dateien bleiben unerkannt · Fix: Startup-Probe die vorhandene `.joblib`-Files beim ersten Start lädt | `docker-compose.yml:191–193` | Architektur |
+| L-44 | ❌ | E4 | **Sequentielle `await` in `_run_correlations`-Schleife** — 3× unabhängige DB-Queries sequenziell statt parallel · Fix: `await asyncio.gather(*[coro for coro, _ in correlation_tasks])` | `ml-service/src/inference_anomaly.py:109` | Code-Qualität |
+| L-45 | ❌ | E4 | **`require_user()` gibt ungetyptes `dict` zurück** — mypy erkennt falsche Key-Zugriffe nicht · Fix: `UserRow = TypedDict("UserRow", {"id": int, "email": str, …})` einführen | `api/src/deps.py:73` | Code-Qualität |
+| L-46 | ❌ | E4 | **`zip(*pairs)` ohne Längen-Assertion** — bei `pairs` mit falscher Dimensionierung kein Fehler · Fix: `xs = [p[0] for p in pairs]; ys = [p[1] for p in pairs]` | `ml-service/src/inference_anomaly.py:113` | Code-Qualität |
+| L-47 | ❌ | E4 | **`POST /api/sync` Failure-Pfad ungetestet** — `request_sync`-Exception nicht abgedeckt · Fix: Mock-Test mit `AsyncMock(side_effect=Exception)` | `api/tests/test_api_endpoints.py:154` | Tests |
+| L-48 | ❌ | E4 | **`/api/seizures/risk` ohne Boundary-Tests** — nur `severity=3` geprüft; keine Tests für severity=1, severity=5, ungültige Werte · Fix: parametrisierter Test mit Edge-Cases | `api/tests/` | Tests |
+| L-49 | ❌ | E4 | **sync-service: kein Test für Garmin+Libre-Kombinations-User** — kombinierter Sync-Pfad ungetestet | `sync-service/tests/test_main.py` | Tests |
+| L-50 | ❌ | E4 | **`/account/export` E2E prüft nicht JSON-Download-Inhalt** — Unit-Test vorhanden; E2E prüft nur ob Link sichtbar, nicht Struktur/kein password_hash | `api/tests/e2e/test_smoke.py:213` | Tests |
+| L-51 | ❌ | E4 | **Tote Branch-Namen in `no-commit-to-branch`** — `--branch, dev, --branch, master` schützt nicht-existente Branches · Fix: auf `--branch, main` reduzieren | `.pre-commit-config.yaml:19` | CI/CD |
+| L-52 | ❌ | E4 | **Kein `sentry.disabled`-Warning beim Start** — wenn Sentry-DSN leer ist, gibt es keinen sichtbaren Hinweis in den Logs · Fix: `else: logger.warning("sentry.disabled")` in allen drei Services | `api/src/main.py`, `sync-service/src/main.py`, `ml-service/src/main.py` | Observability |
+| L-53 | ❌ | E4 | **`PrintLoggerFactory` nicht Thread-safe für Production** — `print()` bei concurrent Writes (ml-service mit scikit-learn-Threads) kann zu interleavten Log-Zeilen führen · Fix: `structlog.WriteLoggerFactory()` in allen drei `logging_config.py` | `api/src/logging_config.py:20`, `sync-service/src/logging_config.py:19`, `ml-service/src/logging_config.py:20` | Observability |
+| L-54 | ❌ | E4 | **Kein Correlation-ID in sync/ml-service Logs** — API bindet `request_id` per `bind_contextvars`; sync/ml nutzen es nicht; gleichzeitige User-Jobs in Logs nicht unterscheidbar · Fix: `bind_contextvars(job_id=str(uuid.uuid4())[:8], user_id=uid)` am Job-Eingang | `sync-service/src/main.py:136`, `ml-service/src/main.py:55` | Observability |
+| L-55 | ❌ | E4 | **Kein Error-Rate-Signal** — `RequestIDMiddleware` zählt Traffic + Latency; kein `_error_requests`-Counter für `4xx/5xx`; eines der vier goldenen Signale nicht messbar · Fix: `_error_requests` Counter in `RequestIDMiddleware` | `api/src/main.py:61` | Observability |
+| L-56 | ❌ | E4 | **`/health` exponiert interne Zähler ohne Auth** — `active_requests` + `total_requests` öffentlich; für Liveness-Check genügt `{"status": "ok"}` · Fix: Zähler aus Public-Response entfernen oder in separates `/metrics`-Endpoint verlagern | `api/src/main.py:162–168` | Observability |
+| L-57 | ❌ | E4 | **f-String in `structlog`-Call** — `logger.info(f"{log_key}.done", ...)` verhindert strukturiertes Event-Matching in Log-Aggregatoren · Fix: `logger.info("anomaly.done", metric=log_key, ...)` | `ml-service/src/inference_anomaly.py:41` | Code-Qualität |
+| L-58 | [?] | E4 | **Dupliziertes Backfill+Training-Muster** — identischer 5-Zeilen-Block in `run_on_request` und `run_all_users`; H-12 (W9) restrukturierte backfill.py → db/, aber main.py-Duplikat ggf. erhalten · zu verifizieren · Fix: `_run_training_with_backfill(uid, settings)` extrahieren | `ml-service/src/main.py:119,144` | Code-Qualität |
+| L-59 | ✅ | — | **`auth.py` Dateigröße nach H-14** — H-14 (W9) extrahierte E-Mail-Helpers; verifiziert: 381 Zeilen < 400Z-Schwelle → resolved | `api/src/routes/auth.py` | Code-Qualität |
+| L-60 | [?] | E4 | **5 einzeilige `_run_anomaly_*`-Wrapper (Copy-Paste)** — jede Funktion leitet nur an `_run_anomaly_for` weiter; M-26 (W4) adressierte main.py-Duplikate; Wrapper in inference_anomaly.py ggf. neues Duplikat · zu verifizieren | `ml-service/src/inference_anomaly.py:48–100` | Code-Qualität |
 
 ---
 
-## Offene Findings (Eval 3)
+## Offene Findings (nach Wave 10 Runde 1)
 
-| Wave | Findings |
-|------|---------|
-| **W2–W8** (abgeschlossen) | ✅ H-01–H-06, H-08–H-10, M-01–M-18, M-20–M-31, L-01–L-12, L-14–L-20, L-22–L-27, L-29 |
-| **Manuell** | ❌ H-07 (Sentry DSN), M-19 (UptimeRobot) |
-| **Wave 9 Runde 1 — Security** | ✅ H-11, M-32, M-33, L-30 gefixt |
-| **Wave 9 Runde 2 — Architektur/Disposability** | ✅ M-34, M-35 gefixt |
-| **Wave 9 Runde 3 — Tests** | ✅ M-38, M-39 · — L-33 (dokumentierte Ausnahme TEST-L3) |
-| **Wave 9 Runde 4 — Code-Qualität** | ✅ H-12, H-13, H-14, H-15 gefixt |
-| **Wave 9 Runde 5 — CI/CD + Observability** | ✅ M-36, M-37, L-31, L-32, L-34, L-35 gefixt |
-
-**Wave 9 vollständig abgeschlossen. Alle automatisierbaren Findings gefixt.**
-Verbleibend: H-07 (Sentry DSN manuell eintragen) · M-19 (UptimeRobot manuell einrichten)
+| Gruppe | Findings |
+|--------|---------|
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-17, M-01–M-44 (außer H-07, M-19, M-42), L-01–L-39 (außer L-13, L-21, L-28, L-33), L-59 |
+| **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
+| **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4) |
+| **Security — noch offen** | ❌ M-42 (CSP Nonce + strict-dynamic, hoher Aufwand — eigener Wave) |
+| **Architektur/Betrieb (Prio 2)** | ❌ M-45 (SIGTERM wait=True) · M-46 (Port 127.0.0.1) · M-48 (Healthcheck /ready) · M-49 (SentryProcessor) · L-40, L-42–43 |
+| **Tests (Prio 3)** | ❌ M-53 (fail_under Drift) · M-54 (@requires_data CI) · M-55 (inference_models Tests) · L-47–50 |
+| **Code-Qualität (Prio 4)** | ❌ M-50 (energy God-Function) · M-51 (body_battery 60Z) · M-52 (login() 70Z) · L-44–46 · L-57 |
+| **Observability (Prio 5)** | ❌ M-47 (Stdlib ProcessorFormatter) · L-52–56 |
+| **CI/CD** | ❌ M-56 (Trivy Artefakt) · L-51 |
+| **zu verifizieren** | [?] L-58 (Backfill-Duplikat nach H-12) · L-60 (anomaly Wrapper nach M-26) |
 
 ---
 
@@ -186,10 +240,12 @@ Verbleibend: H-07 (Sentry DSN manuell eintragen) · M-19 (UptimeRobot manuell ei
 
 | Metrik | Wert | Basis |
 |---|---|---|
-| Deployment Frequency | Niedrig (wöchentlich–monatlich) | Kein Auto-Deploy in CI; manuell per `make up` |
+| Deployment Frequency | [Schätzung] ~16 Merges/Monat | ~79 Merge-Commits seit Jan 2026; PR-Size-Check ≤ 400 LOC |
 | Lead Time for Changes | Mittel (~1–4h) | Pipeline ~15 min (Engpass: 3× Docker-Build für Trivy) |
 | Change Failure Rate | Nicht messbar | Keine CI-Deployment-Historie |
 | Recovery Time | Minuten | Docker-Tag-Rollback; `make dashboard` / `make analytics` |
+
+[Schätzung] Profil entspricht **High Performer** (mehrmals/Woche).
 
 ---
 
@@ -209,6 +265,8 @@ Verbleibend: H-07 (Sentry DSN manuell eintragen) · M-19 (UptimeRobot manuell ei
 - **Action-Digests**: Alle GitHub Actions mit Commit-SHA gepinnt
 - **structlog JSON + UTC**: alle 3 Services; keine Secrets in Logs
 - **/health + /ready**: Liveness (kein DB-Call) + Readiness (SELECT 1 + Flyway-Check) — überdurchschnittlich gut
+- **CSRF**: auf allen mutativen Routen außer `/logout` (M-40) korrekt
+- **Prepared Statements**: Alle `api/src/db/`- und `ml-service/src/db/`-Queries parametrisiert
 
 ---
 
@@ -218,14 +276,15 @@ Verbleibend: H-07 (Sentry DSN manuell eintragen) · M-19 (UptimeRobot manuell ei
 |---|---|
 | ARCH-M2 | Kein Service-Layer (Routes → DB direkt) — Solo-Projekt |
 | ARCH-M3 | Traefik self-signed TLS — Homelab-Ausnahme |
-| CICD-M3 | Branch Protection nicht erzwingbar (Free-Plan, privates Repo) |
-| QUAL-M2 | Duplizierter GarminClient in api/ + sync-service/ — bewusst |
 | ARCH-L2 | Technisch-basierte `db/`-Ordnerstruktur — Solo-Projekt |
 | ARCH-L3 | Kein `/api/v1/`-Prefix — keine externen Consumer |
+| ARCH-L4 | 3-Service-Splitting bewusst: Scheduling-Isolation, ML-Workload-Trennung, unabhängige Restart-Zyklen, unterschiedliche Memory-Limits (api 512 MB, ml 1 GB). Kein klassisches Microservices-Muster. |
+| CICD-M3 | Branch Protection nicht erzwingbar (Free-Plan, privates Repo) |
+| CICD-L4 | GitHub-native Secret Scanning nicht verfügbar (Free-Plan) |
+| QUAL-M2 | Duplizierter GarminClient in api/ + sync-service/ — bewusst |
 | OBS-L1 | Kein externes Uptime-Monitoring — Reminder: UptimeRobot einrichten |
-| TEST-L1 | `require_user`-Mock ohne `assert_called_once()` — Tests verifizieren Verhalten |
-| SEC-L1 | HSTS bei self-signed TLS — Homelab-Ausnahme (ARCH-M3) |
 | OBS-L2 | Kein OpenTelemetry — Solo-Homelab; `request_id` als Korrelation ausreichend |
+| SEC-L1 | HSTS bei self-signed TLS — Homelab-Ausnahme (ARCH-M3) |
+| TEST-L1 | `require_user`-Mock ohne `assert_called_once()` — Tests verifizieren Verhalten |
 | TEST-L2 | JS-Coverage auf 4/24 Static-JS-Dateien — DOM-heavy Files via Playwright E2E |
 | TEST-L3 | `dashboard-hero.js` bewusst aus Vitest `coverage.include` ausgeschlossen — `heroRecommendation()` hat Unit-Tests; DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E; Coverage-Merge Unit+E2E mit Python-Playwright-Stack nicht praktikabel |
-| CICD-L4 | GitHub-native Secret Scanning nicht verfügbar (Free-Plan) |

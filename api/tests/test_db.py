@@ -1046,14 +1046,16 @@ def test_settings_db_url_format():
     assert url.endswith("@db:5432/garmin")
 
 
-async def test_increment_failed_login_executes_update():
+async def test_increment_failed_login_returns_new_count():
     from src.db.users import increment_failed_login
 
-    pool = _pool_mock()
+    row = {"failed_login_attempts": 3}
+    pool = _pool_mock(fetchrow=row)
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
-        await increment_failed_login(1)
-    pool.execute.assert_awaited_once()
-    assert "failed_login_attempts" in pool.execute.call_args[0][0]
+        result = await increment_failed_login(1)
+    pool.fetchrow.assert_awaited_once()
+    assert "RETURNING" in pool.fetchrow.call_args[0][0]
+    assert result == 3
 
 
 async def test_lock_user_until_executes_update():
