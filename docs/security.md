@@ -287,6 +287,7 @@ PulseBase startet keine Subprozesse mit User-kontrollierten Parametern. Der einz
 CSRF (Cross-Site Request Forgery) nutzt aus, dass Browser Cookies automatisch mitsenden. Eine bösartige Seite kann einen POST-Request an `https://your-domain.com/account/delete` schicken — der Browser hängt das Session-Cookie an, die App sieht einen "authentifizierten" Request.
 
 **Gefährdete Endpunkte (alle POST-Routen mit State-Change):**
+- `/login`, `/register` — Auth-Formulare (L-30, W9)
 - `/garmin/link`, `/libre/link` — Verknüpfung externer Accounts
 - `/account/delete` — Konto-Löschung
 - `/auth/reset` — Passwort-Reset
@@ -370,16 +371,20 @@ Zusätzlich zur Schema-Validierung sind folgende Endpunkte rate-limitiert (slowa
 Jeder Service bekommt nur die Secrets die er braucht (Principle of Least Privilege):
 
 ```
-env/.env       → alle Services (DB-Credentials, HOST_IP)
-env/.env.api   → nur api (SESSION_SECRET, FERNET_KEY, RESEND_API_KEY)
-env/.env.sync  → nur sync-service (FERNET_KEY, Sync-Config)
+env/.env       → nur db + flyway (DB_USER/PASSWORD Admin-Creds, HOST_IP)
+env/.env.app   → api + sync + ml (DB_APP_USER/PASSWORD, FERNET_KEY)
+env/.env.api   → nur api (SESSION_SECRET, RESEND_API_KEY, APP_BASE_URL, ...)
+env/.env.sync  → nur sync-service (SYNC_HOUR, SYNC_LOOKBACK_DAYS, ...)
 env/.env.ml    → nur ml-service (ML_INFER_HOUR, kein FERNET_KEY nötig)
 ```
 
+Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind damit nie im Prozess-Environment von api/sync/ml sichtbar — kein Leak via `/proc/<pid>/environ` (H-11, W9).
+
 Verifikation:
 ```bash
-docker exec pulsebase-sync env | grep SESSION_SECRET   # → leer (korrekt)
-docker exec pulsebase-ml   env | grep FERNET_KEY       # → leer (korrekt)
+docker exec pulsebase-api  env | grep DB_USER        # → leer (nur DB_APP_USER vorhanden)
+docker exec pulsebase-sync env | grep SESSION_SECRET # → leer (korrekt)
+docker exec pulsebase-ml   env | grep SESSION_SECRET # → leer (korrekt)
 ```
 
 ### 9.3 Secret-Generierung
@@ -592,7 +597,7 @@ CI Test:     pytest + Playwright E2E
 CI Image:    Trivy (CRITICAL+HIGH, ignore-unfixed)
 ```
 
-**Offenes Gap (H-06):** Es gibt noch keinen `ci-ok`-All-Green-Gate-Job der verhindert, dass ein PR gemergt werden kann wenn security/lint/typecheck nicht grün sind.
+Ein `ci-ok`-All-Green-Gate-Job wurde in W3 ergänzt — security/lint/typecheck/test müssen grün sein bevor e2e läuft (H-06, ✅).
 
 ### 12.4 Deployment-Phase
 
@@ -633,7 +638,9 @@ docker compose up -d pulsebase-api:previous-tag
 | Test-Art | Tool | Was wird geprüft |
 |---|---|---|
 | Unit Tests (Auth) | pytest | Login/Lockout/Rate-Limit/E-Mail-Verifikation/Password-Reset — alle mit ~100% Coverage |
-| E2E Smoke Tests | Playwright | Login-Flow, geschützte Routen erfordern Auth, CSRF-Token vorhanden |
+| E2E Smoke Tests | Playwright | Login-Flow, Dashboard, Settings, Metrics, Help, Account-Export/Delete |
+| E2E Auth Flows | Playwright | Register, E-Mail-Verify (Token), Passwort-Reset (Token aus DB) |
+| E2E Static Pages | Playwright | Privacy/Terms/Imprint/Accessibility + Epilepsie-Seite (mit/ohne Modus) |
 | SAST | bandit + semgrep | Bekannte unsichere Python-Patterns |
 | SCA | pip-audit | CVEs in Dependencies |
 | Image-Scan | Trivy | CVEs in OS-Packages und Python-Paketen im Container |
@@ -646,7 +653,7 @@ docker compose up -d pulsebase-api:previous-tag
 | DAST (Dynamic Scanning) | Laufzeit-Injection | Kein OWASP ZAP in CI — zu aufwändig für Homelab |
 | Fuzzing | Unerwartete Inputs | Pydantic-Validierung als Ersatz |
 | E2E CSRF-Test | CSRF-Bypass | Manueller Test ausreichend |
-| `POST /account/delete` E2E | Fehler bei Löschung | **Offen (M-30)** |
+| Auth-Flow E2E (Register, Verify, Reset) | Regressions in Auth | test_auth_flows.py ✅ (W9) |
 
 ### 13.3 Manueller Security-Test-Prozess
 
@@ -740,7 +747,7 @@ Prüfrahmen: OWASP Application Security Verification Standard 5.0, Level 2.
 | V2 Authentication | ✅ | — |
 | V3 Session Management | ✅ | — |
 | V4 Access Control | ✅ | — |
-| V5 Validation & Encoding | ✅ | M-09: SELECT * ohne LIMIT (Memory-Risk) |
+| V5 Validation & Encoding | ✅ | — |
 | V7 Error Handling & Logging | 🟡 | Audit-Log noch nicht vollständig (3.5) |
 | V8 Data Protection | ✅ | — |
 | V9 Communication | ✅ | — |
