@@ -257,6 +257,74 @@ async def get_sleep_sessions_14d(user_id: int) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+async def get_backfill_sleep_daily_gaps(user_id: int) -> dict[str, Any]:
+    """Load sleep_by_date, daily_by_date, and gap_dates requiring backfill."""
+    pool = _pool_or_raise()
+
+    sleep_rows = await pool.fetch(
+        """SELECT DATE(start_time AT TIME ZONE 'UTC') AS sleep_date,
+                  total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds
+           FROM sleep_sessions WHERE user_id = $1 ORDER BY start_time""",
+        user_id,
+    )
+    sleep_by_date = {
+        r["sleep_date"]: {
+            "total_h": float(r["total_sleep_seconds"]) / 3600.0
+            if r["total_sleep_seconds"]
+            else None,
+            "deep_h": float(r["deep_sleep_seconds"]) / 3600.0
+            if r["deep_sleep_seconds"]
+            else None,
+            "rem_h": float(r["rem_sleep_seconds"]) / 3600.0
+            if r["rem_sleep_seconds"]
+            else None,
+        }
+        for r in sleep_rows
+    }
+
+    daily_rows = await pool.fetch(
+        "SELECT date, avg_stress, body_battery_high FROM daily_summary WHERE user_id = $1 ORDER BY date",
+        user_id,
+    )
+    daily_by_date: dict[date, dict[str, Any]] = {
+        r["date"]: {
+            "avg_stress": r["avg_stress"],
+            "body_battery_high": r["body_battery_high"],
+        }
+        for r in daily_rows
+    }
+
+    gap_dates = [
+        r["date"]
+        for r in await pool.fetch(
+            """SELECT d.date FROM daily_summary d
+               WHERE d.user_id = $1 AND d.date < CURRENT_DATE
+                 AND (
+                   NOT EXISTS (
+                     SELECT 1 FROM ml_predictions p
+                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'energy_physical'
+                   )
+                   OR NOT EXISTS (
+                     SELECT 1 FROM ml_predictions p
+                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'body_battery_custom'
+                   )
+                   OR NOT EXISTS (
+                     SELECT 1 FROM ml_predictions p
+                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'stress_score_custom'
+                   )
+                 )
+               ORDER BY d.date""",
+            user_id,
+        )
+    ]
+
+    return {
+        "sleep_by_date": sleep_by_date,
+        "daily_by_date": daily_by_date,
+        "gap_dates": gap_dates,
+    }
+
+
 async def get_last_sleep_session(user_id: int) -> dict[str, Any] | None:
     row = await _pool_or_raise().fetchrow(
         """

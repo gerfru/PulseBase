@@ -17,4 +17,7 @@ api:
   dashboard: false
   insecure: false
 
-accessLog: {}
+ping: {}
+
+accessLog:
+  format: json

@@ -530,9 +530,10 @@ Cross-file Taint-Analyse — erkennt wenn User-Input einen gefährlichen Codepfa
 
 **pip-audit** (CI):
 ```bash
-pip-audit --requirement api/requirements.txt
+uv export --frozen --no-hashes --directory api/ -o /tmp/req-api.txt
+pip-audit -r /tmp/req-api.txt
 ```
-Prüft gegen die Python Packaging Advisory Database (GHSA + PyPI). Nicht Safety (veraltet, kommerziell).
+`uv export --frozen` liest das eingefrorene `uv.lock` — deterministisch, kein Re-Resolve. Prüft gegen Python Packaging Advisory Database (GHSA + PyPI). Nicht Safety (veraltet, kommerziell).
 
 ### 11.4 Pre-commit Hook-Reihenfolge
 
@@ -541,6 +542,7 @@ gitleaks      ← Secrets-Scan zuerst (Commit mit Secret sofort verhindern)
 ruff          ← Lint + Fix
 bandit        ← SAST
 detect-secrets ← Baseline-basierter Secret-Scan (ergänzt gitleaks)
+semgrep       ← SAST cross-file (p/python + p/owasp-top-ten)
 mypy          ← Type Check (findet implizite None-Dereferenzierungen)
 ```
 

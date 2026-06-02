@@ -118,8 +118,11 @@ make db               # psql-Shell (liest DB_APP_USER aus env/.env)
 api/src/
 ├── main.py              App-Setup + Router-Registrierung
 ├── deps.py              Settings (Pydantic), require_user(), Limiter, Templates
-├── evidence_catalog.py  Evidence-Catalog aller Metriken → GET /api/evidence
+├── evidence_catalog.py  Thin Loader → liest api/src/data/evidence_catalog.json
+├── mail.py              E-Mail-Helpers: send_lockout/reset/verify_email via Resend API
 ├── training_load.py     Banister TRIMP für Physical Energy (Edwards 1993)
+├── data/
+│   └── evidence_catalog.json  Evidence-Catalog aller 21 Metriken (Level, EN-62366-Felder)
 ├── db/
 │   ├── __init__.py      Re-exports aller DB-Funktionen
 │   ├── pool.py          asyncpg Connection Pool
@@ -130,7 +133,7 @@ api/src/
 │   ├── seizures.py      Anfallsereignisse (Epilepsie-Modus, V15)
 │   └── glucose.py       Glukose-Readings (Libre-User, V9)
 ├── routes/
-│   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW)
+│   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW) — E-Mail via src.mail
 │   ├── account.py       /account/delete (DSGVO Art. 17), /account/export (DSGVO Art. 20)
 │   ├── api.py           Alle /api/* JSON-Endpunkte
 │   ├── garmin.py        /garmin/link, /garmin/unlink
