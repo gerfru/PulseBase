@@ -29,6 +29,15 @@ async def test_ready_db_failure_returns_503(client):
     assert r.json()["status"] == "unavailable"
 
 
+async def test_ready_no_migrations_returns_503(client):
+    pool = AsyncMock()
+    pool.fetchval = AsyncMock(return_value=0)
+    with patch("src.main.get_pool", AsyncMock(return_value=pool)):
+        r = await client.get("/ready")
+    assert r.status_code == 503
+    assert r.json()["status"] == "no_migrations"
+
+
 # ── Security Headers ──────────────────────────────────────────────────────────
 
 
@@ -38,6 +47,14 @@ async def test_security_headers_present(client):
     assert "payment=()" in r.headers.get("permissions-policy", "")
     assert r.headers.get("x-frame-options") == "DENY"
     assert r.headers.get("x-content-type-options") == "nosniff"
+
+
+async def test_hsts_header_set_when_https_only(client):
+    from src.main import settings as main_settings
+
+    with patch.object(main_settings, "https_only", True):
+        r = await client.get("/health")
+    assert "strict-transport-security" in r.headers
 
 
 async def test_csp_no_external_font_sources(client):

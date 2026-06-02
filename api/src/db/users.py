@@ -1,6 +1,7 @@
 import shutil
 from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 from .pool import get_pool
 
@@ -123,6 +124,7 @@ async def set_libre_unlinked(user_id: int) -> None:
 
 
 async def update_password(user_id: int, password_hash: str) -> None:
+    assert user_id > 0  # CALLER MUST verify session ownership
     pool = await get_pool()
     await pool.execute(
         "UPDATE users SET password_hash = $1 WHERE id = $2",
@@ -131,12 +133,14 @@ async def update_password(user_id: int, password_hash: str) -> None:
     )
 
 
-async def increment_failed_login(user_id: int) -> None:
+async def increment_failed_login(user_id: int) -> int:
     pool = await get_pool()
-    await pool.execute(
-        "UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = $1",
+    row = await pool.fetchrow(
+        "UPDATE users SET failed_login_attempts = failed_login_attempts + 1"
+        " WHERE id = $1 RETURNING failed_login_attempts",
         user_id,
     )
+    return int(row["failed_login_attempts"]) if row else 0
 
 
 async def lock_user_until(user_id: int, until: datetime) -> None:
@@ -207,6 +211,7 @@ async def get_ml_status(user_id: int) -> dict:
 
 
 async def delete_user(user_id: int) -> None:
+    assert user_id > 0  # CALLER MUST verify session ownership
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -231,7 +236,9 @@ async def delete_user(user_id: int) -> None:
         shutil.rmtree(token_dir)
 
 
-async def get_user_token(user_id: int, service: str) -> bytes | None:
+async def get_user_token(
+    user_id: int, service: Literal["garmin", "libre"]
+) -> bytes | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT token_data FROM user_tokens WHERE user_id = $1 AND service = $2",
@@ -241,7 +248,10 @@ async def get_user_token(user_id: int, service: str) -> bytes | None:
     return bytes(row["token_data"]) if row else None
 
 
-async def save_user_token(user_id: int, service: str, token_data: bytes) -> None:
+async def save_user_token(
+    user_id: int, service: Literal["garmin", "libre"], token_data: bytes
+) -> None:
+    assert user_id > 0  # CALLER MUST verify session ownership
     pool = await get_pool()
     await pool.execute(
         """
