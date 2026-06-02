@@ -367,8 +367,7 @@ class TestRunBodyBatteryAndStress:
                 [{"total_h": 7.5, "deep_h": 1.5, "rem_h": 2.0}],
                 {"body_battery_high": 85, "avg_stress": 30},
             )
-        # no crash is the key assertion here
-        assert mock_save.call_count >= 0
+        assert mock_save.call_count > 0
 
     async def test_uses_daily_bb_when_no_yesterday_prediction(self):
         from inference_models import _run_body_battery_and_stress
