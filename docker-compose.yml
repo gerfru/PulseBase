@@ -154,7 +154,7 @@ services:
       test: ["CMD", "find", "/tmp/sync_alive", "-mmin", "-2"]
       interval: 60s
       timeout: 5s
-      start_period: 30s
+      start_period: 120s
       retries: 3
     deploy:
       resources:
