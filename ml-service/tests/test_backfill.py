@@ -6,9 +6,8 @@ Mocks all DB and external dependencies — no database connection required.
 import sys
 from datetime import date, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -62,7 +61,6 @@ class TestComputeTrimp:
 
 # ── backfill_user ─────────────────────────────────────────────────────────────
 
-
 _EMPTY_ACT_HRV = {
     "hrmax": 185.0,
     "act_rows": [],
@@ -80,16 +78,15 @@ _EMPTY_SLEEP_GAPS = {
 async def test_backfill_user_returns_zero_when_no_gaps():
     with (
         patch(
-            "backfill._load_activity_hrv_data",
+            "backfill.get_backfill_activity_hrv_data",
             new_callable=AsyncMock,
             return_value=_EMPTY_ACT_HRV,
         ),
         patch(
-            "backfill._load_sleep_daily_gaps",
+            "backfill.get_backfill_sleep_daily_gaps",
             new_callable=AsyncMock,
             return_value=_EMPTY_SLEEP_GAPS,
         ),
-        patch("backfill.get_pool"),
     ):
         result = await backfill_user(user_id=1)
     assert result == 0
@@ -101,21 +98,22 @@ async def test_backfill_user_returns_count_of_gap_dates():
         **_EMPTY_SLEEP_GAPS,
         "gap_dates": [target, target - timedelta(days=1)],
     }
-    mock_pool = MagicMock()
-    mock_pool.fetchrow = AsyncMock(return_value=None)
-
     with (
         patch(
-            "backfill._load_activity_hrv_data",
+            "backfill.get_backfill_activity_hrv_data",
             new_callable=AsyncMock,
             return_value=_EMPTY_ACT_HRV,
         ),
         patch(
-            "backfill._load_sleep_daily_gaps",
+            "backfill.get_backfill_sleep_daily_gaps",
             new_callable=AsyncMock,
             return_value=sleep_gaps,
         ),
-        patch("backfill.get_pool", return_value=mock_pool),
+        patch(
+            "backfill.get_prediction_for_date",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
         patch("backfill.save_prediction", new_callable=AsyncMock),
     ):
         result = await backfill_user(user_id=1)
@@ -125,21 +123,22 @@ async def test_backfill_user_returns_count_of_gap_dates():
 async def test_backfill_user_calls_save_prediction_per_gap():
     target = date(2026, 4, 27)
     sleep_gaps = {**_EMPTY_SLEEP_GAPS, "gap_dates": [target]}
-    mock_pool = MagicMock()
-    mock_pool.fetchrow = AsyncMock(return_value=None)
-
     with (
         patch(
-            "backfill._load_activity_hrv_data",
+            "backfill.get_backfill_activity_hrv_data",
             new_callable=AsyncMock,
             return_value=_EMPTY_ACT_HRV,
         ),
         patch(
-            "backfill._load_sleep_daily_gaps",
+            "backfill.get_backfill_sleep_daily_gaps",
             new_callable=AsyncMock,
             return_value=sleep_gaps,
         ),
-        patch("backfill.get_pool", return_value=mock_pool),
+        patch(
+            "backfill.get_prediction_for_date",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
         patch("backfill.save_prediction", new_callable=AsyncMock) as mock_save,
     ):
         await backfill_user(user_id=1)
@@ -211,75 +210,6 @@ async def test_run_correlations_skips_when_no_pairs():
     ):
         await _run_correlations(user_id=1, today=date(2026, 4, 27))
     mock_save.assert_not_called()
-
-
-async def test_backfill_load_activity_hrv_data():
-    from backfill import _load_activity_hrv_data
-    from datetime import date
-
-    mock_pool = MagicMock()
-    mock_pool.fetchrow = AsyncMock(return_value={"hrmax": 185.0})
-    mock_pool.fetch = AsyncMock(
-        side_effect=[
-            # act_rows query
-            [
-                {
-                    "activity_date": date(2026, 4, 27),
-                    "avg_hr": 145.0,
-                    "duration_seconds": 3600.0,
-                    "resting_hr": 52.0,
-                    "avg_ground_contact_time": None,
-                    "avg_vertical_oscillation": None,
-                    "avg_vertical_ratio": None,
-                    "sport_type": "running",
-                }
-            ],
-            # hrv_rows query
-            [{"date": date(2026, 4, 27), "hrv_last_night": 45.0}],
-        ]
-    )
-    result = await _load_activity_hrv_data(user_id=1, pool=mock_pool)
-    assert result["hrmax"] == pytest.approx(185.0)
-    assert len(result["hrv_by_date"]) == 1
-    assert len(result["act_rows"]) == 1
-
-
-async def test_backfill_load_activity_hrv_data_fallback_hrmax():
-    from backfill import _load_activity_hrv_data
-
-    mock_pool = MagicMock()
-    mock_pool.fetchrow = AsyncMock(return_value={"hrmax": None})
-    mock_pool.fetch = AsyncMock(side_effect=[[], []])
-    result = await _load_activity_hrv_data(user_id=1, pool=mock_pool)
-    assert result["hrmax"] == 190.0
-
-
-async def test_backfill_load_sleep_daily_gaps():
-    from backfill import _load_sleep_daily_gaps
-    from datetime import date
-
-    target = date(2026, 4, 27)
-    mock_pool = MagicMock()
-    mock_pool.fetch = AsyncMock(
-        side_effect=[
-            # sleep_rows
-            [
-                {
-                    "sleep_date": target,
-                    "total_sleep_seconds": 27000,
-                    "deep_sleep_seconds": 5400,
-                    "rem_sleep_seconds": 7200,
-                }
-            ],
-            # daily_rows
-            [{"date": target, "avg_stress": 35.0, "body_battery_high": 80}],
-            # gap_dates
-            [{"date": target}],
-        ]
-    )
-    result = await _load_sleep_daily_gaps(user_id=1, pool=mock_pool)
-    assert target in result["sleep_by_date"]
-    assert result["gap_dates"] == [target]
 
 
 async def test_run_correlations_saves_when_pairs_present():

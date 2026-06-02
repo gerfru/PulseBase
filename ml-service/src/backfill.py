@@ -8,9 +8,12 @@ import logging
 from datetime import date, timedelta
 from typing import Any
 
-import asyncpg
-
-from db import get_pool, save_prediction
+from db import (
+    get_backfill_activity_hrv_data,
+    get_backfill_sleep_daily_gaps,
+    get_prediction_for_date,
+    save_prediction,
+)
 from models.body_battery import compute_body_battery
 from models.energy_metrics import (
     compute_autonomic_energy,
@@ -36,121 +39,6 @@ def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -
         return 0.0
     hfr = max(0.0, (row["avg_hr"] - rhr) / denom)
     return (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
-
-
-async def _load_activity_hrv_data(user_id: int, pool: asyncpg.Pool) -> dict[str, Any]:
-    """Load hrmax, activity rows, and HRV data needed for all backfill computations."""
-    hrmax_row = await pool.fetchrow(
-        """SELECT MAX(max_hr)::float AS hrmax FROM activities
-           WHERE user_id = $1 AND max_hr IS NOT NULL
-             AND started_at >= CURRENT_DATE - INTERVAL '12 months'""",
-        user_id,
-    )
-    hrmax = float(hrmax_row["hrmax"]) if hrmax_row and hrmax_row["hrmax"] else 190.0
-
-    act_rows: list[dict[str, Any]] = [
-        dict(r)
-        for r in await pool.fetch(
-            """SELECT DATE(a.started_at AT TIME ZONE 'UTC') AS activity_date,
-                      AVG(a.avg_hr)::float                  AS avg_hr,
-                      SUM(a.duration_seconds)::float         AS duration_seconds,
-                      MAX(d.resting_hr)::float               AS resting_hr,
-                      a.avg_ground_contact_time,
-                      a.avg_vertical_oscillation,
-                      a.avg_vertical_ratio,
-                      a.sport_type
-               FROM activities a
-               LEFT JOIN daily_summary d
-                      ON d.date    = DATE(a.started_at AT TIME ZONE 'UTC')
-                     AND d.user_id = a.user_id
-               WHERE a.user_id = $1
-                 AND a.avg_hr IS NOT NULL
-                 AND a.duration_seconds IS NOT NULL
-               GROUP BY 1, a.id ORDER BY 1""",
-            user_id,
-        )
-    ]
-
-    hrv_rows = await pool.fetch(
-        "SELECT date, hrv_last_night FROM hrv_daily WHERE user_id = $1 ORDER BY date",
-        user_id,
-    )
-    hrv_by_date: dict[date, float | None] = {
-        r["date"]: r["hrv_last_night"] for r in hrv_rows
-    }
-
-    return {
-        "hrmax": hrmax,
-        "act_rows": act_rows,
-        "hrv_by_date": hrv_by_date,
-        "hrv_dates_sorted": sorted(hrv_by_date.keys()),
-    }
-
-
-async def _load_sleep_daily_gaps(user_id: int, pool: asyncpg.Pool) -> dict[str, Any]:
-    """Load sleep sessions, daily summaries, and gap dates requiring backfill."""
-    sleep_rows = await pool.fetch(
-        """SELECT DATE(start_time AT TIME ZONE 'UTC') AS sleep_date,
-                  total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds
-           FROM sleep_sessions WHERE user_id = $1 ORDER BY start_time""",
-        user_id,
-    )
-    sleep_by_date = {
-        r["sleep_date"]: {
-            "total_h": float(r["total_sleep_seconds"]) / 3600.0
-            if r["total_sleep_seconds"]
-            else None,
-            "deep_h": float(r["deep_sleep_seconds"]) / 3600.0
-            if r["deep_sleep_seconds"]
-            else None,
-            "rem_h": float(r["rem_sleep_seconds"]) / 3600.0
-            if r["rem_sleep_seconds"]
-            else None,
-        }
-        for r in sleep_rows
-    }
-
-    daily_rows = await pool.fetch(
-        "SELECT date, avg_stress, body_battery_high FROM daily_summary WHERE user_id = $1 ORDER BY date",
-        user_id,
-    )
-    daily_by_date: dict[date, dict[str, Any]] = {
-        r["date"]: {
-            "avg_stress": r["avg_stress"],
-            "body_battery_high": r["body_battery_high"],
-        }
-        for r in daily_rows
-    }
-
-    gap_dates = [
-        r["date"]
-        for r in await pool.fetch(
-            """SELECT d.date FROM daily_summary d
-               WHERE d.user_id = $1 AND d.date < CURRENT_DATE
-                 AND (
-                   NOT EXISTS (
-                     SELECT 1 FROM ml_predictions p
-                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'energy_physical'
-                   )
-                   OR NOT EXISTS (
-                     SELECT 1 FROM ml_predictions p
-                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'body_battery_custom'
-                   )
-                   OR NOT EXISTS (
-                     SELECT 1 FROM ml_predictions p
-                     WHERE p.user_id = d.user_id AND p.date = d.date AND p.model = 'stress_score_custom'
-                   )
-                 )
-               ORDER BY d.date""",
-            user_id,
-        )
-    ]
-
-    return {
-        "sleep_by_date": sleep_by_date,
-        "daily_by_date": daily_by_date,
-        "gap_dates": gap_dates,
-    }
 
 
 async def _backfill_energy_scores(
@@ -183,7 +71,7 @@ async def _backfill_energy_scores(
 
 
 async def _backfill_custom_scores(
-    user_id: int, target: date, data: dict[str, Any], pool: asyncpg.Pool
+    user_id: int, target: date, data: dict[str, Any]
 ) -> None:
     """Save body_battery_custom, stress_score_custom, running_economy, and hrv_recovery for one date."""
     cutoff_hrv = target - timedelta(days=90)
@@ -195,12 +83,9 @@ async def _backfill_custom_scores(
 
     yesterday_bb = None
     if target > data["gap_dates"][0]:
-        prev_row = await pool.fetchrow(
-            "SELECT value FROM ml_predictions WHERE user_id=$1 AND date=$2 AND model='body_battery_custom'",
-            user_id,
-            target - timedelta(days=1),
+        yesterday_bb = await get_prediction_for_date(
+            user_id, target - timedelta(days=1), "body_battery_custom"
         )
-        yesterday_bb = prev_row["value"] if prev_row else None
     if yesterday_bb is None and target in data["daily_by_date"]:
         yesterday_bb = data["daily_by_date"][target].get("body_battery_high")
 
@@ -261,9 +146,8 @@ async def _backfill_custom_scores(
 
 async def backfill_user(user_id: int) -> int:
     """Compute and upsert energy scores for all historical gaps. Returns count of dates written."""
-    pool = get_pool()
-    activity_hrv = await _load_activity_hrv_data(user_id, pool)
-    sleep_daily_gaps = await _load_sleep_daily_gaps(user_id, pool)
+    activity_hrv = await get_backfill_activity_hrv_data(user_id)
+    sleep_daily_gaps = await get_backfill_sleep_daily_gaps(user_id)
 
     gap_dates = sleep_daily_gaps["gap_dates"]
     if not gap_dates:
@@ -274,7 +158,7 @@ async def backfill_user(user_id: int) -> int:
 
     for target in gap_dates:
         await _backfill_energy_scores(user_id, target, data)
-        await _backfill_custom_scores(user_id, target, data, pool)
+        await _backfill_custom_scores(user_id, target, data)
 
     logger.info(f"user={user_id}: backfill complete ({len(gap_dates)} dates)")
     return len(gap_dates)
