@@ -399,3 +399,8 @@ Reminder: `https://<APP_BASE_URL>/health` als Monitor-URL bei UptimeRobot konfig
 
 Route-Tests patchen `src.deps.require_user` via `AsyncMock(return_value=TEST_USER)`. Kein `assert_called_once()`.
 Begründung: Tests verifizieren korrektes Verhalten (Status-Codes, Response-Inhalte). Die Mock-Stelle ist korrekt (`src.deps`, nicht `fastapi`). `assert_called_once()` wäre redundant da jeder Auth-Fehler den Test bereits fehlschlagen lässt.
+
+### TEST-L4: E2E `@requires_data`-Tests in CI still übersprungen
+
+3 E2E-Tests (`test_formula_modal_opens_on_score_click`, `test_activity_detail_page_loads`, `test_formula_modal_opens_on_score_click`) benötigen einen Garmin-geseedeten Test-User und sind mit `@requires_data` markiert. Wenn `CI_HAS_DATA` nicht gesetzt ist, werden sie via `pytest.mark.skipif` übersprungen.
+Begründung: Garmin-Sync erfordert echte API-Credentials und Daten, die in der Standard-CI nicht verfügbar sind. Die Tests laufen korrekt in Umgebungen mit `make test-seed && CI_HAS_DATA=true`. Für den Standard-CI-Lauf ist ein E2E-Smoke-Test mit registriertem User ausreichend.
