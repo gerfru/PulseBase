@@ -506,14 +506,14 @@ def test_garmin_link_has_rate_limit_decorator():
 
     # slowapi stores rate limit rules in _rate_limit attribute
     # Access via the underlying function if wrapped
+    import inspect
+
     fn = garmin_link
     while hasattr(fn, "__wrapped__"):
         fn = fn.__wrapped__
-    # Verify limiter decorator was applied (slowapi sets _rate_limit on the function)
-    assert (
-        hasattr(fn, "_rate_limit")
-        or "5/hour" in str(getattr(fn, "__doc__", ""))
-        or True
+    # inspect.getsource includes decorator lines for the unwrapped function
+    assert "5/hour" in inspect.getsource(fn), (
+        "garmin_link must have @limiter.limit('5/hour') decorator"
     )
     # Structural check: the handler is in the router with POST method
     from src.routes.garmin import router
