@@ -132,3 +132,21 @@ def test_get_recent_glucose_handles_naive_timestamp():
 
     readings = get_recent_glucose(mock_client, hours=2)
     assert reading in readings
+
+
+def test_get_recent_glucose_current_reading_with_naive_timestamp():
+    """graph.current with naive timestamp must be treated as UTC and included."""
+    now = datetime.now(timezone.utc)
+    current = MagicMock()
+    current.timestamp = (now - timedelta(minutes=5)).replace(tzinfo=None)  # naive
+
+    graph = MagicMock()
+    graph.history = []
+    graph.current = current
+
+    mock_client = MagicMock()
+    mock_client.get_patients.return_value = [MagicMock()]
+    mock_client.read.return_value = graph
+
+    readings = get_recent_glucose(mock_client, hours=2)
+    assert current in readings

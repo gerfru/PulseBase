@@ -2,7 +2,7 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -1141,3 +1141,182 @@ def test_body_battery_quality_with_deep_and_rem():
 
     q = _sleep_quality(total_h=7.5, deep_h=1.5, rem_h=2.0)
     assert 0.0 <= q <= 1.0
+
+
+def test_body_battery_quality_deep_only_no_rem():
+    """elif branch: deep_h set but rem_h is None."""
+    from models.body_battery import _sleep_quality
+
+    q = _sleep_quality(total_h=7.5, deep_h=1.5, rem_h=None)
+    assert 0.0 <= q <= 1.0
+
+
+# ── correlation — all interpretation branches ──────────────────────────────────
+
+
+def test_correlation_moderat():
+    from models.correlation import compute_sleep_hrv_correlation
+
+    with patch("models.correlation.stats") as mock_stats:
+        mock_stats.pearsonr.return_value = (0.55, 0.01)
+        result = compute_sleep_hrv_correlation([1.0] * 20, [1.0] * 20)
+    assert result["interpretation"] == "moderat"
+
+
+def test_correlation_schwach():
+    from models.correlation import compute_sleep_hrv_correlation
+
+    with patch("models.correlation.stats") as mock_stats:
+        mock_stats.pearsonr.return_value = (0.3, 0.05)
+        result = compute_sleep_hrv_correlation([1.0] * 20, [1.0] * 20)
+    assert result["interpretation"] == "schwach"
+
+
+def test_correlation_kein_zusammenhang():
+    from models.correlation import compute_sleep_hrv_correlation
+
+    with patch("models.correlation.stats") as mock_stats:
+        mock_stats.pearsonr.return_value = (0.1, 0.7)
+        result = compute_sleep_hrv_correlation([1.0] * 20, [1.0] * 20)
+    assert result["interpretation"] == "kein Zusammenhang"
+
+
+# ── hrv_status — LOW and POOR branches ────────────────────────────────────────
+
+
+def test_hrv_status_unbalanced():
+    """UNBALANCED branch (line 27): dev in [-1.5, -0.5)."""
+    with patch("models.hrv_status.compute_autonomic_energy") as mock_energy:
+        mock_energy.return_value = {
+            "score": 72.0,
+            "deviation": -0.9,
+            "baseline_mean": 52.0,
+            "baseline_std": 4.0,
+            "hrv_7d_mean": 48.4,
+        }
+        result = classify_hrv_status([50.0] * 27)
+    assert result["status"] == "UNBALANCED"
+
+
+def test_hrv_status_low():
+    """LOW branch (line 29): dev in [-2.0, -1.5)."""
+    with patch("models.hrv_status.compute_autonomic_energy") as mock_energy:
+        mock_energy.return_value = {
+            "score": 55.0,
+            "deviation": -1.7,
+            "baseline_mean": 52.0,
+            "baseline_std": 4.0,
+            "hrv_7d_mean": 45.2,
+        }
+        result = classify_hrv_status([50.0] * 27)
+    assert result["status"] == "LOW"
+
+
+def test_hrv_status_poor():
+    """POOR branch: dev < -2.0."""
+    with patch("models.hrv_status.compute_autonomic_energy") as mock_energy:
+        mock_energy.return_value = {
+            "score": 35.0,
+            "deviation": -2.5,
+            "baseline_mean": 52.0,
+            "baseline_std": 4.0,
+            "hrv_7d_mean": 42.0,
+        }
+        result = classify_hrv_status([50.0] * 27)
+    assert result["status"] == "POOR"
+
+
+# ── sleep_metrics — second insufficient_data branch ───────────────────────────
+
+
+def test_sleep_consistency_insufficient_start_times():
+    """5+ sessions but only 1 has start_h → triggers second insufficient_data."""
+    from models.sleep_metrics import compute_sleep_consistency
+
+    rows = [
+        {"start_h": 23.0, "end_h": 7.0},  # only one with start_h
+        {"start_h": None, "end_h": 7.0},
+        {"start_h": None, "end_h": 7.5},
+        {"start_h": None, "end_h": 6.5},
+        {"start_h": None, "end_h": 7.2},
+    ]
+    result = compute_sleep_consistency(rows)
+    assert result["score"] is None
+
+
+# ── energy_metrics — sleep debt with None entry ───────────────────────────────
+
+
+def test_cognitive_energy_skips_none_total():
+    """total=None entries must be skipped (not counted as 0)."""
+    from models.energy_metrics import compute_cognitive_energy
+
+    data = [
+        {"total_h": None},
+        {"total_h": 6.5},
+        {"total_h": 7.5},
+    ]
+    result = compute_cognitive_energy(data)
+    assert result["score"] is not None
+
+
+# ── readiness — all_none features → line 56 ───────────────────────────────────
+
+
+def test_prepare_training_data_all_none_features():
+    rows = [{"resting_hr": None, "hrv_last_night": None} for _ in range(35)]
+    result = prepare_training_data(rows)
+    assert result is None
+
+
+# ── readiness — target=None row → line 73-74 ──────────────────────────────────
+
+
+def test_prepare_training_data_skips_none_target():
+    """Rows where _energy_based_score(nxt) is None (no energy cols) are skipped."""
+    rows = [{"resting_hr": 55.0, "hrv_last_night": 48.0} for _ in range(35)]
+    result = prepare_training_data(rows)
+    assert result is None
+
+
+def test_train_and_save_returns_none_when_insufficient_data(tmp_path):
+    """Line 88: train_and_save returns None when prepare_training_data returns None."""
+    result = train_and_save([], tmp_path / "model.joblib")
+    assert result is None
+
+
+# ── readiness — old-format model (not dict) → lines 123-125, 132 ──────────────
+
+
+def test_predict_tomorrow_old_format_model_missing_feature(tmp_path):
+    """Model saved as bare object (old format) with missing feature → return None."""
+    from sklearn.ensemble import RandomForestRegressor
+    import joblib
+
+    model = RandomForestRegressor(n_estimators=10, random_state=0)
+    model.fit([[1.0]], [50.0])
+    model_path = tmp_path / "readiness_rf_old.joblib"
+    joblib.dump(model, model_path)  # old format: bare model, not dict
+
+    result = predict_tomorrow({"resting_hr": None}, model_path)
+    assert result is None
+
+
+def test_predict_tomorrow_old_format_model_with_features(tmp_path):
+    """Old-format model with all features available → returns prediction."""
+    from sklearn.ensemble import RandomForestRegressor
+    import joblib
+
+    from models.readiness import _CANDIDATE_FEATURES
+
+    n = len(_CANDIDATE_FEATURES)
+    model = RandomForestRegressor(n_estimators=10, random_state=0)
+    X_train = [[55.0] * n] * 10
+    y_train = [70.0] * 10
+    model.fit(X_train, y_train)
+    model_path = tmp_path / "readiness_rf_old2.joblib"
+    joblib.dump(model, model_path)
+
+    features = {f: 55.0 for f in _CANDIDATE_FEATURES}
+    result = predict_tomorrow(features, model_path)
+    assert result is not None

@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import date, datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from domain.models import Activity, DailySummary, HRVDaily, SleepSession, SportType
 from repositories.timescale import TimescaleRepository
@@ -311,3 +311,35 @@ class TestBulkInsertGlucose:
         inserted = conn.executemany.call_args.args[1]
         assert len(inserted) == 1
         assert len(inserted[0]) == 6
+
+
+# ── _db property + init / close ───────────────────────────────────────────────
+
+
+def test_db_property_raises_when_pool_not_initialized():
+    repo = TimescaleRepository("postgresql://test/test")
+    with pytest.raises(RuntimeError, match="Pool not initialized"):
+        _ = repo._db
+
+
+async def test_init_creates_pool():
+    repo = TimescaleRepository("postgresql://test/test")
+    mock_pool = MagicMock()
+    with patch(
+        "repositories.timescale.asyncpg.create_pool", AsyncMock(return_value=mock_pool)
+    ):
+        await repo.init()
+    assert repo._pool is mock_pool
+
+
+async def test_close_calls_pool_close():
+    pool = AsyncMock()
+    repo = TimescaleRepository("postgresql://test/test")
+    repo._pool = pool
+    await repo.close()
+    pool.close.assert_awaited_once()
+
+
+async def test_close_is_noop_when_pool_is_none():
+    repo = TimescaleRepository("postgresql://test/test")
+    await repo.close()  # must not raise

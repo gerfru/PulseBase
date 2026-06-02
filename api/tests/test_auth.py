@@ -1,3 +1,5 @@
+import hashlib
+
 import asyncpg
 import bcrypt
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -252,21 +254,21 @@ async def test_reset_form_invalid_token_returns_400(client):
 
 
 async def test_reset_password_success_redirects_to_login(client):
-    with (
-        patch(
-            "src.routes.auth._verify_reset_token",
-            AsyncMock(return_value=TEST_USER["id"]),
-        ),
-        patch("src.routes.auth.update_password", AsyncMock()),
-        patch("src.routes.auth.clear_reset_token", AsyncMock()),
+    with patch(
+        "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
     ):
-        r = await client.post(
-            "/auth/reset/any-token",
-            data={
-                "password": "newpassword1",  # pragma: allowlist secret
-                "password_confirm": "newpassword1",  # pragma: allowlist secret
-            },
-        )
+        await client.get("/auth/reset/any-token")
+        with (
+            patch("src.routes.auth.update_password", AsyncMock()),
+            patch("src.routes.auth.clear_reset_token", AsyncMock()),
+        ):
+            r = await client.post(
+                "/auth/reset/any-token",
+                data={
+                    "password": "newpassword1",  # pragma: allowlist secret
+                    "password_confirm": "newpassword1",  # pragma: allowlist secret
+                },
+            )
     assert r.status_code == 303
     assert r.headers["location"] == "/login?reset=1"
 
@@ -275,6 +277,7 @@ async def test_reset_password_mismatch_returns_400(client):
     with patch(
         "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
     ):
+        await client.get("/auth/reset/any-token")
         r = await client.post(
             "/auth/reset/any-token",
             data={
@@ -289,6 +292,7 @@ async def test_reset_password_too_short_returns_400(client):
     with patch(
         "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
     ):
+        await client.get("/auth/reset/any-token")
         r = await client.post(
             "/auth/reset/any-token",
             data={
@@ -300,9 +304,14 @@ async def test_reset_password_too_short_returns_400(client):
 
 
 async def test_reset_password_invalid_token_returns_400(client):
+    """Token valid at GET (session marker set), but invalid at POST (e.g. expired)."""
+    with patch(
+        "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
+    ):
+        await client.get("/auth/reset/any-token")
     with patch("src.routes.auth._verify_reset_token", AsyncMock(return_value=None)):
         r = await client.post(
-            "/auth/reset/not-a-valid-token",
+            "/auth/reset/any-token",
             data={
                 "password": "newpassword1",  # pragma: allowlist secret
                 "password_confirm": "newpassword1",  # pragma: allowlist secret
@@ -311,11 +320,30 @@ async def test_reset_password_invalid_token_returns_400(client):
     assert r.status_code == 400
 
 
+async def test_reset_password_no_session_returns_403(client):
+    """POST to reset endpoint without prior GET (no session marker) is rejected."""
+    with patch(
+        "src.routes.auth._verify_reset_token", AsyncMock(return_value=TEST_USER["id"])
+    ):
+        r = await client.post(
+            "/auth/reset/any-token",
+            data={
+                "password": "newpassword1",  # pragma: allowlist secret
+                "password_confirm": "newpassword1",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code == 403
+
+
 async def test_reset_password_success_clears_session(client):
     """After password reset the session is cleared — old session cannot be reused."""
     from tests.conftest import make_session
 
-    make_session(client, user_id=TEST_USER["id"])
+    token = "any-token"
+    token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+    make_session(
+        client, user_id=TEST_USER["id"], extra={"reset_token_hash": token_hash}
+    )
     assert client.cookies.get("session")  # session was planted
 
     with (
@@ -439,7 +467,9 @@ async def test_login_failed_increments_counter(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
-        with patch("src.routes.auth.increment_failed_login", AsyncMock()) as mock_inc:
+        with patch(
+            "src.routes.auth.increment_failed_login", AsyncMock(return_value=1)
+        ) as mock_inc:
             r = await client.post(
                 "/login",
                 data={
@@ -460,7 +490,7 @@ async def test_login_triggers_lockout_on_max_attempts(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=almost_locked)
     ):
-        with patch("src.routes.auth.increment_failed_login", AsyncMock()):
+        with patch("src.routes.auth.increment_failed_login", AsyncMock(return_value=5)):
             with patch("src.routes.auth.lock_user_until", AsyncMock()) as mock_lock:
                 with patch(
                     "src.routes.auth.send_lockout_email", AsyncMock()
@@ -900,3 +930,35 @@ async def test_register_consent_stores_ip_hash_not_raw_ip(client):
         # SHA-256 prefix: 12 hex chars (from _ip_hash which returns hexdigest()[:12])
         assert len(ip_arg) == 12
         assert all(c in "0123456789abcdef" for c in ip_arg)
+
+
+# ── is_active=False ───────────────────────────────────────────────────────────
+
+
+async def test_login_inactive_user_returns_400(client):
+    """Login with is_active=False account shows generic error (no info leak)."""
+    with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=None)):
+        r = await client.post(
+            "/login",
+            data={"email": "inactive@example.com", "password": _TEST_PASSWORD},
+        )
+    assert r.status_code == 400
+    assert "falsch" in r.text
+
+
+# ── Session-Cookie security flags ─────────────────────────────────────────────
+
+
+async def test_session_cookie_is_httponly_after_login(client):
+    """Starlette SessionMiddleware must set HttpOnly on the session cookie."""
+    with patch(
+        "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
+    ):
+        with patch("src.routes.auth.reset_failed_login", AsyncMock()):
+            r = await client.post(
+                "/login",
+                data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
+            )
+    assert r.status_code == 303
+    set_cookie = r.headers.get("set-cookie", "")
+    assert "httponly" in set_cookie.lower()
