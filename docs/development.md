@@ -88,12 +88,22 @@ api/tests/
 ├── test_garmin_client.py    GarminClient Token-Handling
 ├── test_libre_client.py     LibreLinkUp-Client
 └── e2e/
-    ├── conftest.py          Playwright-Fixtures (browser_context, page, authenticated_page)
+    ├── conftest.py          Playwright-Fixtures (browser_context, page, authenticated_page,
+    │                          clean_register_email, registered_test_user, unverified_test_user,
+    │                          reset_test_user, epilepsy_test_user, session_secret)
     ├── create_ci_user.py    Test-User in garmin_test-DB anlegen
-    └── test_smoke.py        Browser-Smoke-Tests gegen lokalen Stack (Port 8001)
+    ├── test_smoke.py        Browser-Smoke-Tests gegen lokalen Stack (Port 8001)
+    ├── test_auth_flows.py   Register, E-Mail-Verify, Passwort-Reset (Token aus DB injiziert)
+    └── test_static_pages.py Öffentliche Seiten (Privacy/Terms/Imprint/Accessibility) + Epilepsie
 
 sync-service/tests/
-└── test_mapper.py           Garmin-Daten-Mapper (Activity, Sleep, HRV, ...)
+├── test_mapper.py           Garmin-Daten-Mapper (Activity, Sleep, HRV, ...)
+├── test_libre_mapper.py     LibreLink-Daten-Mapper
+├── test_libre_client.py     LibreLinkUp-Client (Token-Login, API-Fehler)
+├── test_repository.py       TimescaleRepository (asyncpg Roundtrips)
+├── test_main.py             Orchestrierung + Retry-Logik
+├── test_crypto.py           Fernet Encrypt/Decrypt + Token-Dir-Serialisierung (inkl. Path-Traversal)
+└── test_garmin_client.py    GarminClient Token-Login, Fallback, save_token, None-Defaults
 
 ml-service/tests/
 └── test_models.py           ML-Modelle (Readiness, Anomaly, Correlation, ...)
@@ -145,7 +155,7 @@ make test-js           # einmalig
 make test-js-coverage  # mit Coverage-Report (api/coverage/index.html)
 ```
 
-Vitest testet vier Utility-Dateien: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js` (Threshold: ≥65% Lines, ≥70% Functions). DOM-schwere Dateien (Loaders, Hero) und interne Poll-Funktionen werden durch Playwright E2E abgedeckt.
+Vitest testet vier Utility-Dateien: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js` (Threshold: ≥65% Lines, ≥70% Functions). `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme).
 
 ### E2E-Tests (Playwright)
 
@@ -176,11 +186,11 @@ cd api && .venv/bin/pytest tests/test_auth.py::test_login_success_redirects -v
 | Service | Aktuell | Minimum (CI) | Ziel |
 |---------|---------|--------------|------|
 | api (Python) | ~99% | 70% | 100% |
-| api (JS) | ~68% Lines / ~74% Functions | 65% Lines / 70% Functions | 80%+ |
-| sync-service | ~20% | 20% | 70%+ |
-| ml-service | ~19% | 15% | 70%+ |
+| api (JS) | ~100% Lines / ~100% Functions (4 Dateien) | 65% Lines / 70% Functions | — |
+| sync-service | ~55%+ | 50% | 70%+ |
+| ml-service | ~55%+ | 50% | 70%+ |
 
-Die JS-Schwelle (65/70) gilt für die vier getesteten Utility-Dateien. Interne Poll-Funktionen in `dashboard-status.js` sind von Unit-Tests ausgenommen (Playwright-E2E). Die niedrigen Schwellen für sync/ml sind bewusste Einstiegswerte — sie steigen wenn Mapper-, Repository- und Modell-Tests ergänzt werden.
+Die JS-Schwelle gilt für die vier gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: Coverage stieg durch `test_crypto.py` + `test_garmin_client.py` auf >50% (W9, M-38/M-39).
 
 ---
 
