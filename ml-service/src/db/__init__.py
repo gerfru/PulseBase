@@ -1,5 +1,6 @@
 from .activities import (
     get_activity_trimp_inputs,
+    get_backfill_activity_hrv_data,
     get_bb_resting_hr_pairs,
     get_hrmax,
     get_latest_features,
@@ -10,6 +11,7 @@ from .activities import (
     get_todays_activity_hr_records,
 )
 from .health import (
+    get_backfill_sleep_daily_gaps,
     get_body_battery_history,
     get_body_battery_today,
     get_hrv_history_for_energy,
@@ -35,6 +37,7 @@ from .users_ml import (
     count_energy_gaps,
     get_active_users,
     get_ml_requested_users,
+    get_prediction_for_date,
     get_user_profile,
     get_yesterday_prediction,
     mark_ml_done,
@@ -46,6 +49,8 @@ __all__ = [
     "count_energy_gaps",
     "get_active_users",
     "get_activity_trimp_inputs",
+    "get_backfill_activity_hrv_data",
+    "get_backfill_sleep_daily_gaps",
     "get_bb_resting_hr_pairs",
     "get_body_battery_history",
     "get_body_battery_today",
@@ -55,6 +60,7 @@ __all__ = [
     "get_latest_features",
     "get_ml_requested_users",
     "get_pool",
+    "get_prediction_for_date",
     "get_readiness_training_rows",
     "get_resting_hr_history",
     "get_running_economy_activities",

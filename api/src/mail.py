@@ -1,0 +1,71 @@
+import resend as resend_client
+import resend.exceptions as resend_exc
+import structlog
+
+from src.deps import settings
+
+logger = structlog.get_logger(__name__)
+
+
+async def _send_email(to: str, subject: str, html: str, log_key: str) -> bool:
+    if not settings.resend_api_key:
+        logger.warning(f"mail.{log_key}.skipped", reason="RESEND_API_KEY not set")
+        return False
+    resend_client.api_key = settings.resend_api_key
+    try:
+        resend_client.Emails.send(
+            {
+                "from": settings.resend_from_email,
+                "to": to,
+                "subject": subject,
+                "html": html,
+            }
+        )
+        return True
+    except resend_exc.ResendError as e:
+        logger.warning(f"mail.{log_key}.failed", reason=e.message)
+        return False
+    except Exception:
+        logger.exception(f"mail.{log_key}.unexpected")
+        return False
+
+
+async def send_lockout_email(to_email: str, lockout_minutes: int) -> bool:
+    return await _send_email(
+        to=to_email,
+        subject="PulseBase — Konto vorübergehend gesperrt",
+        html=(
+            "<p>Dein Konto wurde nach mehreren fehlgeschlagenen Login-Versuchen "
+            f"für {lockout_minutes} Minuten gesperrt.</p>"
+            "<p>Falls du das nicht warst, ändere bitte dein Passwort über "
+            f"<a href='{settings.app_base_url}/auth/reset-request'>"
+            "Passwort zurücksetzen</a>.</p>"
+        ),
+        log_key="lockout",
+    )
+
+
+async def send_reset_email(to_email: str, token: str) -> bool:
+    url = f"{settings.app_base_url}/auth/reset/{token}"
+    return await _send_email(
+        to=to_email,
+        subject="PulseBase — Passwort zurücksetzen",
+        html=(
+            f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
+            f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
+        ),
+        log_key="reset",
+    )
+
+
+async def send_verify_email(to_email: str, token: str) -> bool:
+    url = f"{settings.app_base_url}/auth/verify/{token}"
+    return await _send_email(
+        to=to_email,
+        subject="PulseBase — E-Mail-Adresse bestätigen",
+        html=(
+            "<p>Klicke auf diesen Link um deine E-Mail-Adresse zu bestätigen "
+            f"(gültig 24 Stunden):</p><p><a href='{url}'>{url}</a></p>"
+        ),
+        log_key="verify",
+    )

@@ -91,6 +91,18 @@ async def get_yesterday_prediction(user_id: int, model: str) -> float | None:
     return float(row["value"]) if row and row["value"] is not None else None
 
 
+async def get_prediction_for_date(
+    user_id: int, pred_date: date, model: str
+) -> float | None:
+    row = await _pool_or_raise().fetchrow(
+        "SELECT value FROM ml_predictions WHERE user_id=$1 AND date=$2 AND model=$3",
+        user_id,
+        pred_date,
+        model,
+    )
+    return float(row["value"]) if row and row["value"] is not None else None
+
+
 async def save_prediction(
     user_id: int,
     pred_date: date,

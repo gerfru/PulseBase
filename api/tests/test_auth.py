@@ -86,7 +86,7 @@ async def test_register_password_too_short_returns_400(client):
 
 async def test_register_redirects_to_verify_pending(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=True)):
             with patch("src.routes.auth.save_consent", AsyncMock()):
                 r = await client.post(
                     "/register",
@@ -106,7 +106,7 @@ async def test_register_redirects_to_verify_pending(client):
 
 async def test_register_email_failed_redirects_to_verify_failed(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=False)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=False)):
             with patch("src.routes.auth.save_consent", AsyncMock()):
                 r = await client.post(
                     "/register",
@@ -127,27 +127,30 @@ async def test_register_email_failed_redirects_to_verify_failed(client):
 async def test_register_sends_verify_email_when_api_key_set(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
         with patch("src.routes.auth.save_consent", AsyncMock()):
-            with patch("src.routes.auth.settings") as mock_settings:
-                mock_settings.session_secret = (
+            with patch("src.routes.auth.settings") as mock_auth_settings:
+                mock_auth_settings.session_secret = (
                     "test-secret-key-for-testing-only!"  # pragma: allowlist secret
                 )
-                mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
-                mock_settings.resend_from_email = "noreply@example.com"
-                mock_settings.app_base_url = "https://example.com"
-                with patch("src.routes.auth.resend_client") as mock_resend:
-                    mock_resend.Emails.send = MagicMock()
-                    r = await client.post(
-                        "/register",
-                        data={
-                            "name": "New User",
-                            "email": "new@example.com",
-                            "password": "newpassword1x",  # pragma: allowlist secret
-                            "password_confirm": "newpassword1x",  # pragma: allowlist secret
-                            "consent_health": "on",
-                            "consent_terms": "on",
-                            "consent_age": "on",
-                        },
+                with patch("src.mail.settings") as mock_mail_settings:
+                    mock_mail_settings.resend_api_key = (
+                        "re_test"  # pragma: allowlist secret
                     )
+                    mock_mail_settings.resend_from_email = "noreply@example.com"
+                    mock_mail_settings.app_base_url = "https://example.com"
+                    with patch("src.mail.resend_client") as mock_resend:
+                        mock_resend.Emails.send = MagicMock()
+                        r = await client.post(
+                            "/register",
+                            data={
+                                "name": "New User",
+                                "email": "new@example.com",
+                                "password": "newpassword1x",  # pragma: allowlist secret
+                                "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                                "consent_health": "on",
+                                "consent_terms": "on",
+                                "consent_age": "on",
+                            },
+                        )
     assert r.status_code == 303
     mock_resend.Emails.send.assert_called_once()
 
@@ -216,12 +219,9 @@ async def test_reset_request_sends_email_when_api_key_set(client):
     with (
         patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)),
         patch("src.routes.auth.save_reset_token", AsyncMock()),
-        patch("src.routes.auth.settings") as mock_settings,
-        patch("src.routes.auth.resend_client") as mock_resend,
+        patch("src.mail.settings") as mock_settings,
+        patch("src.mail.resend_client") as mock_resend,
     ):
-        mock_settings.session_secret = (
-            "test-secret-key-for-testing-only!"  # pragma: allowlist secret
-        )
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
@@ -344,78 +344,72 @@ async def test_reset_password_success_clears_session(client):
 
 
 async def test_lockout_email_skipped_when_no_api_key(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = ""
-        from src.routes.auth import _send_lockout_email
+        from src.mail import send_lockout_email
 
-        result = await _send_lockout_email("victim@example.com")
+        result = await send_lockout_email("victim@example.com", lockout_minutes=15)
     assert result is False
 
 
 async def test_lockout_email_exception_returns_false(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        with patch("src.routes.auth.resend_client") as mock_resend:
+        with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock(side_effect=Exception("send failed"))
-            from src.routes.auth import _send_lockout_email
+            from src.mail import send_lockout_email
 
-            result = await _send_lockout_email("victim@example.com")
+            result = await send_lockout_email("victim@example.com", lockout_minutes=15)
     assert result is False
 
 
 async def test_reset_email_exception_returns_false(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        mock_settings.session_secret = (
-            "test-secret-key-for-testing-only!"  # pragma: allowlist secret
-        )
-        with patch("src.routes.auth.resend_client") as mock_resend:
+        with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock(side_effect=Exception("send failed"))
-            from src.routes.auth import _send_reset_email
+            from src.mail import send_reset_email
 
-            result = await _send_reset_email("user@example.com", "sometoken")
+            result = await send_reset_email("user@example.com", "sometoken")
     assert result is False
 
 
 async def test_verify_email_skipped_returns_false(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = ""
-        from src.routes.auth import _send_verify_email
+        from src.mail import send_verify_email
 
-        result = await _send_verify_email("user@example.com", "sometoken")
+        result = await send_verify_email("user@example.com", "sometoken")
     assert result is False
 
 
 async def test_verify_email_exception_returns_false(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        mock_settings.session_secret = (
-            "test-secret-key-for-testing-only!"  # pragma: allowlist secret
-        )
-        with patch("src.routes.auth.resend_client") as mock_resend:
+        with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock(side_effect=Exception("send failed"))
-            from src.routes.auth import _send_verify_email
+            from src.mail import send_verify_email
 
-            result = await _send_verify_email("user@example.com", "sometoken")
+            result = await send_verify_email("user@example.com", "sometoken")
     assert result is False
 
 
 async def test_lockout_email_sends_when_api_key_set(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        with patch("src.routes.auth.resend_client") as mock_resend:
+        with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock()
-            from src.routes.auth import _send_lockout_email
+            from src.mail import send_lockout_email
 
-            await _send_lockout_email("victim@example.com")
+            await send_lockout_email("victim@example.com", lockout_minutes=15)
     mock_resend.Emails.send.assert_called_once()
     call_kwargs = mock_resend.Emails.send.call_args[0][0]
     assert call_kwargs["to"] == "victim@example.com"
@@ -469,7 +463,7 @@ async def test_login_triggers_lockout_on_max_attempts(client):
         with patch("src.routes.auth.increment_failed_login", AsyncMock()):
             with patch("src.routes.auth.lock_user_until", AsyncMock()) as mock_lock:
                 with patch(
-                    "src.routes.auth._send_lockout_email", AsyncMock()
+                    "src.routes.auth.send_lockout_email", AsyncMock()
                 ) as mock_mail:
                     r = await client.post(
                         "/login",
@@ -480,7 +474,7 @@ async def test_login_triggers_lockout_on_max_attempts(client):
                     )
     assert r.status_code == 400
     mock_lock.assert_awaited_once()
-    mock_mail.assert_awaited_once_with(TEST_USER["email"])
+    mock_mail.assert_awaited_once_with(TEST_USER["email"], 15)
 
 
 async def test_login_success_resets_counter(client):
@@ -544,7 +538,7 @@ async def test_resend_verify_send_failure_shows_warning(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=unverified_user)
     ):
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=False)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=False)):
             r = await client.post(
                 "/auth/resend-verify", data={"email": TEST_USER["email"]}
             )
@@ -557,18 +551,21 @@ async def test_verify_email_sends_when_api_key_set(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=unverified_user)
     ):
-        with patch("src.routes.auth.settings") as mock_settings:
-            mock_settings.session_secret = (
+        with patch("src.routes.auth.settings") as mock_auth_settings:
+            mock_auth_settings.session_secret = (
                 "test-secret-key-for-testing-only!"  # pragma: allowlist secret
             )
-            mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
-            mock_settings.resend_from_email = "noreply@example.com"
-            mock_settings.app_base_url = "https://example.com"
-            with patch("src.routes.auth.resend_client") as mock_resend:
-                mock_resend.Emails.send = MagicMock()
-                r = await client.post(
-                    "/auth/resend-verify", data={"email": TEST_USER["email"]}
+            with patch("src.mail.settings") as mock_mail_settings:
+                mock_mail_settings.resend_api_key = (
+                    "re_test"  # pragma: allowlist secret
                 )
+                mock_mail_settings.resend_from_email = "noreply@example.com"
+                mock_mail_settings.app_base_url = "https://example.com"
+                with patch("src.mail.resend_client") as mock_resend:
+                    mock_resend.Emails.send = MagicMock()
+                    r = await client.post(
+                        "/auth/resend-verify", data={"email": TEST_USER["email"]}
+                    )
     assert r.status_code == 200
     mock_resend.Emails.send.assert_called_once()
     call_kwargs = mock_resend.Emails.send.call_args[0][0]
@@ -611,7 +608,7 @@ async def test_register_without_consent_returns_400(client):
 
 async def test_register_consent_saves_audit_log(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=True)):
             with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
                 await client.post(
                     "/register",
@@ -653,7 +650,7 @@ async def test_register_normalizes_email_to_lowercase(client):
     with patch(
         "src.routes.auth.create_user", AsyncMock(return_value={"id": 42})
     ) as mock_create:
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=True)):
             with patch("src.routes.auth.save_consent", AsyncMock()):
                 await client.post(
                     "/register",
@@ -731,7 +728,7 @@ async def test_register_without_age_consent_returns_400(client):
 
 async def test_register_saves_terms_consent_to_db(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=True)):
             with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
                 await client.post(
                     "/register",
@@ -751,7 +748,7 @@ async def test_register_saves_terms_consent_to_db(client):
 
 async def test_register_saves_age_consent_to_db(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=True)):
             with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
                 await client.post(
                     "/register",
@@ -801,41 +798,41 @@ def _resend_error():
 
 
 async def test_lockout_email_resend_error_returns_false(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        with patch("src.routes.auth.resend_client") as mock_resend:
+        with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
-            from src.routes.auth import _send_lockout_email
+            from src.mail import send_lockout_email
 
-            result = await _send_lockout_email("victim@example.com")
+            result = await send_lockout_email("victim@example.com", lockout_minutes=15)
     assert result is False
 
 
 async def test_reset_email_resend_error_returns_false(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        with patch("src.routes.auth.resend_client") as mock_resend:
+        with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
-            from src.routes.auth import _send_reset_email
+            from src.mail import send_reset_email
 
-            result = await _send_reset_email("user@example.com", "tok")
+            result = await send_reset_email("user@example.com", "tok")
     assert result is False
 
 
 async def test_verify_email_resend_error_returns_false(client):
-    with patch("src.routes.auth.settings") as mock_settings:
+    with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        with patch("src.routes.auth.resend_client") as mock_resend:
+        with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
-            from src.routes.auth import _send_verify_email
+            from src.mail import send_verify_email
 
-            result = await _send_verify_email("user@example.com", "tok")
+            result = await send_verify_email("user@example.com", "tok")
     assert result is False
 
 
@@ -881,7 +878,7 @@ async def test_register_rejects_email_without_domain(client):
 async def test_register_consent_stores_ip_hash_not_raw_ip(client):
     """save_consent is called with a hex hash, not a raw IP address."""
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth._send_verify_email", AsyncMock(return_value=True)):
+        with patch("src.routes.auth.send_verify_email", AsyncMock(return_value=True)):
             with patch("src.routes.auth.save_consent", AsyncMock()) as mock_consent:
                 await client.post(
                     "/register",

@@ -382,6 +382,17 @@ def test_prepare_training_data_dynamic_features():
     assert len(X) >= 50
 
 
+# ── train_and_save — atomic write ────────────────────────────────────────────
+
+
+def test_train_and_save_is_atomic(tmp_path):
+    """No .joblib.tmp file must remain after a successful save."""
+    model_path = tmp_path / "readiness_rf_1.joblib"
+    train_and_save(_make_rows(60), model_path)
+    assert model_path.exists()
+    assert not model_path.with_suffix(".joblib.tmp").exists()
+
+
 # ── predict_tomorrow (confidence interval) ────────────────────────────────────
 
 
