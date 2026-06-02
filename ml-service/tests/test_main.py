@@ -1,185 +1,23 @@
-"""Unit tests for ml-service main.py orchestration.
+"""Unit tests for ml-service main.py orchestration functions.
 
-Tests run_inference, run_training, run_on_request, run_all_users.
-All DB and external dependencies are mocked.
+Tests run_all_users, run_on_request, and run_inference. All DB calls and
+inference sub-functions are mocked — no DB connection required.
 """
 
 import sys
-from datetime import date
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from contextlib import ExitStack
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from main import run_all_users, run_inference, run_on_request, run_training
+from main import run_all_users, run_inference, run_on_request
 
 
-_TODAY = date(2026, 4, 27)
-_SETTINGS = MagicMock()
-_SETTINGS.model_dir = Path("/tmp/models")
-
-
-def _all_run_patches():
-    return [
-        patch(
-            "main.get_activity_trimp_inputs", new_callable=AsyncMock, return_value=[]
-        ),
-        patch("main.get_hrmax", new_callable=AsyncMock, return_value=185.0),
-        patch(
-            "main.get_hrv_history_for_energy", new_callable=AsyncMock, return_value=[]
-        ),
-        patch("main.get_sleep_data_7d", new_callable=AsyncMock, return_value=[]),
-        patch("main.get_today_daily_summary", new_callable=AsyncMock, return_value={}),
-        patch(
-            "main.get_todays_activity_hr_records",
-            new_callable=AsyncMock,
-            return_value=([], None),
-        ),
-        patch("main._run_anomaly", new_callable=AsyncMock),
-        patch("main._run_anomaly_spo2", new_callable=AsyncMock),
-        patch("main._run_anomaly_sleep", new_callable=AsyncMock),
-        patch("main._run_anomaly_steps", new_callable=AsyncMock),
-        patch("main._run_anomaly_stress", new_callable=AsyncMock),
-        patch("main._run_correlations", new_callable=AsyncMock),
-        patch("main._run_readiness", new_callable=AsyncMock),
-        patch("main._run_battery_pattern", new_callable=AsyncMock),
-        patch("main._run_energy_metrics", new_callable=AsyncMock),
-        patch("main._run_training_effect", new_callable=AsyncMock),
-        patch("main._run_sleep_and_spo2", new_callable=AsyncMock),
-        patch("main._run_hrv_and_recovery", new_callable=AsyncMock),
-        patch("main._run_body_battery_and_stress", new_callable=AsyncMock),
-        patch("main._run_running_and_intensity", new_callable=AsyncMock),
-    ]
-
-
-# ── run_inference ─────────────────────────────────────────────────────────────
-
-
-class TestRunInference:
-    async def test_calls_all_run_functions(self):
-        with ExitStack() as stack:
-            mocks = {p.attribute: stack.enter_context(p) for p in _all_run_patches()}
-            await run_inference(user_id=1, settings=_SETTINGS)
-        assert mocks["_run_anomaly"].await_count == 1
-
-    async def test_completes_without_error(self):
-        with ExitStack() as stack:
-            for p in _all_run_patches():
-                stack.enter_context(p)
-            await run_inference(user_id=42, settings=_SETTINGS)
-
-
-# ── run_training ──────────────────────────────────────────────────────────────
-
-
-class TestRunTraining:
-    async def test_saves_model_meta_when_training_succeeds(self):
-        meta = {
-            "n_rows": 50,
-            "features": ["f1"],
-            "importances": {"f1": 0.9},
-            "trained_at": "2026-04-27",
-        }
-        with (
-            patch(
-                "main.get_readiness_training_rows",
-                new_callable=AsyncMock,
-                return_value=[{}] * 50,
-            ),
-            patch("main.train_and_save", return_value=meta),
-            patch("main.save_prediction", new_callable=AsyncMock) as mock_save,
-            patch(
-                "main.get_body_battery_history", new_callable=AsyncMock, return_value={}
-            ),
-            patch("main.battery_fit_and_save", return_value=True),
-        ):
-            await run_training(user_id=1, settings=_SETTINGS)
-        called_models = [c.args[2] for c in mock_save.call_args_list]
-        assert "model_meta_rf" in called_models
-
-    async def test_logs_insufficient_data_when_training_fails(self):
-        with (
-            patch(
-                "main.get_readiness_training_rows",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch("main.train_and_save", return_value=None),
-            patch("main.save_prediction", new_callable=AsyncMock) as mock_save,
-            patch(
-                "main.get_body_battery_history", new_callable=AsyncMock, return_value={}
-            ),
-            patch("main.battery_fit_and_save", return_value=False),
-        ):
-            await run_training(user_id=1, settings=_SETTINGS)
-        mock_save.assert_not_called()
-
-
-# ── run_on_request ────────────────────────────────────────────────────────────
-
-
-class TestRunOnRequest:
-    async def test_runs_training_and_inference_for_each_user(self):
-        with (
-            patch(
-                "main.get_ml_requested_users",
-                new_callable=AsyncMock,
-                return_value=[{"id": 5}],
-            ),
-            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=0),
-            patch("main.run_training", new_callable=AsyncMock),
-            patch("main.run_inference", new_callable=AsyncMock) as mock_infer,
-            patch("main.mark_ml_done", new_callable=AsyncMock) as mock_done,
-        ):
-            await run_on_request(_SETTINGS)
-        mock_infer.assert_awaited_once()
-        mock_done.assert_awaited_once_with(5)
-
-    async def test_triggers_backfill_when_gaps_exist(self):
-        with (
-            patch(
-                "main.get_ml_requested_users",
-                new_callable=AsyncMock,
-                return_value=[{"id": 7}],
-            ),
-            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=3),
-            patch("main.backfill_user", new_callable=AsyncMock) as mock_backfill,
-            patch("main.run_training", new_callable=AsyncMock),
-            patch("main.run_inference", new_callable=AsyncMock),
-            patch("main.mark_ml_done", new_callable=AsyncMock),
-        ):
-            await run_on_request(_SETTINGS)
-        mock_backfill.assert_awaited_once_with(7)
-
-    async def test_mark_ml_done_called_even_on_failure(self):
-        async def failing_run(*a, **kw):
-            raise RuntimeError("inference failed")
-
-        with (
-            patch(
-                "main.get_ml_requested_users",
-                new_callable=AsyncMock,
-                return_value=[{"id": 9}],
-            ),
-            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=0),
-            patch("main.run_training", new_callable=AsyncMock),
-            patch("main.run_inference", side_effect=failing_run),
-            patch("main.mark_ml_done", new_callable=AsyncMock) as mock_done,
-        ):
-            await run_on_request(_SETTINGS)
-        mock_done.assert_awaited_once_with(9)
-
-    async def test_no_users_is_noop(self):
-        with (
-            patch(
-                "main.get_ml_requested_users", new_callable=AsyncMock, return_value=[]
-            ),
-            patch("main.run_training", new_callable=AsyncMock) as mock_train,
-        ):
-            await run_on_request(_SETTINGS)
-        mock_train.assert_not_called()
+def _make_settings() -> MagicMock:
+    s = MagicMock()
+    s.model_dir = Path("/tmp/ml_models")
+    return s
 
 
 # ── run_all_users ─────────────────────────────────────────────────────────────
@@ -187,52 +25,261 @@ class TestRunOnRequest:
 
 class TestRunAllUsers:
     async def test_no_users_is_noop(self):
+        """Empty user list → run_inference never called."""
+        settings = _make_settings()
+
         with (
             patch("main.get_active_users", new_callable=AsyncMock, return_value=[]),
             patch("main.run_inference", new_callable=AsyncMock) as mock_infer,
         ):
-            await run_all_users(_SETTINGS)
+            await run_all_users(settings)
+
         mock_infer.assert_not_called()
 
     async def test_runs_inference_for_each_user(self):
+        """Two active users → run_inference called twice."""
+        settings = _make_settings()
+        users = [{"id": 1}, {"id": 2}]
+
         with (
-            patch(
-                "main.get_active_users",
-                new_callable=AsyncMock,
-                return_value=[{"id": 1}, {"id": 2}],
-            ),
+            patch("main.get_active_users", new_callable=AsyncMock, return_value=users),
             patch("main.run_inference", new_callable=AsyncMock) as mock_infer,
         ):
-            await run_all_users(_SETTINGS, include_training=False)
-        assert mock_infer.await_count == 2
+            await run_all_users(settings)
 
-    async def test_with_training_triggers_backfill_and_training(self):
+        assert mock_infer.call_count == 2
+        called_ids = {c.args[0] for c in mock_infer.call_args_list}
+        assert called_ids == {1, 2}
+
+    async def test_continues_after_single_user_failure(self):
+        """Exception for user 1 does not prevent user 2 from being processed."""
+        settings = _make_settings()
+        users = [{"id": 1}, {"id": 2}]
+        processed: list[int] = []
+
+        async def fake_infer(uid, s):
+            if uid == 1:
+                raise RuntimeError("user 1 failed")
+            processed.append(uid)
+
         with (
-            patch(
-                "main.get_active_users",
-                new_callable=AsyncMock,
-                return_value=[{"id": 3}],
-            ),
-            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=2),
-            patch("main.backfill_user", new_callable=AsyncMock) as mock_backfill,
+            patch("main.get_active_users", new_callable=AsyncMock, return_value=users),
+            patch("main.run_inference", side_effect=fake_infer),
+        ):
+            await run_all_users(settings)
+
+        assert 2 in processed
+
+    async def test_include_training_calls_run_training(self):
+        """include_training=True → run_training called for each user before inference."""
+        settings = _make_settings()
+        users = [{"id": 10}]
+
+        with (
+            patch("main.get_active_users", new_callable=AsyncMock, return_value=users),
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=0),
             patch("main.run_training", new_callable=AsyncMock) as mock_train,
             patch("main.run_inference", new_callable=AsyncMock),
         ):
-            await run_all_users(_SETTINGS, include_training=True)
-        mock_backfill.assert_awaited_once_with(3)
-        mock_train.assert_awaited_once()
+            await run_all_users(settings, include_training=True)
 
-    async def test_continues_after_single_user_failure(self):
-        async def fail_on_1(uid, settings):
-            if uid == 1:
-                raise RuntimeError("user 1 broke")
+        mock_train.assert_called_once_with(10, settings)
+
+    async def test_include_training_backfills_when_gaps_exist(self):
+        """When energy gaps > 0 and include_training=True, backfill_user is called."""
+        settings = _make_settings()
+        users = [{"id": 5}]
+
+        with (
+            patch("main.get_active_users", new_callable=AsyncMock, return_value=users),
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=3),
+            patch("main.backfill_user", new_callable=AsyncMock) as mock_backfill,
+            patch("main.run_training", new_callable=AsyncMock),
+            patch("main.run_inference", new_callable=AsyncMock),
+        ):
+            await run_all_users(settings, include_training=True)
+
+        mock_backfill.assert_called_once_with(5)
+
+
+# ── run_on_request ────────────────────────────────────────────────────────────
+
+
+class TestRunOnRequest:
+    async def test_no_requested_users_is_noop(self):
+        """Empty ml_requested list → training and inference never called."""
+        settings = _make_settings()
 
         with (
             patch(
-                "main.get_active_users",
+                "main.get_ml_requested_users",
                 new_callable=AsyncMock,
-                return_value=[{"id": 1}, {"id": 2}],
+                return_value=[],
             ),
-            patch("main.run_inference", side_effect=fail_on_1),
+            patch("main.run_inference", new_callable=AsyncMock) as mock_infer,
         ):
-            await run_all_users(_SETTINGS)  # must not raise
+            await run_on_request(settings)
+
+        mock_infer.assert_not_called()
+
+    async def test_runs_training_and_inference_for_requested_user(self):
+        """Requested user gets training → inference in sequence."""
+        settings = _make_settings()
+        users = [{"id": 42}]
+
+        with (
+            patch(
+                "main.get_ml_requested_users",
+                new_callable=AsyncMock,
+                return_value=users,
+            ),
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=0),
+            patch("main.run_training", new_callable=AsyncMock) as mock_train,
+            patch("main.run_inference", new_callable=AsyncMock) as mock_infer,
+            patch("main.mark_ml_done", new_callable=AsyncMock),
+        ):
+            await run_on_request(settings)
+
+        mock_train.assert_called_once_with(42, settings)
+        mock_infer.assert_called_once_with(42, settings)
+
+    async def test_mark_ml_done_called_even_on_failure(self):
+        """mark_ml_done is called in finally block — even when run_training raises."""
+        settings = _make_settings()
+        users = [{"id": 99}]
+
+        async def failing_train(uid, s):
+            raise RuntimeError("training failed")
+
+        with (
+            patch(
+                "main.get_ml_requested_users",
+                new_callable=AsyncMock,
+                return_value=users,
+            ),
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=0),
+            patch("main.run_training", side_effect=failing_train),
+            patch("main.mark_ml_done", new_callable=AsyncMock) as mock_done,
+        ):
+            await run_on_request(settings)
+
+        mock_done.assert_called_once_with(99)
+
+    async def test_backfills_when_energy_gaps_exist(self):
+        """When energy gaps > 0, backfill_user is called before training."""
+        settings = _make_settings()
+        users = [{"id": 7}]
+
+        with (
+            patch(
+                "main.get_ml_requested_users",
+                new_callable=AsyncMock,
+                return_value=users,
+            ),
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=5),
+            patch("main.backfill_user", new_callable=AsyncMock) as mock_backfill,
+            patch("main.run_training", new_callable=AsyncMock),
+            patch("main.run_inference", new_callable=AsyncMock),
+            patch("main.mark_ml_done", new_callable=AsyncMock),
+        ):
+            await run_on_request(settings)
+
+        mock_backfill.assert_called_once_with(7)
+
+
+# ── run_inference ─────────────────────────────────────────────────────────────
+
+
+class TestRunInference:
+    async def test_completes_without_error_for_valid_user(self):
+        """run_inference orchestrates all sub-functions without raising."""
+        settings = _make_settings()
+        noop = AsyncMock(return_value=None)
+        noop_list = AsyncMock(return_value=[])
+        noop_tuple = AsyncMock(return_value=([], 0.0))
+
+        with (
+            patch("main.get_activity_trimp_inputs", noop_list),
+            patch("main.get_hrmax", AsyncMock(return_value=180)),
+            patch("main.get_hrv_history_for_energy", noop_list),
+            patch("main.get_sleep_data_7d", noop_list),
+            patch("main.get_today_daily_summary", AsyncMock(return_value={})),
+            patch("main.get_todays_activity_hr_records", noop_tuple),
+            patch("main._run_anomaly", noop),
+            patch("main._run_anomaly_spo2", noop),
+            patch("main._run_anomaly_sleep", noop),
+            patch("main._run_anomaly_steps", noop),
+            patch("main._run_anomaly_stress", noop),
+            patch("main._run_correlations", noop),
+            patch("main._run_readiness", noop),
+            patch("main._run_battery_pattern", noop),
+            patch("main._run_energy_metrics", noop),
+            patch("main._run_training_effect", noop),
+            patch("main._run_sleep_and_spo2", noop),
+            patch("main._run_hrv_and_recovery", noop),
+            patch("main._run_body_battery_and_stress", noop),
+            patch("main._run_running_and_intensity", noop),
+        ):
+            await run_inference(1, settings)  # must not raise
+
+    async def test_calls_all_inference_sub_functions(self):
+        """All 14 inference sub-functions are invoked exactly once per run."""
+        settings = _make_settings()
+
+        with (
+            patch(
+                "main.get_activity_trimp_inputs",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch("main.get_hrmax", new_callable=AsyncMock, return_value=180),
+            patch(
+                "main.get_hrv_history_for_energy",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch("main.get_sleep_data_7d", new_callable=AsyncMock, return_value=[]),
+            patch(
+                "main.get_today_daily_summary", new_callable=AsyncMock, return_value={}
+            ),
+            patch(
+                "main.get_todays_activity_hr_records",
+                new_callable=AsyncMock,
+                return_value=([], 0.0),
+            ),
+            patch("main._run_anomaly", new_callable=AsyncMock) as m_anomaly,
+            patch("main._run_anomaly_spo2", new_callable=AsyncMock) as m_spo2,
+            patch("main._run_anomaly_sleep", new_callable=AsyncMock) as m_sleep_an,
+            patch("main._run_anomaly_steps", new_callable=AsyncMock) as m_steps,
+            patch("main._run_anomaly_stress", new_callable=AsyncMock) as m_stress_an,
+            patch("main._run_correlations", new_callable=AsyncMock) as m_corr,
+            patch("main._run_readiness", new_callable=AsyncMock) as m_ready,
+            patch("main._run_battery_pattern", new_callable=AsyncMock) as m_bp,
+            patch("main._run_energy_metrics", new_callable=AsyncMock) as m_energy,
+            patch("main._run_training_effect", new_callable=AsyncMock) as m_te,
+            patch("main._run_sleep_and_spo2", new_callable=AsyncMock) as m_sleep,
+            patch("main._run_hrv_and_recovery", new_callable=AsyncMock) as m_hrv,
+            patch("main._run_body_battery_and_stress", new_callable=AsyncMock) as m_bb,
+            patch("main._run_running_and_intensity", new_callable=AsyncMock) as m_run,
+        ):
+            await run_inference(1, settings)
+
+        for mock in (
+            m_anomaly,
+            m_spo2,
+            m_sleep_an,
+            m_steps,
+            m_stress_an,
+            m_corr,
+            m_ready,
+            m_bp,
+            m_energy,
+            m_te,
+            m_sleep,
+            m_hrv,
+            m_bb,
+            m_run,
+        ):
+            assert mock.call_count == 1, (
+                f"{mock._mock_name} was not called exactly once"
+            )

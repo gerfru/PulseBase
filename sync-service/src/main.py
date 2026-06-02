@@ -278,8 +278,34 @@ async def main() -> None:  # pragma: no cover
     repo = TimescaleRepository(settings.db_url)
     await repo.init()
 
+    # SIGTERM handler registered BEFORE blocking work so make down responds immediately
+    shutdown_event = asyncio.Event()
+
+    def _on_sigterm() -> None:
+        logger.info("shutdown.sigterm_received")
+        shutdown_event.set()
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
+
+    # Sentinel written at startup so the healthcheck passes during the initial sync
+    Path("/tmp/sync_alive").touch()  # nosec B108
+
+    # Initial sync runs as a cancellable task — exits cleanly on SIGTERM
     logger.info("sync.initial", lookback_days=settings.sync_lookback_days)
-    await sync_all_users(repo, days=settings.sync_lookback_days, settings=settings)
+    initial_task = asyncio.create_task(
+        sync_all_users(repo, days=settings.sync_lookback_days, settings=settings)
+    )
+    done, _ = await asyncio.wait(
+        {initial_task, asyncio.create_task(shutdown_event.wait())},
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    if shutdown_event.is_set():
+        initial_task.cancel()
+        await asyncio.gather(initial_task, return_exceptions=True)
+        logger.info("shutdown.during_initial_sync")
+        await repo.close()
+        return
 
     async def _write_alive_sentinel() -> None:
         Path("/tmp/sync_alive").touch()  # nosec B108
@@ -307,14 +333,6 @@ async def main() -> None:  # pragma: no cover
     scheduler.start()
     logger.info("scheduler.started", sync_hour=settings.sync_hour)
 
-    shutdown_event = asyncio.Event()
-
-    def _on_sigterm() -> None:
-        logger.info("shutdown.sigterm_received")
-        shutdown_event.set()
-
-    loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
     await shutdown_event.wait()
 
     logger.info("shutdown.graceful_start")
