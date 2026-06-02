@@ -24,6 +24,8 @@
 | 2026-06-01 | Wave 8 — Code-Qualität (Return-Annotations) | L-26 gefixt |
 | 2026-06-01 | Eval 3 — Re-Audit nach Wave 8 (6 Subagenten parallel) | 5H · 8M · 6L neu entdeckt |
 | 2026-06-01 | Wave 9 Runde 1 — Security Quick Wins | H-11, M-32, M-33, L-30 gefixt |
+| 2026-06-02 | Wave 9 Runde 2 — Architektur / Disposability | M-34, M-35 gefixt |
+| 2026-06-02 | Wave 9 Runde 3 — Tests | M-38, M-39 gefixt · L-33 → TEST-L3 · E2E: Register, E-Mail-Verify, Passwort-Reset, Öffentliche Seiten, Epilepsie-Seite ergänzt |
 
 ---
 
@@ -31,10 +33,10 @@
 
 | Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | Noch offen |
 |---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | M-34, M-35, L-31 |
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | L-31 |
 | Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | — |
 | Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | H-12, H-13, H-14, H-15 |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | M-38, M-39, L-33 |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | — |
 | CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | M-37, L-32, L-35 |
 | Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | H-07 (manuell), M-19 (manuell), M-36, L-34 |
 
@@ -110,12 +112,12 @@
 | M-31 | ✅ | W6 | **Mapper-Tests ohne `None`-Feld-Edge-Cases** | `sync-service/tests/test_mapper.py` | Tests |
 | M-32 | ✅ | W9 | **DOM XSS: `training_status` ohne `esc()` in `innerHTML`** — Fallback-Label direkt aus DB-Wert eingesetzt; bestehende `esc()`-Funktion nicht genutzt | `api/src/static/activity.js:285–289` | Security |
 | M-33 | ✅ | W9 | **DOM XSS: `metric-value` via `innerHTML` mit API-String-Daten** — `hrv_status`-Strings aus Garmin-Sync ohne Escaping; `textContent` ausreichend | `api/src/static/metrics.js:38` | Security |
-| M-34 | ❌ | — | **`stop_grace_period` fehlt bei `api` + `sync-service`** — Docker-Default 10s < uvicorn graceful-shutdown 30s; W7 adressierte nur ml-service (L-01) | `docker-compose.yml:88,129` | Architektur |
-| M-35 | ❌ | — | **sync-service SIGTERM: `scheduler.shutdown(wait=False)` bricht laufende Token-Rotation ab** — `save_user_token()` wird nicht mehr aufgerufen wenn Garmin-Sync >10s läuft | `sync-service/src/main.py:309` | Architektur |
+| M-34 | ✅ | W9 | **`stop_grace_period` fehlt bei `api` + `sync-service`** — Docker-Default 10s < uvicorn graceful-shutdown 30s; W7 adressierte nur ml-service (L-01) | `docker-compose.yml:88,129` | Architektur |
+| M-35 | ✅ | W9 | **sync-service SIGTERM: `scheduler.shutdown(wait=False)` bricht laufende Token-Rotation ab** — `save_user_token()` wird nicht mehr aufgerufen wenn Garmin-Sync >10s läuft | `sync-service/src/main.py:309` | Architektur |
 | M-36 | ❌ | — | **Traefik: kein Health Check + kein `restart: unless-stopped`** — abgestürzter Traefik-Prozess wird nicht als unhealthy markiert; kein automatischer Neustart | `docker-compose.yml:63–86` | Observability |
 | M-37 | ❌ | — | **`docker-compose.test.yml`: `flyway:latest`-Tag statt gepinnter Version** — `docker-compose.yml` nutzt gepinnten Digest, Test-Compose nicht | `docker-compose.test.yml:22` | CI/CD |
-| M-38 | ❌ | — | **sync-service `crypto.py` komplett ungetestet** — Fernet-Encrypt/Decrypt + Token-Dir-Serialisierung ohne Roundtrip-Tests (api/ hat äquivalente Tests in test_coverage.py:242–384) | Lücke: `sync-service/src/crypto.py` | Tests |
-| M-39 | ❌ | — | **sync-service `garmin/client.py` komplett ungetestet** — H-05 (W6) testete Orchestrierung; Client-Logik (Token-Login, Fallback, save_token) weiterhin ohne Test | Lücke: `sync-service/src/garmin/client.py` | Tests |
+| M-38 | ✅ | W9 | **sync-service `crypto.py` komplett ungetestet** — Fernet-Encrypt/Decrypt + Token-Dir-Serialisierung ohne Roundtrip-Tests (api/ hat äquivalente Tests in test_coverage.py:242–384) | Lücke: `sync-service/src/crypto.py` | Tests |
+| M-39 | ✅ | W9 | **sync-service `garmin/client.py` komplett ungetestet** — H-05 (W6) testete Orchestrierung; Client-Logik (Token-Login, Fallback, save_token) weiterhin ohne Test | Lücke: `sync-service/src/garmin/client.py` | Tests |
 
 ---
 
@@ -155,7 +157,7 @@
 | L-30 | ✅ | W9 | **CSRF-Token fehlt auf Login + Register POST** — `verify_csrf_token()`-Infrastruktur vorhanden; nur auf garmin/link, libre/link, account/delete verwendet; ASVS 5.0 V4.10.1 | `api/src/routes/auth.py:150–291` | Security |
 | L-31 | ❌ | — | **ml-service SIGTERM: `joblib.dump()` nicht atomar** — Modell-Datei auf Named Volume kann in unvollständigem Zustand hinterlassen werden; Temp-Pfad + `Path.rename()` als atomare Alternative | `ml-service/src/main.py:206` | Architektur |
 | L-32 | ❌ | — | **Semgrep pre-commit ohne OWASP-Top-10-Ruleset** — CI nutzt `p/python + p/owasp-top-ten`; pre-commit Hook nur `p/python` → Cross-file-Taint-Findings erst in CI sichtbar | `.pre-commit-config.yaml:48` | CI/CD |
-| L-33 | ❌ | — | **JS-Vitest: `dashboard-hero.js` fehlt in `coverage.include`** — dedizierter Testfile vorhanden, aber Datei erscheint nicht im Coverage-Report | `api/vitest.config.js:12–16` | Tests |
+| L-33 | — | — | **JS-Vitest: `dashboard-hero.js` fehlt in `coverage.include`** — dedizierter Testfile vorhanden, aber Datei erscheint nicht im Coverage-Report | `api/vitest.config.js:12–16` | Tests |
 | L-34 | ❌ | — | **Traefik accessLog: kein JSON-Format** — Common Log Format (CLF) statt JSON; inkompatibel mit structlog-Logging der anderen Services | `traefik/traefik.yml:20` | Observability |
 | L-35 | ❌ | — | **pip-audit scannt Verzeichnis, nicht `uv.lock`** — `pip-audit api/` löst Abhängigkeiten neu auf statt eingefrorenes Lockfile zu prüfen | `ci.yml:76–86` | CI/CD |
 
@@ -168,9 +170,9 @@
 | **W2–W8** (abgeschlossen) | ✅ H-01–H-06, H-08–H-10, M-01–M-18, M-20–M-31, L-01–L-12, L-14–L-20, L-22–L-27, L-29 |
 | **Manuell** | ❌ H-07 (Sentry DSN), M-19 (UptimeRobot) |
 | **Wave 9 Runde 1 — Security** | ✅ H-11, M-32, M-33, L-30 gefixt |
-| **Wave 9 — Architektur/Disposability** | ❌ M-34, M-35, L-31 |
+| **Wave 9 — Architektur/Disposability** | ✅ M-34, M-35 · ❌ L-31 |
 | **Wave 9 — Code-Qualität** | ❌ H-12, H-13, H-14, H-15 |
-| **Wave 9 — Tests** | ❌ M-38, M-39, L-33 |
+| **Wave 9 — Tests** | ✅ M-38, M-39 · — L-33 (dokumentierte Ausnahme TEST-L3) |
 | **Wave 9 — CI/CD + Obs** | ❌ M-36, M-37, L-32, L-34, L-35 |
 | **Wave 9 — Architektur Low** | ❌ L-31 |
 
@@ -210,7 +212,8 @@
 - **Fernet-Verschlüsselung**: Garmin-Tokens korrekt verschlüsselt, Key-Validierung beim Start
 - **Sentry PII**: `send_default_pii=False` in allen Services
 - **Docker-Hygiene**: Multi-Stage Builds, SHA256-Digest-Pins (alle Images), Non-root User, HEALTHCHECK, Resource Limits, Log-Rotation — vollständig
-- **Auth-Suite**: Login/Lockout/Rate-Limit/E-Mail-Verifikation/Password-Reset/DSGVO vollständig getestet
+- **Auth-Suite**: Login/Lockout/Rate-Limit/E-Mail-Verifikation/Password-Reset/DSGVO vollständig getestet — inkl. E2E-Tests für Register-Flow, Token-Verifizierung und Passwort-Reset (test_auth_flows.py)
+- **E2E-Abdeckung**: Alle öffentlichen Seiten (Privacy, Terms, Imprint, Accessibility) + Epilepsie-Seite (mit/ohne Modus) via Playwright abgedeckt (test_static_pages.py)
 - **ML-Modelle**: 14 Modelle, 80 Unit-Tests inkl. Randfälle
 - **Action-Digests**: Alle GitHub Actions mit Commit-SHA gepinnt
 - **structlog JSON + UTC**: alle 3 Services; keine Secrets in Logs
@@ -233,4 +236,5 @@
 | SEC-L1 | HSTS bei self-signed TLS — Homelab-Ausnahme (ARCH-M3) |
 | OBS-L2 | Kein OpenTelemetry — Solo-Homelab; `request_id` als Korrelation ausreichend |
 | TEST-L2 | JS-Coverage auf 4/24 Static-JS-Dateien — DOM-heavy Files via Playwright E2E |
+| TEST-L3 | `dashboard-hero.js` bewusst aus Vitest `coverage.include` ausgeschlossen — `heroRecommendation()` hat Unit-Tests; DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E; Coverage-Merge Unit+E2E mit Python-Playwright-Stack nicht praktikabel |
 | CICD-L4 | GitHub-native Secret Scanning nicht verfügbar (Free-Plan) |

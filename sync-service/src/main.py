@@ -305,10 +305,19 @@ async def main() -> None:
     scheduler.start()
     logger.info("scheduler.started", sync_hour=settings.sync_hour)
 
-    loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=False))
+    shutdown_event = asyncio.Event()
 
-    await asyncio.Event().wait()
+    def _on_sigterm() -> None:
+        logger.info("shutdown.sigterm_received")
+        shutdown_event.set()
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
+    await shutdown_event.wait()
+
+    logger.info("shutdown.graceful_start")
+    scheduler.shutdown(wait=True)
+    logger.info("shutdown.complete")
 
 
 if __name__ == "__main__":

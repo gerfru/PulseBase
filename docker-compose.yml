@@ -89,6 +89,7 @@ services:
     build: ./api
     container_name: pulsebase-api
     restart: unless-stopped
+    stop_grace_period: 45s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`${HOST_IP}`)"
@@ -130,6 +131,7 @@ services:
     build: ./sync-service
     container_name: pulsebase-sync
     restart: unless-stopped
+    stop_grace_period: 90s
     depends_on:
       flyway:
         condition: service_completed_successfully

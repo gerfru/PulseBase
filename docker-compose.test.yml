@@ -52,6 +52,7 @@ services:
       DB_PORT: 5432
       DB_NAME: garmin_test
       HTTPS_ONLY: "false"
+      RESEND_API_KEY: ""
     depends_on:
       flyway-test:
         condition: service_completed_successfully
