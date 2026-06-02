@@ -8,49 +8,60 @@ Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.api.example
 
 ## Übersicht: Welche Datei für welchen Service
 
-| Datei | Geladen von |
-|-------|-------------|
-| `env/.env` | api, sync-service, db, flyway |
-| `env/.env.api` | api |
-| `env/.env.sync` | sync-service |
-| `env/.env.ml` | ml-service |
+| Datei | Geladen von | Enthält |
+|-------|-------------|---------|
+| `env/.env` | db, flyway | Admin-DB-Credentials, HOST_IP |
+| `env/.env.app` | api, sync-service, ml-service | App-DB-Credentials, FERNET_KEY |
+| `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, SENTRY_DSN, TRIMP_* |
+| `env/.env.sync` | sync-service | SYNC_HOUR, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN |
+| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR, SENTRY_DSN |
+
+> **Warum diese Trennung?** Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nur für Flyway-Migrationen nötig. App-Services bekommen ausschließlich `DB_APP_USER`/`DB_APP_PASSWORD` mit eingeschränkten Rechten (SELECT/INSERT/UPDATE/DELETE). Damit sind Admin-Creds nie im Prozess-Environment von api/sync/ml sichtbar (H-11).
 
 ---
 
-## `env/.env` — Shared (alle Services + DB)
+## `env/.env` — DB + Flyway only
+
+Wird **nur** von `db` und `flyway` geladen. App-Services (api/sync/ml) sehen diese Datei nicht.
 
 ### Datenbank — Admin-User
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
-| `DB_USER` | string | ✓ | — | PostgreSQL-Admin-User (Flyway-Migrationen) |
+| `DB_USER` | string | ✓ | — | PostgreSQL-Admin-User (nur für Flyway-Migrationen) |
 | `DB_PASSWORD` | string | ✓ | — | Passwort des Admin-Users |
-
-### Datenbank — App-User (Least Privilege)
-
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `DB_APP_USER` | string | ✓ | — | App-User (SELECT/INSERT/UPDATE/DELETE only) |
-| `DB_APP_PASSWORD` | string | ✓ | — | Passwort des App-Users |
-
-### Verschlüsselung
-
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `FERNET_KEY` | string | ✓ | — | 32-Byte URL-safe base64-Key für Fernet-Verschlüsselung der Garmin/Libre-Tokens. Leerer Wert → Startup-Crash. Gleicher Wert in `env/.env` und `env/.env.sync`. |
-
-Generieren:
-```bash
-make gen-secrets
-# oder:
-python3 -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
-```
 
 ### Sonstiges
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
 | `HOST_IP` | string | — | `your-domain.com` | Hostname/Domain (wird in `docker-compose.yml` als Traefik-Rule verwendet) |
+
+---
+
+## `env/.env.app` — App-Services (api, sync-service, ml-service)
+
+Enthält die minimalen Credentials für App-Services. Kein Admin-Zugriff — nur Least-Privilege-User.
+
+### Datenbank — App-User
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `DB_APP_USER` | string | ✓ | — | App-User (SELECT/INSERT/UPDATE/DELETE only, kein DDL) |
+| `DB_APP_PASSWORD` | string | ✓ | — | Passwort des App-Users |
+
+### Verschlüsselung
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `FERNET_KEY` | string | ✓ | — | 32-Byte URL-safe base64-Key für Fernet-Verschlüsselung der Garmin/Libre-Tokens. Leerer Wert → Startup-Crash. Gleicher Wert für alle App-Services. |
+
+Generieren:
+```bash
+make gen-secrets
+# oder:
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
 
 ---
 
@@ -110,7 +121,7 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 | `SYNC_LOOKBACK_DAYS` | int | — | `30` | Wie viele Tage beim initialen Backfill (erster Sync nach Account-Verknüpfung) geholt werden |
 | `SYNC_DAILY_DAYS` | int | — | `2` | Wie viele Tage beim täglichen Sync und beim manuellen Sync-Button nachgeladen werden |
 
-*(FERNET_KEY kommt aus `env/.env` — muss identisch mit dem API-Wert sein)*
+*(FERNET_KEY kommt aus `env/.env.app` — identischer Wert für alle App-Services)*
 
 ### Error Tracking (Sync)
 
@@ -151,31 +162,31 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 
 ## Vollständige Variablen-Matrix
 
-| Variable | env/.env | env/.env.api | env/.env.sync | env/.env.ml |
-|----------|----------|--------------|---------------|-------------|
-| `DB_USER` | ✓ | — | — | — |
-| `DB_PASSWORD` | ✓ | — | — | — |
-| `DB_APP_USER` | ✓ | — | — | — |
-| `DB_APP_PASSWORD` | ✓ | — | — | — |
-| `FERNET_KEY` | ✓ | — | ✓ (gleicher Wert!) | — |
-| `HOST_IP` | ✓ | — | — | — |
-| `DB_HOST` | — | default `db` | default `db` | default `db` |
-| `DB_PORT` | — | default `5432` | default `5432` | default `5432` |
-| `DB_NAME` | — | default `garmin` | default `garmin` | default `garmin` |
-| `SESSION_SECRET` | — | ✓ | — | — |
-| `HTTPS_ONLY` | — | default `true` | — | — |
-| `TRIMP_LOOKBACK_DAYS` | — | default `7` | — | — |
-| `TRIMP_FORECAST_DAYS` | — | default `7` | — | — |
-| `RESEND_API_KEY` | — | optional `""` | — | — |
-| `RESEND_FROM_EMAIL` | — | default | — | — |
-| `APP_BASE_URL` | — | default | — | — |
-| `SENTRY_DSN` | — | optional `""` | optional `""` | optional `""` |
-| `SYNC_HOUR` | — | — | default `6` | — |
-| `SYNC_LOOKBACK_DAYS` | — | — | default `30` | — |
-| `SYNC_DAILY_DAYS` | — | — | default `2` | — |
-| `ML_INFER_HOUR` | — | — | — | default `7` |
-| `ML_TRAIN_WEEKDAY` | — | — | — | default `6` |
-| `MODEL_DIR` | — | — | — | default `/app/models` |
+| Variable | env/.env | env/.env.app | env/.env.api | env/.env.sync | env/.env.ml |
+|----------|----------|--------------|--------------|---------------|-------------|
+| `DB_USER` | ✓ | — | — | — | — |
+| `DB_PASSWORD` | ✓ | — | — | — | — |
+| `HOST_IP` | ✓ | — | — | — | — |
+| `DB_APP_USER` | — | ✓ | — | — | — |
+| `DB_APP_PASSWORD` | — | ✓ | — | — | — |
+| `FERNET_KEY` | — | ✓ | — | — | — |
+| `DB_HOST` | — | — | default `db` | default `db` | default `db` |
+| `DB_PORT` | — | — | default `5432` | default `5432` | default `5432` |
+| `DB_NAME` | — | — | default `garmin` | default `garmin` | default `garmin` |
+| `SESSION_SECRET` | — | — | ✓ | — | — |
+| `HTTPS_ONLY` | — | — | default `true` | — | — |
+| `TRIMP_LOOKBACK_DAYS` | — | — | default `7` | — | — |
+| `TRIMP_FORECAST_DAYS` | — | — | default `7` | — | — |
+| `RESEND_API_KEY` | — | — | optional `""` | — | — |
+| `RESEND_FROM_EMAIL` | — | — | default | — | — |
+| `APP_BASE_URL` | — | — | default | — | — |
+| `SENTRY_DSN` | — | — | optional `""` | optional `""` | optional `""` |
+| `SYNC_HOUR` | — | — | — | default `6` | — |
+| `SYNC_LOOKBACK_DAYS` | — | — | — | default `30` | — |
+| `SYNC_DAILY_DAYS` | — | — | — | default `2` | — |
+| `ML_INFER_HOUR` | — | — | — | — | default `7` |
+| `ML_TRAIN_WEEKDAY` | — | — | — | — | default `6` |
+| `MODEL_DIR` | — | — | — | — | default `/app/models` |
 
 ---
 
@@ -187,7 +198,7 @@ make gen-secrets
 
 Gibt aus:
 - `SESSION_SECRET` → in `env/.env.api` eintragen
-- `FERNET_KEY` → in `env/.env` **und** `env/.env.sync` eintragen (gleicher Wert!)
+- `FERNET_KEY` → in `env/.env.app` eintragen (gilt für api, sync-service und ml-service)
 
 Alternativ manuell:
 ```bash
