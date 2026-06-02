@@ -259,7 +259,7 @@ and re-runs the backfill script against full history.
 
 ## EN 62366-inspired Metric Disclosure + Progressive Disclosure UX
 
-**Implemented:** May 2026. `api/src/evidence_catalog.py`, `/help`, `/metrics/{name}`.
+**Implemented:** May 2026. `/help`, `/metrics/{name}`. Data: `api/src/data/evidence_catalog.json` (loaded via thin `api/src/evidence_catalog.py`).
 
 Every health metric needs to communicate what it measures, what it is and is not intended for,
 and the quality of its evidence. EN 62366 (medical device usability engineering) provided the
@@ -271,7 +271,7 @@ framework for thinking about this, even though PulseBase is not a regulated devi
    - 🟢 **M** Meta-Analysis / clinical guideline standard
    - 🟡 **R** Replicated (multiple independent studies)
    - 🔵 **E** Eigenmodell (PulseBase-specific, literature-based)
-   Source: `GET /api/evidence` → `evidence_catalog.py`. Each entry has `level`, `metric_type`,
+   Source: `GET /api/evidence` → `evidence_catalog.json` (21 entries). Each entry has `level`, `metric_type`,
    `time_horizon`, `intended_use`, `not_for`, `limitations`, `sources`.
 
 2. **Metric detail pages** (`/metrics/{name}`) — simplified: value + chart + 1-sentence summary +
