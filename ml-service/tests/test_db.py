@@ -543,3 +543,137 @@ class TestDbHealth:
 
         pool.fetch.return_value = []
         assert await get_body_battery_history(1) == {}
+
+
+# ── db.pool — get_pool() ──────────────────────────────────────────────────────
+
+
+class TestGetPool:
+    def test_get_pool_delegates_to_pool_or_raise(self, pool):
+        from db import pool as pool_mod
+
+        pool_mod._pool = pool
+        from db.pool import get_pool
+
+        assert get_pool() is pool
+        pool_mod._pool = None
+
+
+# ── db.users_ml — get_prediction_for_date ────────────────────────────────────
+
+
+class TestGetPredictionForDate:
+    async def test_returns_float_when_row_exists(self, pool):
+        from datetime import date
+        from db.users_ml import get_prediction_for_date
+
+        pool.fetchrow.return_value = {"value": 72.5}
+        result = await get_prediction_for_date(
+            1, date(2026, 1, 1), "body_battery_custom"
+        )
+        assert result == pytest.approx(72.5)
+
+    async def test_returns_none_when_no_row(self, pool):
+        from datetime import date
+        from db.users_ml import get_prediction_for_date
+
+        pool.fetchrow.return_value = None
+        result = await get_prediction_for_date(
+            1, date(2026, 1, 1), "body_battery_custom"
+        )
+        assert result is None
+
+    async def test_returns_none_when_value_is_none(self, pool):
+        from datetime import date
+        from db.users_ml import get_prediction_for_date
+
+        pool.fetchrow.return_value = {"value": None}
+        result = await get_prediction_for_date(
+            1, date(2026, 1, 1), "body_battery_custom"
+        )
+        assert result is None
+
+
+# ── db.activities — get_backfill_activity_hrv_data ────────────────────────────
+
+
+class TestGetBackfillActivityHrvData:
+    async def test_returns_expected_structure(self, pool):
+        from datetime import date
+        from db.activities import get_backfill_activity_hrv_data
+
+        pool.fetchrow.return_value = {"hrmax": 185.0}
+        pool.fetch.side_effect = [
+            [
+                {
+                    "activity_date": date(2026, 1, 1),
+                    "avg_hr": 150.0,
+                    "duration_seconds": 3600.0,
+                    "resting_hr": 55.0,
+                    "avg_ground_contact_time": None,
+                    "avg_vertical_oscillation": None,
+                    "avg_vertical_ratio": None,
+                    "sport_type": "running",
+                }
+            ],
+            [{"date": date(2026, 1, 1), "hrv_last_night": 48.0}],
+        ]
+        result = await get_backfill_activity_hrv_data(1)
+        assert "hrmax" in result
+        assert "act_rows" in result
+        assert "hrv_by_date" in result
+        assert "hrv_dates_sorted" in result
+
+    async def test_defaults_hrmax_when_null(self, pool):
+        from db.activities import get_backfill_activity_hrv_data
+
+        pool.fetchrow.return_value = {"hrmax": None}
+        pool.fetch.side_effect = [[], []]
+        result = await get_backfill_activity_hrv_data(1)
+        assert result["hrmax"] == pytest.approx(190.0)
+
+
+# ── db.health — get_backfill_sleep_daily_gaps ─────────────────────────────────
+
+
+class TestGetBackfillSleepDailyGaps:
+    async def test_returns_expected_structure(self, pool):
+        from datetime import date
+        from db.health import get_backfill_sleep_daily_gaps
+
+        pool.fetch.side_effect = [
+            [
+                {
+                    "sleep_date": date(2026, 1, 1),
+                    "total_sleep_seconds": 27000,
+                    "deep_sleep_seconds": 5400,
+                    "rem_sleep_seconds": 7200,
+                }
+            ],
+            [{"date": date(2026, 1, 1), "avg_stress": 35, "body_battery_high": 80}],
+            [{"date": date(2026, 1, 2)}],
+        ]
+        result = await get_backfill_sleep_daily_gaps(1)
+        assert "sleep_by_date" in result
+        assert "daily_by_date" in result
+        assert "gap_dates" in result
+
+    async def test_handles_null_sleep_seconds(self, pool):
+        from datetime import date
+        from db.health import get_backfill_sleep_daily_gaps
+
+        pool.fetch.side_effect = [
+            [
+                {
+                    "sleep_date": date(2026, 1, 1),
+                    "total_sleep_seconds": None,
+                    "deep_sleep_seconds": None,
+                    "rem_sleep_seconds": None,
+                }
+            ],
+            [],
+            [],
+        ]
+        result = await get_backfill_sleep_daily_gaps(1)
+        entry = result["sleep_by_date"][date(2026, 1, 1)]
+        assert entry["total_h"] is None

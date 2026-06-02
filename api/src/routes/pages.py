@@ -49,7 +49,11 @@ async def index(request: Request) -> Response:
 @router.get("/dashboard")
 async def dashboard(request: Request) -> Response:
     user = await _deps.require_user(request)
-    return _deps.templates.TemplateResponse(request, "dashboard.html", {"user": user})
+    return _deps.templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {"user": user, "csrf_token": generate_csrf_token(request)},
+    )
 
 
 @router.get("/settings")

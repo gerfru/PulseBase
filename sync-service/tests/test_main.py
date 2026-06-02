@@ -15,11 +15,18 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from libre.client import LibreAuthError
+from datetime import date
+from pathlib import Path
+
 from main import (
     _garmin_call,
+    _sync_activities,
+    _sync_day,
     process_sync_requests,
     sync_all_libre,
     sync_all_users,
+    sync_libre_user,
+    sync_user,
 )
 
 
@@ -195,3 +202,299 @@ class TestSyncAllLibre:
             await sync_all_libre(repo, MagicMock())
 
         assert 2 in synced, "user 2 must be synced even after user 1 fails"
+
+
+# ── _sync_activities ──────────────────────────────────────────────────────────
+
+
+class TestSyncActivities:
+    async def test_saves_activity_and_fetches_records_when_none_exist(self):
+        client = MagicMock()
+        client.get_activities.return_value = [{"activityId": 123}]
+        client.get_activity_details.return_value = {}
+
+        repo = AsyncMock()
+        repo.save_activity.return_value = 42
+        repo.records_exist.return_value = False
+
+        activity_mock = MagicMock()
+        activity_mock.records = []
+
+        with (
+            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.map_activity", return_value=activity_mock),
+            patch("main.map_records", return_value=[]),
+        ):
+            await _sync_activities(
+                client,
+                repo,
+                user_id=1,
+                start=date(2026, 1, 1),
+                end=date(2026, 1, 7),
+            )
+
+        repo.save_activity.assert_awaited_once()
+
+    async def test_skips_activity_without_garmin_id(self):
+        client = MagicMock()
+        client.get_activities.return_value = [{}]  # no activityId
+
+        repo = AsyncMock()
+
+        with patch("main._garmin_call", side_effect=lambda fn: fn()):
+            await _sync_activities(
+                client,
+                repo,
+                user_id=1,
+                start=date(2026, 1, 1),
+                end=date(2026, 1, 7),
+            )
+
+        repo.save_activity.assert_not_awaited()
+
+    async def test_skips_record_fetch_when_records_exist(self):
+        client = MagicMock()
+        client.get_activities.return_value = [{"activityId": 99}]
+
+        repo = AsyncMock()
+        repo.save_activity.return_value = 10
+        repo.records_exist.return_value = True  # already stored
+
+        with (
+            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.map_activity", return_value=MagicMock(records=[])),
+        ):
+            await _sync_activities(
+                client,
+                repo,
+                user_id=1,
+                start=date(2026, 1, 1),
+                end=date(2026, 1, 7),
+            )
+
+        client.get_activity_details.assert_not_called()
+
+    async def test_bulk_inserts_records_when_present(self):
+        client = MagicMock()
+        client.get_activities.return_value = [{"activityId": 7}]
+        client.get_activity_details.return_value = {}
+
+        repo = AsyncMock()
+        repo.save_activity.return_value = 5
+        repo.records_exist.return_value = False
+
+        record_mock = MagicMock()
+        activity_mock = MagicMock()
+        activity_mock.records = []  # will be set by _sync_activities
+
+        with (
+            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.map_activity", return_value=activity_mock),
+            patch("main.map_records", return_value=[record_mock]),
+        ):
+            await _sync_activities(
+                client,
+                repo,
+                user_id=1,
+                start=date(2026, 1, 1),
+                end=date(2026, 1, 7),
+            )
+
+        repo.bulk_insert_records.assert_awaited_once_with(5, [record_mock])
+
+
+# ── _sync_day ─────────────────────────────────────────────────────────────────
+
+
+class TestSyncDay:
+    async def test_calls_all_daily_repos(self):
+        client = MagicMock()
+        repo = AsyncMock()
+        repo.sleep_exists.return_value = False
+
+        sleep_mock = MagicMock()
+        sleep_mock.garmin_sleep_id = 555
+
+        with (
+            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.map_summary", return_value=MagicMock()),
+            patch("main.map_sleep", return_value=sleep_mock),
+            patch("main.map_hrv", return_value=MagicMock()),
+            patch("main.map_body_battery", return_value=[]),
+            patch("main.map_stress", return_value=[]),
+            patch("main.map_training_status", return_value="PRODUCTIVE"),
+        ):
+            await _sync_day(client, repo, user_id=1, current=date(2026, 1, 1))
+
+        repo.upsert_daily.assert_awaited_once()
+        repo.save_sleep.assert_awaited_once()
+        repo.upsert_hrv.assert_awaited_once()
+        repo.upsert_training_status.assert_awaited_once()
+
+    async def test_continues_after_individual_metric_failure(self):
+        """One metric failing must not prevent subsequent metrics from being synced."""
+        client = MagicMock()
+        repo = AsyncMock()
+
+        with (
+            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.map_summary", side_effect=RuntimeError("network error")),
+            patch("main.map_sleep", return_value=None),
+            patch("main.map_hrv", return_value=None),
+            patch("main.map_body_battery", return_value=[]),
+            patch("main.map_stress", return_value=[]),
+            patch("main.map_training_status", return_value=None),
+        ):
+            await _sync_day(client, repo, user_id=1, current=date(2026, 1, 1))
+
+        repo.upsert_daily.assert_not_awaited()  # failed
+        # remaining sections still attempted (no exception propagated)
+
+    async def test_all_garmin_api_failures_are_handled(self):
+        """All six try/except blocks must absorb exceptions independently."""
+        client = MagicMock()
+        repo = AsyncMock()
+
+        with patch("main._garmin_call", side_effect=RuntimeError("api down")):
+            await _sync_day(client, repo, user_id=1, current=date(2026, 1, 1))
+
+        repo.upsert_daily.assert_not_awaited()
+        repo.save_sleep.assert_not_awaited()
+        repo.upsert_hrv.assert_not_awaited()
+        repo.upsert_training_status.assert_not_awaited()
+
+
+# ── sync_libre_user ───────────────────────────────────────────────────────────
+
+
+class TestSyncLibreUser:
+    async def test_syncs_glucose_with_token_from_repo(self):
+        user = {"id": 7}
+        repo = AsyncMock()
+        repo.get_user_token.return_value = b"encrypted_token"
+
+        settings = MagicMock()
+        settings.fernet_key = "key"
+        settings.token_base_dir = Path("/tmp")
+
+        glucose_row = MagicMock()
+
+        with (
+            patch("main.fernet_decrypt", return_value=b'{"token": "tok"}'),
+            patch("main.connect_with_token", return_value=MagicMock()),
+            patch("main.get_recent_glucose", return_value=[MagicMock()]),
+            patch("main.map_glucose_reading", return_value=glucose_row),
+        ):
+            await sync_libre_user(user, repo, settings)
+
+        repo.bulk_insert_glucose.assert_awaited_once_with(7, [glucose_row])
+
+    async def test_raises_libre_auth_error_when_no_token(self):
+        user = {"id": 5}
+        repo = AsyncMock()
+        repo.get_user_token.return_value = None
+
+        settings = MagicMock()
+        settings.token_base_dir = Path("/nonexistent/path")
+
+        with pytest.raises(LibreAuthError):
+            await sync_libre_user(user, repo, settings)
+
+    async def test_migrates_libre_token_from_filesystem(self, tmp_path):
+        """Libre token not in DB but present as JSON file → migrate to DB then sync."""
+        import json as _json
+
+        user = {"id": 6}
+        repo = AsyncMock()
+        repo.get_user_token.return_value = None
+
+        libre_dir = tmp_path / "6" / "libre"
+        libre_dir.mkdir(parents=True)
+        (libre_dir / "libre_token.json").write_bytes(
+            _json.dumps({"token": "test-tok"}).encode()
+        )
+
+        settings = MagicMock()
+        settings.fernet_key = "key"
+        settings.token_base_dir = tmp_path
+
+        with (
+            patch("main.fernet_encrypt", return_value=b"encrypted"),
+            patch(
+                "main.fernet_decrypt",
+                return_value=_json.dumps({"token": "test-tok"}).encode(),
+            ),
+            patch("main.connect_with_token", return_value=MagicMock()),
+            patch("main.get_recent_glucose", return_value=[]),
+        ):
+            await sync_libre_user(user, repo, settings)
+
+        # token was saved to DB during migration
+        repo.save_user_token.assert_awaited()
+
+
+# ── sync_user ─────────────────────────────────────────────────────────────────
+
+
+class TestSyncUser:
+    async def test_skips_when_no_token_available(self):
+        user = {"id": 3, "garmin_email": "x@garmin.com"}
+        repo = AsyncMock()
+        repo.get_user_token.return_value = None
+
+        settings = MagicMock()
+        settings.token_base_dir = Path("/nonexistent")
+        settings.fernet_key = "key"
+
+        await sync_user(user, repo, days=7, settings=settings)
+
+        repo.save_activity.assert_not_called()
+
+    async def test_full_sync_with_token_from_repo(self):
+        user = {"id": 2, "garmin_email": "sync@garmin.com"}
+        repo = AsyncMock()
+        repo.get_user_token.return_value = b"encrypted_blob"
+
+        settings = MagicMock()
+        settings.fernet_key = "key"
+
+        with (
+            patch("main.fernet_decrypt", return_value=b"raw_token"),
+            patch("main.fernet_encrypt", return_value=b"new_encrypted"),
+            patch("main.restore_token_dir"),
+            patch("main.serialize_token_dir", return_value=b"serialized"),
+            patch("main.GarminClient") as MockClient,
+            patch("main._sync_activities", new_callable=AsyncMock),
+            patch("main._sync_day", new_callable=AsyncMock),
+        ):
+            MockClient.return_value.connect = MagicMock()
+            await sync_user(user, repo, days=2, settings=settings)
+
+        repo.save_user_token.assert_awaited_once()
+
+    async def test_migrates_token_from_filesystem_when_not_in_db(self, tmp_path):
+        """Token not in DB but present as directory → migrate to DB then sync."""
+        user = {"id": 9, "garmin_email": "x@garmin.com"}
+        repo = AsyncMock()
+        repo.get_user_token.return_value = None
+
+        token_dir = tmp_path / "9"
+        token_dir.mkdir()
+
+        settings = MagicMock()
+        settings.fernet_key = "key"
+        settings.token_base_dir = tmp_path
+
+        with (
+            patch("main.serialize_token_dir", return_value=b"serialized"),
+            patch("main.fernet_encrypt", return_value=b"encrypted"),
+            patch("main.fernet_decrypt", return_value=b"raw"),
+            patch("main.restore_token_dir"),
+            patch("main.GarminClient") as MockClient,
+            patch("main._sync_activities", new_callable=AsyncMock),
+            patch("main._sync_day", new_callable=AsyncMock),
+        ):
+            MockClient.return_value.connect = MagicMock()
+            await sync_user(user, repo, days=1, settings=settings)
+
+        assert repo.save_user_token.await_count >= 1

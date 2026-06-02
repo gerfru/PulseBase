@@ -117,3 +117,27 @@ def test_get_body_battery_returns_empty_list_when_none(client):
     client._client = MagicMock()
     client._client.get_body_battery.return_value = None
     assert client.get_body_battery(date(2026, 1, 1)) == []
+
+
+def test_get_activity_details_returns_api_result(client):
+    client._client = MagicMock()
+    client._client.get_activity_details.return_value = {"steps": []}
+    assert client.get_activity_details(123) == {"steps": []}
+
+
+def test_get_activity_details_returns_empty_dict_when_none(client):
+    client._client = MagicMock()
+    client._client.get_activity_details.return_value = None
+    assert client.get_activity_details(123) == {}
+
+
+def test_get_stress_returns_empty_dict_when_none(client):
+    client._client = MagicMock()
+    client._client.get_stress_data.return_value = None
+    assert client.get_stress(date(2026, 1, 1)) == {}
+
+
+def test_get_training_status_returns_empty_dict_when_none(client):
+    client._client = MagicMock()
+    client._client.get_training_status.return_value = None
+    assert client.get_training_status(date(2026, 1, 1)) == {}

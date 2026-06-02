@@ -8,10 +8,9 @@ from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from backfill import _compute_trimp, backfill_user
+from backfill import _backfill_custom_scores, _compute_trimp, backfill_user
 from inference_anomaly import _run_anomaly_for, _run_correlations
 
 
@@ -247,3 +246,108 @@ async def test_run_correlations_saves_when_pairs_present():
         await _run_correlations(user_id=1, today=date(2026, 4, 27))
     mock_save.assert_called_once()
     assert mock_save.call_args.args[2] == "correlation_sleep_hrv"
+
+
+# ── _backfill_custom_scores — all conditional branches ────────────────────────
+
+
+_TARGET = date(2026, 4, 27)
+_EARLIER = date(2026, 4, 26)
+
+
+def _make_data(target: date = _TARGET, earlier: date = _EARLIER) -> dict:
+    hrv_dates = [earlier - timedelta(days=i) for i in range(14, -1, -1)] + [target]
+    hrv_by_date = {d: 48.0 + i for i, d in enumerate(hrv_dates)}
+    return {
+        "hrv_by_date": hrv_by_date,
+        "hrv_dates_sorted": sorted(hrv_by_date.keys()),
+        "gap_dates": [earlier, target],
+        "daily_by_date": {
+            target: {"avg_stress": 35, "body_battery_high": 78.0},
+        },
+        "sleep_by_date": {
+            target: {"total_h": 7.5, "deep_h": 1.5, "rem_h": 1.8},
+        },
+        "act_rows": [
+            {
+                "activity_date": target,
+                "avg_hr": 160.0,
+                "duration_seconds": 3600.0,
+                "resting_hr": 55.0,
+                "sport_type": "running",
+                "avg_ground_contact_time": 245.0,
+                "avg_vertical_oscillation": 8.5,
+                "avg_vertical_ratio": 8.2,
+            }
+        ],
+        "hrmax": 185.0,
+    }
+
+
+async def test_backfill_custom_scores_fetches_yesterday_bb_and_reads_daily():
+    """Lines 86 + 90: target > gap_dates[0] → get_prediction_for_date called;
+    result is None → falls back to daily_by_date body_battery_high."""
+    data = _make_data()
+    with (
+        patch(
+            "backfill.get_prediction_for_date",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("backfill.save_prediction", new_callable=AsyncMock) as mock_save,
+    ):
+        await _backfill_custom_scores(user_id=1, target=_TARGET, data=data)
+    # save_prediction must be called at least once (body_battery score)
+    assert mock_save.await_count >= 1
+
+
+async def test_backfill_custom_scores_saves_body_battery_when_score_not_none():
+    """Line 116: save_prediction called when bb_result["score"] is not None."""
+    data = _make_data()
+    with (
+        patch(
+            "backfill.get_prediction_for_date",
+            new_callable=AsyncMock,
+            return_value=65.0,
+        ),
+        patch("backfill.save_prediction", new_callable=AsyncMock) as mock_save,
+    ):
+        await _backfill_custom_scores(user_id=1, target=_TARGET, data=data)
+    saved_models = [c.args[2] for c in mock_save.call_args_list]
+    assert "body_battery_custom" in saved_models
+
+
+async def test_backfill_custom_scores_saves_running_economy_when_run_acts():
+    """Lines 132-134: running activity with avg_ground_contact_time triggers RE."""
+    data = _make_data()
+    with (
+        patch(
+            "backfill.get_prediction_for_date",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch("backfill.save_prediction", new_callable=AsyncMock) as mock_save,
+    ):
+        await _backfill_custom_scores(user_id=1, target=_TARGET, data=data)
+    saved_models = [c.args[2] for c in mock_save.call_args_list]
+    assert "running_economy" in saved_models
+
+
+async def test_backfill_custom_scores_saves_hrv_recovery_when_speed_not_none():
+    """Line 142: hrv_recovery saved when recovery_speed is not None."""
+    data = _make_data()
+    with (
+        patch(
+            "backfill.get_prediction_for_date",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "backfill.compute_hrv_recovery_trajectory",
+            return_value={"recovery_speed": 1.2, "score": 0.8},
+        ),
+        patch("backfill.save_prediction", new_callable=AsyncMock) as mock_save,
+    ):
+        await _backfill_custom_scores(user_id=1, target=_TARGET, data=data)
+    saved_models = [c.args[2] for c in mock_save.call_args_list]
+    assert "hrv_recovery" in saved_models

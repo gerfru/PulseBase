@@ -9,6 +9,7 @@ from conftest import (
     RAW_SLEEP,
 )
 from garmin.mapper import (
+    _float_or_none,
     _int_or_none,
     _pace_to_sec,
     map_activity,
@@ -401,3 +402,35 @@ class TestMapTrainingStatus:
     def test_missing_device_returns_none(self):
         raw = {"mostRecentTrainingStatus": {"latestTrainingStatusData": {}}}
         assert map_training_status(raw) is None
+
+
+# ── _float_or_none ────────────────────────────────────────────────────────────
+
+
+class TestFloatOrNone:
+    def test_returns_float_for_numeric_string(self):
+        assert _float_or_none("3.14") == pytest.approx(3.14)
+
+    def test_returns_none_for_invalid_string(self):
+        assert _float_or_none("not_a_float") is None
+
+    def test_returns_none_for_none(self):
+        assert _float_or_none(None) is None
+
+
+# ── map_records — non-dict metric entry ──────────────────────────────────────
+
+
+class TestMapRecordsNonDictEntry:
+    def test_skips_non_dict_metric_entry(self):
+        details = {
+            "activityDetailMetrics": [
+                {
+                    "metricType": "SPEED",
+                    "metrics": ["not_a_dict", {"sequenceNumber": 0, "value": 3.5}],
+                }
+            ],
+            "geoPolylineDTO": {"polyline": [{"time": 1_000_000}]},
+        }
+        records = map_records(details)
+        assert len(records) == 1

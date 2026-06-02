@@ -429,3 +429,114 @@ class TestRunRunningAndIntensity:
             await _run_running_and_intensity(1, _TODAY, 185.0, hr_records, 52.0)
         model_keys = [c.args[2] for c in mock_save.call_args_list]
         assert "intensity_minutes_custom" in model_keys
+
+    async def test_saves_running_economy_when_activities_present(self):
+        """Lines 319-322: save_prediction called when running economy score available."""
+        from inference_models import _run_running_and_intensity
+
+        run_acts = [
+            {
+                "avg_ground_contact_time": 245.0,
+                "avg_vertical_oscillation": 8.5,
+                "avg_vertical_ratio": 8.2,
+            }
+        ]
+        with (
+            patch(
+                "inference_models.get_running_economy_activities",
+                new_callable=AsyncMock,
+                return_value=run_acts,
+            ),
+            patch(
+                "inference_models.save_prediction", new_callable=AsyncMock
+            ) as mock_save,
+        ):
+            await _run_running_and_intensity(1, _TODAY, 185.0, [], None)
+        model_keys = [c.args[2] for c in mock_save.call_args_list]
+        assert "running_economy" in model_keys
+
+
+class TestRunSleepAndSpo2SavePaths:
+    async def test_saves_spo2_when_mean_not_none(self):
+        """Lines 176-179: save_prediction called when mean_spo2 is not None."""
+        from inference_models import _run_sleep_and_spo2
+
+        spo2_rows = [{"avg_spo2": 97.0, "min_spo2": 95.0} for _ in range(7)]
+        with (
+            patch(
+                "inference_models.get_spo2_history",
+                new_callable=AsyncMock,
+                return_value=spo2_rows,
+            ),
+            patch(
+                "inference_models.get_sleep_sessions_14d",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "inference_models.get_last_sleep_session",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "inference_models.save_prediction", new_callable=AsyncMock
+            ) as mock_save,
+        ):
+            await _run_sleep_and_spo2(1, _TODAY)
+        model_keys = [c.args[2] for c in mock_save.call_args_list]
+        assert "spo2_trend" in model_keys
+
+    async def test_saves_sleep_consistency_when_score_not_none(self):
+        """Lines 190-193: save_prediction called when consistency score available."""
+        from inference_models import _run_sleep_and_spo2
+
+        sessions = [
+            {"start_h": 23.0, "end_h": 7.0},
+            {"start_h": 23.5, "end_h": 7.5},
+            {"start_h": 22.5, "end_h": 6.5},
+            {"start_h": 23.0, "end_h": 7.0},
+            {"start_h": 23.2, "end_h": 7.2},
+        ]
+        with (
+            patch(
+                "inference_models.get_spo2_history",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "inference_models.get_sleep_sessions_14d",
+                new_callable=AsyncMock,
+                return_value=sessions,
+            ),
+            patch(
+                "inference_models.get_last_sleep_session",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "inference_models.save_prediction", new_callable=AsyncMock
+            ) as mock_save,
+        ):
+            await _run_sleep_and_spo2(1, _TODAY)
+        model_keys = [c.args[2] for c in mock_save.call_args_list]
+        assert "sleep_consistency" in model_keys
+
+
+class TestRunHrvAndRecoverySavePaths:
+    async def test_saves_hrv_recovery_when_speed_not_none(self):
+        """Lines 221-228: save_prediction called when recovery_speed is not None."""
+        from inference_models import _run_hrv_and_recovery
+
+        hrv_hist = [50.0] * 30
+        with (
+            patch(
+                "inference_models.compute_hrv_recovery_trajectory",
+                return_value={"recovery_speed": 1.2, "score": 0.8, "n_events": 2},
+            ),
+            patch(
+                "inference_models.save_prediction", new_callable=AsyncMock
+            ) as mock_save,
+        ):
+            await _run_hrv_and_recovery(1, _TODAY, hrv_hist, [], 185.0)
+        model_keys = [c.args[2] for c in mock_save.call_args_list]
+        assert "hrv_recovery" in model_keys

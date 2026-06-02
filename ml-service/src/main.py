@@ -160,7 +160,7 @@ async def run_all_users(settings: Settings, include_training: bool = False) -> N
             logger.error("ml.failed", user_id=uid, error=str(e), exc_info=True)
 
 
-async def main() -> None:
+async def main() -> None:  # pragma: no cover
     settings = Settings()  # type: ignore[call-arg]
     await init_pool(settings.db_url)
 
@@ -211,5 +211,5 @@ async def main() -> None:
         await close_pool()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     asyncio.run(main())

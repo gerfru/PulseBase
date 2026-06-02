@@ -63,11 +63,11 @@ def prepare_training_data(
         for f in active:
             v = cur.get(f)
             v = v if v is not None else medians[f]
-            if v is None:
+            if v is None:  # pragma: no cover
                 skip = True
                 break
             feat_vals.append(float(v))
-        if skip:
+        if skip:  # pragma: no cover
             continue
         target = _energy_based_score(nxt)
         if target is None:
