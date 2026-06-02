@@ -1,7 +1,7 @@
 services:
 
   db:
-    image: timescale/timescaledb:2.27.1-pg16@sha256:87f39af0a38cb42e4add367d9dfad2087a53fe5c9b24b5bc0dc66bd204b0665f
+    image: timescale/timescaledb:2.27.2-pg16@sha256:51ac20ec295699c05573adf896e2449d8b3a026223a951905d5763687409d7d4
     container_name: pulsebase-db
     restart: unless-stopped
     environment:
