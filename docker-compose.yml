@@ -79,6 +79,12 @@ services:
         limits:
           memory: 128m
           cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     logging:
       driver: json-file
       options:

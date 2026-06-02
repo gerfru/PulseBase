@@ -3,8 +3,6 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import asyncpg
-import resend as resend_client
-import resend.exceptions as resend_exc
 import structlog
 from fastapi import APIRouter, Form, Request
 from pydantic import TypeAdapter, ValidationError
@@ -13,6 +11,7 @@ from fastapi.responses import RedirectResponse
 from starlette.responses import Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from src.mail import send_lockout_email, send_reset_email, send_verify_email
 from src.db import (
     clear_reset_token,
     create_user,
@@ -78,67 +77,31 @@ def _verify_email_token(token: str) -> int | None:
         return None
 
 
-async def _send_email(to: str, subject: str, html: str, log_key: str) -> bool:
-    if not settings.resend_api_key:
-        logger.warning(f"mail.{log_key}.skipped", reason="RESEND_API_KEY not set")
-        return False
-    resend_client.api_key = settings.resend_api_key
-    try:
-        resend_client.Emails.send(
-            {
-                "from": settings.resend_from_email,
-                "to": to,
-                "subject": subject,
-                "html": html,
-            }
-        )
-        return True
-    except resend_exc.ResendError as e:
-        logger.warning(f"mail.{log_key}.failed", reason=e.message)
-        return False
-    except Exception:
-        logger.exception(f"mail.{log_key}.unexpected")
-        return False
-
-
-async def _send_lockout_email(to_email: str) -> bool:
-    return await _send_email(
-        to=to_email,
-        subject="PulseBase — Konto vorübergehend gesperrt",
-        html=(
-            "<p>Dein Konto wurde nach mehreren fehlgeschlagenen Login-Versuchen "
-            f"für {_LOCKOUT_MINUTES} Minuten gesperrt.</p>"
-            "<p>Falls du das nicht warst, ändere bitte dein Passwort über "
-            f"<a href='{settings.app_base_url}/auth/reset-request'>"
-            "Passwort zurücksetzen</a>.</p>"
-        ),
-        log_key="lockout",
+def _lockout_response(user: dict | None, request: Request) -> Response | None:
+    if not (
+        user
+        and user["locked_until"]
+        and user["locked_until"] > datetime.now(timezone.utc)
+    ):
+        return None
+    remaining = (
+        int((user["locked_until"] - datetime.now(timezone.utc)).total_seconds() / 60)
+        + 1
     )
-
-
-async def _send_reset_email(to_email: str, token: str) -> bool:
-    url = f"{settings.app_base_url}/auth/reset/{token}"
-    return await _send_email(
-        to=to_email,
-        subject="PulseBase — Passwort zurücksetzen",
-        html=(
-            f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
-            f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
-        ),
-        log_key="reset",
+    logger.warning(
+        "auth.login.fail",
+        reason="locked",
+        user_id=user["id"],
+        ip_hash=_ip_hash(request),
     )
-
-
-async def _send_verify_email(to_email: str, token: str) -> bool:
-    url = f"{settings.app_base_url}/auth/verify/{token}"
-    return await _send_email(
-        to=to_email,
-        subject="PulseBase — E-Mail-Adresse bestätigen",
-        html=(
-            "<p>Klicke auf diesen Link um deine E-Mail-Adresse zu bestätigen "
-            f"(gültig 24 Stunden):</p><p><a href='{url}'>{url}</a></p>"
-        ),
-        log_key="verify",
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "error": f"Account gesperrt. Bitte in {remaining} Minuten erneut versuchen.",
+            "csrf_token": generate_csrf_token(request),
+        },
+        status_code=400,
     )
 
 
@@ -166,32 +129,9 @@ async def login(
         )
     user = await get_user_by_email(email)
 
-    if (
-        user
-        and user["locked_until"]
-        and user["locked_until"] > datetime.now(timezone.utc)
-    ):
-        remaining = (
-            int(
-                (user["locked_until"] - datetime.now(timezone.utc)).total_seconds() / 60
-            )
-            + 1
-        )
-        logger.warning(
-            "auth.login.fail",
-            reason="locked",
-            user_id=user["id"],
-            ip_hash=_ip_hash(request),
-        )
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {
-                "error": f"Account gesperrt. Bitte in {remaining} Minuten erneut versuchen.",
-                "csrf_token": generate_csrf_token(request),
-            },
-            status_code=400,
-        )
+    lockout = _lockout_response(user, request)
+    if lockout:
+        return lockout
 
     password_hash: str = user["password_hash"] if user else DUMMY_HASH
     valid = verify_password(password, password_hash)
@@ -202,7 +142,7 @@ async def login(
             if user["failed_login_attempts"] + 1 >= _MAX_ATTEMPTS:
                 until = datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)
                 await lock_user_until(user["id"], until)
-                await _send_lockout_email(user["email"])
+                await send_lockout_email(user["email"], _LOCKOUT_MINUTES)
         logger.warning(
             "auth.login.fail",
             reason="bad_credentials",
@@ -308,7 +248,7 @@ async def register(
     await save_consent(user["id"], "age_16plus", True, ip_hash)
     logger.info("auth.register.success", user_id=user["id"], ip_hash=_ip_hash(request))
     token = _make_verify_token(user["id"])
-    sent = await _send_verify_email(email, token)
+    sent = await send_verify_email(email, token)
     return RedirectResponse(
         "/login?verify=sent" if sent else "/login?verify=failed", status_code=303
     )
@@ -332,7 +272,7 @@ async def resend_verify(request: Request, email: str = Form()) -> Response:
     sent = False
     if user and not user["email_verified_at"]:
         token = _make_verify_token(user["id"])
-        sent = await _send_verify_email(email, token)
+        sent = await send_verify_email(email, token)
     if user and not user["email_verified_at"] and not sent:
         ctx = {
             "warning": "E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen."
@@ -369,7 +309,7 @@ async def reset_request(request: Request, email: str = Form()) -> Response:
     user = await get_user_by_email(email)
     if user:
         token = await _make_reset_token(user["id"])
-        await _send_reset_email(email, token)
+        await send_reset_email(email, token)
     return templates.TemplateResponse(
         request,
         "reset_request.html",

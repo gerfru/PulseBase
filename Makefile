@@ -133,11 +133,15 @@ test: ## Unit + Integration aller 3 Services (kein Docker nötig)
 	cd sync-service && .venv/bin/pytest tests/ -v
 	cd ml-service && .venv/bin/pytest tests/ -v
 
-test-env-up: ## Test-Stack auf Port 8001 starten
-	$(DC) -f docker-compose.test.yml up -d --build --wait
+test-build: ## api-Test-Image bauen (ohne Stack zu starten)
+	$(DC) -f docker-compose.test.yml build api-test
+
+test-env-up: ## Test-Stack auf Port 8001 starten (Image muss bereits gebaut sein — make test-build)
+	$(DC) -f docker-compose.test.yml up -d --wait --wait-timeout 120
 
 test-env-down: ## Test-Stack stoppen
-	$(DC) -f docker-compose.test.yml down
+	docker compose -f docker-compose.test.yml down 2>/dev/null || true
+	docker rm -f pulsebase-db-test pulsebase-flyway-test pulsebase-api-test 2>/dev/null || true
 
 test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren — vollständiger pg_dump (nur bei Bedarf)
 	docker exec pulsebase-db pg_dump \
@@ -152,6 +156,7 @@ test-user: ## Test-User in garmin_test anlegen — reicht für E2E
 	  .venv/bin/python tests/e2e/create_ci_user.py
 
 test-e2e: ## Playwright E2E — alles automatisch, Stack wird auch bei Fehler gestoppt
+	$(MAKE) test-build
 	$(MAKE) test-env-up
 	$(MAKE) test-user && \
 	  api/.venv/bin/playwright install chromium --with-deps && \

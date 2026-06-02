@@ -238,11 +238,14 @@ RandomForestRegressor(n_estimators=100, random_state=42)
 
 Output wird auf [0, 100] geclippt: `min(100.0, max(0.0, prediction))`.
 
-**Persistenz:**
+**Persistenz (atomar):**
 ```python
-joblib.dump({"model": model, "features": feature_names}, model_path)
+tmp_path = model_path.with_suffix(".joblib.tmp")
+joblib.dump({"model": model, "features": feature_names, "medians": medians}, tmp_path)
+tmp_path.rename(model_path)  # atomic on same filesystem (Named Volume)
 # model_path: /app/models/readiness_rf_{user_id}.joblib
 ```
+Atomares Schreiben verhindert korrupte Modell-Dateien bei SIGTERM während des Saves.
 
 **Feature Importances** werden nach dem Training als `model_meta_rf` in
 `ml_predictions` gespeichert:

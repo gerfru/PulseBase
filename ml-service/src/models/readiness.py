@@ -91,9 +91,11 @@ def train_and_save(
     model.fit(X, y)
     model_path.parent.mkdir(parents=True, exist_ok=True)
     medians = {f: _median(r.get(f) for r in rows) for f in feature_names}
+    tmp_path = model_path.with_suffix(".joblib.tmp")
     joblib.dump(
-        {"model": model, "features": feature_names, "medians": medians}, model_path
+        {"model": model, "features": feature_names, "medians": medians}, tmp_path
     )
+    tmp_path.rename(model_path)
     importances = {
         f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
     }

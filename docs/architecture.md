@@ -50,8 +50,8 @@ FastAPI  ...
 
 | Container | Image / Build | Role |
 |-----------|--------------|------|
-| `pulsebase-db` | `timescale/timescaledb:latest-pg16` | Time-series database |
-| `pulsebase-flyway` | `flyway/flyway:latest` | Runs DB migrations on startup, then exits |
+| `pulsebase-db` | `timescale/timescaledb:2.x-pg16` (SHA-pinned) | Time-series database |
+| `pulsebase-flyway` | `flyway/flyway:11` (SHA-pinned) | Runs DB migrations on startup, then exits |
 | `pulsebase-api` | `./api` (FastAPI) | Web app: auth, HTML pages, JSON API |
 | `pulsebase-sync` | `./sync-service` (Python) | Daily Garmin data pull |
 | `pulsebase-ml` | `./ml-service` (Python) | ML inference daily + training weekly |

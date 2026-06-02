@@ -241,3 +241,54 @@ async def get_running_economy_activities(
         limit,
     )
     return [dict(r) for r in rows]
+
+
+async def get_backfill_activity_hrv_data(user_id: int) -> dict[str, Any]:
+    """Load hrmax, activity rows, and hrv_by_date for backfill computations."""
+    pool = _pool_or_raise()
+
+    hrmax_row = await pool.fetchrow(
+        """SELECT MAX(max_hr)::float AS hrmax FROM activities
+           WHERE user_id = $1 AND max_hr IS NOT NULL
+             AND started_at >= CURRENT_DATE - INTERVAL '12 months'""",
+        user_id,
+    )
+    hrmax = float(hrmax_row["hrmax"]) if hrmax_row and hrmax_row["hrmax"] else 190.0
+
+    act_rows: list[dict[str, Any]] = [
+        dict(r)
+        for r in await pool.fetch(
+            """SELECT DATE(a.started_at AT TIME ZONE 'UTC') AS activity_date,
+                      AVG(a.avg_hr)::float                  AS avg_hr,
+                      SUM(a.duration_seconds)::float         AS duration_seconds,
+                      MAX(d.resting_hr)::float               AS resting_hr,
+                      a.avg_ground_contact_time,
+                      a.avg_vertical_oscillation,
+                      a.avg_vertical_ratio,
+                      a.sport_type
+               FROM activities a
+               LEFT JOIN daily_summary d
+                      ON d.date    = DATE(a.started_at AT TIME ZONE 'UTC')
+                     AND d.user_id = a.user_id
+               WHERE a.user_id = $1
+                 AND a.avg_hr IS NOT NULL
+                 AND a.duration_seconds IS NOT NULL
+               GROUP BY 1, a.id ORDER BY 1""",
+            user_id,
+        )
+    ]
+
+    hrv_rows = await pool.fetch(
+        "SELECT date, hrv_last_night FROM hrv_daily WHERE user_id = $1 ORDER BY date",
+        user_id,
+    )
+    hrv_by_date: dict[date, float | None] = {
+        r["date"]: r["hrv_last_night"] for r in hrv_rows
+    }
+
+    return {
+        "hrmax": hrmax,
+        "act_rows": act_rows,
+        "hrv_by_date": hrv_by_date,
+        "hrv_dates_sorted": sorted(hrv_by_date.keys()),
+    }

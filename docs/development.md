@@ -161,7 +161,10 @@ Vitest testet vier Utility-Dateien: `chart-utils.js`, `dashboard-utils.js`, `das
 
 ```bash
 make test-e2e
-# startet Docker-Stack auf Port 8001, erzeugt Test-User, führt Chromium-Tests durch, stoppt Stack
+# 1. make test-build  → baut api-Test-Image (ohne laufenden Stack zu belasten)
+# 2. make test-env-up → startet Test-Stack auf Port 8001 (--wait-timeout 120)
+# 3. Erzeugt Test-User, führt Chromium-Tests durch
+# 4. make test-env-down → stoppt Stack (mit docker rm -f Fallback)
 ```
 
 E2E-Credentials (lokal):
