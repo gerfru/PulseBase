@@ -79,16 +79,22 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 | `make db` | Open psql shell |
 | `make gen-secrets` | Generate SESSION_SECRET (put in `env/.env.api`) |
 | `make secure-env` | Set `chmod 600` on all env files |
+| `make test` | Run all unit tests (api + sync + ml) |
+| `make test-e2e` | Run Playwright E2E tests (builds image first, starts test stack) |
+| `make test-coverage` | Coverage report for all 3 services |
 
 ## Security
 
 - HTTPS via Caddy (homelab-gateway) or Traefik (standalone) — self-signed cert, accept browser warning once
-- Rate limiting on login (10 requests/minute per IP)
+- Rate limiting on login (10/min), register (5/min), reset (3/h), Garmin/Libre link (5/h)
 - Account lockout after 5 failed login attempts (15-minute automatic lockout + email notification)
 - Email verification required after registration (signed token, 24h TTL, resend endpoint)
-- Query parameter validation on all API endpoints
-- Passwords stored as bcrypt hashes
-- Session via signed cookie (httpOnly, secure)
-- Garmin password wiped from memory immediately after token retrieval
-- Database not exposed on host network
-- Security headers (HSTS, X-Frame-Options, CSP, Referrer-Policy) via Caddy
+- CSRF protection on all state-changing forms (login, register, garmin/link, account/delete, password reset)
+- Input validation via Pydantic on all API endpoints
+- Passwords stored as bcrypt hashes (direct, no passlib), timing-safe dummy hash for non-existent users
+- Session via signed cookie (httpOnly, secure, sameSite=Lax)
+- Garmin password wiped from memory immediately after token retrieval — only Fernet-encrypted token stored
+- Database not exposed on host network; app uses least-privilege DB user
+- Security headers: HSTS, X-Frame-Options, CSP, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- SAST: bandit + semgrep (p/python + p/owasp-top-ten) in pre-commit and CI
+- SCA: pip-audit via frozen uv.lock in CI; Trivy image scan (CRITICAL+HIGH → exit 1)
