@@ -403,7 +403,8 @@ async def test_glucose_stats_returns_200(client):
 
 
 async def test_evidence_returns_catalog(client):
-    r = await client.get("/api/evidence")
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/evidence")
     assert r.status_code == 200
     data = r.json()
     # ACWR entfernt — unzureichende Evidenz (Impellizzeri et al. 2020, RCT 2021 negativ)

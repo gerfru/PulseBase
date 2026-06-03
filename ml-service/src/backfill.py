@@ -70,6 +70,85 @@ async def _backfill_energy_scores(
     await save_prediction(user_id, target, "energy_cognitive", cog.get("score"), cog)
 
 
+async def _save_body_battery(
+    user_id: int,
+    target: date,
+    data: dict[str, Any],
+    yesterday_bb: float | None,
+    hrv_valid: list,
+    hrv_baseline: float,
+    avg_stress: float | None,
+) -> None:
+    sleep_entry = data["sleep_by_date"].get(target, {})
+    bb_result = compute_body_battery(
+        yesterday_bb,
+        sleep_entry.get("total_h") or 0.0,
+        sleep_entry.get("deep_h"),
+        sleep_entry.get("rem_h"),
+        hrv_valid[-1] if hrv_valid else None,
+        hrv_baseline,
+        _compute_trimp(data["act_rows"], data["hrmax"], target),
+        avg_stress,
+    )
+    if bb_result.get("score") is not None:
+        await save_prediction(
+            user_id, target, "body_battery_custom", bb_result["score"], bb_result
+        )
+
+
+async def _save_stress_score(
+    user_id: int,
+    target: date,
+    hrv_window: list,
+    avg_stress: float | None,
+) -> None:
+    stress_result = compute_stress_score(hrv_window, avg_stress)
+    if stress_result.get("score") is not None:
+        await save_prediction(
+            user_id,
+            target,
+            "stress_score_custom",
+            stress_result["score"],
+            stress_result,
+        )
+
+
+async def _save_running_economy(
+    user_id: int,
+    target: date,
+    data: dict[str, Any],
+) -> None:
+    run_acts = [
+        r
+        for r in data["act_rows"]
+        if r.get("activity_date") == target
+        and r.get("sport_type") in ("running", "trail_running")
+        and r.get("avg_ground_contact_time")
+    ]
+    if not run_acts:
+        return
+    re_result = compute_running_economy(run_acts)
+    if re_result.get("score") is not None:
+        await save_prediction(
+            user_id, target, "running_economy", re_result["score"], re_result
+        )
+
+
+async def _save_hrv_recovery(
+    user_id: int,
+    target: date,
+    hrv_window: list,
+    data: dict[str, Any],
+) -> None:
+    hrv_rec = compute_hrv_recovery_trajectory(
+        hrv_window, data["act_rows"], data["hrmax"], target, lookback=30
+    )
+    if hrv_rec.get("recovery_speed") is not None:
+        await save_prediction(
+            user_id, target, "hrv_recovery", hrv_rec["recovery_speed"], hrv_rec
+        )
+
+
 async def _backfill_custom_scores(
     user_id: int, target: date, data: dict[str, Any]
 ) -> None:
@@ -95,53 +174,12 @@ async def _backfill_custom_scores(
     )
     avg_stress = data["daily_by_date"].get(target, {}).get("avg_stress")
 
-    sleep_entry = data["sleep_by_date"].get(target, {})
-    bb_result = compute_body_battery(
-        yesterday_bb,
-        sleep_entry.get("total_h") or 0.0,
-        sleep_entry.get("deep_h"),
-        sleep_entry.get("rem_h"),
-        hrv_valid[-1] if hrv_valid else None,
-        hrv_baseline,
-        _compute_trimp(data["act_rows"], data["hrmax"], target),
-        avg_stress,
+    await _save_body_battery(
+        user_id, target, data, yesterday_bb, hrv_valid, hrv_baseline, avg_stress
     )
-    if bb_result.get("score") is not None:
-        await save_prediction(
-            user_id, target, "body_battery_custom", bb_result["score"], bb_result
-        )
-
-    stress_result = compute_stress_score(hrv_window, avg_stress)
-    if stress_result.get("score") is not None:
-        await save_prediction(
-            user_id,
-            target,
-            "stress_score_custom",
-            stress_result["score"],
-            stress_result,
-        )
-
-    run_acts = [
-        r
-        for r in data["act_rows"]
-        if r.get("activity_date") == target
-        and r.get("sport_type") in ("running", "trail_running")
-        and r.get("avg_ground_contact_time")
-    ]
-    if run_acts:
-        re_result = compute_running_economy(run_acts)
-        if re_result.get("score") is not None:
-            await save_prediction(
-                user_id, target, "running_economy", re_result["score"], re_result
-            )
-
-    hrv_rec = compute_hrv_recovery_trajectory(
-        hrv_window, data["act_rows"], data["hrmax"], target, lookback=30
-    )
-    if hrv_rec.get("recovery_speed") is not None:
-        await save_prediction(
-            user_id, target, "hrv_recovery", hrv_rec["recovery_speed"], hrv_rec
-        )
+    await _save_stress_score(user_id, target, hrv_window, avg_stress)
+    await _save_running_economy(user_id, target, data)
+    await _save_hrv_recovery(user_id, target, hrv_window, data)
 
 
 async def backfill_user(user_id: int) -> int:

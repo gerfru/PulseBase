@@ -93,8 +93,7 @@ make logs
 
 Open `https://your-domain.com/register` in a browser.
 
-The browser will show a certificate warning (self-signed cert from Caddy) — accept it
-once and it won't appear again for this subdomain.
+Caddy (via homelab-gateway) or Traefik (standalone) must be configured with ACME/Let's Encrypt for a valid TLS certificate. See `docs/architecture.md` for setup details.
 
 Create your account with name, email, and password (min. 12 characters).
 Check all three consent checkboxes (required):

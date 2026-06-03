@@ -36,11 +36,12 @@ Two levels — pick what you need:
 - [API Reference](docs/api.md) — Alle Endpunkte mit Request/Response-Format
 - [Design Decisions](docs/design-decisions.md) — Warum kein Grafana, kein ORM, kein JWT, Caddy vs Traefik, ...
 - [Setup Guide](docs/setup.md) — Vollständige Installationsanleitung
+- [External Services](docs/external-services.md) — Let's Encrypt, Sentry, Uptime Kuma Setup
 
 ## Quickstart
 
 ```bash
-cp env/.env.example env/.env              # fill in DB admin credentials + HOST_IP=your-domain.com
+cp env/.env.example env/.env              # fill in HOST_IP, ACME_EMAIL (standalone only)
 cp env/.env.app.example env/.env.app      # fill in DB_APP_USER, DB_APP_PASSWORD, FERNET_KEY (make gen-secrets)
 cp env/.env.api.example env/.env.api      # fill in SESSION_SECRET (make gen-secrets, min. 32 chars) + APP_BASE_URL
 cp env/.env.sync.example env/.env.sync
@@ -54,7 +55,7 @@ make sync                   # trigger first sync immediately
 
 **Standalone (with bundled Traefik, self-signed cert):**
 ```bash
-make up-standalone          # starts with bundled Traefik — ideal for local/homelab use
+make up-standalone          # starts with bundled Traefik (configure ACME in traefik/traefik.yml)
 ```
 
 **Homelab with [homelab-gateway](https://github.com/gerfru/homelab-gateway):** use `make up` after starting homelab-gateway.
@@ -86,7 +87,7 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 
 ## Security
 
-- HTTPS via Caddy (homelab-gateway) or Traefik (standalone) — self-signed cert, accept browser warning once
+- HTTPS via Caddy (homelab-gateway with ACME) or Traefik standalone (configure `certificatesResolvers` in `traefik/traefik.yml`)
 - Rate limiting on login (10/min), register (5/min), reset (3/h), Garmin/Libre link (5/h)
 - Account lockout after 5 failed login attempts (15-minute automatic lockout + email notification)
 - Email verification required after registration (signed token, 24h TTL, resend endpoint)

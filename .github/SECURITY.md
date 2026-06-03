@@ -2,8 +2,8 @@
 
 ## Scope
 
-PulseBase ist ein selbst gehostetes Homelab-Projekt ohne öffentliche Benutzer.
-ASVS-Level: L2 (Gesundheitsdaten, DSGVO, Epilepsie-Modus).
+PulseBase ist eine selbst gehostete Gesundheits-App.
+ASVS-Level: L2 (Gesundheitsdaten nach Art. 9 DSGVO, Epilepsie-Modus).
 
 ## Security-Scanning im SDLC
 
@@ -26,8 +26,9 @@ Ersatz: gitleaks (Pre-commit + CI) + detect-secrets (Pre-commit-Baseline).
 
 ## Sicherheitslücken melden
 
-Da PulseBase ein privates Homelab-Projekt ist, gibt es kein öffentliches
-Bug-Bounty-Programm. Schwachstellen direkt an den Repository-Owner melden.
+Schwachstellen bitte **nicht** als öffentliches GitHub Issue melden.
+Stattdessen: GitHub → Security → "Report a vulnerability" (Private Disclosure) oder direkt an den Repository-Owner.
+Kein Bug-Bounty-Programm; Meldungen werden zeitnah beantwortet.
 
 Für alle anderen Security-Entscheidungen und den aktuellen Sicherheitsstatus:
 → [`docs/security.md`](../docs/security.md)

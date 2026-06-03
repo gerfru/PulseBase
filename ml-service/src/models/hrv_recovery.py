@@ -4,6 +4,26 @@ from typing import Any
 from .trimp import compute_trimp
 
 
+def _collect_recovery_slopes(
+    trimps: list[float],
+    hrv_vals: list[float | None],
+    trimp_threshold: float,
+    baseline: float,
+) -> list[float]:
+    slopes = []
+    i = 0
+    while i < len(trimps) - 5:
+        if trimps[i] >= trimp_threshold:
+            window = hrv_vals[i + 1 : i + 8]
+            valid_w = [(j, v) for j, v in enumerate(window) if v is not None]
+            if len(valid_w) >= 3:
+                slopes.append(sum((v - baseline) for _, v in valid_w) / len(valid_w))
+            i += 7
+        else:
+            i += 1
+    return slopes
+
+
 def compute_hrv_recovery_trajectory(
     hrv_history: list[float | None],
     act_rows: list[dict[str, Any]],
@@ -38,18 +58,9 @@ def compute_hrv_recovery_trajectory(
     trimp_mean = sum(trimps) / len(trimps) if trimps else 0.0
     trimp_threshold = trimp_mean * 1.5 if trimp_mean > 0 else 1e9
 
-    recovery_slopes = []
-    i = 0
-    while i < len(trimps) - 5:
-        if trimps[i] >= trimp_threshold:
-            window = hrv_vals[i + 1 : i + 8]
-            valid_w = [(j, v) for j, v in enumerate(window) if v is not None]
-            if len(valid_w) >= 3:
-                slope = sum((v - baseline) for _, v in valid_w) / len(valid_w)
-                recovery_slopes.append(slope)
-            i += 7
-        else:
-            i += 1
+    recovery_slopes = _collect_recovery_slopes(
+        trimps, hrv_vals, trimp_threshold, baseline
+    )
 
     if not recovery_slopes:
         return {"score": None, "reason": "no_recovery_events"}

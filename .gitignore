@@ -4,6 +4,9 @@
 !.env.*.example
 .secrets.baseline
 
+# TLS — ACME certificates (contain private key material)
+traefik/acme/acme.json
+
 # Python
 __pycache__/
 *.pyc

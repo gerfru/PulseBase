@@ -70,7 +70,7 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 ## Monitoring & Logging
 
 - Structured Logging (JSON): TS → Pino, Python → structlog. Timestamps UTC
-- Error Tracking: Sentry. Uptime: UptimeRobot. Logs: Better Stack / Axiom
+- Error Tracking: Sentry. Uptime: Uptime Kuma (self-hosted). Logs: Loki + Promtail (self-hosted)
 - Alert-Schwellen: Error Rate > 1%, p95 > 2s, CPU/Memory > 80%
 - OpenTelemetry als Standard. Metrics/Traces erst bei Bedarf
 
@@ -117,8 +117,10 @@ make db               # psql-Shell (liest DB_APP_USER aus env/.env.app)
 
 ```
 api/src/
-├── main.py              App-Setup + Router-Registrierung
+├── main.py              App-Setup + Router-Registrierung + /health /ready /api/metrics
 ├── deps.py              Settings (Pydantic), require_user(), Limiter, Templates
+├── auth_helpers.py      Login-Helfer: _lockout_response, _handle_invalid_credentials, _establish_session
+├── auth_tokens.py       Token-Helfer: _make_reset_token, _verify_reset_token, _make_verify_token
 ├── evidence_catalog.py  Thin Loader → liest api/src/data/evidence_catalog.json
 ├── mail.py              E-Mail-Helpers: send_lockout/reset/verify_email via Resend API
 ├── training_load.py     Banister TRIMP für Physical Energy (Edwards 1993)
@@ -134,7 +136,7 @@ api/src/
 │   ├── seizures.py      Anfallsereignisse (Epilepsie-Modus, V15)
 │   └── glucose.py       Glukose-Readings (Libre-User, V9)
 ├── routes/
-│   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW) — E-Mail via src.mail
+│   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW)
 │   ├── account.py       /account/delete (DSGVO Art. 17), /account/export (DSGVO Art. 20)
 │   ├── api.py           Alle /api/* JSON-Endpunkte
 │   ├── garmin.py        /garmin/link, /garmin/unlink
@@ -150,6 +152,7 @@ api/src/
 
 sync-service/src/
 ├── main.py           APScheduler + Sync-Loop pro User (Garmin täglich, Libre 5-min)
+├── scheduler.py      configure_scheduler() + _write_alive_sentinel() — APScheduler-Setup
 ├── config.py         Settings (Pydantic): DB-Credentials, SYNC_HOUR, FERNET_KEY
 ├── crypto.py         Fernet: fernet_encrypt/decrypt, serialize/restore_token_dir
 ├── domain/
@@ -332,6 +335,8 @@ GET /accessibility           Barrierefreiheitserklärung (BFSG)
 DB_USER=garmin
 DB_PASSWORD=
 HOST_IP=your-domain.com
+TAILSCALE_IP=100.x.x.x      # tailscale ip -4 — für Monitoring-UIs (Uptime Kuma :3001, Loki :3100)
+ACME_EMAIL=your@email.com   # nur standalone-Modus mit Traefik
 ```
 
 **`env/.env.app`** — shared, alle 3 App-Services (api + sync-service + ml-service):
@@ -370,12 +375,14 @@ ML_INFER_HOUR=7
 ### ARCH-M2: Kein Service-Layer (Routes → DB direkt)
 
 Routes importieren direkt aus `api/src/db/`. Eine dedizierte `api/src/services/`-Schicht fehlt.
-Begründung: Solo-Projekt, Komplexität rechtfertigt Schicht nicht. Bei Wachstum (>3 Entwickler, komplexe Business-Logik) einführen.
+Begründung: Ein Service-Layer lohnt sich wenn Business-Logik von mehreren Routen geteilt wird oder mehrere Entwickler parallel arbeiten. Beides trifft hier nicht zu — die Logik ist route-spezifisch und das Team ist ein Entwickler. Das ist unabhängig davon ob die App öffentlich zugänglich ist oder nicht.
+Trigger für Einführung: >3 Entwickler oder Business-Logik die über mehrere Routen hinweg geteilt wird.
 
-### ARCH-M3: Traefik (standalone) nutzt self-signed TLS (kein ACME/Let's Encrypt)
+### ARCH-M3: Traefik standalone — ACME konfiguriert ✅
 
-`traefik/traefik.yml` hat kein `certificatesResolvers`. Traefik fällt auf selbst-signiertes Zertifikat zurück.
-Für lokalen/internen Betrieb akzeptabel. Für öffentliches Deployment: `certificatesResolvers` mit ACME (HTTP-01 oder DNS-01) in `traefik/traefik.yml` ergänzen, oder eigenen Reverse Proxy (Caddy, nginx) mit automatischem HTTPS vorschalten.
+`traefik/traefik.yml` enthält `certificatesResolvers.letsencrypt` (HTTP-01). Zertifikate werden automatisch geholt und erneuert.
+Einmalig vor erstem Start: `ACME_EMAIL` in `env/.env` setzen + `chmod 600 traefik/acme/acme.json`.
+Gilt nur für `make up-standalone`. Bei Betrieb mit homelab-gateway übernimmt Caddy die TLS-Terminierung.
 
 ### CICD-M3: Branch Protection nicht erzwingbar (privates Repo, Gratis-Plan)
 
@@ -385,7 +392,7 @@ Begründung: Solo-Projekt, Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-com
 ### CICD-M4: Kein automatisierter Deployment-Step (CD-Pipeline fehlt)
 
 CI endet nach Build+Test; Deployment erfolgt manuell via `make up`. Rollback via Docker-Tag (`docker compose pull && up -d` mit gepinntem Tag).
-Begründung: Homelab-Betrieb; kein Multi-Environment-Setup. Bei Bedarf: GitHub Actions → SSH → `docker compose pull && up -d` als CD-Step ergänzen.
+Begründung: Single-Server-Deployment ohne Multi-Environment-Setup. Bei Bedarf: GitHub Actions → SSH → `docker compose pull && up -d` als CD-Step ergänzen (CICD-M4).
 
 ### QUAL-M2: Duplizierter GarminClient in api/ und sync-service/
 
@@ -394,7 +401,8 @@ Begründung: Homelab-Betrieb; kein Multi-Environment-Setup. Bei Bedarf: GitHub A
 ### ARCH-L2: Technisch-basierte db/-Ordnerstruktur
 
 `api/src/db/` ist technisch strukturiert (kein Feature-Split). Eine Feature-basierte Struktur (`api/src/activities/`, `api/src/health/`) würde ~20 Dateien betreffen.
-Begründung: Solo-Projekt, kein konkreter Nutzen gegenüber aktuellem Overhead. Refactoring erst bei deutlichem Wachstum der Codebasis.
+Begründung: Feature-Splitting der DB-Schicht bringt Nutzen wenn Teams parallel an unterschiedlichen Domains arbeiten oder die Dateien so groß werden dass die Orientierung schwierig wird. Beides trifft nicht zu — alle `db/`-Dateien sind klein (<200Z), ein Entwickler arbeitet daran, und die Domain-Grenzen sind durch Dateinamen klar erkennbar. Nicht die Deployment-Art, sondern die Codegröße und Teamstruktur sind der richtige Trigger.
+Trigger für Refactoring: Dateien >400Z oder ein zweiter Entwickler der isoliert an einer Domain arbeitet.
 
 ### ARCH-L3: API nicht versioniert (kein `/api/v1/`-Präfix)
 
@@ -405,10 +413,32 @@ Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-
 
 `api/src/routes/api.py` enthält alle JSON-Endpunkte in einer Datei (~340 Zeilen). Eine Feature-basierte Aufteilung (z.B. `api_health.py`, `api_ml.py`, `api_seizures.py`, `api_glucose.py`) wäre sauberer, aber: Solo-Projekt, alle Endpunkte teilen dieselben `require_user`- und `limiter`-Abhängigkeiten, die Domain-Grenzen sind durch Kommentarblöcke bereits klar erkennbar. Split einführen wenn die Datei 400 Zeilen überschreitet oder ein zweiter Entwickler onboarded wird.
 
-### OBS-L1: Kein externes Uptime-Monitoring
+### OBS-L1: Uptime-Monitoring via Uptime Kuma ✅
 
-Kein UptimeRobot oder ähnliches konfiguriert. Internes Docker-Healthcheck ist vorhanden (`/health`, `/ready`).
-Reminder: `https://<APP_BASE_URL>/health` als Monitor-URL bei UptimeRobot konfigurieren.
+Uptime Kuma läuft als Compose-Service (`make up` startet es automatisch).
+Dashboard: `http://localhost:3001` — einmalig Admin-Account anlegen + Monitor auf `http://api:8000/health` konfigurieren.
+Details: [docs/external-services.md](docs/external-services.md#3-uptime-kuma--uptime-monitoring-self-hosted)
+
+### Monitoring & Alert-Setup (L-79)
+
+Log-Aggregation läuft via Loki + Promtail (`make up` startet beides automatisch).
+Logs abfragen: `curl "http://localhost:3100/loki/api/v1/query_range?query={container=\"pulsebase-api\"}&limit=50"`
+
+**Sentry Alert-Rules (einmalig im Sentry-Dashboard konfigurieren):**
+
+| Alert | Bedingung | Aktion |
+|---|---|---|
+| Error Rate | `error.rate > 1%` in 10 min | E-Mail / Slack |
+| P95 Latenz | `p95(transaction.duration) > 2000ms` | E-Mail |
+| Neuer Issue | Jeder neue unbekannte Error | E-Mail sofort |
+
+Sentry-Projekt → Alerts → Create Alert Rule → `issue.category:error` + Frequency-Threshold.
+
+### OBS-L2: Kein OpenTelemetry / Distributed Tracing
+
+Kein OpenTelemetry-SDK, kein Tracing-Backend (Tempo, Jaeger, etc.).
+Begründung: OpenTelemetry macht Sinn wenn Requests über mehrere unabhängige Systeme laufen und man verstehen will wo Zeit verloren geht. Hier laufen alle 3 Services auf demselben Server im selben Docker-Netz — Netzwerklatenzen zwischen Services sind vernachlässigbar. Für Request-Korrelation ist `request_id` (Header + structlog context) ausreichend. Loki + Sentry decken Logs und Errors ab. Kein Observability-Problem das OTel lösen würde und das jetzt existiert.
+Trigger für Einführung: Multi-Server-Setup, externe API-Latenz wird zum Problem, oder ein Tracing-Backend ist bereits vorhanden.
 
 ### TEST-L1: Mock-Qualität für `require_user` in Route-Tests
 
