@@ -15,7 +15,7 @@
 
 {% endblock %}
 {% block scripts %}
-<script src="/static/metrics-overview.js?v={{ v }}"></script>
+<script nonce="{{ nonce }}" src="/static/metrics-overview.js?v={{ v }}"></script>
 <style>
 .metrics-section-heading {
     font-size: var(--text-sm); font-weight: 700; text-transform: uppercase;

@@ -2,8 +2,8 @@
 {% block title %}PulseBase — Aktivität{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="/static/vendor/leaflet.min.css"/>
-<script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/vendor/leaflet.min.js"></script>
+<script nonce="{{ nonce }}" src="/static/vendor/chart.umd.min.js"></script>
+<script nonce="{{ nonce }}" src="/static/vendor/leaflet.min.js"></script>
 {% endblock %}
 {% block content %}
 
@@ -100,5 +100,5 @@
 
 {% endblock %}
 {% block scripts %}
-<script src="/static/activity.js"></script>
+<script nonce="{{ nonce }}" src="/static/activity.js"></script>
 {% endblock %}
