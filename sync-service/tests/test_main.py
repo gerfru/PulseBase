@@ -204,6 +204,49 @@ class TestSyncAllLibre:
         assert 2 in synced, "user 2 must be synced even after user 1 fails"
 
 
+# ── TestSyncDualLinkedUser — Garmin+Libre combination ────────────────────────
+
+
+class TestSyncDualLinkedUser:
+    """User linked to both Garmin and Libre — both sync jobs must run independently."""
+
+    DUAL_USER = {"id": 1, "garmin_email": "dual@test.com"}
+
+    async def test_dual_linked_user_synced_by_both_jobs(self):
+        repo = AsyncMock()
+        repo.get_active_users.return_value = [self.DUAL_USER]
+        repo.get_libre_users.return_value = [self.DUAL_USER]
+        with (
+            patch("main.sync_user", new_callable=AsyncMock) as mock_garmin,
+            patch("main.sync_libre_user", new_callable=AsyncMock) as mock_libre,
+        ):
+            await sync_all_users(repo, days=7, settings=MagicMock())
+            await sync_all_libre(repo, MagicMock())
+        assert mock_garmin.call_count == 1
+        assert mock_libre.call_count == 1
+
+    async def test_garmin_failure_does_not_prevent_libre_sync(self):
+        repo = AsyncMock()
+        repo.get_active_users.return_value = [self.DUAL_USER]
+        repo.get_libre_users.return_value = [self.DUAL_USER]
+        called: list[str] = []
+
+        async def failing_garmin(user, repo, days, settings):
+            raise RuntimeError("Garmin token missing")
+
+        async def ok_libre(user, repo, settings):
+            called.append("libre")
+
+        with (
+            patch("main.sync_user", side_effect=failing_garmin),
+            patch("main.sync_libre_user", side_effect=ok_libre),
+        ):
+            await sync_all_users(repo, days=7, settings=MagicMock())
+            await sync_all_libre(repo, MagicMock())
+
+        assert "libre" in called, "Libre sync must proceed despite Garmin failure"
+
+
 # ── _sync_activities ──────────────────────────────────────────────────────────
 
 
