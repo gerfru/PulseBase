@@ -226,26 +226,23 @@
 | L-57 | ✅ | W10 R5 | **f-String in `structlog`-Call** — statisches Event `"anomaly.done"` + `metric=log_key` Feld | `ml-service/src/inference_anomaly.py:41` | Code-Qualität |
 | L-58 | ✅ | W10 R5 | **Dupliziertes Backfill+Training-Muster** — verifiziert: identischer Block in `run_on_request` + `run_all_users` · `_backfill_and_train()` extrahiert | `ml-service/src/main.py:119,144` | Code-Qualität |
 | L-59 | ✅ | — | **`auth.py` Dateigröße nach H-14** — verifiziert: 381 Zeilen < 400Z-Schwelle → resolved | `api/src/routes/auth.py` | Code-Qualität |
-| L-60 | [?] | — | **5 einzeilige `_run_anomaly_*`-Wrapper (Copy-Paste)** — zu verifizieren ob nach M-26 (W4) noch Duplikate vorhanden | `ml-service/src/inference_anomaly.py:48–100` | Code-Qualität |
+| L-60 | ✅ | — | **5 einzeilige `_run_anomaly_*`-Wrapper (Copy-Paste)** — verifiziert: Wrappers nutzen `_run_anomaly_for()` (M-26-Fix korrekt) → false positive | `ml-service/src/inference_anomaly.py:48–100` | Code-Qualität |
 | L-61 | ✅ | W10 R2 | **Vitest `lines: 65` unterhalb Projektsoll** — auf 70% angehoben | `api/vitest.config.js:19` | Tests |
 | L-62 | — | — | **E2E `@requires_data`-Tests in CI still übersprungen** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21` | Tests |
 | L-63 | ✅ | W10 R2 | **metrics.js: `result.value`/`result.sub` per `textContent` → Rendering-Regression** — M-33-Fix setzte alle Metric-Detail-Werte per `textContent`; Renderer-Funktionen liefern styled HTML-Spans, kein User-Input → alle 8 Metric-Seiten zeigten rohe HTML-Tags · Fix: `innerHTML` für Renderer-Ausgaben wiederhergestellt | `api/src/static/metrics.js:38` | Code-Qualität |
 
 ---
 
-## Offene Findings (nach Wave 10 Runde 3)
+## Offene Findings (nach Wave 10 Runde 5)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-46, M-48–M-49, M-53, M-55, M-57–M-62, L-01–L-40, L-43, L-47–L-50, L-59, L-61, L-63 (außer H-07, M-19, M-42) |
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-52, M-53, M-55, M-57–M-62, L-01–L-50, L-57–L-60, L-61, L-63 (außer H-07, M-19, M-42) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-62 (TEST-L4), M-42 (eigener Wave), M-54 (TEST-L4) |
 | **Architektur/Betrieb** | ❌ L-42 (api.py domain-übergreifend) |
-| **Tests** | ❌ — alle W10 R4-Findings gefixt |
-| **Code-Qualität** | ❌ M-50, M-51, M-52, L-44–46, L-57 |
 | **Observability** | ❌ M-47, L-52–56 |
 | **CI/CD** | ❌ M-56, L-51 |
-| **zu verifizieren** | [?] L-58 (Backfill-Duplikat nach H-12) · L-60 (anomaly Wrapper nach M-26) |
 
 ---
 
@@ -255,7 +252,7 @@
 |-------|-------|---------|---------|
 | ~~**W10 R3**~~ | ~~Architektur & Betrieb~~ | ~~M-45, M-46, M-48, M-49, L-40, L-43~~ | ✅ |
 | ~~**W10 R4**~~ | ~~Tests (Rest)~~ | ~~M-53, M-55 (resolved), L-47–50~~ | ✅ |
-| **W10 R5** | Code-Qualität | M-50 (_run_energy_metrics), M-51 (_run_body_battery), M-52 (login() kürzen), L-44–46, L-57 + [?] L-58/L-60 verifizieren | ~2h |
+| ~~**W10 R5**~~ | ~~Code-Qualität~~ | ~~M-50, M-51, M-52, L-44–46, L-57, L-58, L-60~~ | ✅ |
 | **W10 R6** | Observability | M-47 (ProcessorFormatter Bridge), L-52–56 (sentry.disabled, WriteLoggerFactory, Correlation-ID, Error-Rate, /health Zähler) | ~2h |
 | **W10 R7** | CI/CD + Security | M-56 (Trivy Artefakt), L-51 (Branch-Namen), M-42 (CSP Nonce + strict-dynamic), L-42 (api.py Split oder ARCH-L5) | ~3h |
 | **Eval 5** | Re-Audit | Vollständiges Re-Audit nach Wave 10 (6 Subagenten parallel) | — |
