@@ -31,6 +31,7 @@
 | 2026-06-02 | Eval 4 — Vollständiger Re-Audit nach Wave 9 (6 Subagenten parallel) | 2H · 17M · 25L (neu entdeckt) |
 | 2026-06-02 | Wave 10 Runde 1 — Security Quick Wins | H-16, H-17, M-40, M-41, M-43, M-44, L-36–39 gefixt · L-59 ✅ resolved · M-52 ❌ confirmed open |
 | 2026-06-02 | Wave 10 Runde 2 — Tests + Bugfixes | H-18, M-57–M-62, L-61 gefixt · L-62 → TEST-L4 · M-53 partiell (CI-Gate 30%→80%) · 23 neue Tests (_sync_activities/_sync_day, ml-service Orchestrierung) · metrics.js Rendering-Regression · sync-service SIGTERM + unhealthy |
+| 2026-06-03 | Wave 10 Runde 3 — Architektur & Betrieb | M-45, M-46, M-48, M-49, L-40, L-43 gefixt |
 
 ---
 
@@ -38,12 +39,12 @@
 
 | Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | Noch offen |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-45, M-46, L-40–43 |
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | L-42 |
 | Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-42 (Nonce, Aufwand hoch), L-28 (Ausnahme) |
 | Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟡 | M-50–52, L-44–46, L-57–60 |
 | Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-53, M-55, L-47–50 |
 | CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-19 (manuell), M-56, L-51 |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-47–49, L-52–56 |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-47, L-52–56 |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
@@ -139,11 +140,11 @@
 | M-42 | ❌ | — | **CSP ohne Nonce — Gold-Standard nicht erreicht** — `script-src 'self'` ohne Nonce · Fix: Nonce-Middleware + `script-src 'nonce-{n}' 'strict-dynamic'` · Vorher im Report-Only-Modus testen | `api/src/main.py:44–57` | Security |
 | M-43 | ✅ | W10 R1 | **Password-Reset-Token nach GET-Aufruf weiterhin gültig** — M-06 (W2) fixte Invalidierung nach POST; GET rendert Formular ohne Token zu binden | `api/src/routes/auth.py:322–335` | Security |
 | M-44 | ✅ | W10 R1 | **Auth fehlt am Data Access Layer (3. Schicht)** — DB-Funktionen ohne Ownership-Prüfung | `api/src/db/users.py` | Security |
-| M-45 | ❌ | — | **ml-service SIGTERM `wait=False` — laufende ML-Jobs werden abgebrochen** — M-01 (W1) adressierte fehlenden Handler; `wait=False` bricht laufende `fit()`/`predict()`-Jobs ab · Fix: `scheduler.shutdown(wait=True)` | `ml-service/src/main.py:206` | Architektur |
-| M-46 | ❌ | — | **api-test Port 8001 nicht auf `127.0.0.1` gebunden** — `"8001:8000"` bindet auf `0.0.0.0` · Fix: `"127.0.0.1:8001:8000"` | `docker-compose.test.yml:46` | Architektur |
+| M-45 | ✅ | W10 R3 | **ml-service SIGTERM `wait=False` — laufende ML-Jobs werden abgebrochen** — M-01 (W1) adressierte fehlenden Handler; `wait=False` bricht laufende `fit()`/`predict()`-Jobs ab · Fix: `scheduler.shutdown(wait=True)` | `ml-service/src/main.py:206` | Architektur |
+| M-46 | ✅ | W10 R3 | **api-test Port 8001 nicht auf `127.0.0.1` gebunden** — `"8001:8000"` bindet auf `0.0.0.0` · Fix: `"127.0.0.1:8001:8000"` | `docker-compose.test.yml:46` | Architektur |
 | M-47 | ❌ | — | **Stdlib-Logs nicht JSON (split log format)** — `ProcessorFormatter`-Bridge für Third-Party-Logger fehlt · Fix: `structlog.stdlib.ProcessorFormatter` mit `foreign_pre_chain` | `api/src/logging_config.py:24`, alle Services | Observability |
-| M-48 | ❌ | — | **Compose-Healthcheck trifft `/health` statt `/ready`** — Container gilt als `healthy` auch wenn DB-Verbindung noch nicht steht · Fix: `test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]` | `docker-compose.yml:120` | Observability |
-| M-49 | ❌ | — | **`logger.error(...)` landet nicht in Sentry (kein `SentryProcessor`)** — explizite `logger.error()`-Aufrufe erzeugen keine Sentry-Events · Fix: `structlog.SentryProcessor(level=logging.ERROR)` in alle drei `logging_config.py` | `api/src/logging_config.py`, alle Services | Observability |
+| M-48 | ✅ | W10 R3 | **Compose-Healthcheck trifft `/health` statt `/ready`** — Container gilt als `healthy` auch wenn DB-Verbindung noch nicht steht · Fix: `test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]` | `docker-compose.yml:120` | Observability |
+| M-49 | ✅ | W10 R3 | **`logger.error(...)` landet nicht in Sentry (kein `SentryProcessor`)** — explizite `logger.error()`-Aufrufe erzeugen keine Sentry-Events · Fix: `structlog.SentryProcessor(level=logging.ERROR)` in alle drei `logging_config.py` | `api/src/logging_config.py`, alle Services | Observability |
 | M-50 | ❌ | — | **`_run_energy_metrics()` God-Function (63 Zeilen, 5 Concerns)** — verhindert Einzel-Tests · Fix: in fünf `_run_*`-Funktionen aufteilen | `ml-service/src/inference_models.py:82` | Code-Qualität |
 | M-51 | ❌ | — | **`_run_body_battery_and_stress()` 60 Zeilen mit Inline-Berechnung** — manuelle HRV-Baseline-Berechnung inline · Fix: `compute_hrv_baseline()` extrahieren | `ml-service/src/inference_models.py:248` | Code-Qualität |
 | M-52 | ❌ | — | **`login()` immer noch 70 Zeilen nach H-15-Teilfix** — verifiziert: Z.115–184 = 70Z | `api/src/routes/auth.py:117` | Code-Qualität |
@@ -203,10 +204,10 @@
 | L-37 | ✅ | W10 R1 | **Fehlende Längenvalidierung für `email`-Felder** — `Form()` ohne `max_length` auf `/login`, `/auth/resend-verify`, `/auth/reset-request` | `api/src/routes/auth.py:119,270,308` | Security |
 | L-38 | ✅ | W10 R1 | **`service`-Parameter in `get_user_token`/`save_user_token` ohne Whitelist** | `api/src/db/users.py:234` | Security |
 | L-39 | ✅ | W10 R1 | **`httpOnly`-Cookie-Flag nicht explizit durch Test abgesichert** | `api/src/main.py:148–154` | Security |
-| L-40 | ❌ | — | **`docker-compose.test.yml` ohne Resource Limits und Log-Rotation** | `docker-compose.test.yml` | Architektur |
+| L-40 | ✅ | W10 R3 | **`docker-compose.test.yml` ohne Resource Limits und Log-Rotation** | `docker-compose.test.yml` | Architektur |
 | L-41 | — | — | **3-Service-Splitting ohne explizite Begründung in CLAUDE.md** (dokumentierte Ausnahme ARCH-L4) | `CLAUDE.md` | Architektur |
 | L-42 | ❌ | — | **`routes/api.py` domain-übergreifend (352 Zeilen, wächst)** | `api/src/routes/api.py` | Architektur |
-| L-43 | ❌ | — | **ML-Healthcheck prüft keine Modell-Integrität** | `docker-compose.yml:191–193` | Architektur |
+| L-43 | ✅ | W10 R3 | **ML-Healthcheck prüft keine Modell-Integrität** | `docker-compose.yml:191–193` | Architektur |
 | L-44 | ❌ | — | **Sequentielle `await` in `_run_correlations`-Schleife** — 3× unabhängige DB-Queries sequenziell · Fix: `await asyncio.gather(...)` | `ml-service/src/inference_anomaly.py:109` | Code-Qualität |
 | L-45 | ❌ | — | **`require_user()` gibt ungetyptes `dict` zurück** | `api/src/deps.py:73` | Code-Qualität |
 | L-46 | ❌ | — | **`zip(*pairs)` ohne Längen-Assertion** | `ml-service/src/inference_anomaly.py:113` | Code-Qualität |
@@ -230,14 +231,14 @@
 
 ---
 
-## Offene Findings (nach Wave 10 Runde 2)
+## Offene Findings (nach Wave 10 Runde 3)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-44, M-57–M-62, L-01–L-39, L-59, L-61, L-63 (außer H-07, M-19, M-42) |
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-46, M-48–M-49, M-57–M-62, L-01–L-40, L-43, L-59, L-61, L-63 (außer H-07, M-19, M-42) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-62 (TEST-L4), M-42 (eigener Wave), M-54 (TEST-L4) |
-| **Architektur/Betrieb** | ❌ M-45 (ml-service SIGTERM wait=False) · M-46 (Port 127.0.0.1) · M-48 (Healthcheck /ready) · M-49 (SentryProcessor) · L-40, L-42–43 |
+| **Architektur/Betrieb** | ❌ L-42 (api.py domain-übergreifend) |
 | **Tests** | ❌ M-53 (fail_under CLAUDE.md Drift) · M-55 (inference_models.py Tests) · L-47–50 |
 | **Code-Qualität** | ❌ M-50, M-51, M-52, L-44–46, L-57 |
 | **Observability** | ❌ M-47, L-52–56 |
@@ -250,14 +251,14 @@
 
 | Runde | Fokus | Findings | Aufwand |
 |-------|-------|---------|---------|
-| **W10 R3** | Architektur & Betrieb | M-45 (SIGTERM wait=True), M-46 (Port 127.0.0.1), M-48 (Healthcheck /ready), M-49 (SentryProcessor), L-40 (test.yml Limits), L-43 (ML-Healthcheck Integrität) | ~2h |
+| ~~**W10 R3**~~ | ~~Architektur & Betrieb~~ | ~~M-45, M-46, M-48, M-49, L-40, L-43~~ | ✅ |
 | **W10 R4** | Tests (Rest) | M-53 (fail_under CLAUDE.md Drift), M-55 (inference_models.py Tests), L-47–50 | ~2h |
 | **W10 R5** | Code-Qualität | M-50 (_run_energy_metrics), M-51 (_run_body_battery), M-52 (login() kürzen), L-44–46, L-57 + [?] L-58/L-60 verifizieren | ~2h |
 | **W10 R6** | Observability | M-47 (ProcessorFormatter Bridge), L-52–56 (sentry.disabled, WriteLoggerFactory, Correlation-ID, Error-Rate, /health Zähler) | ~2h |
 | **W10 R7** | CI/CD + Security | M-56 (Trivy Artefakt), L-51 (Branch-Namen), M-42 (CSP Nonce + strict-dynamic), L-42 (api.py Split oder ARCH-L5) | ~3h |
 | **Eval 5** | Re-Audit | Vollständiges Re-Audit nach Wave 10 (6 Subagenten parallel) | — |
 
-**Gesamtaufwand verbleibend:** ~11h · Ziel: alle automatisierbaren Findings gefixt, Security-Achse dauerhaft 🟢
+**Gesamtaufwand verbleibend:** ~9h · Ziel: alle automatisierbaren Findings gefixt, Security-Achse dauerhaft 🟢
 
 ---
 

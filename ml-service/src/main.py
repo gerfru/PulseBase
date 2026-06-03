@@ -203,7 +203,7 @@ async def main() -> None:  # pragma: no cover
     logger.info("scheduler.started", infer_hour=settings.ml_infer_hour)
 
     loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=False))
+    loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=True))
 
     try:
         await asyncio.Event().wait()
