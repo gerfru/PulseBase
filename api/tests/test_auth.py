@@ -129,7 +129,7 @@ async def test_register_email_failed_redirects_to_verify_failed(client):
 async def test_register_sends_verify_email_when_api_key_set(client):
     with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
         with patch("src.routes.auth.save_consent", AsyncMock()):
-            with patch("src.routes.auth.settings") as mock_auth_settings:
+            with patch("src.auth_tokens.settings") as mock_auth_settings:
                 mock_auth_settings.session_secret = (
                     "test-secret-key-for-testing-only!"  # pragma: allowlist secret
                 )
@@ -581,7 +581,7 @@ async def test_verify_email_sends_when_api_key_set(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=unverified_user)
     ):
-        with patch("src.routes.auth.settings") as mock_auth_settings:
+        with patch("src.auth_tokens.settings") as mock_auth_settings:
             mock_auth_settings.session_secret = (
                 "test-secret-key-for-testing-only!"  # pragma: allowlist secret
             )
