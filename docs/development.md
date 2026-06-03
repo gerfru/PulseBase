@@ -21,13 +21,15 @@ Lokale Entwicklung, Tests, CI/CD und Debugging für PulseBase.
 ```bash
 # 1. Env-Files aus Vorlagen erstellen
 cp env/.env.example env/.env
+cp env/.env.app.example env/.env.app  # DB_APP_USER, DB_APP_PASSWORD, FERNET_KEY
 cp env/.env.api.example env/.env.api
 cp env/.env.sync.example env/.env.sync
-cp env/.env.ml.example env/.env.ml   # falls noch nicht vorhanden: DB_APP_USER + DB_APP_PASSWORD setzen
+cp env/.env.ml.example env/.env.ml
 
 # 2. Secrets generieren (SESSION_SECRET + FERNET_KEY)
 make gen-secrets
-# → Ausgabe in env/.env.api (SESSION_SECRET) und env/.env + env/.env.sync (FERNET_KEY) eintragen
+# → SESSION_SECRET → env/.env.api (min. 32 Zeichen)
+# → FERNET_KEY    → env/.env.app (gilt für api, sync-service und ml-service)
 
 # 3. Dateiberechtigungen absichern
 make secure-env
@@ -155,7 +157,7 @@ make test-js           # einmalig
 make test-js-coverage  # mit Coverage-Report (api/coverage/index.html)
 ```
 
-Vitest testet vier Utility-Dateien: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js` (Threshold: ≥65% Lines, ≥70% Functions). `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme).
+Vitest testet vier Utility-Dateien: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js` (Threshold: ≥70% Lines, ≥70% Functions). `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme).
 
 ### E2E-Tests (Playwright)
 
@@ -190,10 +192,10 @@ cd api && .venv/bin/pytest tests/test_auth.py::test_login_success_redirects -v
 |---------|---------|--------------|------|
 | api (Python) | ~99% | 70% | 100% |
 | api (JS) | ~100% Lines / ~100% Functions (4 Dateien) | 70% Lines / 70% Functions | — |
-| sync-service | ~65%+ | 65% | 70%+ |
+| sync-service | ~97%+ | 70% | 70%+ |
 | ml-service | ~80%+ | 80% | 80%+ |
 
-Die JS-Schwelle gilt für die vier gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: CI-Gate auf 65% angehoben (W10 R2, M-59). ml-service: CI-Gate auf 80% angehoben (W10 R2, M-61).
+Die JS-Schwelle gilt für die vier gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: CI-Gate auf 70% angehoben (W13 R3, M-79). ml-service: CI-Gate auf 80% angehoben (W10 R2, M-61).
 
 ---
 
@@ -231,7 +233,7 @@ Alle Jobs laufen bei jedem PR. Pipeline schlägt bei jedem roten Job fehl. Globa
 | `security` | gitleaks + pip-audit + bandit + semgrep | Secrets, bekannte Vulns, SAST, cross-file Taint |
 | `typecheck` | mypy | alle 3 Services mit `--explicit-package-bases` |
 | `test` | pytest + pytest-cov | Unit-Tests aller 3 Services mit Coverage-Schwellen |
-| `js-test` | Vitest | JS Unit-Tests mit Coverage (65% Lines / 70% Functions) |
+| `js-test` | Vitest | JS Unit-Tests mit Coverage (70% Lines / 70% Functions) |
 | `e2e` | Playwright | Smoke-Tests gegen docker-compose.test.yml (Port 8001) |
 | `trivy` | trivy | Docker-Image-Scan (CRITICAL + HIGH → exit 1) |
 
@@ -299,7 +301,7 @@ def test_mit_session(client):
 ```python
 env_overrides = {
     "DB_PASSWORD": "test",  # pragma: allowlist secret
-    "SESSION_SECRET": "test-secret",  # pragma: allowlist secret
+    "SESSION_SECRET": "a" * 32,  # pragma: allowlist secret  — min. 32 Zeichen
 }
 ```
 

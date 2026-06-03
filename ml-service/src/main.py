@@ -216,13 +216,22 @@ async def main() -> None:  # pragma: no cover
 
     scheduler = _configure_ml_scheduler(settings)
 
+    shutdown_event = asyncio.Event()
+
+    def _on_sigterm() -> None:
+        logger.info("shutdown.sigterm_received")
+        shutdown_event.set()
+
     loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=True))
+    loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
 
     try:
-        await asyncio.Event().wait()
+        await shutdown_event.wait()
     finally:
+        logger.info("shutdown.graceful_start")
+        scheduler.shutdown(wait=True)
         await close_pool()
+        logger.info("shutdown.complete")
 
 
 if __name__ == "__main__":  # pragma: no cover

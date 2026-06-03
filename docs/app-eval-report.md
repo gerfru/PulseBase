@@ -40,21 +40,25 @@
 | 2026-06-03 | Wave 11 — Code-Qualität + Security Nacharbeit | L-59 (auth_tokens.py extrahiert, auth.py 390Z), L-64 (epilepsy.js createElement + textContent + epilepsy.test.js) gefixt |
 | 2026-06-03 | Eval 5 — Vollständiger Re-Audit nach Wave 11 (6 Subagenten parallel) | 1H · 12M · 1L (neu entdeckt) |
 | 2026-06-03 | Wave 12 Runde 1 — Security Quick Wins | M-63 (statTile esc()), M-64 (DOMPurify) gefixt |
-| 2026-06-03 | Wave 12 Runde 2 — Code-Qualität Funktionslängen | H-19, M-65–M-72 gefixt · api: _validate_register_form, _validate_reset_request, _load_user_records; sync: 6×_sync_*_for_day, _get_garmin_token, _init_garmin_client, _sync_date_range, _run_initial_sync, _configure_scheduler; ml: _configure_ml_scheduler, _run_body_battery, _run_stress_score |
+| 2026-06-03 | Wave 12 Runde 2 — Code-Qualität Funktionslängen | H-19, M-65–M-72 gefixt · api: `_validate_register_form`, `_validate_reset_request`, `_load_user_records`; sync: `_sync_*_for_day` (6×), `_get_garmin_token`, `_init_garmin_client`, `_sync_date_range`, `_run_initial_sync`, `_configure_scheduler`; ml: `_configure_ml_scheduler`, `_run_body_battery`, `_run_stress_score` |
 | 2026-06-03 | Wave 12 Runde 3 — Observability + Tests + CI | M-73 (sync_libre_user bind_contextvars), M-74 (daily_range == 9.0), L-65 (bandit vor ruff) gefixt |
+| 2026-06-03 | Eval 6 — Public-Release-Audit nach Wave 12 (6 Subagenten parallel, Fokus: genereller Release) | 2H · 13M · 15L (neu entdeckt) |
+| 2026-06-03 | Wave 13 Runde 1 — Security Quick Wins | H-20 (Libre tempfile+Fernet), H-21 (else entfernt), M-75 (SESSION_SECRET Validator), M-76 (DOMPurify openFormulaDialog), M-77 (TRUSTED_PROXY_CIDRS .env.example) gefixt |
+| 2026-06-03 | Wave 13 Runde 2 — Architektur & Konfiguration | M-83 (asyncio.Event-Muster), M-81 (LOG_LEVEL via Env alle 3 Services), L-67 (Dockerfile /ready), L-68 (CLAUDE.md Env-Sektion), L-80 (PYTHONUNBUFFERED) gefixt · M-84 ✅ false positive |
+| 2026-06-03 | Wave 13 Runde 3 — Tests + CI/CD | M-79 (fail_under 65→70%), M-80 (CICD-M4 Tech-Debt), L-75 (POST /api/sync entfernt), L-76 (pragma allowlist secret), L-77 (platformAutomerge: false) gefixt |
 
 ---
 
 ## Achsen-Übersicht
 
-| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | W12 | Noch offen |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | — |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | — |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | — |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | M-19 (manuell) |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-19 (manuell) |
+| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | W12 | Eval 6 | W13 | Noch offen |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | — |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-78, M-85–87 |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | — |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | M-19 (manuell) |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-82, H-07 (manuell), M-19 (manuell) |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
@@ -74,6 +78,14 @@
 - **Tests 🟡:** H-17 (is_active=False Login-Test — H-08 W0 fixte Implementation, Test fehlt weiterhin), 3 Mediums (@requires_data in CI nie ausgeführt, inference_models.py Tests fehlen, fail_under Drift).
 - **CI/CD 🟢:** Nur 1 Medium (Trivy ohne Artefakt) + wenige Lows. DORA-Profil: High Performer.
 - **Observability 🟡:** 3 Mediums (stdlib ProcessorFormatter Bridge fehlt, Compose-Healthcheck /health statt /ready, SentryProcessor fehlt). Grundinfrastruktur (structlog JSON, /health + /ready, Sentry optional) ist vorhanden.
+
+**Eval 6 Begründung (nach Wave 12, Public-Release-Fokus):**
+- **Security 🟡:** H-20/H-21 (Libre-Token Klartext auf Filesystem + Silent-Plaintext-Fallback) sind die schwerwiegendsten Neufunde — der Garmin-Flow wurde korrekt mit Fernet + ephemerem `tempfile.TemporaryDirectory` implementiert; der LibreLink-Flow nutzt ein dauerhaftes Klartextfile auf Disk sowie einen toten `else token_json`-Pfad. Außerdem: M-75 (SESSION_SECRET ohne Längen-Validator), M-76 (openFormulaDialog in dashboard-utils.js:143 ohne DOMPurify — anders als metrics.js:61, das bereits W12 R1 gefixt wurde), M-77 (TRUSTED_PROXY_CIDRS undokumentiert).
+- **Architektur 🟡:** M-83 ist eine Regression durch M-45: `scheduler.shutdown(wait=True)` als blockierender Aufruf in einem `loop.add_signal_handler`-Callback friert den Event-Loop für die Dauer laufender ML-Jobs ein. sync-service nutzt korrekt das `asyncio.Event`-Muster (Referenz). M-84: ml-service ohne FERNET_KEY-Validator im Gegensatz zu api und sync-service.
+- **Code-Qualität 🟡:** M-78 (`assert user_id > 0` als Security-Guard in `api/src/db/users.py:127,214,254` — durch Python `-O`-Flag deaktivierbar). M-85–87: 3 Dateien möglicherweise wieder >400Z nach Wave 12 R2 [zu verifizieren].
+- **Tests 🟡:** M-79 (sync-service `fail_under=65%` — M-59 hob von 50% auf 65% an; Ziel ist 70%).
+- **CI/CD 🟡:** M-80 (kein automatisierter Deployment-Step in Pipeline — für Public Release strukturelles Gap, für Homelab als Tech-Debt dokumentierbar).
+- **Observability 🟡:** M-81 (LOG_LEVEL hardcoded in allen 3 `logging_config.py` — 12-Factor-Verstoß), M-82 (In-Memory-Metriken `_active_requests`/`_error_requests` nicht extern abrufbar; M-20 W7 fügte Counter hinzu, aber kein `/metrics`-Endpoint für Prometheus/externe Monitoring-Systeme).
 
 ---
 
@@ -106,6 +118,8 @@
 | H-17 | ✅ | W10 R1 | **Login mit `is_active=False` nicht getestet** — H-08 (W0) fixte die Implementation; Test für deaktivierten-User-Pfad fehlte | `api/tests/test_auth.py` | Tests |
 | H-18 | ✅ | W10 R2 | **`_sync_activities` + `_sync_day` komplett ungetestet** — gesamter Garmin-Sync-Kernpfad ohne Unit-Tests; 12 neue Tests in `test_sync_logic.py` | `sync-service/tests/test_sync_logic.py` (neu) | Tests |
 | H-19 | ✅ | W12 R2 | **`main()` in sync-service 87 Zeilen** — SIGTERM-Handling, Scheduler-Setup und Startup-Logik gemischt · Fix: `_run_initial_sync()` + `_configure_scheduler()` extrahiert; `main()` jetzt ~35Z | `sync-service/src/main.py` | Code-Qualität |
+| H-20 | ✅ | W13 R1 | **Libre-Token im Klartext auf Container-Filesystem** — `libre_authenticate()` schreibt Token permanent nach `/app/tokens/{user_id}/libre/libre_token.json`; anders als Garmin-Flow (ephemeres `tempfile.TemporaryDirectory` + Fernet in DB). Container-Zugriff → alle LibreLink-Tokens ohne Entschlüsselung lesbar | `api/src/libre/client.py:22-24`, `api/src/routes/libre.py:57` | Security |
+| H-21 | ✅ | W13 R1 | **Silent Plaintext Fallback für Libre-Token in DB** — `fernet_encrypt(...) if settings.fernet_key else token_json` ist toter Code (Startup-Validator crasht bei fehlendem Key), signalisiert aber eine "unverschlüsselt OK"-Betriebsart; zukünftige Code-Änderung kann Tokens unverschlüsselt persistieren · Garmin-Flow (`garmin.py`) hat diesen Fallback nicht | `api/src/routes/libre.py:60-64` | Security |
 
 ---
 
@@ -187,6 +201,19 @@
 | M-72 | ✅ | W12 R2 | **`_run_body_battery_and_stress()` 57 Zeilen** — nach M-51-Teilfix noch über 50Z · Fix: `_run_body_battery()` + `_run_stress_score()` extrahiert; Orchestrator jetzt ~18Z | `ml-service/src/inference_models.py` | Code-Qualität |
 | M-73 | ✅ | W12 R3 | **`sync_libre_user()` ohne Correlation-ID** — L-54 (W10 R6) fixte `sync_user` + `run_inference`; `sync_libre_user` wurde übersehen · Fix: `bind_contextvars(job_id=...)` + `clear_contextvars()` in try/finally | `sync-service/src/main.py:196` | Observability |
 | M-74 | ✅ | W12 R3 | **Tautologische Assertion `daily_range >= 0`** — mathematisch immer wahr (`max(vals) - min(vals) >= 0`); testet kein echtes Verhalten · Fix: `assert feat["daily_range"] == 9.0` (deterministisch: `_make_bb_records(50)` → min 60, max 69) | `ml-service/tests/test_models.py:495` | Tests |
+| M-75 | ✅ | W13 R1 | **SESSION_SECRET ohne Mindestlängen-Validierung** — `session_secret: str` ohne Validator; Wert wie `"test"` besteht App-Start. Starlette-Sessions signiert mit diesem Wert — schwacher Secret ermöglicht Token-Forging | `api/src/db/pool.py:12` | Security |
+| M-76 | ✅ | W13 R1 | **`openFormulaDialog` schreibt `innerHTML` ohne DOMPurify** — `bodyHtml`-Parameter unkontrolliert per `innerHTML`; M-64 (W12 R1) fixte `metrics.js:61`; `dashboard-utils.js:143` wurde übersehen. Aktuell statische Daten, aber jede zukünftige Aufrufstelle mit API-Daten führt zu DOM-XSS | `api/src/static/dashboard-utils.js:143` | Security |
+| M-77 | ✅ | W13 R1 | **`TRUSTED_PROXY_CIDRS` fehlt in `.env.api.example`** — Betreiber der den Proxy tauscht erhält keinen Hinweis; fehlerhafte CIDR-Konfiguration bricht Rate-Limiting-IP-Basis | `api/src/main.py:44-47`, `env/.env.api.example` | Security |
+| M-78 | ❌ | — | **`assert` als Security-Guard in DB-Schicht** — `assert user_id > 0` u.ä. in `update_password()`, `delete_user()`, `save_user_token()`; `assert` wird durch Python `-O`-Flag deaktiviert; keine verlässliche Guard-Anweisung in Produktion | `api/src/db/users.py:127,214,254` | Code-Qualität |
+| M-79 | ✅ | W13 R3 | **sync-service `fail_under=65%` (Mindestziel: 70%)** — M-59 (W10 R2) hob von 50% auf 65% an; Ziel laut architecture-rules.md ist 70-80% | `sync-service/pyproject.toml:8`, `.github/workflows/ci.yml:272` | Tests |
+| M-80 | ✅ | W13 R3 | **Kein automatisierter Deployment-Step (CD-Pipeline fehlt)** — CI endet nach Build+Test; Deployment erfolgt manuell via `make up`; kein Rollback-Mechanismus in der Pipeline · Für Public Release: strukturelles Gap · Für Homelab: als Tech-Debt dokumentieren | `.github/workflows/ci.yml` | CI/CD |
+| M-81 | ✅ | W13 R2 | **`LOG_LEVEL` hardcoded `INFO` in allen 3 Services** — 12-Factor-Verstoß; Debug-Logging in Produktion erfordert Image-Rebuild · Fix: `getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)` | `api/src/logging_config.py:38`, `sync-service/src/logging_config.py:37`, `ml-service/src/logging_config.py:38` | Observability |
+| M-82 | ❌ | — | **In-Memory-Metriken nicht extern abrufbar** — M-20 (W7) fügte `_active_requests`/`_error_requests`-Counter hinzu; kein `/metrics`-Endpoint (Prometheus), keine Saturation-Trends für externe Systeme | `api/src/main.py:65-95` | Observability |
+| M-83 | ✅ | W13 R2 | **ml-service SIGTERM `shutdown(wait=True)` blockiert Event Loop** — Regression aus M-45 (W10 R3): M-45 änderte `wait=False` → `wait=True` um laufende Jobs nicht abzubrechen; `shutdown(wait=True)` als Lambda in `loop.add_signal_handler`-Callback ist aber ein blockierender Call im Event-Loop-Thread · sync-service nutzt korrekt das `asyncio.Event`-Muster als Referenz | `ml-service/src/main.py:220` | Architektur |
+| M-84 | ✅ | — | **ml-service ohne FERNET_KEY-Validator** — false positive: ml-service greift ausschließlich auf Analytics-Tabellen zu (activities, health, hrv, ml_predictions), nie auf Tokens. Kein FERNET_KEY-Feld nötig. | `ml-service/src/config.py:1-21` | Architektur |
+| M-85 | ❌ | — | **`api/src/routes/auth.py` möglicherweise wieder >400 Zeilen** — L-59 (W11) brachte Datei auf 390Z; W12 R2 extrahierte Helfer innerhalb der Datei (kein Datei-Split) → Netto-Wachstum möglich · Eval-6-Messung: 429Z [zu verifizieren] | `api/src/routes/auth.py:1` | Code-Qualität |
+| M-86 | ❌ | — | **`sync-service/src/main.py` möglicherweise >400 Zeilen** — W12 R2 extrahierte viele Helfer (H-19, M-69, M-70) aber alle verbleiben in derselben Datei · Eval-6-Messung: 419Z [zu verifizieren] | `sync-service/src/main.py:1` | Code-Qualität |
+| M-87 | ❌ | — | **`_backfill_custom_scores()` Zyklomatische Komplexität CC=15** — H-12 (W9 R4) verschob Raw-SQL in `ml-service/src/db/`; Algorithmus-Struktur der Funktion unverändert. Body-Battery-, Stress- und Running-Economy-Pfade als Sub-Funktionen extrahieren [zu verifizieren ob H-12-Fix CC bereits reduziert hat] | `ml-service/src/backfill.py:73` | Code-Qualität |
 
 ---
 
@@ -259,29 +286,57 @@
 | L-63 | ✅ | W10 R2 | **metrics.js: `result.value`/`result.sub` per `textContent` → Rendering-Regression** — M-33-Fix setzte alle Metric-Detail-Werte per `textContent`; Renderer-Funktionen liefern styled HTML-Spans, kein User-Input → alle 8 Metric-Seiten zeigten rohe HTML-Tags · Fix: `innerHTML` für Renderer-Ausgaben wiederhergestellt | `api/src/static/metrics.js:38` | Code-Qualität |
 | L-64 | ✅ | W11 | **`epilepsy.js`: `flags.label`/`flags.detail` via Template-Literal in `innerHTML` ohne Escaping** — H-10 adressierte seizure notes/event-type/sport-type/metrics.js; risk-flag-Labels nicht abgedeckt · Fix: `renderRiskFlags()` extrahiert + exportiert, `createElement + textContent`; 4 neue Tests in `epilepsy.test.js` | `api/src/static/epilepsy.js:51`, `api/tests/js/epilepsy.test.js` (neu) | Security |
 | L-65 | ✅ | W12 R3 | **Pre-commit Hook-Reihenfolge: `bandit` nach `ruff`** — github-rules.md Soll: gitleaks → bandit → lint → format → typecheck; Ist: gitleaks → ruff → bandit; kein funktionaler Impact, aber Abweichung von Canonical-Reihenfolge · Fix: bandit-Repo-Block vor ruff verschoben | `.pre-commit-config.yaml:21–34` | CI/CD |
+| L-66 | ❌ | — | **`/api/evidence` ohne Authentifizierung** — einziger `/api/*`-Endpunkt ohne `require_user`; Evidence-Daten sind nicht sensitiv, aber Information-Disclosure / Fingerprinting möglich · Fix: `require_user` ergänzen oder als Public-Endpunkt in CLAUDE.md dokumentieren | `api/src/routes/api.py:335-337` | Security |
+| L-67 | ✅ | W13 R2 | **Dockerfile-HEALTHCHECK vs. docker-compose-Healthcheck inkonsistent** — M-48 (W10 R3) änderte compose auf `/ready`; Dockerfile nutzt noch `/health`. Im Stack-Betrieb überschreibt compose (korrekt). Im Standalone-Container-Betrieb prüft Docker nur `/health`. Fix: Dockerfile-HEALTHCHECK auf `/ready` anpassen | `api/Dockerfile:18-19`, `docker-compose.yml:120` | Architektur |
+| L-68 | ✅ | W13 R2 | **CLAUDE.md Env-Dokumentation inkonsistent** — CLAUDE.md listet `env/.env` als "shared, alle Services"; tatsächlich laden alle 3 App-Services `env/.env.app`; `env/.env` nur DB/Flyway. Führt zu Setup-Verwirrung beim Onboarding | `CLAUDE.md` Env-Files-Sektion, `docker-compose.yml:107,145,179` | Architektur |
+| L-69 | ❌ | — | **Inkonsistente SQL-Parameterreihenfolge** — `set_garmin_linked` übergibt `(email, user_id)` für `($1,$2)`, `set_libre_linked` übergibt `(user_id, email)`; beide SQL-Abfragen korrekt aber widersprüchliches Muster erhöht Fehlerrisiko bei Änderungen | `api/src/db/users.py:82 vs :99` | Code-Qualität |
+| L-70 | ❌ | — | **`assert user is not None` in Route-Handler** — nach `_handle_invalid_credentials`-Check logisch korrekt, aber `assert` ist nicht idiomatisch für Error-Handling in Production-Code · Fix: `if user is None: raise RuntimeError(...)` | `api/src/routes/auth.py:165` | Code-Qualität |
+| L-71 | ❌ | — | **Fehlende Return-Type-Annotierungen in Route-Handlern** — M-07 (W4) adressierte `pages.py`/`sync-service`; `account.py:27,38,66`, `garmin.py:30,41,99`, `libre.py:20,31,104` noch ohne `-> Response`-Annotation | `api/src/routes/account.py`, `garmin.py`, `libre.py` | Code-Qualität |
+| L-72 | ❌ | — | **Fehlende Docstrings in kritischen Geschäftsfunktionen** — `get_seizure_risk()` (57Z, komplexe Risikobewertung), `build_training_load()` (72Z, CTL/ATL/TSB), `export_user_data()` (DSGVO Art. 20) ohne Docstrings | `api/src/db/seizures.py:153`, `api/src/training_load.py:28`, `api/src/db/users.py:356` | Code-Qualität |
+| L-73 | ❌ | — | **Erhöhte CC >10 in 4 weiteren Funktionen** — `ml-service/src/models/training_load.py:19` (CC=12), `ml-service/src/models/hrv_recovery.py:7` (CC=12), `sync-service/src/garmin/mapper.py:57` (CC=13), `ml-service/src/models/readiness.py:44` (CC=11) | mehrere | Code-Qualität |
+| L-74 | ❌ | — | **Bare `except Exception` ohne spezifischen Typ** — Fernet-Validierung in `main.py:123` fängt `Exception` statt `ValueError, InvalidToken`; `/ready`-Handler in `main.py:186` fängt `Exception` ohne Logging → kein Audit-Trail bei DB-Fehler | `api/src/main.py:123,186` | Code-Qualität |
+| L-75 | ✅ | W13 R3 | **`POST /api/sync` in CLAUDE.md dokumentiert, Endpunkt existiert nicht** — L-47 (W10 R4) entfernte den Endpunkt; CLAUDE.md-Sektion "JSON-API Endpoints" nicht aktualisiert | `CLAUDE.md` Sektion JSON-API Endpoints | Tests/Docs |
+| L-76 | ✅ | W13 R3 | **FERNET_KEY-Dummy als Klartext-Hardcode in ci.yml** — `FERNET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=` direkt im YAML; kein echtes Secret, aber E2E-Sektion generiert Key korrekt via openssl. Pattern suggeriert Schlüssel-Material im Repo · Fix: `# pragma: allowlist secret`-Kommentar | `.github/workflows/ci.yml:269` | CI/CD |
+| L-77 | ✅ | W13 R3 | **Renovate automergt Produktions-Abhängigkeiten** — `pep621 patch`-Automerge gilt für alle Abhängigkeiten inkl. `fastapi`, `asyncpg`, `scikit-learn`; ohne erzwungene Status-Checks (CICD-M3) könnte PR mergen bevor CI fertig ist · Fix: `"platformAutomerge": false` oder Automerge auf devDependencies einschränken | `renovate.json:9-13` | CI/CD |
+| L-78 | ❌ | — | **Log-Aggregation fehlt — Logs nur lokal via Docker json-file Driver** — keine externe Aggregation (Better Stack / Loki); Multi-Service-Debugging über alle 3 Services nicht möglich · Fix: Better Stack Tail Agent als Compose-Service oder Loki+Promtail | `docker-compose.yml:27-31` | Observability |
+| L-79 | ❌ | — | **Kein konfiguriertes Alert-System** — keine Alerts für Error Rate >1%, p95 >2s, CPU/Memory >80% · Fix: UptimeRobot Keyword-Check + Sentry Alert-Rules als Minimum | vollständige Lücke | Observability |
+| L-80 | ✅ | W13 R2 | **`PYTHONUNBUFFERED` fehlt in allen Dockerfiles** — ohne `ENV PYTHONUNBUFFERED=1` puffert Python stdout; Logs können bei Container-Crash verloren gehen · Fix: `ENV PYTHONUNBUFFERED=1` in alle 3 Dockerfiles | `api/Dockerfile`, `sync-service/Dockerfile`, `ml-service/Dockerfile` | Observability |
 
 ---
 
-## Offene Findings (nach Wave 12 R2)
+## Offene Findings (nach Wave 13 R1–R3)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Eval 1–5, Wave 1–12 gefixt** | ✅ H-01–H-19, M-01–M-74, L-01–L-58, L-60–L-65 (außer H-07, M-19) |
-| **Noch offen** | — (keine code-seitigen Findings mehr offen) |
+| **Eval 1–6, Wave 1–13 gefixt** | ✅ H-01–H-21, M-01–M-84, L-01–L-80 (außer H-07, M-19 und nachstehend Offene) |
+| **Noch offen** | ❌ M-82, M-85–M-87, L-66, L-69–L-74, L-78–L-79 |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
+| **[zu verifizieren]** | M-85 (auth.py 429Z), M-86 (sync/main.py 419Z), M-87 (backfill.py CC=15) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
 ---
 
-## Roadmap — Wave 12
+## Roadmap — Wave 13
+
+| Runde | Fokus | Findings | Aufwand |
+|-------|-------|---------|---------|
+| ~~**W13 R1**~~ | ~~Security Quick Wins~~ | ~~H-20, H-21, M-75, M-76, M-77~~ | ✅ |
+| ~~**W13 R2**~~ | ~~Architektur & Konfiguration~~ | ~~M-83, M-84 (false positive), M-81, L-80, L-67, L-68~~ | ✅ |
+| ~~**W13 R3**~~ | ~~Tests + CI/CD~~ | ~~M-79, M-80, L-75, L-76, L-77~~ | ✅ |
+| **W13 R4** | Code-Qualität | M-78 (`assert` → `ValueError` in DB-Schicht), M-82 (Metriken in `/health` oder Prometheus), M-85–87 [zu verifizieren], L-69–L-74 (Typen, Docstrings, CC, except) | S·M·S·S |
+| **W13 R5** | Observability | L-66 (`require_user` auf `/api/evidence`), L-78 (Log-Aggregation), L-79 (Alert-System), L-80 bereits in R2 | S·M·L |
+
+**Gesamtaufwand Wave 13:** 2H · 13M · 15L — Phase-1 (R1–R3) unter 2h, alle S-Aufwand
+
+---
+
+## Roadmap — Wave 12 (abgeschlossen)
 
 | Runde | Fokus | Findings | Aufwand |
 |-------|-------|---------|---------|
 | ~~**W12 R1**~~ | ~~Security Quick Wins~~ | ~~M-63 (statTile `esc()`), M-64 (DOMPurify/DOM-API)~~ | ✅ |
 | ~~**W12 R2**~~ | ~~Code-Qualität — Funktionslängen~~ | ~~H-19, M-65–72 (Funktion-Extraktion in api/sync/ml)~~ | ✅ |
 | ~~**W12 R3**~~ | ~~Observability + Tests + CI~~ | ~~M-73 (sync_libre_user job_id), M-74 (daily_range == 9.0), L-65 (bandit vor ruff)~~ | ✅ |
-
-**Gesamtaufwand verbleibend:** 0H · 0M · 0L · **Wave 12 vollständig abgeschlossen** · Keine code-seitigen Findings offen
 
 ---
 

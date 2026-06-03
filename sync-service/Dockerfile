@@ -12,6 +12,7 @@ RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && \
     adduser --disabled-password --gecos "" appuser
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 USER appuser
 COPY src/ ./src/
 HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
