@@ -294,4 +294,17 @@ describe('openFormulaDialog', () => {
         expect(document.getElementById('formula-dialog-link').href).toContain('/help#hrv');
         expect(document.getElementById('formula-dialog').showModal).toHaveBeenCalledOnce();
     });
+
+    it('M-76: passes bodyHtml through DOMPurify.sanitize before setting innerHTML', () => {
+        const xssPayload = '<img src=x onerror=alert(1)>';
+        const sanitizedOutput = '<img src="x">';
+        const sanitizeSpy = vi.fn(() => sanitizedOutput);
+        global.DOMPurify = { sanitize: sanitizeSpy };
+
+        openFormulaDialog('Test', xssPayload, '#');
+
+        expect(sanitizeSpy).toHaveBeenCalledOnce();
+        expect(sanitizeSpy).toHaveBeenCalledWith(xssPayload);
+        expect(document.getElementById('formula-dialog-body').innerHTML).toBe(sanitizedOutput);
+    });
 });

@@ -82,7 +82,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 | `DB_PORT` | int | — | `5432` | PostgreSQL-Port |
 | `DB_NAME` | string | — | `garmin` | Datenbankname |
 
-*(DB_USER, DB_PASSWORD, DB_APP_USER, DB_APP_PASSWORD kommen aus `env/.env`)*
+*(DB_APP_USER, DB_APP_PASSWORD kommen aus `env/.env.app`)*
 
 ### Training-Load Forecast
 
@@ -99,6 +99,18 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 | `RESEND_FROM_EMAIL` | string | — | `onboarding@resend.dev` | Absender-Adresse. Eigene Domain nach Verifizierung in Resend eintragen. |
 | `APP_BASE_URL` | string | — | `https://your-domain.com` | Basis-URL für Links in Reset-Mails. Muss öffentlich erreichbar sein. |
 
+### Proxy & Rate Limiting
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `TRUSTED_PROXY_CIDRS` | list[str] | — | `["127.0.0.1/32"]` | CIDR-Bereiche der vertrauenswürdigen Proxies für `X-Forwarded-For`-Auswertung. Docker-Netz: `["172.23.0.0/16","127.0.0.1/32"]`. Falsche Konfiguration bricht IP-basiertes Rate Limiting. |
+
+### Logging
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `LOG_LEVEL` | string | — | `INFO` | Logging-Level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Gilt für Root-Logger und structlog. |
+
 ### Error Tracking
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
@@ -111,7 +123,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 
 ### Datenbankverbindung
 
-Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`, `DB_PASSWORD`, `DB_APP_USER`, `DB_APP_PASSWORD` kommen aus `env/.env`.
+Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_USER`, `DB_APP_PASSWORD` kommen aus `env/.env.app`.
 
 ### Sync-Timing
 
@@ -122,6 +134,12 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 | `SYNC_DAILY_DAYS` | int | — | `2` | Wie viele Tage pro Interval-Run nachgeladen werden |
 
 *(FERNET_KEY kommt aus `env/.env.app` — identischer Wert für alle App-Services)*
+
+### Logging (Sync)
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `LOG_LEVEL` | string | — | `INFO` | Logging-Level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Gilt für Root-Logger und structlog. |
 
 ### Error Tracking (Sync)
 
@@ -135,7 +153,7 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 
 ### Datenbankverbindung
 
-`DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_USER`, `DB_APP_PASSWORD` kommen aus `env/.env`.
+`DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_USER`, `DB_APP_PASSWORD` kommen aus `env/.env.app`.
 
 > Hinweis: ml-service nutzt nur den App-User, nicht den Admin-User (kein `DB_USER` / `DB_PASSWORD` nötig).
 
@@ -151,6 +169,12 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
 | `MODEL_DIR` | path | — | `/app/models` | Verzeichnis für gespeicherte scikit-learn-Modelle (joblib-Format) |
+
+### Logging (ML)
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `LOG_LEVEL` | string | — | `INFO` | Logging-Level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Gilt für Root-Logger und structlog. |
 
 ### Error Tracking (ML)
 
@@ -181,6 +205,8 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 | `RESEND_FROM_EMAIL` | — | — | default | — | — |
 | `APP_BASE_URL` | — | — | default | — | — |
 | `SENTRY_DSN` | — | — | optional `""` | optional `""` | optional `""` |
+| `LOG_LEVEL` | — | — | default `INFO` | default `INFO` | default `INFO` |
+| `TRUSTED_PROXY_CIDRS` | — | — | default | — | — |
 | `SYNC_INTERVAL_HOURS` | — | — | — | default `2` | — |
 | `SYNC_LOOKBACK_DAYS` | — | — | — | default `30` | — |
 | `SYNC_DAILY_DAYS` | — | — | — | default `2` | — |
@@ -230,7 +256,7 @@ In GitHub Actions werden echte Env-Values über Secrets injiziert. Im E2E-Test-S
 
 ```yaml
 sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -hex 32)|" env/.env.api
-sed -i "s|^FERNET_KEY=.*|FERNET_KEY=$(python3 -c '...')|" env/.env
+sed -i "s|^FERNET_KEY=.*|FERNET_KEY=$(python3 -c '...')|" env/.env.app
 ```
 
 In Unit-Tests (`api/tests/conftest.py`) werden Env-Variablen via `os.environ.setdefault()` mit Test-Werten gesetzt — bevor `src.main` importiert wird.

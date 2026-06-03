@@ -72,7 +72,7 @@
     <!-- ── Architektur ──────────────────────────────────────────────────── -->
     <section id="architektur" class="mb-20">
       <h2 class="text-2xl font-bold mb-2">Architektur</h2>
-      <p class="text-slate-400 text-sm mb-8">Vier Docker-Container kommunizieren über eine gemeinsame TimescaleDB. Kein externer Cloud-Aufruf außer von den Datenquellen.</p>
+      <p class="text-slate-400 text-sm mb-8">Fünf Docker-Services kommunizieren über eine gemeinsame TimescaleDB. Kein externer Cloud-Aufruf außer von den Datenquellen.</p>
 
       <!-- Datenfluss-Diagramm -->
       <div class="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-6 sm:p-8 mb-6">
@@ -97,7 +97,7 @@
         <div class="arch-box mb-4 max-w-sm mx-auto">
           <div class="text-xs text-slate-400 mb-1">sync-service</div>
           <div class="font-semibold text-accent-light">Sync &amp; Ingest</div>
-          <div class="text-xs text-slate-500 mt-1">Täglich 06:00 UTC · APScheduler · asyncpg</div>
+          <div class="text-xs text-slate-500 mt-1">Garmin tägl. (SYNC_HOUR, default 06:00 UTC) · Libre alle 5 min · APScheduler · asyncpg</div>
         </div>
 
         <div class="arch-arrow mb-4">↓</div>
@@ -106,7 +106,7 @@
         <div class="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4 max-w-sm mx-auto mb-4 text-center">
           <div class="text-xs text-indigo-300 mb-1">Persistenz</div>
           <div class="font-semibold text-indigo-200">TimescaleDB</div>
-          <div class="text-xs text-slate-500 mt-1">PostgreSQL 16 · Hypertables · Flyway V1–V14</div>
+          <div class="text-xs text-slate-500 mt-1">PostgreSQL 16 · Hypertables · Flyway V1–V22</div>
         </div>
 
         <div class="flex gap-4 justify-center mb-4">
@@ -117,10 +117,10 @@
         <!-- Analytics + API nebeneinander -->
         <div class="grid sm:grid-cols-2 gap-4 max-w-xl mx-auto">
           <div class="arch-box">
-            <div class="text-xs text-slate-400 mb-1">analytics-service</div>
+            <div class="text-xs text-slate-400 mb-1">ml-service</div>
             <div class="font-semibold text-accent-light">Analytics &amp; ML</div>
-            <div class="text-xs text-slate-500 mt-1">Inferenz tägl. 07:00 · Training sonntags 03:00</div>
-            <div class="text-xs text-slate-500">scikit-learn · scipy · numpy</div>
+            <div class="text-xs text-slate-500 mt-1">Inferenz tägl. 07:00 UTC · Training so. 03:00 UTC</div>
+            <div class="text-xs text-slate-500">scikit-learn · scipy · numpy · asyncio.Event SIGTERM</div>
           </div>
           <div class="arch-box">
             <div class="text-xs text-slate-400 mb-1">api-service</div>
@@ -137,9 +137,9 @@
       <!-- Security-Layer -->
       <div class="bg-slate-900/40 border border-white/[0.06] rounded-xl p-4 text-sm text-slate-400">
         <span class="font-semibold text-slate-200">Security:</span>
-        CSP <code class="text-slate-300">script-src 'self'</code> · Starlette Session Cookies (httpOnly, secure, sameSite=Lax) ·
+        CSP <code class="text-slate-300">script-src 'nonce-...' 'strict-dynamic'</code> · Starlette Session Cookies (httpOnly, secure, sameSite=Lax) ·
         bcrypt Passwort-Hashing · Rate Limiting via slowapi · Caddy/Traefik Reverse Proxy mit HTTPS ·
-        Defense-in-Depth: Middleware → Route → Data-Access-Layer
+        Defense-in-Depth: Middleware → Route → Data-Access-Layer · CSRF Double-Submit auf allen mutativen Routen
       </div>
     </section>
 
@@ -336,8 +336,8 @@
 <span class="k">ATL</span> = EWM(TRIMP, τ= 7 Tage)     <span class="c">← "acute" fatigue</span>
 <span class="k">TSB</span> = CTL − ATL                  <span class="c">← "form": positiv = erholt</span>
 
-<span class="c"># Score-Skalierung 0–100</span>
-<span class="k">score</span> = min(100, ctl / 100 × 100)  <span class="c">← normiert auf Fitness-Level</span>
+<span class="c"># Score-Skalierung 0–100 (TSB-basiert, Ankerpunkt 72)</span>
+<span class="k">score</span> = clip(72 + TSB × 1.5, 0, 100)  <span class="c">← TSB=0→72, +10→87, −20→42</span>
         </div>
         <div class="text-xs text-slate-500">
           <span class="text-slate-300 font-medium">Quellen:</span>
@@ -367,8 +367,8 @@
 <span class="c"># Abweichung vom persönlichen Normalwert</span>
 <span class="k">deviation</span> = (ln(hrv_heute) − μ_log) / σ_log    <span class="c">← in Sigma-Einheiten</span>
 
-<span class="c"># Score-Skalierung 0–100</span>
-<span class="k">score</span> = min(100, max(0, 50 + deviation × 25))
+<span class="c"># Score-Skalierung 0–100 (Ankerpunkt 70)</span>
+<span class="k">score</span> = clip(70 + deviation × 15, 0, 100)  <span class="c">← 0σ→70, +1σ→85, −1σ→55</span>
         </div>
         <div class="text-xs text-slate-500">
           <span class="text-slate-300 font-medium">Minimum:</span> 7 HRV-Werte (90-Tage-Lookback) ·
@@ -418,7 +418,7 @@
               <span class="font-bold text-slate-100">Ruhepuls Z-Score (Anomalie-Erkennung)</span>
               <span class="badge-type bg-amber-500/15 text-amber-300">Statistisch</span>
             </div>
-            <p class="text-sm text-slate-400">Identifiziert ungewöhnlich hohe Ruhepulswerte als Frühwarnsignal (Übertraining, Krankheit). Threshold 1.5σ statt 2.0σ — bewusstes Design als sensitives Frühwarnsystem.</p>
+            <p class="text-sm text-slate-400">Identifiziert ungewöhnlich hohe Ruhepulswerte als Frühwarnsignal (Übertraining, Krankheit). Threshold 2.0σ — klassisches statistisches Ausreißer-Kriterium (~2.5 % der Tage einseitig).</p>
           </div>
         </div>
         <div class="formula mb-4">
@@ -431,7 +431,7 @@
   σ &lt; 1.0 → z = 0.0    <span class="c">← Division bei zu wenig Varianz vermeiden</span>
 
 <span class="c"># Klassifikation</span>
-<span class="k">is_anomaly</span> = z &gt; 1.5  <span class="c">← ~13% Tage bei Normalverteilung</span>
+<span class="k">is_anomaly</span> = z &gt; 2.0  <span class="c">← ~2.5% Tage bei Normalverteilung (einseitig)</span>
         </div>
         <div class="text-xs text-slate-500">
           Lookback: 31 Tage · Min: 7 Datenpunkte ·
@@ -1074,6 +1074,16 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
               <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
               <td class="py-3 text-slate-400 text-xs">id, user_id, occurred_at, duration_seconds, type (focal/generalized/unknown), severity (1–5), notes — Anfallstagebuch (V15)</td>
             </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">user_consents</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">user_id, consent_type (health_data/terms/age_16plus), accepted, timestamp, ip_address (SHA-256-Hash), privacy_policy_version — DSGVO Art. 5(2) Audit-Log (V19)</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-6 font-mono text-accent-DEFAULT text-xs">user_tokens</td>
+              <td class="py-3 pr-6 text-slate-500 text-xs">Standard</td>
+              <td class="py-3 text-slate-400 text-xs">user_id, service (garmin/libre), token_data (BYTEA, Fernet-verschlüsselt), updated_at — ersetzt Token-Files auf Disk (V20)</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -1082,8 +1092,10 @@ Labels: <span class="v">stabil_hoch</span> · <span class="v">erholung</span> ·
         <span class="font-semibold text-slate-200">Migrationen:</span>
         V1–V5 Schema · V6 sync_trigger · V7 app_user (least-privilege) · V8 ml_predictions ·
         V9 glucose/intraday · V10 ml_trigger · V11 activity_rpe · V12 user_profile (date_of_birth, sex) ·
-        V13 running_economy · V14 fix stride length precision (cm statt m) ·
-        V15 epilepsy_mode + seizure_events
+        V13 running_economy · V14 stride length precision · V15 epilepsy_mode + seizure_events ·
+        V16 spo2_readings · V17 account_lockout · V18 email_verification ·
+        V19 user_consents (DSGVO Art. 5) · V20 user_tokens (Fernet at rest) ·
+        V21 consent_ip_hash · V22 password_reset_token
       </div>
     </section>
 

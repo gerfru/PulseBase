@@ -40,8 +40,9 @@ Two levels — pick what you need:
 ## Quickstart
 
 ```bash
-cp env/.env.example env/.env          # fill in DB credentials + HOST_IP=your-domain.com
-cp env/.env.api.example env/.env.api  # fill in SESSION_SECRET (make gen-secrets) + APP_BASE_URL
+cp env/.env.example env/.env              # fill in DB admin credentials + HOST_IP=your-domain.com
+cp env/.env.app.example env/.env.app      # fill in DB_APP_USER, DB_APP_PASSWORD, FERNET_KEY (make gen-secrets)
+cp env/.env.api.example env/.env.api      # fill in SESSION_SECRET (make gen-secrets, min. 32 chars) + APP_BASE_URL
 cp env/.env.sync.example env/.env.sync
 cp env/.env.ml.example env/.env.ml
 make up                     # build + start all services (requires a reverse proxy on the proxy network)
@@ -77,7 +78,7 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 | `make logs-sync` | Live sync-service logs |
 | `make status` | Container status |
 | `make db` | Open psql shell |
-| `make gen-secrets` | Generate SESSION_SECRET (put in `env/.env.api`) |
+| `make gen-secrets` | Generate SESSION_SECRET (→ `env/.env.api`) and FERNET_KEY (→ `env/.env.app`) |
 | `make secure-env` | Set `chmod 600` on all env files |
 | `make test` | Run all unit tests (api + sync + ml) |
 | `make test-e2e` | Run Playwright E2E tests (builds image first, starts test stack) |

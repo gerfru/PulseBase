@@ -1,94 +1,161 @@
-# Energie-Metriken
+# Eigenberechnete Metriken
 
-PulseBase berechnet drei eigene Energie-Dimensionen transparent nach publizierten
+PulseBase berechnet alle Fitness- und Gesundheitsmetriken transparent nach publizierten
 wissenschaftlichen Methoden — unabhängig von Garmins proprietären Firstbeat-Algorithmen.
 
-Alle Berechnungen liegen offen in
-[`ml-service/src/models/energy_metrics.py`](../ml-service/src/models/energy_metrics.py).
+Dieses Dokument beschreibt **warum** (wissenschaftliche Herleitung) und **wie genau**
+(Formeln, Implementierung) jede Metrik berechnet wird.
+
+Alle Implementierungen liegen offen in `ml-service/src/models/`.
 
 ---
 
-## Warum eigene Berechnung?
+## Übersicht: Alle berechneten Metriken
 
-Garmin liefert Body Battery, Training Status und HRV-Status als Blackbox.
-Die genauen Formeln sind nicht öffentlich. PulseBase ersetzt diese durch drei
-separate, nachvollziehbare Dimensionen — mit zitierbaren Quellen für jede Formel.
+| Metrik | Modell-Key | Implementiert in | Typ |
+|--------|-----------|-----------------|-----|
+| Intensitätsminuten (moderat / vigoros) | `intensity_minutes_custom` | `intensity_minutes.py` | Regel |
+| Schlaf-Score | `sleep_score_custom` | `sleep_score.py` | Regel |
+| HRV-Status | `hrv_status_custom` | `hrv_status.py` | Regel |
+| Aerober Trainingseffekt (TRIMP) | `training_effect_custom` | `training_effect.py` | Regel |
+| CTL / ATL / TSB | *(Teil von Physical Energy)* | `energy_metrics.py` | Regel |
+| Physische Energie | `energy_physical` | `energy_metrics.py` | Regel |
+| Autonome Energie | `energy_autonomic` | `energy_metrics.py` | Regel |
+| Kognitive Energie | `energy_cognitive` | `energy_metrics.py` | Regel |
+| Body Battery Custom | `body_battery_custom` | `body_battery.py` | Regel |
+| ACWR (Workload-Ratio) | `acwr` | `training_load.py` | Regel |
+| Training Monotony | `training_monotony` | `training_load.py` | Regel |
+| Schlaf-Konsistenz | `sleep_consistency` | `sleep_metrics.py` | Regel |
+| SpO2-Trend + Apnoe-Flag | `spo2_trend` | `spo2_metrics.py` | Regel |
+| Stress-Score | `stress_score_custom` | `stress_metrics.py` | Regel |
+| Running Economy | `running_economy` | `running_economy.py` | Regel |
+| HRV-Erholungstrajektorie | `hrv_recovery` | `hrv_recovery.py` | Regel |
+| Anomalie-Erkennung (5 Metriken) | `anomaly_hr` u.a. | `anomaly.py` | Regel (Z-Score) |
+| Korrelationsanalyse (3 Paare) | `correlation_sleep_hrv` u.a. | `correlation.py` | Statistik |
+| Readiness-Prediction | `readiness_rf` | `readiness.py` | ML (Random Forest) |
+| Body-Battery-Muster | `battery_pattern` | `battery_pattern.py` | ML (K-Means) |
 
----
+**Was Garmin liefert, was wir selbst berechnen:**
 
-## Für jeden verständlich
+| Garmin-Wert | Was Garmin macht | Unsere Alternative |
+|-------------|------------------|--------------------|
+| Body Battery | Firstbeat-Algorithmus, proprietär | `body_battery_custom` (Fresh-State) |
+| Training Status (PRODUCTIVE…) | Firstbeat EPOC-Modell | CTL/ATL/TSB + ACWR |
+| HRV Status | proprietär (Baseline-Vergleich) | `hrv_status_custom` (σ-normiert) |
+| Sleep Score | proprietär | `sleep_score_custom` (Phasen + Dauer) |
+| Aerobic Effect | EPOC-basiert | `training_effect_custom` (Banister TRIMP) |
 
-### Physische Energie — Wie viel habe ich nach meinem Training noch im Tank?
-
-Stell dir ein Sparkonto vor: Jedes Training hebt Geld ab (Ermüdung), jeder Ruhetag zahlt
-Zinsen ein (Erholung). Das Konto erholt sich langsam (6 Wochen um sich aufzubauen),
-verbraucht sich aber schnell (1 Woche um zu sinken).
-
-- **Score ≈ 50** → du trainierst und erholst dich im Gleichgewicht
-- **Score > 70** → du bist ausgeruht, evtl. zu wenig Training
-- **Score < 30** → anhaltende Ermüdung, Erholung empfohlen
-- **Unter der Zahl** steht TSB (Training Stress Balance): positiv = erholt, negativ = ermüdet
-
-### Autonome Energie — Wie gut hat sich mein Nervensystem erholt?
-
-Dein Herz schlägt nicht gleichmäßig wie ein Metronom — die kleinen Schwankungen zwischen
-den Schlägen zeigen, ob dein Körper im Erholungsmodus ist. Je mehr HRV, desto mehr
-„Nerv zum Entspannen" hat dein System.
-
-Wichtig: Wir vergleichen nicht mit fremden Werten, sondern nur mit **deiner eigenen Norm**.
-Ein HRV-Wert von 35 ms kann für dich gut oder schlecht sein — entscheidend ist, ob er
-höher oder tiefer ist als deine persönlichen letzten 90 Tage.
-
-- **Score ≈ 50** → heute ist dein HRV auf deiner persönlichen Durchschnittslinie
-- **Score > 70** → HRV über Norm, Nervensystem gut erholt
-- **Score < 30** → HRV unter Norm, Körper im Stressmodus
-- **Unter der Zahl** steht die Abweichung in σ (Standardabweichungen): +1σ = ungewöhnlich gut
-
-### Kognitive Energie — Wie viel Schlafschuld trage ich mit mir?
-
-Schlafmangel akkumuliert sich wie ein Rucksack. Jede Nacht mit zu wenig Schlaf kommt
-obendrauf. Vollständiger Schlaf baut ihn wieder ab — aber nur wenn du wirklich genug schläfst.
-
-- **Score 100** → keine Schlafschuld in den letzten 7 Nächten
-- **Score 70** → etwa 5 Stunden kumulierter Schlafmangel (z.B. 5× 1h zu wenig)
-- **Score 40** → rund 10 Stunden kumulierter Schlafmangel
-- **Unter der Zahl** stehen die gesamten Stunden Schlafschuld der letzten 7 Nächte
+**Was nicht replizierbar ist:**
+- **Anaerober Trainingseffekt**: braucht Wattsensor (W'-Balance-Modell); `avg_power` nur für Radfahren
+- **Intraday-HRV** (RMSSD): Garmin liefert keine RR-Rohdaten; `hrv_last_night` als Quelle beibehalten
+- **Body Battery Intraday-Verlauf**: braucht kontinuierliches HRV; Tages-Eröffnungswert approximierbar
 
 ---
 
-## Technische Spezifikation
+## 1. Intensitätsminuten
 
-### Physisch: Edwards TRIMP + Banister Fitness-Fatigue-Modell
-
-**Quellen:**
-- Sally Edwards (1993): Heart Rate Monitor Training
-- Banister EW & Calvert TW (1991): Planning for future performance. Can J Sport Sci 17(1):9
-- TrainingPeaks: <https://www.trainingpeaks.com/learn/articles/applying-the-numbers/>
+**Methode:** WHO/CDC Herzfrequenz-Zonen — vollständig publiziert.
 
 **Formel:**
-
 ```
-# Schritt 1: Heart Rate Reserve Fraction (HRr)
-HRr = (avg_hr_aktivität − resting_hr) / (hrmax − resting_hr)
+HRr = (HR_exercise − HR_rest) / (HR_max − HR_rest)   # Karvonen Heart Rate Reserve
 
-# Schritt 2: Edwards TRIMP pro Aktivität (kein Geschlechtskoeffizient nötig)
-TRIMP = duration_min × HRr × (HRr × 4 + 1)
+Moderat:  0.50 ≤ HRr < 0.70
+Vigoros:  HRr ≥ 0.70
 
-# Schritt 3: Exponentiell gewichteter Mittelwert (Banister, 1991)
-ATL_t = ATL_{t-1} × e^(−1/7)  + TRIMP_t × (1 − e^(−1/7))   # τ = 7 Tage
-CTL_t = CTL_{t-1} × e^(−1/42) + TRIMP_t × (1 − e^(−1/42))  # τ = 42 Tage
-
-# Schritt 4: TSB (Training Stress Balance / Form)
-TSB = CTL − ATL
-
-# Schritt 5: Score
-score = clip(50 + TSB × 1.5, 0, 100)
+Intensitätsminuten = Σ Sekunden_in_Zone / 60
 ```
 
-**Parameter:**
-- HRmax: `MAX(activities.max_hr)` aus der Aktivitäts-History; Fallback 190 bpm
-- Resting HR Fallback: 60 bpm wenn kein Wert vorhanden
-- Fenster: 50 Tage täglich dekayend (dense-date-Walk)
+**Inputs:**
+- `activity_records.heart_rate` (Sekunden-HR) ✅
+- HRmax: `MAX(activities.max_hr)` über alle Aktivitäten; besser als Formel 220−Alter
+- Resting HR: `daily_summary.resting_hr`; Fallback 60 bpm
+
+**Implementiert in:** `ml-service/src/models/intensity_minutes.py`
+
+---
+
+## 2. Schlaf-Score (0–100)
+
+**Methode:** Gewichtete Schlafphasen-Formel (COROS-Ansatz, publiziert).
+
+Optimale Schlafverteilung (Literatur): Tiefschlaf ~20%, REM ~22%, Leichtschlaf ~50%, Wach < 5%.
+
+**Formel:**
+```
+deep_pct       = deep_sleep_seconds  / total_sleep_seconds
+rem_pct        = rem_sleep_seconds   / total_sleep_seconds
+wake_pct       = awake_seconds       / total_sleep_seconds
+duration_h     = total_sleep_seconds / 3600
+
+deep_score     = min(100, deep_pct / 0.20 × 100)     # optimal bei 20% Tiefschlaf
+rem_score      = min(100, rem_pct  / 0.22 × 100)     # optimal bei 22% REM
+duration_score = min(100, duration_h / 8.0 × 100)    # optimal bei 8h (Walker 2017)
+wake_penalty   = max(0, 100 − wake_pct × 500)        # −5 Punkte je 1% Wachanteil
+
+score = deep_score×0.35 + rem_score×0.25 + duration_score×0.25 + wake_penalty×0.15
+```
+
+**Inputs:** `sleep_sessions.{deep_sleep_seconds, rem_sleep_seconds, awake_seconds, total_sleep_seconds}` ✅
+
+**Implementiert in:** `ml-service/src/models/sleep_score.py`
+
+---
+
+## 3. HRV-Status (BALANCED / UNBALANCED / LOW / POOR)
+
+**Methode:** Vergleich aktueller RMSSD mit persönlicher rollender Baseline (Plews et al. 2013).
+Keine absoluten Cutoffs — individuelle Standardabweichungen.
+
+**Formel:**
+```
+baseline_mean = Mittelwert der 90-Tage-History exkl. der letzten 7 Tage
+current_mean  = 7-Tage-Rolling-Mean der letzten 7 Tage (robuster als Einzeltag)
+baseline_std  = Standardabweichung der Baseline
+
+deviation = (current_mean − baseline_mean) / baseline_std
+
+BALANCED:    deviation ≥ −0.5
+UNBALANCED:  −1.5 ≤ deviation < −0.5
+LOW:         deviation < −1.5
+```
+
+**Inputs:** `hrv_daily.hrv_last_night` (mindestens 21 Tage History empfohlen) ✅
+
+**Implementiert in:** `ml-service/src/models/hrv_status.py`
+
+---
+
+## 4. Training Load — TRIMP + Banister Fitness-Fatigue-Modell
+
+### 4.1 Edwards TRIMP (Einzelaktivität)
+
+**Formel:**
+```
+HRr = (avg_hr − resting_hr) / (hrmax − resting_hr)
+
+TRIMP_Edwards = duration_min × HRr × (HRr × 4 + 1)
+```
+
+**Banister TRIMP** (geschlechtsspezifisch, präziser bei Ausdauersport):
+```
+TRIMP_Banister = duration_min × HRr × k × e^(b × HRr)
+
+k (Skalierung): 0.64 (männlich), 0.86 (weiblich)
+b (Steigung):   1.92 (männlich), 1.67 (weiblich)
+```
+Kalibriert an Blutlaktat-Kurven. `users.sex` aus V12 vorhanden ✅.
+
+**Implementiert in:** `ml-service/src/models/trimp.py`, `training_effect.py`
+
+### 4.2 CTL / ATL / TSB (Banister Fitness-Fatigue, 1991)
+
+```
+ATL_t = ATL_{t-1} × e^(−1/7)  + TRIMP_t × (1 − e^(−1/7))   # τ = 7 Tage  (Ermüdung)
+CTL_t = CTL_{t-1} × e^(−1/42) + TRIMP_t × (1 − e^(−1/42))  # τ = 42 Tage (Fitness)
+
+TSB = CTL − ATL   # Training Stress Balance / Form
+```
 
 **TSB-Interpretation:**
 
@@ -100,80 +167,126 @@ score = clip(50 + TSB × 1.5, 0, 100)
 | −5 bis 0 | Normale Trainingsbelastung |
 | < −10 | Deutliche Ermüdung |
 
-**Bekannte Vereinfachungen:**
-- avg_hr statt Sekunden-HR; bei Ausdauer-Sport (konstante Intensität) gute Näherung
-- Genauere Variante mit Banister TRIMP (geschlechtsspezifisch) verfügbar über `/api/training-load`
+**Kalt-Start:** Die ersten 6 Wochen baut sich CTL erst auf. Fenster: 50+ Tage dense-date-Walk.
+
+**Inputs:** `activities.{avg_hr, duration_seconds, max_hr}`, `daily_summary.resting_hr` ✅
+
+### 4.3 ACWR (Acute:Chronic Workload Ratio)
+
+```
+ACWR = ATL / CTL
+
+< 0.8   → Detraining-Risiko (rote Zone)
+0.8–1.3 → optimales Trainingsfenster (grüne Zone)
+1.3–1.5 → erhöhtes Verletzungsrisiko (gelbe Zone)
+> 1.5   → hohes Verletzungsrisiko (rote Zone)
+```
+
+**Quelle:** Gabbett (2015+), *British Journal of Sports Medicine*
+
+**Implementiert in:** `ml-service/src/models/training_load.py`
 
 ---
 
-### Autonom: Ithlete / Elite HRV Score (normiert auf persönliche Baseline)
+## 5. Drei-Säulen-Energie-Modell
 
-**Quellen:**
-- Elite HRV (2021): The 1-10 Relative Balance Score.
-  <https://help.elitehrv.com/article/57-the-1-10-relative-balance-score>
-- Altini M (HRV4Training, 2021): On Heart Rate Variability and Readiness.
-  <https://medium.com/@altini_marco/on-heart-rate-variability-hrv-and-readiness-394a499ed05b>
+PulseBase berechnet drei separate, nachvollziehbare Energie-Dimensionen — unabhängig
+von Garmins proprietären Firstbeat-Algorithmen.
+
+### 5.1 Physische Energie — Fitness-Fatigue (aerob)
+
+**Was es misst:** Wie viel aerobe Kapazität ist nach Trainingsbelastung der letzten Wochen
+noch vorhanden? Mechanismus: Superkompensation — nach Belastung folgt Erholung.
 
 **Formel:**
+```
+score = clip(72 + TSB × 1.5, 0, 100)
+```
 
+**Ankerpunkte (aus Code energy_metrics.py):**
+
+| TSB | Score | Bedeutung |
+|-----|-------|-----------|
+| +10 | 87 | Sehr erholt / Wettkampfform |
+| +5 | 80 | Gut erholt |
+| 0 | 72 | Gleichgewicht (Ruhezustand) |
+| −5 | 65 | Normale Trainingsbelastung |
+| −20 | 42 | Deutliche Ermüdung |
+| −30 | 27 | Starke Erschöpfung |
+
+**Für den User:**
+- **Score > 80** → ausgeruht, intensive Einheiten möglich
+- **Score 60–80** → im Training, normaler Bereich
+- **Score < 50** → Ermüdung, Erholung empfohlen
+
+**Quellen:**
+- Sally Edwards (1993): *Heart Rate Monitor Training*
+- Banister EW & Calvert TW (1991): *Can J Sport Sci* 17(1):9
+- Statistical flaws of the fitness-fatigue model. *Sci Rep* (2025) doi:10.1038/s41598-025-88153-7
+
+**Implementiert in:** `ml-service/src/models/energy_metrics.py`
+
+---
+
+### 5.2 Autonome Energie — Vagaler Tonus (ANS-Erholung)
+
+**Was es misst:** Erholungsstatus des autonomen Nervensystems via RMSSD.
+Der einzelne verlässlichste Marker laut Literatur (HRV4Training, Kubios 2024).
+
+**Wichtig:** Kein Vergleich mit fremden Werten — nur mit **deiner eigenen 90-Tage-Baseline**.
+LF/HF-Ratio wird bewusst nicht verwendet (kein valider Marker für < 5-Minuten-Fenster).
+
+**Formel:**
 ```
 # Schritt 1: Log-Normierung (RMSSD ist rechtsschief verteilt)
 HRV_raw = ln(hrv_last_night) × 20
 
-# Schritt 2: 7-Tage-Rolling-Mean als "aktueller" Wert (Plews et al. 2013)
-# Ab 14 Datenpunkten: Mittelwert der letzten 7 Tage statt Einzeltag
+# Schritt 2: 7-Tage-Rolling-Mean (Plews et al. 2013, robuster als Einzeltag)
 # Fallback für neue User (<14 Punkte): nur letzter Wert
 current_mean = Σ HRV_raw[-7:] / 7
 
-# Schritt 3: Persönliche Baseline (Rest der 90-Tage-History, exkl. der letzten 7 Tage)
+# Schritt 3: Persönliche 90-Tage-Baseline (exkl. der letzten 7 Tage)
 baseline_mean = Σ HRV_raw[:-7] / n
-baseline_std  = √(Σ(HRV_raw − mean)² / n), min. 1.0
+baseline_std  = std(HRV_raw[:-7]),  min. 1.0
 
 # Schritt 4: σ-Normierung
 deviation = (current_mean − baseline_mean) / baseline_std
 
 # Schritt 5: Score
-score = clip(50 + deviation × 15, 0, 100)
+score = clip(70 + deviation × 15, 0, 100)
 ```
 
 **Interpretation deviation:**
-- +2σ → score ≈ 80 (sehr gut)
-- 0σ → score = 50 (Norm)
-- −2σ → score ≈ 20 (deutlich unter Norm)
 
-**Warum NICHT LF/HF-Ratio:**
-LF/HF ist kein valider Marker für sympathische Aktivität bei kurzen Zeitfenstern
-(< 5 Minuten). Kubios (führende HRV-Software) hat dies 2024 explizit als problematisch
-bezeichnet. Wir verwenden ausschließlich RMSSD (`hrv_daily.hrv_last_night`).
+| deviation | Score | Bedeutung |
+|-----------|-------|-----------|
+| +2σ | 100 | Deutlich über Norm — exzellente Erholung |
+| +1σ | 85 | Über Norm — gut erholt |
+| 0σ | 70 | Persönliche Norm |
+| −1σ | 55 | Unter Norm — Körper im Stressmodus |
+| −2σ | 40 | Deutlich unter Norm — Erholung empfohlen |
+
+**Quellen:**
+- Elite HRV (2021): *The 1-10 Relative Balance Score*
+- Altini M, HRV4Training (2021): *On HRV and Readiness*
+- Plews DJ et al. (2013): *Sports Med* 43(9):773–781
+
+**Implementiert in:** `ml-service/src/models/energy_metrics.py`
 
 ---
 
-### Kognitiv: Borbély Two-Process Model (vereinfacht — Process S)
+### 5.3 Kognitive Energie — Schlafschuld (Process S)
 
-**Quellen:**
-- Borbély AA (1982): A two process model of sleep regulation.
-  Human Neurobiology 1(3):195-204
-- National Sleep Foundation: Sleep Duration Recommendations (2015)
+**Was es misst:** Kumulierten Schlafmangel der letzten 7 Nächte.
+Basiert auf Borbélys Two-Process-Model (1982) — Goldstandard der Schlafforschung.
 
-**Modell:**
-
-Das vollständige Borbély-Modell beschreibt Schläfrigkeit durch zwei Prozesse:
-- **Process S** (homöostatischer Schlafdruck): steigt während Wachsein an
-  (Adenosin-Akkumulation), fällt während Schlaf ab
-- **Process C** (zirkadianer Rhythmus): 24h-Oszillation, Peak ~14 Uhr, Tal ~3 Uhr
-
-PulseBase implementiert **nur Process S** als kumulierte Schlafschuld, da Process C
-die Einschlaf- und Aufwachzeit erfordert, die aktuell nicht in der DB gespeichert ist.
-
-Process S wird wissenschaftlich korrekt primär durch **SWS (Tiefschlaf)** entladen, nicht
-durch reine Schlafdauer. Daher wird ein Qualitätsfaktor aus `sleep_sessions.deep_sleep_seconds`
-berechnet — kein proprietärer Garmin-Score, sondern die Rohmessung aus der DB.
+**PulseBase implementiert nur Process S** (homöostatischer Schlafdruck) als kumulierte
+Schlafschuld. Process C (zirkadianer Rhythmus) erfordert Einschlaf-/Aufwachzeiten, die
+aktuell nicht für die Berechnung herangezogen werden.
 
 **Formel:**
-
 ```
 # Schlafschuld pro Nacht (Ziel 7h — NSF-Empfehlung, untere Grenze für Erwachsene)
-# Qualitätsfaktor entfernt: Garmins Tiefschlaf-Messung (Akzelerometer+HRV) zu unzuverlässig
 debt_n = max(0, 7.0 − total_sleep_hours_n)
 
 # Kumulierte 7-Tage-Schuld
@@ -181,83 +294,131 @@ total_debt = Σ debt_n  für n in [letzte 7 Nächte]
 
 # Score
 score = clip(100 − total_debt × 6, 0, 100)
-# Kalibrierung: 6 Punkte / Stunde Schulden → bei ~16.7h Schulden = Score 0
+# Kalibrierung: 6 Punkte / Stunde Schulden
 ```
 
 **Beispielwerte:**
 
-| Schlafmuster | Schlafschuld | Score |
-|-------------|-------------|-------|
+| Schlafmuster | Schuld | Score |
+|-------------|--------|-------|
 | 7× 8h | 0h | 100 |
 | 7× 7h | 0h | 100 |
 | 7× 6h | 7h | 58 |
 | 7× 5h | 14h | 16 |
 | 3× 8h + 4× 6h | 4h | 76 |
 
----
+**Quellen:**
+- Borbély AA (1982): *Human Neurobiology* 1(3):195–204
+- National Sleep Foundation (2015): *Sleep Duration Recommendations*
+
+**Implementiert in:** `ml-service/src/models/energy_metrics.py`
 
 ---
 
-## Body Battery Custom: Fresh-State-Modell mit Schlafphasen
+## 6. Body Battery Custom — Fresh-State-Modell
 
 **Modell-Key:** `body_battery_custom`
-**Datei:** [`ml-service/src/models/body_battery.py`](../ml-service/src/models/body_battery.py)
+**Implementiert in:** `ml-service/src/models/body_battery.py`
 
-Ersetzt Garmins proprietären Body-Battery-Score durch ein transparentes Energiemodell.
+Ersetzt Garmins proprietären Body-Battery-Score (Firstbeat) durch ein transparentes Modell.
+Das frühere Banister-Akkumulationsmodell (v1) führte bei mehrtägiger Ruhe zu Plateaus
+bei Score=100 und spiegelte Tageserholung nicht korrekt wider.
 
-### Schlafqualitätsfaktor (neu)
+### Schlafqualitätsfaktor
 
 ```
-# Phasen-Zielwerte: Tiefschlaf 20%, REM 25% der Schlafdauer
-# (Walker 2017, Dijk & Czeisler 1995)
+# Phasen-Zielwerte: Tiefschlaf 20%, REM 25% der Schlafdauer (Walker 2017)
 deep_score    = min(1.0, (deep_h / total_h) / 0.20)
 rem_score     = min(1.0, (rem_h  / total_h) / 0.25)
 
-sleep_quality = 0.40 × min(1.0, total_h / 7.5)          # Dauer 40%
-              + 0.60 × (0.55 × deep_score + 0.45 × rem_score)  # Phasen 60%
+sleep_quality = 0.40 × min(1.0, total_h / 7.5)              # Dauer 40%
+              + 0.60 × (0.55 × deep_score + 0.45 × rem_score) # Phasen 60%
 
 # Fallback: wenn keine Phasendaten → reine Dauer
 ```
 
-### Fresh-State-Modell (kein Akkumulationsplateau)
+### Tageszustand (Fresh-State)
 
 ```
-# HRV-Faktor: letzte Nacht vs. persönliche 30-Tage-Baseline (Plews 2013)
+# HRV-Faktor: letzte Nacht vs. persönliche 30-Tage-Baseline
 hrv_factor = min(1.0, hrv_last_night / hrv_baseline)   # Fallback 0.5
 
-# Tageszustand aus heutiger Physiologie (max 100 bei Idealwerten)
+# Tageszustand aus aktueller Physiologie (max 100 bei Idealwerten)
 fresh = 40 + sleep_quality × 35 + hrv_factor × 25
 
-# Fresh 70% + Trägheit vom Vortag 30% — verhindert Akkumulations-Plateau
+# 70% Fresh + 30% Trägheit vom Vortag — verhindert Akkumulationsplateau
+# activity_drain = TRIMP × 0.5 (max 40); stress_drain = (avg_stress−25) × 0.2
 score = clamp(0.30 × prev + 0.70 × fresh − activity_drain − stress_drain, 5, 100)
 ```
 
-### Wissenschaftlicher Status (Stand 2025/2026)
+**Wissenschaftlicher Status:** Einzelkomponenten validiert (HRV ✅, Schlafphasen ✅,
+TRIMP-Drain ✅). Composite-Aggregation heuristisch — kein Hersteller (Oura, WHOOP, Garmin)
+veröffentlicht klinisch validierte Formel (Wearable Composite Health Scores Require
+Validation, biosourcesoftware.com 2025).
 
-Kein Hersteller (Oura, WHOOP, Garmin) veröffentlicht eine klinisch validierte
-Composite-Score-Formel — der Algorithmus bleibt immer proprietär. PulseBase verwendet
-**validierte Einzelkomponenten** (HRV als Recovery-Indikator ✅, Schlafphasen als
-Qualitätsproxy ✅) in einer heuristischen Aggregation. Das frühere Banister-Akkumulationsmodell
-hat fundamentale statistische Mängel (Scientific Reports, 2025) und wurde bewusst ersetzt.
+**Intraday-Verlauf:** Nicht replizierbar (braucht kontinuierliches HRV). Tages-Eröffnungswert
+nach Schlaf gut approximierbar.
 
 **Backfill nach Modellwechsel:** `make backfill-battery`
 
 **Quellen:**
-- Walker M (2017). Why We Sleep — sleep stage targets (Deep ~20%, REM ~25%)
-- Dijk DJ, Czeisler CA (1995). J Neurosci 15(5):3526–3538 — SWS/REM physiology
-- Plews DJ et al. (2013). Sports Med 43(9):773–781 — HRV vs. baseline
-- Kellmann M, Kallus KW (2001). Recovery-Stress Questionnaire for Athletes
-- Statistical flaws of the fitness-fatigue model. Sci Rep (2025) doi:10.1038/s41598-025-88153-7
-- Wearable Composite Health Scores Require Validation. biosourcesoftware.com (2025)
+- Walker M (2017). *Why We Sleep* — sleep stage targets
+- Dijk DJ, Czeisler CA (1995). *J Neurosci* 15(5):3526 — SWS/REM physiology
+- Plews DJ et al. (2013). *Sports Med* 43(9):773 — HRV vs. baseline
+- Scientific Reports (2025): doi:10.1038/s41598-025-88153-7 — FFM statistical flaws
 
 ---
 
-## Was noch fehlt (Roadmap)
+## 7. Weitere Algorithmen
 
-| Erweiterung | Status |
-|-------------|--------|
-| Banister TRIMP (präziser, geschlechtsspezifisch) | ✅ Implementiert als `training_effect_custom` — `users.sex` + `users.date_of_birth` in V12 migriert |
-| HRmax via Altersformel (Fallback) | ✅ `users.date_of_birth` vorhanden; Alter aus Geburtsdatum berechenbar |
-| Borbély Process C (Zirkadian) | Offen — Einschlaf-/Aufwachzeiten müssten explizit gespeichert werden |
-| 7-Tage gleitendes Baseline-Fenster HRV | ✅ Implementiert — 7-Tage-Rolling-Mean vs. Rest-Baseline |
-| Body Battery Custom — Schlafphasen + Fresh-State | ✅ Implementiert — `body_battery.py` v2 mit deep_h + rem_h |
+Kurzdokumentation der restlichen Modelle:
+
+| Modell | Kern-Logik | Lookback |
+|--------|-----------|----------|
+| **ACWR** | ATL/CTL-Ratio; Zonen <0.8/0.8–1.3/1.3–1.5/>1.5 | 50 Tage |
+| **Training Monotony** | Foster (1998): mean(TRIMP)/σ(TRIMP); Strain = Σ×Monotony | 7 Tage |
+| **Sleep Consistency** | Phillips: Zirkuläre σ auf Einschlaf-/Aufwachzeit; score=100−σ_wake×15−σ_sleep×10 | 14 Tage |
+| **SpO2 Trend** | Lineare Regression auf SpO2-History; Apnoe-Flag wenn min_spo2 < 90% | 7 Tage |
+| **Stress Score** | HRV σ-Score invertiert + Garmin avg_stress (60/40 blend) | 90 Tage |
+| **Running Economy** | Z-Score auf Bodenkon­takt­zeit, vertikale Oszillation, vertikales Verhältnis | 60 Tage |
+| **HRV Recovery** | TRIMP-Peak-Detection (>1.5×mean); ΔHRV/Tag in 7-Tage-Fenster post-Peak | 60 Tage |
+| **Anomalie-Erkennung** | Z-Score: z=(x−μ)/σ; threshold 2.0σ; min. 7 Punkte; 31 Tage History | 31 Tage |
+| **Pearson-Korrelation** | 3 Paare: Schlaf→HRV, Schlaf→RHR, Body-Battery→RHR; min. 10 Paare; r≥0.7 stark | 90 Tage |
+
+---
+
+## 8. Datenverfügbarkeit
+
+| Input | Verfügbar |
+|-------|-----------|
+| `activities.{avg_hr, duration_seconds, max_hr}` | ✅ |
+| `daily_summary.{resting_hr, steps, avg_stress, spo2_avg}` | ✅ |
+| `sleep_sessions.{total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, awake_seconds, start_time}` | ✅ |
+| `hrv_daily.{hrv_last_night, hrv_weekly_avg}` | ✅ |
+| `activity_records.heart_rate` (1 Hz) | ✅ |
+| `users.{sex, date_of_birth}` | ✅ (V12) |
+| RR-Intervall-Rohdaten (RMSSD selbst berechnen) | ❌ |
+| Kontinuierliches HRV intraday | ❌ |
+| Wattsensor-Daten (Radfahren) | 🟡 `avg_power` vorhanden |
+
+---
+
+## Quellen
+
+| Methode | Quelle |
+|---------|--------|
+| Edwards TRIMP | Sally Edwards (1993) |
+| Banister TRIMP | Banister & Calvert (1991); *Can J Sport Sci* 17(1):9 |
+| CTL/ATL/TSB | TrainingPeaks; Busso (2003), *Med Sci Sports Exerc* |
+| ACWR | Gabbett (2015+); *Br J Sports Med* |
+| Training Monotony | Foster et al. (1996); *Eur J Appl Physiol* |
+| Ithlete HRV Score | Elite HRV; Altini (HRV4Training) |
+| HRV Baseline | Plews DJ et al. (2013); *Sports Med* 43(9):773 |
+| Sleep Score | COROS Sleep Quality; *NSF Sleep Duration* (2015) |
+| Body Battery | Walker M (2017); Dijk & Czeisler (1995); Plews (2013) |
+| FFM-Kritik | *Sci Rep* (2025) doi:10.1038/s41598-025-88153-7 |
+| Sleep Consistency | Phillips AJK et al. (2017); *Sci Adv* 3:e1601666 |
+| Borbély Process S | Borbély AA (1982); *Hum Neurobiol* 1(3):195 |
+| Running Economy | Anderson T (1996); *Sports Med* 22(2):76 |
+| HRV Recovery | Plews et al. (2013); *Sports Med* |
+| W' Balance (anaerob, nicht implementiert) | Skiba et al. (2012) |

@@ -110,7 +110,7 @@ make logs-analytics   # Analytics-Service-Logs live
 make logs-sync        # Sync-Service-Logs live
 make logs-all         # Alle Logs zusammen
 make migrate          # DB-Migrationen ausführen
-make db               # psql-Shell (liest DB_APP_USER aus env/.env)
+make db               # psql-Shell (liest DB_APP_USER aus env/.env.app)
 ```
 
 ## Verzeichnisstruktur
@@ -280,7 +280,6 @@ GET  /api/ml-insights             Alle ML-Predictions: Anomalie, Korrelation, RF
 GET  /api/ml-history?days=30      ML-Predictions-Verlauf
 GET  /api/ml-status               ML-Service-Status (letzte Inferenz, Training, Modell-Metadaten)
 GET  /api/sync-status             Sync-Service-Status (letzter erfolgreicher Sync)
-POST /api/sync                    Garmin-Sync manuell auslösen
 GET  /api/evidence                Evidence-Catalog aller Metriken (level, time_horizon, …)
 GET  /api/seizures                Anfallsereignisse (nur Epilepsie-Modus)
 POST /api/seizures                Neues Anfallsereignis speichern
@@ -328,24 +327,30 @@ GET /accessibility           Barrierefreiheitserklärung (BFSG)
 
 ## Env-Files (unter `env/`)
 
-**`env/.env`** — shared, alle Services:
+**`env/.env`** — DB-Admin + Traefik (nur Flyway-Migrationen und DB-Service; NICHT in App-Containern):
 ```
 DB_USER=garmin
 DB_PASSWORD=
+HOST_IP=your-domain.com
+```
+
+**`env/.env.app`** — shared, alle 3 App-Services (api + sync-service + ml-service):
+```
 DB_APP_USER=garmin_app
 DB_APP_PASSWORD=
-HOST_IP=your-domain.com
+FERNET_KEY=          # make gen-secrets — Fernet-Key für Token-Verschlüsselung
 ```
 
 **`env/.env.api`** — nur API:
 ```
-SESSION_SECRET=     # make gen-secrets
+SESSION_SECRET=     # make gen-secrets — min. 32 Zeichen
 HTTPS_ONLY=true
 TRIMP_LOOKBACK_DAYS=7
 TRIMP_FORECAST_DAYS=7
 RESEND_API_KEY=     # optional — leer = Reset-Link nur im Log
 RESEND_FROM_EMAIL=onboarding@resend.dev
 APP_BASE_URL=https://your-domain.com
+TRUSTED_PROXY_CIDRS=["172.23.0.0/16","127.0.0.1/32"]
 ```
 
 **`env/.env.sync`** — nur sync-service:
@@ -376,6 +381,11 @@ Für lokalen/internen Betrieb akzeptabel. Für öffentliches Deployment: `certif
 
 Direktpushes auf `main` sind technisch möglich; GitHub erzwingt Status Checks nicht für private Repos ohne Pro-Plan.
 Begründung: Solo-Projekt, Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-commit-to-branch`) sind die primäre Schutzebene. Upgrade auf Pro-Plan würde Branch Protection ermöglichen.
+
+### CICD-M4: Kein automatisierter Deployment-Step (CD-Pipeline fehlt)
+
+CI endet nach Build+Test; Deployment erfolgt manuell via `make up`. Rollback via Docker-Tag (`docker compose pull && up -d` mit gepinntem Tag).
+Begründung: Homelab-Betrieb; kein Multi-Environment-Setup. Bei Bedarf: GitHub Actions → SSH → `docker compose pull && up -d` als CD-Step ergänzen.
 
 ### QUAL-M2: Duplizierter GarminClient in api/ und sync-service/
 

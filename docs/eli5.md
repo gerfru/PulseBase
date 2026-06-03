@@ -122,7 +122,7 @@ Dann vergleicht er den heutigen Wert damit. Das Ergebnis heißt **z-Score**.
 - **z = +2** → heute deutlich höher als normal (passiert an ~5% aller Tage)
 - **z = +3** → heute stark erhöht — möglicher Hinweis auf Stress, Krankheit oder Überbelastung
 
-Wenn z über 1,5 liegt, wird der Tag als "Anomalie" markiert (rot im Dashboard).
+Wenn z über 2,0 liegt, wird der Tag als "Anomalie" markiert (rot im Dashboard).
 
 ### Analyse 2: Wie fit wirst du morgen sein?
 
@@ -205,8 +205,8 @@ Die Einstellungsseite (`/settings`) zeigt auf einen Blick:
 **Was passiert beim Trennen?**
 
 Beim Trennen von LibreLinkUp werden **alle gespeicherten Glukosewerte** aus
-der Datenbank gelöscht — inklusive historischer Daten. Das Token-File auf
-dem Server wird ebenfalls gelöscht. Das kann nicht rückgängig gemacht werden.
+der Datenbank gelöscht — inklusive historischer Daten. Der verschlüsselte Token
+in der Datenbank wird ebenfalls gelöscht. Das kann nicht rückgängig gemacht werden.
 
 Beim Trennen von Garmin bleiben die bereits synchronisierten Aktivitäts- und
 Gesundheitsdaten erhalten — nur neue Syncs werden gestoppt.

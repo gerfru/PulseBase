@@ -138,7 +138,7 @@ Datenschutzerklärung, nicht vorausgewählt).
 **Konto-Löschung — umfasst (atomar in einer Transaktion):**
 `users`, `activities`, `activity_records`, `daily_summary`, `sleep_sessions`,
 `hrv_daily`, `ml_predictions`, `seizure_events`, `glucose_readings` +
-Token-Files in `/app/tokens/{user_id}/`
+`user_tokens`-Einträge (ON DELETE CASCADE — Garmin/Libre Fernet-Tokens werden mitgelöscht)
 
 ### 2.3 Verarbeitungsverzeichnis (internes Dokument, kein UI)
 
@@ -182,9 +182,9 @@ Umsetzung via native Docker Compose `env_file`-Listen — kein extra Tooling, ke
 |------|---------|---------|
 | `env/.env` | db, flyway | DB_USER/PASSWORD (Admin), HOST_IP |
 | `env/.env.app` | api, sync, ml | DB_APP_USER/PASSWORD (Least Privilege), FERNET_KEY |
-| `env/.env.api` | api | SESSION_SECRET, HTTPS_ONLY, TRIMP_*, RESEND_*, APP_BASE_URL, SENTRY_DSN |
-| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN |
-| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, SENTRY_DSN |
+| `env/.env.api` | api | SESSION_SECRET (min. 32 Zeichen), HTTPS_ONLY, TRIMP_*, RESEND_*, APP_BASE_URL, TRUSTED_PROXY_CIDRS, SENTRY_DSN, LOG_LEVEL |
+| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN, LOG_LEVEL |
+| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, SENTRY_DSN, LOG_LEVEL |
 
 Dateiberechtigungen: `make secure-env` setzt `chmod 600` auf alle Secret-Files.
 
@@ -247,12 +247,7 @@ structlog.get_logger().warning("auth.login.fail", email=email, ip=ip)
 - `ON DELETE CASCADE` — Token wird beim Konto-Löschen automatisch mitgelöscht
 - Transparente Migration: bestehende Token-Files werden beim ersten Sync in die DB migriert
 
-**Cleanup nach Migration:**
-```bash
-# Wenn alle User einmal synced haben, kann das Token-Volume entfernt werden:
-# 1. Verifizieren: SELECT user_id, service, length(token_data), updated_at FROM user_tokens;
-# 2. Token-Volume aus docker-compose.yml entfernen
-```
+**Kein permanenter Token-Pfad mehr:** Garmin- und Libre-Tokens werden beim Link-Flow ausschließlich in einem `tempfile.TemporaryDirectory()` geschrieben und dann Fernet-verschlüsselt in der DB gespeichert. Der Klartext-Token existiert nie dauerhaft auf Disk.
 
 **Langfristig:** ⏳ Garmin OAuth2 via Garmin Health API Developer Program — dann kein
 Passwort und kein Token mehr auf eigenen Servern.
@@ -341,7 +336,7 @@ echo "Backup $DATE fertig."
 | Tool | Zweck | Einrichtung | Kosten |
 |------|-------|-------------|--------|
 | **Sentry** | Exceptions, Error-Tracking | `sentry-sdk[fastapi]` in requirements | Free (5k Events/Mo) |
-| **UptimeRobot** | Uptime-Check auf `/health` | Account + Monitor erstellen | Free (50 Monitore) |
+| **UptimeRobot** | Uptime-Check auf `/ready` | Account + Monitor erstellen | Free (50 Monitore) |
 | **Better Stack** | Log-Aggregation (strukturiert) | `structlog` HTTP-Sink | Free (1 GB/Mo) |
 
 **Sentry minimal einbinden:**
@@ -423,7 +418,7 @@ nie nur das Image tauschen.
 - [ ] Cloudflare DNS eingerichtet, Origin-IP nicht öffentlich
 - [ ] Automatische Backups laufen, Restore einmal getestet
 - [ ] Sentry eingebunden, Test-Exception versendet
-- [ ] UptimeRobot Monitor für `/health` aktiv
+- [ ] UptimeRobot Monitor für `/ready` aktiv
 - [ ] SSH Passwort-Auth deaktiviert, nur Key-Auth
 
 ### Launch
