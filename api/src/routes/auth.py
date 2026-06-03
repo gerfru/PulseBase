@@ -178,6 +178,42 @@ def _register_error(request: Request, msg: str) -> Response:
     )
 
 
+def _validate_register_form(
+    request: Request,
+    name: str,
+    email: str,
+    password: str,
+    password_confirm: str,
+    consent_health: str,
+    consent_terms: str,
+    consent_age: str,
+    csrf_token: str | None,
+) -> Response | None:
+    if not verify_csrf_token(request, csrf_token):
+        return _register_error(request, "Ungültige Anfrage.")
+    if not consent_health:
+        return _register_error(
+            request, "Bitte stimme der Verarbeitung deiner Gesundheitsdaten zu."
+        )
+    if not consent_terms:
+        return _register_error(request, "Bitte akzeptiere die Nutzungsbedingungen.")
+    if not consent_age:
+        return _register_error(
+            request, "Du musst mindestens 16 Jahre alt sein, um PulseBase zu nutzen."
+        )
+    try:
+        TypeAdapter(EmailStr).validate_python(email)
+    except ValidationError:
+        return _register_error(request, "Bitte gib eine gültige E-Mail-Adresse ein.")
+    if not (1 <= len(name.strip()) <= 100):
+        return _register_error(request, "Name muss 1–100 Zeichen haben.")
+    if password != password_confirm:
+        return _register_error(request, "Passwörter stimmen nicht überein.")
+    if len(password) < 12:
+        return _register_error(request, "Passwort muss mindestens 12 Zeichen haben.")
+    return None
+
+
 @router.get("/register")
 async def register_form(request: Request) -> Response:
     return templates.TemplateResponse(
@@ -198,29 +234,19 @@ async def register(
     consent_age: str = Form(default=""),
     csrf_token: str | None = Form(default=None),
 ) -> Response:
-    if not verify_csrf_token(request, csrf_token):
-        return _register_error(request, "Ungültige Anfrage.")
-    if not consent_health:
-        return _register_error(
-            request, "Bitte stimme der Verarbeitung deiner Gesundheitsdaten zu."
-        )
-    if not consent_terms:
-        return _register_error(request, "Bitte akzeptiere die Nutzungsbedingungen.")
-    if not consent_age:
-        return _register_error(
-            request, "Du musst mindestens 16 Jahre alt sein, um PulseBase zu nutzen."
-        )
     email = email.lower().strip()
-    try:
-        TypeAdapter(EmailStr).validate_python(email)
-    except ValidationError:
-        return _register_error(request, "Bitte gib eine gültige E-Mail-Adresse ein.")
-    if not (1 <= len(name.strip()) <= 100):
-        return _register_error(request, "Name muss 1–100 Zeichen haben.")
-    if password != password_confirm:
-        return _register_error(request, "Passwörter stimmen nicht überein.")
-    if len(password) < 12:
-        return _register_error(request, "Passwort muss mindestens 12 Zeichen haben.")
+    if resp := _validate_register_form(
+        request,
+        name,
+        email,
+        password,
+        password_confirm,
+        consent_health,
+        consent_terms,
+        consent_age,
+        csrf_token,
+    ):
+        return resp
     try:
         password_hash = hash_password(password)
         user = await create_user(name, email, password_hash)
@@ -336,15 +362,13 @@ async def reset_password_form(request: Request, token: str) -> Response:
     )
 
 
-@router.post("/auth/reset/{token}")
-@limiter.limit("5/hour")
-async def reset_password(
+def _validate_reset_request(
     request: Request,
     token: str,
-    password: str = Form(),
-    password_confirm: str = Form(),
-    csrf_token: str | None = Form(default=None),
-) -> Response:
+    password: str,
+    password_confirm: str,
+    csrf_token: str | None,
+) -> Response | None:
     if not verify_csrf_token(request, csrf_token):
         return templates.TemplateResponse(
             request,
@@ -360,14 +384,6 @@ async def reset_password(
             {"error": "Sitzung abgelaufen. Bitte neu anfordern."},
             status_code=403,
         )
-    user_id = await _verify_reset_token(token)
-    if not user_id:
-        return templates.TemplateResponse(
-            request,
-            "reset_request.html",
-            {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
-            status_code=400,
-        )
     if password != password_confirm:
         return templates.TemplateResponse(
             request,
@@ -380,6 +396,30 @@ async def reset_password(
             request,
             "reset_password.html",
             {"token": token, "error": "Passwort muss mindestens 12 Zeichen haben."},
+            status_code=400,
+        )
+    return None
+
+
+@router.post("/auth/reset/{token}")
+@limiter.limit("5/hour")
+async def reset_password(
+    request: Request,
+    token: str,
+    password: str = Form(),
+    password_confirm: str = Form(),
+    csrf_token: str | None = Form(default=None),
+) -> Response:
+    if resp := _validate_reset_request(
+        request, token, password, password_confirm, csrf_token
+    ):
+        return resp
+    user_id = await _verify_reset_token(token)
+    if not user_id:
+        return templates.TemplateResponse(
+            request,
+            "reset_request.html",
+            {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
             status_code=400,
         )
     await update_password(user_id, hash_password(password))
