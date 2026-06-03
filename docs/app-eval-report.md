@@ -40,19 +40,20 @@
 | 2026-06-03 | Wave 11 — Code-Qualität + Security Nacharbeit | L-59 (auth_tokens.py extrahiert, auth.py 390Z), L-64 (epilepsy.js createElement + textContent + epilepsy.test.js) gefixt |
 | 2026-06-03 | Eval 5 — Vollständiger Re-Audit nach Wave 11 (6 Subagenten parallel) | 1H · 12M · 1L (neu entdeckt) |
 | 2026-06-03 | Wave 12 Runde 1 — Security Quick Wins | M-63 (statTile esc()), M-64 (DOMPurify) gefixt |
+| 2026-06-03 | Wave 12 Runde 2 — Code-Qualität Funktionslängen | H-19, M-65–M-72 gefixt · api: _validate_register_form, _validate_reset_request, _load_user_records; sync: 6×_sync_*_for_day, _get_garmin_token, _init_garmin_client, _sync_date_range, _run_initial_sync, _configure_scheduler; ml: _configure_ml_scheduler, _run_body_battery, _run_stress_score |
 
 ---
 
 ## Achsen-Übersicht
 
-| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | Noch offen |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | — |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | H-19, M-65–72 (Eval 5) |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-74 (Eval 5) |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | M-19 (manuell), L-65 (Eval 5) |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | H-07 (manuell), M-19 (manuell), M-73 (Eval 5) |
+| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | W12 | Noch offen |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | — |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | — |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | M-74 (Eval 5) |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | M-19 (manuell), L-65 (Eval 5) |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟡 | H-07 (manuell), M-19 (manuell), M-73 (Eval 5) |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
@@ -103,7 +104,7 @@
 | H-16 | ✅ | W10 R1 | **Fernet dead-code: Garmin-Token potentiell unverschlüsselt** — `if settings.fernet_key`-Guards implizieren Code-Pfad ohne Verschlüsselung; Key ist als Pflichtfeld validiert | `api/src/routes/garmin.py:63–83` | Security |
 | H-17 | ✅ | W10 R1 | **Login mit `is_active=False` nicht getestet** — H-08 (W0) fixte die Implementation; Test für deaktivierten-User-Pfad fehlte | `api/tests/test_auth.py` | Tests |
 | H-18 | ✅ | W10 R2 | **`_sync_activities` + `_sync_day` komplett ungetestet** — gesamter Garmin-Sync-Kernpfad ohne Unit-Tests; 12 neue Tests in `test_sync_logic.py` | `sync-service/tests/test_sync_logic.py` (neu) | Tests |
-| H-19 | ❌ | Eval 5 | **`main()` in sync-service 87 Zeilen** — SIGTERM-Handling, Scheduler-Setup und Startup-Logik gemischt; deutlich über 50Z-Schwelle · Fix: `_configure_scheduler()` + `_setup_shutdown()` extrahieren | `sync-service/src/main.py:271–357` | Code-Qualität |
+| H-19 | ✅ | W12 R2 | **`main()` in sync-service 87 Zeilen** — SIGTERM-Handling, Scheduler-Setup und Startup-Logik gemischt · Fix: `_run_initial_sync()` + `_configure_scheduler()` extrahiert; `main()` jetzt ~35Z | `sync-service/src/main.py` | Code-Qualität |
 
 ---
 
@@ -175,14 +176,14 @@
 | M-62 | ✅ | W10 R2 | **sync-service: SIGTERM-Handler nach initialem Sync registriert** — `make down` hing bis zu 90s während Startup-Sync; Container `unhealthy` weil Sentinel-Datei erst nach Sync geschrieben; `SYNC_LOOKBACK_DAYS=730` als Ursache · Fix: Handler vor Sync; Sync als cancellbarer Task; Sentinel bei Start; `start_period` 30s → 120s | `sync-service/src/main.py:281–322` | Architektur |
 | M-63 | ✅ | W12 R1 | **DOM XSS: `statTile()` via Template-Literal in `innerHTML` ohne Escaping** — `stats`-Felder (u.a. `sport_label`, `value`) aus API-Response direkt in HTML-Template; bestehende `esc()`-Funktion nicht genutzt · Fix: lokale `esc()`-Funktion in `activity.js` ergänzt; `esc(label)` + `esc(value)` in `statTile()` | `api/src/static/activity.js:180,265` | Security |
 | M-64 | ✅ | W12 R1 | **DOM XSS: `customHtml` via `innerHTML` ohne DOMPurify** — Renderer-HTML aus metrics-Modulen ohne Sanitisierung; aktuell kein direkter User-Input-Flow, aber strukturell XSS-anfällig · Fix: `vendor/purify.min.js` ergänzt, `DOMPurify.sanitize()` in `metrics.js:61` | `api/src/static/metrics.js:61` | Security |
-| M-65 | ❌ | Eval 5 | **f-String als Event-String in `structlog`-Calls** — `logger.warning(f"mail.{log_key}...")` statt strukturierte Events; verhindert Log-Aggregation nach Event-Key · Fix: statischer Event-String + `log_key=log_key` als Feld | `api/src/mail.py:12,26,29` | Code-Qualität |
-| M-66 | ❌ | Eval 5 | **`register()` 52 Zeilen** — Validation und User-Creation gemischt · Fix: `_validate_register_form()` + `_perform_registration()` extrahieren | `api/src/routes/auth.py:188–239` | Code-Qualität |
-| M-67 | ❌ | Eval 5 | **`reset_password()` 51 Zeilen** — Request-Validation und Password-Update gemischt · Fix: `_validate_reset_request()` extrahieren | `api/src/routes/auth.py:339–389` | Code-Qualität |
-| M-68 | ❌ | Eval 5 | **`export_user_data()` 79 Zeilen** — 3 ungetrennte Daten-Blöcke (Profil, Aktivitäten, ML) · Fix: `_load_user_records()` als Helfer extrahieren | `api/src/db/users.py:320–398` | Code-Qualität |
-| M-69 | ❌ | Eval 5 | **`_sync_day()` 53 Zeilen** — repetitive Try-Catch-Blöcke für jede Metrik · Fix: generisches `_sync_metric(fn, *args)` extrahieren | `sync-service/src/main.py:81–133` | Code-Qualität |
-| M-70 | ❌ | Eval 5 | **`sync_user()` 58 Zeilen** — Token-Recovery und Daily-Loop nicht separiert · Fix: `_setup_garmin_client()` + `_sync_date_range()` extrahieren | `sync-service/src/main.py:136–193` | Code-Qualität |
-| M-71 | ❌ | Eval 5 | **`main()` in ml-service 55 Zeilen** — Scheduler-Setup und Signal-Handling inline · Fix: `_configure_ml_scheduler()` extrahieren | `ml-service/src/main.py:169–223` | Code-Qualität |
-| M-72 | ❌ | Eval 5 | **`_run_body_battery_and_stress()` 57 Zeilen** — nach M-51-Teilfix (W10 R5) noch über 50Z-Schwelle · Fix: weitere Sub-Funktion für Battery-Computation extrahieren | `ml-service/src/inference_models.py:280–336` | Code-Qualität |
+| M-65 | ✅ | W12 R2 | **f-String als Event-String in `structlog`-Calls** — `logger.warning(f"mail.{log_key}...")` statt strukturierte Events · Fix: `"mail.send_skipped"` / `"mail.send_failed"` / `"mail.send_error"` + `log_key=log_key` als Feld | `api/src/mail.py:12,26,29` | Code-Qualität |
+| M-66 | ✅ | W12 R2 | **`register()` 52 Zeilen** — Validation und User-Creation gemischt · Fix: `_validate_register_form()` extrahiert (CSRF + Consents + E-Mail + Name + PW-Checks); `register()` jetzt ~25Z | `api/src/routes/auth.py` | Code-Qualität |
+| M-67 | ✅ | W12 R2 | **`reset_password()` 51 Zeilen** — Request-Validation und Password-Update gemischt · Fix: `_validate_reset_request()` extrahiert (CSRF + Session-Hash + PW-Checks); `reset_password()` jetzt ~16Z | `api/src/routes/auth.py` | Code-Qualität |
+| M-68 | ✅ | W12 R2 | **`export_user_data()` 79 Zeilen** — 6 identische Fetch-und-Dict-Blöcke · Fix: `_load_user_records(conn, query, user_id)` + 6 SQL-Konstanten; `export_user_data()` jetzt ~20Z | `api/src/db/users.py` | Code-Qualität |
+| M-69 | ✅ | W12 R2 | **`_sync_day()` 53 Zeilen** — 6 repetitive Try-Catch-Blöcke · Fix: je eine `_sync_*_for_day()`-Funktion (6 Helfer nach `_sync_activities`-Muster); `_sync_day()` jetzt 6Z | `sync-service/src/main.py` | Code-Qualität |
+| M-70 | ✅ | W12 R2 | **`sync_user()` 58 Zeilen** — Token-Recovery und Daily-Loop nicht separiert · Fix: `_get_garmin_token()` + `_init_garmin_client()` + `_sync_date_range()` extrahiert; `sync_user()` jetzt ~20Z | `sync-service/src/main.py` | Code-Qualität |
+| M-71 | ✅ | W12 R2 | **`main()` in ml-service 55 Zeilen** — Scheduler-Setup und Signal-Handling inline · Fix: `_configure_ml_scheduler()` + `_write_alive_sentinel()` auf Modulebene; `main()` jetzt ~20Z | `ml-service/src/main.py` | Code-Qualität |
+| M-72 | ✅ | W12 R2 | **`_run_body_battery_and_stress()` 57 Zeilen** — nach M-51-Teilfix noch über 50Z · Fix: `_run_body_battery()` + `_run_stress_score()` extrahiert; Orchestrator jetzt ~18Z | `ml-service/src/inference_models.py` | Code-Qualität |
 | M-73 | ❌ | Eval 5 | **`sync_libre_user()` ohne Correlation-ID** — L-54 (W10 R6) fixte `sync_user` + `run_inference`; `sync_libre_user` wurde übersehen · Fix: `bind_contextvars(job_id=...)` + `clear_contextvars()` in try/finally | `sync-service/src/main.py:196` | Observability |
 | M-74 | ❌ | Eval 5 | **Tautologische Assertion `daily_range >= 0`** — mathematisch immer wahr (`max(vals) - min(vals) >= 0`); testet kein echtes Verhalten · Fix: Assertion durch inhaltlich sinnvolle Prüfung ersetzen (z.B. `> 0` bei >1 Sample) | `ml-service/tests/test_models.py:495` | Tests |
 
@@ -260,12 +261,12 @@
 
 ---
 
-## Offene Findings (nach Eval 5 / Wave 11)
+## Offene Findings (nach Wave 12 R2)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Eval 1–5, Wave 1–11 gefixt** | ✅ H-01–H-18, M-01–M-62, L-01–L-58, L-60–L-64 (außer H-07, M-19) |
-| **Eval 5 — Neu offen** | ❌ H-19 · M-65–M-74 · L-65 |
+| **Eval 1–5, Wave 1–12 gefixt** | ✅ H-01–H-19, M-01–M-72, L-01–L-58, L-60–L-64 (außer H-07, M-19) |
+| **Noch offen** | ❌ M-73 (sync_libre_user Correlation-ID), M-74 (tautologische Assertion), L-65 (pre-commit Reihenfolge) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
@@ -276,10 +277,10 @@
 | Runde | Fokus | Findings | Aufwand |
 |-------|-------|---------|---------|
 | ~~**W12 R1**~~ | ~~Security Quick Wins~~ | ~~M-63 (statTile `esc()`), M-64 (DOMPurify/DOM-API)~~ | ✅ |
-| **W12 R2** | Code-Qualität — Funktionslängen | H-19, M-65–72 (Funktion-Extraktion in api/sync/ml) | M |
+| ~~**W12 R2**~~ | ~~Code-Qualität — Funktionslängen~~ | ~~H-19, M-65–72 (Funktion-Extraktion in api/sync/ml)~~ | ✅ |
 | **W12 R3** | Observability + Tests + CI | M-73 (sync_libre_user job_id), M-74 (tautologische Assertion), L-65 (pre-commit Reihenfolge) | S |
 
-**Gesamtaufwand verbleibend:** 1H · 12M · 1L · geschätzt 1–2 Tage · Keine kritischen Security-Blocker
+**Gesamtaufwand verbleibend:** 0H · 2M · 1L · geschätzt < 1 Tag · Keine kritischen Security-Blocker
 
 ---
 
