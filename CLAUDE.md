@@ -391,6 +391,10 @@ Begründung: Solo-Projekt, kein konkreter Nutzen gegenüber aktuellem Overhead. 
 Alle Endpunkte laufen unter `/api/*` ohne Versionsprefix.
 Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-Fetch-Aufrufe und Tests brechen. Einführen erst wenn externe API-Stabilität verlangt wird.
 
+### ARCH-L5: `routes/api.py` technisch-flat statt feature-split
+
+`api/src/routes/api.py` enthält alle JSON-Endpunkte in einer Datei (~340 Zeilen). Eine Feature-basierte Aufteilung (z.B. `api_health.py`, `api_ml.py`, `api_seizures.py`, `api_glucose.py`) wäre sauberer, aber: Solo-Projekt, alle Endpunkte teilen dieselben `require_user`- und `limiter`-Abhängigkeiten, die Domain-Grenzen sind durch Kommentarblöcke bereits klar erkennbar. Split einführen wenn die Datei 400 Zeilen überschreitet oder ein zweiter Entwickler onboarded wird.
+
 ### OBS-L1: Kein externes Uptime-Monitoring
 
 Kein UptimeRobot oder ähnliches konfiguriert. Internes Docker-Healthcheck ist vorhanden (`/health`, `/ready`).
