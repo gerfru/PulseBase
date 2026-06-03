@@ -1,5 +1,4 @@
 import hashlib
-import secrets
 from datetime import datetime, timedelta, timezone
 
 import asyncpg
@@ -9,19 +8,22 @@ from pydantic import TypeAdapter, ValidationError
 from pydantic.networks import EmailStr
 from fastapi.responses import RedirectResponse
 from starlette.responses import Response
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from src.auth_tokens import (
+    _make_reset_token,
+    _make_verify_token,
+    _verify_email_token,
+    _verify_reset_token,
+)
 from src.mail import send_lockout_email, send_reset_email, send_verify_email
 from src.db import (
     clear_reset_token,
     create_user,
-    get_reset_token_user_id,
     get_user_by_email,
     increment_failed_login,
     lock_user_until,
     reset_failed_login,
     save_consent,
-    save_reset_token,
     set_email_verified,
     update_password,
 )
@@ -31,7 +33,6 @@ from src.deps import (
     generate_csrf_token,
     hash_password,
     limiter,
-    settings,
     templates,
     verify_csrf_token,
     verify_password,
@@ -40,41 +41,8 @@ from src.deps import (
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 
-_RESET_SALT = "password-reset"
-_RESET_MAX_AGE = 3600
-_VERIFY_SALT = "email-verify"
-_VERIFY_MAX_AGE = 86400  # 24 hours
 _MAX_ATTEMPTS = 5
 _LOCKOUT_MINUTES = 15
-
-
-async def _make_reset_token(user_id: int) -> str:
-    raw = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw.encode()).hexdigest()
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=_RESET_MAX_AGE)
-    await save_reset_token(user_id, token_hash, expires_at)
-    return raw
-
-
-async def _verify_reset_token(token: str) -> int | None:
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    return await get_reset_token_user_id(token_hash)
-
-
-def _make_verify_token(user_id: int) -> str:
-    return URLSafeTimedSerializer(settings.session_secret).dumps(
-        user_id, salt=_VERIFY_SALT
-    )
-
-
-def _verify_email_token(token: str) -> int | None:
-    try:
-        user_id = URLSafeTimedSerializer(settings.session_secret).loads(
-            token, salt=_VERIFY_SALT, max_age=_VERIFY_MAX_AGE
-        )
-        return int(user_id)
-    except (BadSignature, SignatureExpired):
-        return None
 
 
 def _lockout_response(user: dict | None, request: Request) -> Response | None:

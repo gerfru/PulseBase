@@ -36,6 +36,8 @@
 | 2026-06-03 | Wave 10 Runde 5 — Code-Qualität | M-50, M-51, M-52, L-44–46, L-57, L-58 gefixt · L-60 ✅ false positive (M-26-Fix bereits korrekt) · 14 neue Tests (TestRunPhysicalEnergy, TestRunAcwr, TestRunTrainingMonotony, TestRunAutonomicEnergy, TestRunCognitiveEnergy, TestComputeHrvBaseline, TestRunCorrelations, TestBackfillAndTrain) |
 | 2026-06-03 | Wave 10 Runde 6 — Observability | M-47 (ProcessorFormatter Bridge + WriteLoggerFactory alle 3 Services), L-52 (sentry.disabled Warning), L-53 (WriteLoggerFactory thread-safe), L-54 (Correlation-ID job_id in sync_user + run_inference), L-55 (_error_requests Counter), L-56 (/health → nur status:ok) gefixt |
 | 2026-06-03 | Wave 10 Runde 7 — CI/CD + Security | L-51 (no-commit-to-branch auf main), M-56 (Trivy format:table + upload-artifact alle 3 Images), M-42 (CSP Nonce: NonceTemplates, SecurityHeadersMiddleware, 14 Script-Tags, javascript:-URL-Fix) gefixt |
+| 2026-06-03 | Verifikation Wave 10 — alle 127 ✅-Einträge geprüft (3 parallele Subagenten) | 117 verifiziert · L-59 REGRESSION (auth.py 421Z nach M-52) · L-64 NEU (epilepsy.js flags.label/flags.detail innerHTML) |
+| 2026-06-03 | Wave 11 — Code-Qualität + Security Nacharbeit | L-59 (auth_tokens.py extrahiert, auth.py 390Z), L-64 (epilepsy.js createElement + textContent + epilepsy.test.js) gefixt |
 
 ---
 
@@ -227,11 +229,12 @@
 | L-56 | ✅ | W10 R6 | **`/health` exponiert interne Zähler ohne Auth** — `/health` gibt nur `{"status": "ok"}` zurück | `api/src/main.py` | Observability |
 | L-57 | ✅ | W10 R5 | **f-String in `structlog`-Call** — statisches Event `"anomaly.done"` + `metric=log_key` Feld | `ml-service/src/inference_anomaly.py:41` | Code-Qualität |
 | L-58 | ✅ | W10 R5 | **Dupliziertes Backfill+Training-Muster** — verifiziert: identischer Block in `run_on_request` + `run_all_users` · `_backfill_and_train()` extrahiert | `ml-service/src/main.py:119,144` | Code-Qualität |
-| L-59 | ✅ | — | **`auth.py` Dateigröße nach H-14** — verifiziert: 381 Zeilen < 400Z-Schwelle → resolved | `api/src/routes/auth.py` | Code-Qualität |
+| L-59 | ✅ | W11 | **`auth.py` Dateigröße — Regression behoben** — nach M-52 auf 421Z angewachsen; Token-Helfer (`_make_reset_token`, `_verify_reset_token`, `_make_verify_token`, `_verify_email_token`) + Konstanten in `api/src/auth_tokens.py` ausgelagert → **390Z** | `api/src/routes/auth.py`, `api/src/auth_tokens.py` (neu) | Code-Qualität |
 | L-60 | ✅ | — | **5 einzeilige `_run_anomaly_*`-Wrapper (Copy-Paste)** — verifiziert: Wrappers nutzen `_run_anomaly_for()` (M-26-Fix korrekt) → false positive | `ml-service/src/inference_anomaly.py:48–100` | Code-Qualität |
 | L-61 | ✅ | W10 R2 | **Vitest `lines: 65` unterhalb Projektsoll** — auf 70% angehoben | `api/vitest.config.js:19` | Tests |
 | L-62 | — | — | **E2E `@requires_data`-Tests in CI still übersprungen** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21` | Tests |
 | L-63 | ✅ | W10 R2 | **metrics.js: `result.value`/`result.sub` per `textContent` → Rendering-Regression** — M-33-Fix setzte alle Metric-Detail-Werte per `textContent`; Renderer-Funktionen liefern styled HTML-Spans, kein User-Input → alle 8 Metric-Seiten zeigten rohe HTML-Tags · Fix: `innerHTML` für Renderer-Ausgaben wiederhergestellt | `api/src/static/metrics.js:38` | Code-Qualität |
+| L-64 | ✅ | W11 | **`epilepsy.js`: `flags.label`/`flags.detail` via Template-Literal in `innerHTML` ohne Escaping** — H-10 adressierte seizure notes/event-type/sport-type/metrics.js; risk-flag-Labels nicht abgedeckt · Fix: `renderRiskFlags()` extrahiert + exportiert, `createElement + textContent`; 4 neue Tests in `epilepsy.test.js` | `api/src/static/epilepsy.js:51`, `api/tests/js/epilepsy.test.js` (neu) | Security |
 
 ---
 
@@ -239,8 +242,9 @@
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-62, L-01–L-63 (außer H-07, M-19) |
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-62, L-01–L-58, L-60–L-63 (außer H-07, M-19) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
+| **Nacharbeit (Verifikation)** | ✅ L-59 (auth_tokens.py extrahiert, 390Z), ✅ L-64 (createElement + textContent) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
 ---
