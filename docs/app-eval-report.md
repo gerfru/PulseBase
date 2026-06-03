@@ -33,6 +33,7 @@
 | 2026-06-02 | Wave 10 Runde 2 — Tests + Bugfixes | H-18, M-57–M-62, L-61 gefixt · L-62 → TEST-L4 · M-53 partiell (CI-Gate 30%→80%) · 23 neue Tests (_sync_activities/_sync_day, ml-service Orchestrierung) · metrics.js Rendering-Regression · sync-service SIGTERM + unhealthy |
 | 2026-06-03 | Wave 10 Runde 3 — Architektur & Betrieb | M-45, M-46, M-48, M-49, L-40, L-43 gefixt |
 | 2026-06-03 | Wave 10 Runde 4 — Tests | M-53 ✅ (false positive), M-55 ✅ (bereits vorhanden), L-47–50 gefixt · 1 Test (request_sync Exception), 3 Tests (seizures/risk Boundary), 2 Tests (Garmin+Libre Kombination), 1 E2E-Test (Export JSON-Inhalt) |
+| 2026-06-03 | Wave 10 Runde 5 — Code-Qualität | M-50, M-51, M-52, L-44–46, L-57, L-58 gefixt · L-60 ✅ false positive (M-26-Fix bereits korrekt) · 14 neue Tests (TestRunPhysicalEnergy, TestRunAcwr, TestRunTrainingMonotony, TestRunAutonomicEnergy, TestRunCognitiveEnergy, TestComputeHrvBaseline, TestRunCorrelations, TestBackfillAndTrain) |
 
 ---
 
@@ -42,8 +43,8 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | L-42 |
 | Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-42 (Nonce, Aufwand hoch), L-28 (Ausnahme) |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟡 | M-50–52, L-44–46, L-57–60 |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-53, M-55, L-47–50 |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | — |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | — |
 | CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-19 (manuell), M-56, L-51 |
 | Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-47, L-52–56 |
 
@@ -146,9 +147,9 @@
 | M-47 | ❌ | — | **Stdlib-Logs nicht JSON (split log format)** — `ProcessorFormatter`-Bridge für Third-Party-Logger fehlt · Fix: `structlog.stdlib.ProcessorFormatter` mit `foreign_pre_chain` | `api/src/logging_config.py:24`, alle Services | Observability |
 | M-48 | ✅ | W10 R3 | **Compose-Healthcheck trifft `/health` statt `/ready`** — Container gilt als `healthy` auch wenn DB-Verbindung noch nicht steht · Fix: `test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]` | `docker-compose.yml:120` | Observability |
 | M-49 | ✅ | W10 R3 | **`logger.error(...)` landet nicht in Sentry (kein `SentryProcessor`)** — explizite `logger.error()`-Aufrufe erzeugen keine Sentry-Events · Fix: `_sentry_error_processor()` (eigene Processor-Funktion) in alle drei `logging_config.py` | `api/src/logging_config.py`, alle Services | Observability |
-| M-50 | ❌ | — | **`_run_energy_metrics()` God-Function (63 Zeilen, 5 Concerns)** — verhindert Einzel-Tests · Fix: in fünf `_run_*`-Funktionen aufteilen | `ml-service/src/inference_models.py:82` | Code-Qualität |
-| M-51 | ❌ | — | **`_run_body_battery_and_stress()` 60 Zeilen mit Inline-Berechnung** — manuelle HRV-Baseline-Berechnung inline · Fix: `compute_hrv_baseline()` extrahieren | `ml-service/src/inference_models.py:248` | Code-Qualität |
-| M-52 | ❌ | — | **`login()` immer noch 70 Zeilen nach H-15-Teilfix** — verifiziert: Z.115–184 = 70Z | `api/src/routes/auth.py:117` | Code-Qualität |
+| M-50 | ✅ | W10 R5 | **`_run_energy_metrics()` God-Function (63 Zeilen, 5 Concerns)** — in 5 Sub-Funktionen aufgeteilt: `_run_physical_energy`, `_run_acwr`, `_run_training_monotony`, `_run_autonomic_energy`, `_run_cognitive_energy` | `ml-service/src/inference_models.py:82` | Code-Qualität |
+| M-51 | ✅ | W10 R5 | **`_run_body_battery_and_stress()` 60 Zeilen mit Inline-Berechnung** — `_compute_hrv_baseline()` extrahiert | `ml-service/src/inference_models.py:248` | Code-Qualität |
+| M-52 | ✅ | W10 R5 | **`login()` immer noch 70 Zeilen nach H-15-Teilfix** — 3 Helfer extrahiert: `_handle_invalid_credentials`, `_handle_unverified_email`, `_establish_session`; `login()` jetzt ~24 Zeilen | `api/src/routes/auth.py:117` | Code-Qualität |
 | M-53 | ✅ | W10 R4 | **`fail_under = 80` in ml-service ≠ CLAUDE.md-Dokumentation „30%"** — verifiziert: CLAUDE.md enthält kein „30%" im Coverage-Kontext; CI-Gate-Drift wurde via M-61 (W10 R2) korrigiert → false positive | `ml-service/pyproject.toml:37` | Tests |
 | M-54 | — | — | **`@requires_data` E2E-Tests werden in CI nie ausgeführt** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21–23` | Tests |
 | M-55 | ✅ | W10 R4 | **`inference_models.py` ohne Unit-Tests** — verifiziert: `test_inference.py` enthält alle 8 `TestRun*`-Klassen (TestRunReadiness … TestRunRunningAndIntensity) — implizit in W10 R2 ergänzt | `ml-service/tests/test_inference.py` | Tests |
@@ -209,9 +210,9 @@
 | L-41 | — | — | **3-Service-Splitting ohne explizite Begründung in CLAUDE.md** (dokumentierte Ausnahme ARCH-L4) | `CLAUDE.md` | Architektur |
 | L-42 | ❌ | — | **`routes/api.py` domain-übergreifend (352 Zeilen, wächst)** | `api/src/routes/api.py` | Architektur |
 | L-43 | ✅ | W10 R3 | **ML-Healthcheck prüft keine Modell-Integrität** | `docker-compose.yml:191–193` | Architektur |
-| L-44 | ❌ | — | **Sequentielle `await` in `_run_correlations`-Schleife** — 3× unabhängige DB-Queries sequenziell · Fix: `await asyncio.gather(...)` | `ml-service/src/inference_anomaly.py:109` | Code-Qualität |
-| L-45 | ❌ | — | **`require_user()` gibt ungetyptes `dict` zurück** | `api/src/deps.py:73` | Code-Qualität |
-| L-46 | ❌ | — | **`zip(*pairs)` ohne Längen-Assertion** | `ml-service/src/inference_anomaly.py:113` | Code-Qualität |
+| L-44 | ✅ | W10 R5 | **Sequentielle `await` in `_run_correlations`-Schleife** — auf `asyncio.gather()` umgestellt | `ml-service/src/inference_anomaly.py:109` | Code-Qualität |
+| L-45 | ✅ | W10 R5 | **`require_user()` gibt ungetyptes `dict` zurück** — `UserRow` TypedDict in `deps.py` definiert | `api/src/deps.py:73` | Code-Qualität |
+| L-46 | ✅ | W10 R5 | **`zip(*pairs)` ohne Längen-Assertion** — `if len(pairs) < 2: continue` Guard ergänzt | `ml-service/src/inference_anomaly.py:113` | Code-Qualität |
 | L-47 | ✅ | W10 R4 | **`POST /api/sync` Failure-Pfad ungetestet** — Test ergänzt in W10 R4; Endpoint später entfernt (Sync wird jetzt automatisch nach Garmin-Link + alle 2h getriggert) | `api/tests/test_api_endpoints.py` | Tests |
 | L-48 | ✅ | W10 R4 | **`/api/seizures/risk` ohne Boundary-Tests** — 3 Tests ergänzt: Response-Struktur (`level`/`flags`), warning-Level, high-Level | `api/tests/test_api_endpoints.py` | Tests |
 | L-49 | ✅ | W10 R4 | **sync-service: kein Test für Garmin+Libre-Kombinations-User** — `TestSyncDualLinkedUser` ergänzt: beide Jobs werden aufgerufen; Garmin-Fehler blockiert Libre nicht | `sync-service/tests/test_main.py` | Tests |
@@ -222,29 +223,26 @@
 | L-54 | ❌ | — | **Kein Correlation-ID in sync/ml-service Logs** | `sync-service/src/main.py:136`, `ml-service/src/main.py:55` | Observability |
 | L-55 | ❌ | — | **Kein Error-Rate-Signal** — `_error_requests`-Counter für `4xx/5xx` fehlt | `api/src/main.py:61` | Observability |
 | L-56 | ❌ | — | **`/health` exponiert interne Zähler ohne Auth** | `api/src/main.py:162–168` | Observability |
-| L-57 | ❌ | — | **f-String in `structlog`-Call** — verhindert strukturiertes Event-Matching | `ml-service/src/inference_anomaly.py:41` | Code-Qualität |
-| L-58 | [?] | — | **Dupliziertes Backfill+Training-Muster** — identischer Block in `run_on_request` und `run_all_users` · zu verifizieren | `ml-service/src/main.py:119,144` | Code-Qualität |
+| L-57 | ✅ | W10 R5 | **f-String in `structlog`-Call** — statisches Event `"anomaly.done"` + `metric=log_key` Feld | `ml-service/src/inference_anomaly.py:41` | Code-Qualität |
+| L-58 | ✅ | W10 R5 | **Dupliziertes Backfill+Training-Muster** — verifiziert: identischer Block in `run_on_request` + `run_all_users` · `_backfill_and_train()` extrahiert | `ml-service/src/main.py:119,144` | Code-Qualität |
 | L-59 | ✅ | — | **`auth.py` Dateigröße nach H-14** — verifiziert: 381 Zeilen < 400Z-Schwelle → resolved | `api/src/routes/auth.py` | Code-Qualität |
-| L-60 | [?] | — | **5 einzeilige `_run_anomaly_*`-Wrapper (Copy-Paste)** — zu verifizieren ob nach M-26 (W4) noch Duplikate vorhanden | `ml-service/src/inference_anomaly.py:48–100` | Code-Qualität |
+| L-60 | ✅ | — | **5 einzeilige `_run_anomaly_*`-Wrapper (Copy-Paste)** — verifiziert: Wrappers nutzen `_run_anomaly_for()` (M-26-Fix korrekt) → false positive | `ml-service/src/inference_anomaly.py:48–100` | Code-Qualität |
 | L-61 | ✅ | W10 R2 | **Vitest `lines: 65` unterhalb Projektsoll** — auf 70% angehoben | `api/vitest.config.js:19` | Tests |
 | L-62 | — | — | **E2E `@requires_data`-Tests in CI still übersprungen** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21` | Tests |
 | L-63 | ✅ | W10 R2 | **metrics.js: `result.value`/`result.sub` per `textContent` → Rendering-Regression** — M-33-Fix setzte alle Metric-Detail-Werte per `textContent`; Renderer-Funktionen liefern styled HTML-Spans, kein User-Input → alle 8 Metric-Seiten zeigten rohe HTML-Tags · Fix: `innerHTML` für Renderer-Ausgaben wiederhergestellt | `api/src/static/metrics.js:38` | Code-Qualität |
 
 ---
 
-## Offene Findings (nach Wave 10 Runde 3)
+## Offene Findings (nach Wave 10 Runde 5)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-46, M-48–M-49, M-53, M-55, M-57–M-62, L-01–L-40, L-43, L-47–L-50, L-59, L-61, L-63 (außer H-07, M-19, M-42) |
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-52, M-53, M-55, M-57–M-62, L-01–L-50, L-57–L-60, L-61, L-63 (außer H-07, M-19, M-42) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-62 (TEST-L4), M-42 (eigener Wave), M-54 (TEST-L4) |
 | **Architektur/Betrieb** | ❌ L-42 (api.py domain-übergreifend) |
-| **Tests** | ❌ — alle W10 R4-Findings gefixt |
-| **Code-Qualität** | ❌ M-50, M-51, M-52, L-44–46, L-57 |
 | **Observability** | ❌ M-47, L-52–56 |
 | **CI/CD** | ❌ M-56, L-51 |
-| **zu verifizieren** | [?] L-58 (Backfill-Duplikat nach H-12) · L-60 (anomaly Wrapper nach M-26) |
 
 ---
 
@@ -254,7 +252,7 @@
 |-------|-------|---------|---------|
 | ~~**W10 R3**~~ | ~~Architektur & Betrieb~~ | ~~M-45, M-46, M-48, M-49, L-40, L-43~~ | ✅ |
 | ~~**W10 R4**~~ | ~~Tests (Rest)~~ | ~~M-53, M-55 (resolved), L-47–50~~ | ✅ |
-| **W10 R5** | Code-Qualität | M-50 (_run_energy_metrics), M-51 (_run_body_battery), M-52 (login() kürzen), L-44–46, L-57 + [?] L-58/L-60 verifizieren | ~2h |
+| ~~**W10 R5**~~ | ~~Code-Qualität~~ | ~~M-50, M-51, M-52, L-44–46, L-57, L-58, L-60~~ | ✅ |
 | **W10 R6** | Observability | M-47 (ProcessorFormatter Bridge), L-52–56 (sentry.disabled, WriteLoggerFactory, Correlation-ID, Error-Rate, /health Zähler) | ~2h |
 | **W10 R7** | CI/CD + Security | M-56 (Trivy Artefakt), L-51 (Branch-Namen), M-42 (CSP Nonce + strict-dynamic), L-42 (api.py Split oder ARCH-L5) | ~3h |
 | **Eval 5** | Re-Audit | Vollständiges Re-Audit nach Wave 10 (6 Subagenten parallel) | — |

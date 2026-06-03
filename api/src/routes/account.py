@@ -11,13 +11,20 @@ from src.db import (
     export_user_data,
     get_user_by_email,
 )
-from src.deps import _ip_hash, limiter, require_user, verify_csrf_token, verify_password
+from src.deps import (
+    UserRow,
+    _ip_hash,
+    limiter,
+    require_user,
+    verify_csrf_token,
+    verify_password,
+)
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
-def _settings_error(request: Request, user: dict, error: str):
+def _settings_error(request: Request, user: UserRow, error: str):
     return _deps.templates.TemplateResponse(
         request,
         "settings.html",
