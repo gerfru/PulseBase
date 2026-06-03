@@ -166,26 +166,11 @@ async def run_all_users(settings: Settings, include_training: bool = False) -> N
             logger.error("ml.failed", user_id=uid, error=str(e), exc_info=True)
 
 
-async def main() -> None:  # pragma: no cover
-    settings = Settings()  # type: ignore[call-arg]
-    await init_pool(settings.db_url)
+async def _write_alive_sentinel() -> None:
+    Path("/tmp/ml_alive").touch()  # nosec B108
 
-    if settings.sentry_dsn:
-        import sentry_sdk
 
-        sentry_sdk.init(
-            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.1
-        )
-        logger.info("sentry.initialized")
-    else:
-        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
-
-    logger.info("ml.initial_run")
-    await run_all_users(settings, include_training=True)
-
-    async def _write_alive_sentinel() -> None:
-        Path("/tmp/ml_alive").touch()  # nosec B108
-
+def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         run_all_users,
@@ -209,6 +194,27 @@ async def main() -> None:  # pragma: no cover
     scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", infer_hour=settings.ml_infer_hour)
+    return scheduler
+
+
+async def main() -> None:  # pragma: no cover
+    settings = Settings()  # type: ignore[call-arg]
+    await init_pool(settings.db_url)
+
+    if settings.sentry_dsn:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.1
+        )
+        logger.info("sentry.initialized")
+    else:
+        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
+
+    logger.info("ml.initial_run")
+    await run_all_users(settings, include_training=True)
+
+    scheduler = _configure_ml_scheduler(settings)
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, lambda: scheduler.shutdown(wait=True))
