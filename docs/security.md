@@ -261,17 +261,20 @@ await conn.fetch("SELECT * FROM activities WHERE user_id = $1", user_id)
 
 **Risiko:** Seizure Notes, Event-Type-Strings, Metriken-Labels kommen aus der DB (also ursprünglich vom User) und werden in der UI dargestellt.
 
-**Mitigation:** Kein `innerHTML` mit User-Daten. Stattdessen `textContent` für reinen Text und `DOMPurify.sanitize()` für Fälle wo HTML erwünscht ist (epilepsy.js, dashboard-utils.js, metrics.js).
+**Mitigation:** Kein `innerHTML` mit User-Daten. Drei Ansätze je nach Kontext:
 
 ```javascript
-// Sicher:
+// 1. Reiner Text → textContent (epilepsy.js, dashboard-utils.js)
 element.textContent = userInput;
 
-// Unsicher (nie so verwenden):
-element.innerHTML = userInput;  // ← XSS
+// 2. String-Werte in HTML-Attributen/Inhalt → esc() (activity.js: statTile, sport_label)
+element.innerHTML = `<span>${esc(label)}: ${esc(value)}</span>`;
 
-// Wenn HTML nötig:
-element.innerHTML = DOMPurify.sanitize(userInput);
+// 3. Renderer-erzeugte HTML-Struktur → DOMPurify (metrics.js)
+element.innerHTML = DOMPurify.sanitize(rendererOutput);
+
+// Verboten:
+element.innerHTML = userInput;  // ← XSS
 ```
 
 ### 6.3 Server-Side: Keine Shell-Kommandos mit User-Input
@@ -539,8 +542,8 @@ pip-audit -r /tmp/req-api.txt
 
 ```
 gitleaks      ← Secrets-Scan zuerst (Commit mit Secret sofort verhindern)
+bandit        ← SAST (vor Lint — findet Security-Issues vor Code-Style-Korrekturen)
 ruff          ← Lint + Fix
-bandit        ← SAST
 detect-secrets ← Baseline-basierter Secret-Scan (ergänzt gitleaks)
 semgrep       ← SAST cross-file (p/python + p/owasp-top-ten)
 mypy          ← Type Check (findet implizite None-Dereferenzierungen)
@@ -753,5 +756,5 @@ Prüfrahmen: OWASP Application Security Verification Standard 5.0, Level 2.
 | V7 Error Handling & Logging | 🟡 | Audit-Log noch nicht vollständig (3.5) |
 | V8 Data Protection | ✅ | — |
 | V9 Communication | ✅ | — |
-| V13 API & Web Service | 🟡 | M-20: Traffic/Saturation nicht messbar |
+| V13 API & Web Service | ✅ | — |
 | V14 Configuration | ✅ | — |

@@ -242,9 +242,9 @@ Reihenfolge in `.pre-commit-config.yaml`:
 
 1. **gitleaks** — Secret-Scan (läuft als Erstes)
 2. **pre-commit-hooks** — trailing-whitespace, end-of-file-fixer, check-yaml/json/toml, no-commit-to-branch
-3. **ruff** — Lint + Fix
-4. **ruff-format** — Format
-5. **bandit** — SAST (`-r api/src/ sync-service/src/`, `pass_filenames: false`)
+3. **bandit** — SAST (`-r api/src/ sync-service/src/`, `pass_filenames: false`)
+4. **ruff** — Lint + Fix
+5. **ruff-format** — Format
 6. **detect-secrets** — Baseline `.secrets.baseline`
 7. **mypy-api** (local) — `mypy api/src/ --ignore-missing-imports`
 8. **mypy-sync** (local) — `mypy sync-service/src/ --ignore-missing-imports`

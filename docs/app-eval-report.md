@@ -41,6 +41,7 @@
 | 2026-06-03 | Eval 5 — Vollständiger Re-Audit nach Wave 11 (6 Subagenten parallel) | 1H · 12M · 1L (neu entdeckt) |
 | 2026-06-03 | Wave 12 Runde 1 — Security Quick Wins | M-63 (statTile esc()), M-64 (DOMPurify) gefixt |
 | 2026-06-03 | Wave 12 Runde 2 — Code-Qualität Funktionslängen | H-19, M-65–M-72 gefixt · api: _validate_register_form, _validate_reset_request, _load_user_records; sync: 6×_sync_*_for_day, _get_garmin_token, _init_garmin_client, _sync_date_range, _run_initial_sync, _configure_scheduler; ml: _configure_ml_scheduler, _run_body_battery, _run_stress_score |
+| 2026-06-03 | Wave 12 Runde 3 — Observability + Tests + CI | M-73 (sync_libre_user bind_contextvars), M-74 (daily_range == 9.0), L-65 (bandit vor ruff) gefixt |
 
 ---
 
@@ -51,9 +52,9 @@
 | Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | — |
 | Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
 | Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | — |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | M-74 (Eval 5) |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | M-19 (manuell), L-65 (Eval 5) |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟡 | H-07 (manuell), M-19 (manuell), M-73 (Eval 5) |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | — |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | M-19 (manuell) |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-19 (manuell) |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
@@ -184,8 +185,8 @@
 | M-70 | ✅ | W12 R2 | **`sync_user()` 58 Zeilen** — Token-Recovery und Daily-Loop nicht separiert · Fix: `_get_garmin_token()` + `_init_garmin_client()` + `_sync_date_range()` extrahiert; `sync_user()` jetzt ~20Z | `sync-service/src/main.py` | Code-Qualität |
 | M-71 | ✅ | W12 R2 | **`main()` in ml-service 55 Zeilen** — Scheduler-Setup und Signal-Handling inline · Fix: `_configure_ml_scheduler()` + `_write_alive_sentinel()` auf Modulebene; `main()` jetzt ~20Z | `ml-service/src/main.py` | Code-Qualität |
 | M-72 | ✅ | W12 R2 | **`_run_body_battery_and_stress()` 57 Zeilen** — nach M-51-Teilfix noch über 50Z · Fix: `_run_body_battery()` + `_run_stress_score()` extrahiert; Orchestrator jetzt ~18Z | `ml-service/src/inference_models.py` | Code-Qualität |
-| M-73 | ❌ | Eval 5 | **`sync_libre_user()` ohne Correlation-ID** — L-54 (W10 R6) fixte `sync_user` + `run_inference`; `sync_libre_user` wurde übersehen · Fix: `bind_contextvars(job_id=...)` + `clear_contextvars()` in try/finally | `sync-service/src/main.py:196` | Observability |
-| M-74 | ❌ | Eval 5 | **Tautologische Assertion `daily_range >= 0`** — mathematisch immer wahr (`max(vals) - min(vals) >= 0`); testet kein echtes Verhalten · Fix: Assertion durch inhaltlich sinnvolle Prüfung ersetzen (z.B. `> 0` bei >1 Sample) | `ml-service/tests/test_models.py:495` | Tests |
+| M-73 | ✅ | W12 R3 | **`sync_libre_user()` ohne Correlation-ID** — L-54 (W10 R6) fixte `sync_user` + `run_inference`; `sync_libre_user` wurde übersehen · Fix: `bind_contextvars(job_id=...)` + `clear_contextvars()` in try/finally | `sync-service/src/main.py:196` | Observability |
+| M-74 | ✅ | W12 R3 | **Tautologische Assertion `daily_range >= 0`** — mathematisch immer wahr (`max(vals) - min(vals) >= 0`); testet kein echtes Verhalten · Fix: `assert feat["daily_range"] == 9.0` (deterministisch: `_make_bb_records(50)` → min 60, max 69) | `ml-service/tests/test_models.py:495` | Tests |
 
 ---
 
@@ -257,7 +258,7 @@
 | L-62 | — | — | **E2E `@requires_data`-Tests in CI still übersprungen** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21` | Tests |
 | L-63 | ✅ | W10 R2 | **metrics.js: `result.value`/`result.sub` per `textContent` → Rendering-Regression** — M-33-Fix setzte alle Metric-Detail-Werte per `textContent`; Renderer-Funktionen liefern styled HTML-Spans, kein User-Input → alle 8 Metric-Seiten zeigten rohe HTML-Tags · Fix: `innerHTML` für Renderer-Ausgaben wiederhergestellt | `api/src/static/metrics.js:38` | Code-Qualität |
 | L-64 | ✅ | W11 | **`epilepsy.js`: `flags.label`/`flags.detail` via Template-Literal in `innerHTML` ohne Escaping** — H-10 adressierte seizure notes/event-type/sport-type/metrics.js; risk-flag-Labels nicht abgedeckt · Fix: `renderRiskFlags()` extrahiert + exportiert, `createElement + textContent`; 4 neue Tests in `epilepsy.test.js` | `api/src/static/epilepsy.js:51`, `api/tests/js/epilepsy.test.js` (neu) | Security |
-| L-65 | ❌ | Eval 5 | **Pre-commit Hook-Reihenfolge: `bandit` nach `ruff`** — github-rules.md Soll: gitleaks → bandit → lint → format → typecheck; Ist: gitleaks → ruff → bandit; kein funktionaler Impact, aber Abweichung von Canonical-Reihenfolge · Fix: bandit-Hook vor ruff verschieben | `.pre-commit-config.yaml:21–34` | CI/CD |
+| L-65 | ✅ | W12 R3 | **Pre-commit Hook-Reihenfolge: `bandit` nach `ruff`** — github-rules.md Soll: gitleaks → bandit → lint → format → typecheck; Ist: gitleaks → ruff → bandit; kein funktionaler Impact, aber Abweichung von Canonical-Reihenfolge · Fix: bandit-Repo-Block vor ruff verschoben | `.pre-commit-config.yaml:21–34` | CI/CD |
 
 ---
 
@@ -265,8 +266,8 @@
 
 | Gruppe | Findings |
 |--------|---------|
-| **Eval 1–5, Wave 1–12 gefixt** | ✅ H-01–H-19, M-01–M-72, L-01–L-58, L-60–L-64 (außer H-07, M-19) |
-| **Noch offen** | ❌ M-73 (sync_libre_user Correlation-ID), M-74 (tautologische Assertion), L-65 (pre-commit Reihenfolge) |
+| **Eval 1–5, Wave 1–12 gefixt** | ✅ H-01–H-19, M-01–M-74, L-01–L-58, L-60–L-65 (außer H-07, M-19) |
+| **Noch offen** | — (keine code-seitigen Findings mehr offen) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
@@ -278,9 +279,9 @@
 |-------|-------|---------|---------|
 | ~~**W12 R1**~~ | ~~Security Quick Wins~~ | ~~M-63 (statTile `esc()`), M-64 (DOMPurify/DOM-API)~~ | ✅ |
 | ~~**W12 R2**~~ | ~~Code-Qualität — Funktionslängen~~ | ~~H-19, M-65–72 (Funktion-Extraktion in api/sync/ml)~~ | ✅ |
-| **W12 R3** | Observability + Tests + CI | M-73 (sync_libre_user job_id), M-74 (tautologische Assertion), L-65 (pre-commit Reihenfolge) | S |
+| ~~**W12 R3**~~ | ~~Observability + Tests + CI~~ | ~~M-73 (sync_libre_user job_id), M-74 (daily_range == 9.0), L-65 (bandit vor ruff)~~ | ✅ |
 
-**Gesamtaufwand verbleibend:** 0H · 2M · 1L · geschätzt < 1 Tag · Keine kritischen Security-Blocker
+**Gesamtaufwand verbleibend:** 0H · 0M · 0L · **Wave 12 vollständig abgeschlossen** · Keine code-seitigen Findings offen
 
 ---
 
