@@ -1,5 +1,6 @@
 import json
 import shutil
+import tempfile
 from pathlib import Path
 
 import structlog
@@ -51,17 +52,14 @@ async def libre_link(
         )
     settings = _deps.settings
     try:
-        client = libre_authenticate(
-            libre_email,
-            libre_password,
-            token_dir=f"/app/tokens/{user['id']}/libre",
-        )
-        token_json = json.dumps({"token": client.token}).encode()
-        blob = (
-            fernet_encrypt(token_json, settings.fernet_key)
-            if settings.fernet_key
-            else token_json
-        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            client = libre_authenticate(
+                libre_email,
+                libre_password,
+                token_dir=tmpdir,
+            )
+            token_json = json.dumps({"token": client.token}).encode()
+            blob = fernet_encrypt(token_json, settings.fernet_key)
         await save_user_token(user["id"], "libre", blob)
         await set_libre_linked(user["id"], libre_email)
         logger.info("libre.link.success", user_id=user["id"], ip_hash=_ip_hash(request))

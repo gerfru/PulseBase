@@ -1,5 +1,6 @@
-"""Tests for sync-service config.py — Settings validation and db_url property."""
+"""Tests for sync-service config.py and logging_config.py."""
 
+import logging
 import sys
 from pathlib import Path
 
@@ -22,6 +23,24 @@ def test_fernet_key_validator_rejects_empty_string(monkeypatch):
     _base_env(monkeypatch, fernet_key="")
     with pytest.raises(Exception):  # pydantic ValidationError
         Settings()  # type: ignore[call-arg]
+
+
+def test_log_level_defaults_to_info(monkeypatch):
+    """M-81: Default LOG_LEVEL must be INFO when env var is absent."""
+    monkeypatch.delenv("LOG_LEVEL", raising=False)
+    from logging_config import configure_logging
+
+    configure_logging()
+    assert logging.getLogger().level == logging.INFO
+
+
+def test_log_level_from_env_debug(monkeypatch):
+    """M-81: LOG_LEVEL=DEBUG must set root logger to DEBUG."""
+    monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+    from logging_config import configure_logging
+
+    configure_logging()
+    assert logging.getLogger().level == logging.DEBUG
 
 
 def test_db_url_property_contains_credentials(monkeypatch):

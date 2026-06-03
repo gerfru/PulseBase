@@ -162,16 +162,14 @@ Renders the Garmin account linking form.
 | `garmin_email` | string | Garmin Connect email |
 | `garmin_password` | string | Used once, then deleted from memory |
 
-Authenticates against Garmin Connect, stores the session token in
-`/app/tokens/{user_id}/`, marks user as `garmin_linked = true`.
+Authenticates against Garmin Connect via a temporary directory (`tempfile.TemporaryDirectory`), Fernet-encrypts the session token, and stores it in the `user_tokens` DB table. Marks user as `garmin_linked = true`. No token is written permanently to disk.
 
 On success: redirects to `/?linked=1`.
 On failure: re-renders form with error (HTTP 400).
 
 ### `POST /garmin/unlink`
 
-Sets `garmin_linked = false` and clears `garmin_email`. Redirects to `/`.
-Tokens on disk are not deleted automatically.
+Sets `garmin_linked = false`, clears `garmin_email`, and deletes the token row from `user_tokens`. Redirects to `/`.
 
 ### `GET /dashboard`
 
@@ -209,8 +207,7 @@ email and a disconnect button instead of the form.
 | `libre_email`    | string | LibreLinkUp account email                            |
 | `libre_password` | string | Used once for initial auth, then deleted from memory |
 
-Authenticates against the LibreLinkUp EU endpoint, stores the session token
-in `/app/tokens/{user_id}/libre/libre_token.json`, marks user as `libre_linked = true`.
+Authenticates against the LibreLinkUp EU endpoint via a temporary directory (`tempfile.TemporaryDirectory`), Fernet-encrypts the session token, and stores it in the `user_tokens` DB table. Marks user as `libre_linked = true`. No token is written permanently to disk.
 
 Prerequisite: the sensor owner must have accepted the user as a follower in
 their LibreLink app before linking will succeed.

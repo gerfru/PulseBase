@@ -140,7 +140,7 @@ export function esc(s) {
 
 export function openFormulaDialog(title, bodyHtml, href) {
     document.getElementById('formula-dialog-title').textContent = title;
-    document.getElementById('formula-dialog-body').innerHTML = bodyHtml;
+    document.getElementById('formula-dialog-body').innerHTML = DOMPurify.sanitize(bodyHtml);
     document.getElementById('formula-dialog-link').href = href;
     document.getElementById('formula-dialog').showModal();
 }

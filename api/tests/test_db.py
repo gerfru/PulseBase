@@ -1039,7 +1039,7 @@ def test_settings_db_url_format():
     s = Settings(  # type: ignore[call-arg]  # pragma: allowlist secret
         db_app_user="app",
         db_app_password="pass",  # pragma: allowlist secret
-        session_secret="s",  # pragma: allowlist secret
+        session_secret="a" * 32,  # pragma: allowlist secret
     )
     url = s.db_url
     assert url.startswith("postgresql://app:")

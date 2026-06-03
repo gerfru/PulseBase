@@ -33,4 +33,4 @@ source = ["src"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
-fail_under = 65
+fail_under = 70

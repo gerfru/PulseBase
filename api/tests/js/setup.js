@@ -13,6 +13,9 @@ ChartMock.defaults = {
 };
 global.Chart = ChartMock;
 
+// DOMPurify is loaded as UMD global in browser — pass-through mock for unit tests
+global.DOMPurify = { sanitize: (s) => s };
+
 // jsdom does not implement window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
     writable: true,

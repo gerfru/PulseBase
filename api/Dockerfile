@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     adduser --disabled-password --gecos "" appuser
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 USER appuser
 COPY src/ ./src/
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/ready || exit 1
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "30"]

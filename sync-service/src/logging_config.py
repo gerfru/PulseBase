@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from typing import Any
 
@@ -20,6 +21,7 @@ def _sentry_error_processor(logger: Any, method: str, event_dict: Any) -> Any:
 
 
 def configure_logging() -> None:
+    _level = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
     _pre: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
@@ -34,7 +36,7 @@ def configure_logging() -> None:
             _sentry_error_processor,
             structlog.processors.JSONRenderer(),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+        wrapper_class=structlog.make_filtering_bound_logger(_level),
         context_class=dict,
         logger_factory=structlog.WriteLoggerFactory(),
     )
@@ -50,7 +52,7 @@ def configure_logging() -> None:
     _root = logging.getLogger()
     _root.handlers.clear()
     _root.addHandler(_handler)
-    _root.setLevel(logging.INFO)
+    _root.setLevel(_level)
 
     logging.getLogger("garminconnect").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)

@@ -30,6 +30,13 @@ class Settings(BaseSettings):
             )
         return v
 
+    @field_validator("session_secret")
+    @classmethod
+    def session_secret_min_length(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("SESSION_SECRET must be at least 32 characters")
+        return v
+
     @property
     def db_url(self) -> str:
         return f"postgresql://{self.db_app_user}:{self.db_app_password}@{self.db_host}:{self.db_port}/{self.db_name}"
