@@ -176,8 +176,16 @@ function makeChart(id, type, labels, datasets, scales = {}) {
     });
 }
 
+function esc(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function statTile(label, value) {
-    return `<div class="stat-tile"><div class="stat-label">${label}</div><div class="stat-value" style="font-size:1.2rem">${value}</div></div>`;
+    return `<div class="stat-tile"><div class="stat-label">${esc(label)}</div><div class="stat-value" style="font-size:1.2rem">${esc(value)}</div></div>`;
 }
 
 function econColor(val, lo, hi) {
