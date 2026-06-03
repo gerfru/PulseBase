@@ -324,7 +324,8 @@ make logs-sync        # Sync-Service-Logs live
 make logs-analytics   # ML-Service-Logs live
 make logs-all         # Alle Logs zusammen
 make status           # Container-Status
-make sync             # Garmin-Sync sofort auslösen (nicht auf 6 Uhr warten)
+make trigger-sync     # Garmin-Sync sofort anfordern (kein Rebuild, läuft binnen 1 Minute)
+make sync             # Sync-Service neu bauen + starten (löst Backfill-Sync aus)
 make gen-secrets      # SESSION_SECRET + FERNET_KEY generieren
 make secure-env       # chmod 600 auf alle env/-Dateien
 make reset            # ⚠ Volumes löschen + DB komplett neu aufsetzen (löscht alle User!)

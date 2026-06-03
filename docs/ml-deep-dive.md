@@ -331,7 +331,7 @@ Nach dem Training wird jedem Cluster anhand des Centroid-Profils ein Label zugew
 
 ## 5. Scheduling & Datenpipeline
 
-### Inferenz-Lauf (täglich, konfigurierbar über `ML_INFER_HOUR`)
+### Inferenz-Lauf (nach jedem Garmin-Sync + täglicher Fallback via `ML_INFER_HOUR`)
 
 ```
 für jeden aktiven User (garmin_linked=true, is_active=true):

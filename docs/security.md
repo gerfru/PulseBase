@@ -374,7 +374,7 @@ Jeder Service bekommt nur die Secrets die er braucht (Principle of Least Privile
 env/.env       → nur db + flyway (DB_USER/PASSWORD Admin-Creds, HOST_IP)
 env/.env.app   → api + sync + ml (DB_APP_USER/PASSWORD, FERNET_KEY)
 env/.env.api   → nur api (SESSION_SECRET, RESEND_API_KEY, APP_BASE_URL, ...)
-env/.env.sync  → nur sync-service (SYNC_HOUR, SYNC_LOOKBACK_DAYS, ...)
+env/.env.sync  → nur sync-service (SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, ...)
 env/.env.ml    → nur ml-service (ML_INFER_HOUR, kein FERNET_KEY nötig)
 ```
 

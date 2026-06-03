@@ -63,12 +63,6 @@ export function fmtSyncAge(iso) {
     return `vor ${Math.round(mins / 60)}h`;
 }
 
-function setSyncLoading(loading) {
-    const btn = document.getElementById('sync-btn');
-    btn.textContent = loading ? '↻ Läuft…' : '↻ Sync';
-    btn.classList.toggle('sync-loading', loading);
-}
-
 let _syncPollTimer = null;
 
 async function pollSyncStatus() {
@@ -80,7 +74,6 @@ async function pollSyncStatus() {
         if (s.pending) {
             _syncPollTimer = setTimeout(pollSyncStatus, 5000);
         } else {
-            setSyncLoading(false);
             if (_syncPollTimer) {
                 showToast('Sync abgeschlossen');
                 resetOffset();
@@ -106,26 +99,9 @@ export async function loadSyncStatus() {
             document.getElementById('sync-last').textContent = fmtSyncAge(s.last_sync_at);
         }
         if (s.pending) {
-            setSyncLoading(true);
             _syncPollTimer = setTimeout(pollSyncStatus, 5000);
         }
     } catch {
         /* ignorieren */
-    }
-}
-
-export async function triggerSync() {
-    if (document.getElementById('sync-btn').classList.contains('sync-loading')) return;
-    try {
-        const res = await fetch('/api/sync', { method: 'POST' });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            showToast(err?.error?.message || 'Sync fehlgeschlagen', 'error');
-            return;
-        }
-        setSyncLoading(true);
-        _syncPollTimer = setTimeout(pollSyncStatus, 5000);
-    } catch {
-        showToast('Verbindungsfehler', 'error');
     }
 }

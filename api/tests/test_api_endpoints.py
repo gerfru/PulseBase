@@ -144,42 +144,6 @@ async def test_api_ml_history_returns_list(client):
 # ── Sync ──────────────────────────────────────────────────────────────────────
 
 
-async def test_sync_not_linked_returns_400(client):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
-        r = await client.post("/api/sync")
-    assert r.status_code == 400
-    assert r.json()["error"]["code"] == "NOT_LINKED"
-
-
-async def test_sync_linked_returns_requested(client):
-    with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_GARMIN)),
-        patch("src.routes.api.request_sync", AsyncMock(return_value=None)),
-    ):
-        r = await client.post("/api/sync")
-    assert r.status_code == 200
-    assert r.json()["status"] == "requested"
-
-
-async def test_sync_request_sync_raises_returns_500():
-    from httpx import AsyncClient, ASGITransport
-    from src.main import app as _app
-
-    with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_GARMIN)),
-        patch(
-            "src.routes.api.request_sync",
-            AsyncMock(side_effect=Exception("queue full")),
-        ),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=_app, raise_app_exceptions=False),
-            base_url="http://test",
-        ) as c:
-            r = await c.post("/api/sync")
-    assert r.status_code == 500
-
-
 async def test_api_sync_status_returns_data(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
