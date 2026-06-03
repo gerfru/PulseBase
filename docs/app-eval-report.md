@@ -4,7 +4,7 @@
 **Regelquelle:** Dev-Best-Practices Plugin (essential/app/github/architecture-rules.md)
 **ASVS-Level:** L2 (Auth + sensible Gesundheitsdaten, DSGVO, Epilepsie-Modus)
 **Team:** Solo · Self-Hosted (Public Release)
-**Dokumentierte Ausnahmen (nicht gemeldet):** ARCH-M2, ARCH-M3, ARCH-L2, ARCH-L3, ARCH-L4, ARCH-L5, CICD-M3, QUAL-M2, OBS-L1, OBS-L2, TEST-L1, TEST-L2, TEST-L3, TEST-L4, SEC-L1, CICD-L4
+**Dokumentierte Ausnahmen (nicht gemeldet):** ARCH-M2, ARCH-L2, ARCH-L3, ARCH-L4, ARCH-L5, CICD-M3, CICD-L4, QUAL-M2, OBS-L2, TEST-L1, TEST-L2, TEST-L3, TEST-L4
 
 ---
 
@@ -46,19 +46,21 @@
 | 2026-06-03 | Wave 13 Runde 1 — Security Quick Wins | H-20 (Libre tempfile+Fernet), H-21 (else entfernt), M-75 (SESSION_SECRET Validator), M-76 (DOMPurify openFormulaDialog), M-77 (TRUSTED_PROXY_CIDRS .env.example) gefixt |
 | 2026-06-03 | Wave 13 Runde 2 — Architektur & Konfiguration | M-83 (asyncio.Event-Muster), M-81 (LOG_LEVEL via Env alle 3 Services), L-67 (Dockerfile /ready), L-68 (CLAUDE.md Env-Sektion), L-80 (PYTHONUNBUFFERED) gefixt · M-84 ✅ false positive |
 | 2026-06-03 | Wave 13 Runde 3 — Tests + CI/CD | M-79 (fail_under 65→70%), M-80 (CICD-M4 Tech-Debt), L-75 (POST /api/sync entfernt), L-76 (pragma allowlist secret), L-77 (platformAutomerge: false) gefixt |
+| 2026-06-03 | Wave 13 Runde 4 — Code-Qualität | M-78 (assert→ValueError DB-Schicht), M-82 (/api/metrics Endpoint), M-85 (auth_helpers.py extrahiert, auth.py 339Z), M-86 (scheduler.py + garmin_call→client.py, sync/main.py 372Z), M-87 (_backfill_custom_scores 4 Helfer), L-69 (SQL-Parameterreihenfolge), L-70 (assert→RuntimeError), L-71 (Return-Annotierungen), L-72 (Docstrings), L-73 (CC-Reduktion 4 Funktionen), L-74 (bare except→spezifisch) gefixt |
+| 2026-06-03 | Wave 13 Runde 5 — Observability + Public Release | L-66 (require_user auf /api/evidence), L-78 (Loki + Promtail Compose-Services), L-79 (Uptime Kuma Compose-Service + Alert-Doku), M-19 (Uptime Kuma statt UptimeRobot), ARCH-M3 (Traefik ACME/Let's Encrypt konfiguriert) gefixt · Docs: homelab→public, Ausnahmen begründet, external-services.md |
 
 ---
 
 ## Achsen-Übersicht
 
-| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | W12 | Eval 6 | W13 | Noch offen |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | — |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-78, M-85–87 |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | — |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | M-19 (manuell) |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-82, H-07 (manuell), M-19 (manuell) |
+| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | W12 | Eval 6 | W13 | W13 R4+R5 | Noch offen |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | — |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | H-07 (manuell) |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | — |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | — |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | — |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | H-07 (manuell) |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
@@ -145,7 +147,7 @@
 | M-16 | ✅ | W3 | **semgrep/bandit/pip-audit ohne Versions-Pin** | `.github/workflows/ci.yml:80` | CI/CD |
 | M-17 | ✅ | W3 | **Semgrep fehlt in Pre-commit-Hooks** | `.pre-commit-config.yaml` | CI/CD |
 | M-18 | ✅ | W3 | **GitHub-native Secret Scanning undokumentiert** | `.github/` | CI/CD |
-| M-19 | ❌ | — | **Uptime-Monitoring nicht eingerichtet** (manuell: UptimeRobot) | — | Observability |
+| M-19 | ✅ | W13 R5 | **Uptime-Monitoring via Uptime Kuma** — self-hosted als Compose-Service; Dashboard via Tailscale-IP (`${TAILSCALE_IP}:3001`); Monitor auf `http://api:8000/health` | `docker-compose.yml` | Observability |
 | M-20 | ✅ | W7 | **Traffic + Saturation nicht messbar** (2 von 4 goldenen Signalen) | `api/src/main.py:66` | Observability |
 | M-21 | ✅ | W0 | **PII-Logging: E-Mail bei Login-Fail** | `api/src/routes/auth.py` | Security |
 | M-22 | ✅ | W0 | **IP-Spoofing: trusted CIDR `172.0.0.0/8` zu breit** | `api/src/deps.py` | Security |
@@ -204,16 +206,16 @@
 | M-75 | ✅ | W13 R1 | **SESSION_SECRET ohne Mindestlängen-Validierung** — `session_secret: str` ohne Validator; Wert wie `"test"` besteht App-Start. Starlette-Sessions signiert mit diesem Wert — schwacher Secret ermöglicht Token-Forging | `api/src/db/pool.py:12` | Security |
 | M-76 | ✅ | W13 R1 | **`openFormulaDialog` schreibt `innerHTML` ohne DOMPurify** — `bodyHtml`-Parameter unkontrolliert per `innerHTML`; M-64 (W12 R1) fixte `metrics.js:61`; `dashboard-utils.js:143` wurde übersehen. Aktuell statische Daten, aber jede zukünftige Aufrufstelle mit API-Daten führt zu DOM-XSS | `api/src/static/dashboard-utils.js:143` | Security |
 | M-77 | ✅ | W13 R1 | **`TRUSTED_PROXY_CIDRS` fehlt in `.env.api.example`** — Betreiber der den Proxy tauscht erhält keinen Hinweis; fehlerhafte CIDR-Konfiguration bricht Rate-Limiting-IP-Basis | `api/src/main.py:44-47`, `env/.env.api.example` | Security |
-| M-78 | ❌ | — | **`assert` als Security-Guard in DB-Schicht** — `assert user_id > 0` u.ä. in `update_password()`, `delete_user()`, `save_user_token()`; `assert` wird durch Python `-O`-Flag deaktiviert; keine verlässliche Guard-Anweisung in Produktion | `api/src/db/users.py:127,214,254` | Code-Qualität |
+| M-78 | ✅ | W13 R4 | **`assert` als Security-Guard in DB-Schicht** — `assert user_id > 0` → `if user_id <= 0: raise ValueError(f"invalid user_id: {user_id}")` in `update_password()`, `delete_user()`, `save_user_token()` | `api/src/db/users.py:127,214,254` | Code-Qualität |
 | M-79 | ✅ | W13 R3 | **sync-service `fail_under=65%` (Mindestziel: 70%)** — M-59 (W10 R2) hob von 50% auf 65% an; Ziel laut architecture-rules.md ist 70-80% | `sync-service/pyproject.toml:8`, `.github/workflows/ci.yml:272` | Tests |
 | M-80 | ✅ | W13 R3 | **Kein automatisierter Deployment-Step (CD-Pipeline fehlt)** — CI endet nach Build+Test; Deployment erfolgt manuell via `make up`; kein Rollback-Mechanismus in der Pipeline · Als Tech-Debt dokumentiert (CICD-M4) | `.github/workflows/ci.yml` | CI/CD |
 | M-81 | ✅ | W13 R2 | **`LOG_LEVEL` hardcoded `INFO` in allen 3 Services** — 12-Factor-Verstoß; Debug-Logging in Produktion erfordert Image-Rebuild · Fix: `getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)` | `api/src/logging_config.py:38`, `sync-service/src/logging_config.py:37`, `ml-service/src/logging_config.py:38` | Observability |
-| M-82 | ❌ | — | **In-Memory-Metriken nicht extern abrufbar** — M-20 (W7) fügte `_active_requests`/`_error_requests`-Counter hinzu; kein `/metrics`-Endpoint (Prometheus), keine Saturation-Trends für externe Systeme | `api/src/main.py:65-95` | Observability |
+| M-82 | ✅ | W13 R4 | **In-Memory-Metriken extern abrufbar** — `GET /api/metrics` (session-geschützt) liefert `active_requests`, `error_requests_total`, `uptime_seconds` | `api/src/main.py` | Observability |
 | M-83 | ✅ | W13 R2 | **ml-service SIGTERM `shutdown(wait=True)` blockiert Event Loop** — Regression aus M-45 (W10 R3): M-45 änderte `wait=False` → `wait=True` um laufende Jobs nicht abzubrechen; `shutdown(wait=True)` als Lambda in `loop.add_signal_handler`-Callback ist aber ein blockierender Call im Event-Loop-Thread · sync-service nutzt korrekt das `asyncio.Event`-Muster als Referenz | `ml-service/src/main.py:220` | Architektur |
 | M-84 | ✅ | — | **ml-service ohne FERNET_KEY-Validator** — false positive: ml-service greift ausschließlich auf Analytics-Tabellen zu (activities, health, hrv, ml_predictions), nie auf Tokens. Kein FERNET_KEY-Feld nötig. | `ml-service/src/config.py:1-21` | Architektur |
-| M-85 | ❌ | — | **`api/src/routes/auth.py` möglicherweise wieder >400 Zeilen** — L-59 (W11) brachte Datei auf 390Z; W12 R2 extrahierte Helfer innerhalb der Datei (kein Datei-Split) → Netto-Wachstum möglich · Eval-6-Messung: 429Z [zu verifizieren] | `api/src/routes/auth.py:1` | Code-Qualität |
-| M-86 | ❌ | — | **`sync-service/src/main.py` möglicherweise >400 Zeilen** — W12 R2 extrahierte viele Helfer (H-19, M-69, M-70) aber alle verbleiben in derselben Datei · Eval-6-Messung: 419Z [zu verifizieren] | `sync-service/src/main.py:1` | Code-Qualität |
-| M-87 | ❌ | — | **`_backfill_custom_scores()` Zyklomatische Komplexität CC=15** — H-12 (W9 R4) verschob Raw-SQL in `ml-service/src/db/`; Algorithmus-Struktur der Funktion unverändert. Body-Battery-, Stress- und Running-Economy-Pfade als Sub-Funktionen extrahieren [zu verifizieren ob H-12-Fix CC bereits reduziert hat] | `ml-service/src/backfill.py:73` | Code-Qualität |
+| M-85 | ✅ | W13 R4 | **`api/src/routes/auth.py` 429Z → 339Z** — Login-Helfer (`_lockout_response`, `_handle_invalid_credentials`, `_handle_unverified_email`, `_establish_session`) in `api/src/auth_helpers.py` extrahiert | `api/src/routes/auth.py`, `api/src/auth_helpers.py` (neu) | Code-Qualität |
+| M-86 | ✅ | W13 R4 | **`sync-service/src/main.py` 419Z → 372Z** — `garmin_call` → `garmin/client.py`; `_configure_scheduler` + `_write_alive_sentinel` → `scheduler.py` (neu) | `sync-service/src/main.py`, `sync-service/src/scheduler.py` (neu) | Code-Qualität |
+| M-87 | ✅ | W13 R4 | **`_backfill_custom_scores()` CC=15 → 4 Helfer** — `_save_body_battery`, `_save_stress_score`, `_save_running_economy`, `_save_hrv_recovery` extrahiert; Orchestrator jetzt ~22Z | `ml-service/src/backfill.py:73` | Code-Qualität |
 
 ---
 
@@ -286,33 +288,32 @@
 | L-63 | ✅ | W10 R2 | **metrics.js: `result.value`/`result.sub` per `textContent` → Rendering-Regression** — M-33-Fix setzte alle Metric-Detail-Werte per `textContent`; Renderer-Funktionen liefern styled HTML-Spans, kein User-Input → alle 8 Metric-Seiten zeigten rohe HTML-Tags · Fix: `innerHTML` für Renderer-Ausgaben wiederhergestellt | `api/src/static/metrics.js:38` | Code-Qualität |
 | L-64 | ✅ | W11 | **`epilepsy.js`: `flags.label`/`flags.detail` via Template-Literal in `innerHTML` ohne Escaping** — H-10 adressierte seizure notes/event-type/sport-type/metrics.js; risk-flag-Labels nicht abgedeckt · Fix: `renderRiskFlags()` extrahiert + exportiert, `createElement + textContent`; 4 neue Tests in `epilepsy.test.js` | `api/src/static/epilepsy.js:51`, `api/tests/js/epilepsy.test.js` (neu) | Security |
 | L-65 | ✅ | W12 R3 | **Pre-commit Hook-Reihenfolge: `bandit` nach `ruff`** — github-rules.md Soll: gitleaks → bandit → lint → format → typecheck; Ist: gitleaks → ruff → bandit; kein funktionaler Impact, aber Abweichung von Canonical-Reihenfolge · Fix: bandit-Repo-Block vor ruff verschoben | `.pre-commit-config.yaml:21–34` | CI/CD |
-| L-66 | ❌ | — | **`/api/evidence` ohne Authentifizierung** — einziger `/api/*`-Endpunkt ohne `require_user`; Evidence-Daten sind nicht sensitiv, aber Information-Disclosure / Fingerprinting möglich · Fix: `require_user` ergänzen oder als Public-Endpunkt in CLAUDE.md dokumentieren | `api/src/routes/api.py:335-337` | Security |
+| L-66 | ✅ | W13 R5 | **`/api/evidence` mit Authentifizierung** — `require_user` ergänzt; konsistent mit allen anderen `/api/*`-Endpunkten | `api/src/routes/api.py:335-337` | Security |
 | L-67 | ✅ | W13 R2 | **Dockerfile-HEALTHCHECK vs. docker-compose-Healthcheck inkonsistent** — M-48 (W10 R3) änderte compose auf `/ready`; Dockerfile nutzt noch `/health`. Im Stack-Betrieb überschreibt compose (korrekt). Im Standalone-Container-Betrieb prüft Docker nur `/health`. Fix: Dockerfile-HEALTHCHECK auf `/ready` anpassen | `api/Dockerfile:18-19`, `docker-compose.yml:120` | Architektur |
 | L-68 | ✅ | W13 R2 | **CLAUDE.md Env-Dokumentation inkonsistent** — CLAUDE.md listet `env/.env` als "shared, alle Services"; tatsächlich laden alle 3 App-Services `env/.env.app`; `env/.env` nur DB/Flyway. Führt zu Setup-Verwirrung beim Onboarding | `CLAUDE.md` Env-Files-Sektion, `docker-compose.yml:107,145,179` | Architektur |
-| L-69 | ❌ | — | **Inkonsistente SQL-Parameterreihenfolge** — `set_garmin_linked` übergibt `(email, user_id)` für `($1,$2)`, `set_libre_linked` übergibt `(user_id, email)`; beide SQL-Abfragen korrekt aber widersprüchliches Muster erhöht Fehlerrisiko bei Änderungen | `api/src/db/users.py:82 vs :99` | Code-Qualität |
-| L-70 | ❌ | — | **`assert user is not None` in Route-Handler** — nach `_handle_invalid_credentials`-Check logisch korrekt, aber `assert` ist nicht idiomatisch für Error-Handling in Production-Code · Fix: `if user is None: raise RuntimeError(...)` | `api/src/routes/auth.py:165` | Code-Qualität |
-| L-71 | ❌ | — | **Fehlende Return-Type-Annotierungen in Route-Handlern** — M-07 (W4) adressierte `pages.py`/`sync-service`; `account.py:27,38,66`, `garmin.py:30,41,99`, `libre.py:20,31,104` noch ohne `-> Response`-Annotation | `api/src/routes/account.py`, `garmin.py`, `libre.py` | Code-Qualität |
-| L-72 | ❌ | — | **Fehlende Docstrings in kritischen Geschäftsfunktionen** — `get_seizure_risk()` (57Z, komplexe Risikobewertung), `build_training_load()` (72Z, CTL/ATL/TSB), `export_user_data()` (DSGVO Art. 20) ohne Docstrings | `api/src/db/seizures.py:153`, `api/src/training_load.py:28`, `api/src/db/users.py:356` | Code-Qualität |
-| L-73 | ❌ | — | **Erhöhte CC >10 in 4 weiteren Funktionen** — `ml-service/src/models/training_load.py:19` (CC=12), `ml-service/src/models/hrv_recovery.py:7` (CC=12), `sync-service/src/garmin/mapper.py:57` (CC=13), `ml-service/src/models/readiness.py:44` (CC=11) | mehrere | Code-Qualität |
-| L-74 | ❌ | — | **Bare `except Exception` ohne spezifischen Typ** — Fernet-Validierung in `main.py:123` fängt `Exception` statt `ValueError, InvalidToken`; `/ready`-Handler in `main.py:186` fängt `Exception` ohne Logging → kein Audit-Trail bei DB-Fehler | `api/src/main.py:123,186` | Code-Qualität |
+| L-69 | ✅ | W13 R4 | **SQL-Parameterreihenfolge konsistent** — `set_garmin_linked` auf `(user_id, email)` → `WHERE id = $1, email = $2` vereinheitlicht (wie `set_libre_linked`) | `api/src/db/users.py:82` | Code-Qualität |
+| L-70 | ✅ | W13 R4 | **`assert user is not None` → `RuntimeError`** — `if user is None: raise RuntimeError("user_record missing after credential check")` | `api/src/routes/auth.py:165` | Code-Qualität |
+| L-71 | ✅ | W13 R4 | **Return-Type-Annotierungen ergänzt** — `-> Response` auf alle Handler in `account.py`, `garmin.py`, `libre.py` | `api/src/routes/account.py`, `garmin.py`, `libre.py` | Code-Qualität |
+| L-72 | ✅ | W13 R4 | **Docstrings in 3 kritischen Funktionen** — `get_seizure_risk()`, `build_training_load()`, `export_user_data()` (DSGVO Art. 20) | `api/src/db/seizures.py:153`, `api/src/training_load.py:28`, `api/src/db/users.py:356` | Code-Qualität |
+| L-73 | ✅ | W13 R4 | **CC >10 in 4 Funktionen reduziert** — `_day_trimp_for_row` (training_load), `_collect_recovery_slopes` (hrv_recovery), `_build_metric_index` (mapper), `_build_feature_row` (readiness) extrahiert | mehrere | Code-Qualität |
+| L-74 | ✅ | W13 R4 | **Bare `except Exception` spezifiziert** — Fernet: `except ValueError as e`; `/ready`: `except Exception` + `logger.exception("readiness.check_failed")` | `api/src/main.py:123,186` | Code-Qualität |
 | L-75 | ✅ | W13 R3 | **`POST /api/sync` in CLAUDE.md dokumentiert, Endpunkt existiert nicht** — L-47 (W10 R4) entfernte den Endpunkt; CLAUDE.md-Sektion "JSON-API Endpoints" nicht aktualisiert | `CLAUDE.md` Sektion JSON-API Endpoints | Tests/Docs |
 | L-76 | ✅ | W13 R3 | **FERNET_KEY-Dummy als Klartext-Hardcode in ci.yml** — `FERNET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=` direkt im YAML; kein echtes Secret, aber E2E-Sektion generiert Key korrekt via openssl. Pattern suggeriert Schlüssel-Material im Repo · Fix: `# pragma: allowlist secret`-Kommentar | `.github/workflows/ci.yml:269` | CI/CD |
 | L-77 | ✅ | W13 R3 | **Renovate automergt Produktions-Abhängigkeiten** — `pep621 patch`-Automerge gilt für alle Abhängigkeiten inkl. `fastapi`, `asyncpg`, `scikit-learn`; ohne erzwungene Status-Checks (CICD-M3) könnte PR mergen bevor CI fertig ist · Fix: `"platformAutomerge": false` oder Automerge auf devDependencies einschränken | `renovate.json:9-13` | CI/CD |
-| L-78 | ❌ | — | **Log-Aggregation fehlt — Logs nur lokal via Docker json-file Driver** — keine externe Aggregation (Better Stack / Loki); Multi-Service-Debugging über alle 3 Services nicht möglich · Fix: Better Stack Tail Agent als Compose-Service oder Loki+Promtail | `docker-compose.yml:27-31` | Observability |
-| L-79 | ❌ | — | **Kein konfiguriertes Alert-System** — keine Alerts für Error Rate >1%, p95 >2s, CPU/Memory >80% · Fix: UptimeRobot Keyword-Check + Sentry Alert-Rules als Minimum | vollständige Lücke | Observability |
+| L-78 | ✅ | W13 R5 | **Log-Aggregation via Loki + Promtail** — beide als Compose-Services; Promtail sammelt Docker-Logs aller 3 Services; Loki unter `${TAILSCALE_IP}:3100` abfragbar; 7-Tage-Retention | `docker-compose.yml`, `monitoring/loki-config.yml`, `monitoring/promtail-config.yml` | Observability |
+| L-79 | ✅ | W13 R5 | **Alert-System konfiguriert** — Uptime Kuma (Compose-Service, HTTP-Monitor auf `/health`); Sentry Alert Rules in `docs/external-services.md` dokumentiert | `docker-compose.yml`, `docs/external-services.md` | Observability |
 | L-80 | ✅ | W13 R2 | **`PYTHONUNBUFFERED` fehlt in allen Dockerfiles** — ohne `ENV PYTHONUNBUFFERED=1` puffert Python stdout; Logs können bei Container-Crash verloren gehen · Fix: `ENV PYTHONUNBUFFERED=1` in alle 3 Dockerfiles | `api/Dockerfile`, `sync-service/Dockerfile`, `ml-service/Dockerfile` | Observability |
 
 ---
 
-## Offene Findings (nach Wave 13 R1–R3)
+## Offene Findings (nach Wave 13 R4+R5 — Public Release)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Eval 1–6, Wave 1–13 gefixt** | ✅ H-01–H-21, M-01–M-84, L-01–L-80 (außer H-07, M-19 und nachstehend Offene) |
-| **Noch offen** | ❌ M-82, M-85–M-87, L-66, L-69–L-74, L-78–L-79 |
-| **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
-| **[zu verifizieren]** | M-85 (auth.py 429Z), M-86 (sync/main.py 419Z), M-87 (backfill.py CC=15) |
-| **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
+| **Eval 1–6, Wave 1–13 gefixt** | ✅ H-01–H-21, M-01–M-87, L-01–L-80 |
+| **Noch offen** | — (alle umsetzbaren Findings gefixt) |
+| **Manuell / extern** | ❌ H-07 (Sentry DSN in `env/.env.api` eintragen → `docs/external-services.md`) |
+| **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
 ---
 
@@ -323,8 +324,8 @@
 | ~~**W13 R1**~~ | ~~Security Quick Wins~~ | ~~H-20, H-21, M-75, M-76, M-77~~ | ✅ |
 | ~~**W13 R2**~~ | ~~Architektur & Konfiguration~~ | ~~M-83, M-84 (false positive), M-81, L-80, L-67, L-68~~ | ✅ |
 | ~~**W13 R3**~~ | ~~Tests + CI/CD~~ | ~~M-79, M-80, L-75, L-76, L-77~~ | ✅ |
-| **W13 R4** | Code-Qualität | M-78 (`assert` → `ValueError` in DB-Schicht), M-82 (Metriken in `/health` oder Prometheus), M-85–87 [zu verifizieren], L-69–L-74 (Typen, Docstrings, CC, except) | S·M·S·S |
-| **W13 R5** | Observability | L-66 (`require_user` auf `/api/evidence`), L-78 (Log-Aggregation), L-79 (Alert-System), L-80 bereits in R2 | S·M·L |
+| ~~**W13 R4**~~ | ~~Code-Qualität~~ | ~~M-78, M-82, M-85–87, L-69–L-74~~ | ✅ |
+| ~~**W13 R5**~~ | ~~Observability + Public Release~~ | ~~L-66, L-78, L-79, M-19 (Uptime Kuma), ARCH-M3 (ACME)~~ | ✅ |
 
 **Gesamtaufwand Wave 13:** 2H · 13M · 15L — Phase-1 (R1–R3) unter 2h, alle S-Aufwand
 
@@ -383,6 +384,9 @@
 - **Action-Digests**: Alle GitHub Actions mit Commit-SHA gepinnt
 - **structlog JSON + UTC**: alle 3 Services; keine Secrets in Logs
 - **/health + /ready**: Liveness (kein DB-Call) + Readiness (SELECT 1 + Flyway-Check) — überdurchschnittlich gut
+- **Loki + Promtail**: Log-Aggregation aller 3 Services als Compose-Services; 7-Tage-Retention; via Tailscale abfragbar
+- **Uptime Kuma**: Self-hosted Uptime-Monitoring als Compose-Service; Dashboard via Tailscale-IP
+- **ACME/Let's Encrypt**: Automatische TLS-Zertifikate via Traefik (standalone); Fernet-Verschlüsselung für alle Service-Tokens
 
 ---
 
@@ -391,7 +395,7 @@
 | ID | Beschreibung |
 |---|---|
 | ARCH-M2 | Kein Service-Layer (Routes → DB direkt) — Logik ist route-spezifisch, kein geteilter Business-Logic-Bedarf; Trigger: >3 Entwickler oder domainübergreifende Business-Logik |
-| ARCH-M3 | Traefik ohne ACME — muss für Public Release mit `certificatesResolvers` (Let's Encrypt) konfiguriert werden |
+| ARCH-M3 | ✅ Traefik ACME konfiguriert — `certificatesResolvers.letsencrypt` (HTTP-01) in `traefik/traefik.yml`; `ACME_EMAIL` in `env/.env` setzen |
 | ARCH-L2 | Technisch-basierte `db/`-Ordnerstruktur — Dateien <200Z, Domain-Grenzen durch Dateinamen klar; Trigger: Dateien >400Z oder parallele Team-Arbeit an isolierten Domains |
 | ARCH-L3 | Kein `/api/v1/`-Prefix — keine externen Consumer; Trigger: externe API-Stabilität wird verlangt |
 | ARCH-L4 | 3-Service-Splitting bewusst: Scheduling-Isolation, ML-Workload-Trennung, unabhängige Restart-Zyklen, unterschiedliche Memory-Limits (api 512 MB, ml 1 GB). Kein klassisches Microservices-Muster. |
@@ -399,9 +403,9 @@
 | CICD-M3 | Branch Protection nicht erzwingbar (Free-Plan, privates Repo) |
 | CICD-L4 | GitHub-native Secret Scanning nicht verfügbar (Free-Plan) |
 | QUAL-M2 | Duplizierter GarminClient in api/ + sync-service/ — bewusst |
-| OBS-L1 | Kein externes Uptime-Monitoring — Reminder: UptimeRobot einrichten |
+| OBS-L1 | ✅ Uptime Kuma als Compose-Service — Monitor auf `http://api:8000/health`; Dashboard via `${TAILSCALE_IP}:3001` |
 | OBS-L2 | Kein OpenTelemetry — Single-Server; `request_id` als Korrelation ausreichend |
-| SEC-L1 | HSTS bei self-signed TLS — entfällt mit ARCH-M3-Fix (ACME) |
+| SEC-L1 | ✅ Entfällt — ARCH-M3 mit ACME gefixt; HSTS korrekt (echtes Zertifikat) |
 | TEST-L1 | `require_user`-Mock ohne `assert_called_once()` — Tests verifizieren Verhalten |
 | TEST-L2 | JS-Coverage auf 4/24 Static-JS-Dateien — DOM-heavy Files via Playwright E2E |
 | TEST-L3 | `dashboard-hero.js` bewusst aus Vitest `coverage.include` ausgeschlossen — `heroRecommendation()` hat Unit-Tests; DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E; Coverage-Merge Unit+E2E mit Python-Playwright-Stack nicht praktikabel |
