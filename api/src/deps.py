@@ -5,7 +5,7 @@ import secrets
 import time
 from datetime import date as Date
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import Any, TypedDict, cast
 
 import bcrypt
 import structlog
@@ -97,9 +97,13 @@ async def require_user(request: Request) -> UserRow:
 
 
 class NonceTemplates(Jinja2Templates):
-    def TemplateResponse(
-        self, request: Request, name: str, context: dict | None = None, **kwargs
-    ):  # type: ignore[override]
+    def TemplateResponse(  # type: ignore[override]
+        self,
+        request: Request,
+        name: str,
+        context: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Any:
         ctx = {**(context or {})}
         ctx.setdefault("nonce", getattr(request.state, "nonce", ""))
         return super().TemplateResponse(request, name, ctx, **kwargs)
