@@ -836,23 +836,6 @@ Sets the subjective RPE (Rate of Perceived Exertion) for an activity. Session-pr
 
 ---
 
-### `POST /api/sync`
-
-Requests an immediate Garmin sync for the authenticated user. The sync-service polls for
-this flag and processes it within 2 minutes.
-
-**Request body:** none
-
-**Response:**
-
-```json
-{ "status": "requested" }
-```
-
-**Error:** `400` with `code: NOT_LINKED` if Garmin account is not connected.
-
----
-
 ### `GET /api/sync-status`
 
 Returns the sync state for the authenticated user.

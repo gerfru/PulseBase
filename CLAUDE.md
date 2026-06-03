@@ -102,7 +102,8 @@ make dashboard        # API neu bauen + starten (nach Code-Änderungen in api/)
 make analytics        # Analytics-Service neu bauen + starten (nach Code-Änderungen in ml-service/)
 make up               # Alle Services starten
 make reset            # Alles löschen + DB neu aufsetzen (löscht alle User!)
-make sync             # Garmin-Sync sofort auslösen (nicht auf 6 Uhr warten)
+make trigger-sync     # Garmin-Sync sofort anfordern (kein Rebuild, binnen 1 Minute)
+make sync             # Sync-Service neu bauen + starten (Backfill-Sync)
 make tailwind-build   # Tailwind CSS neu bauen (nach Template-Änderungen)
 make logs-dashboard   # API-Logs live
 make logs-analytics   # Analytics-Service-Logs live

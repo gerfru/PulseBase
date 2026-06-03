@@ -1,4 +1,4 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-coverage test-js test-js-coverage secure-env
+.PHONY: network up up-standalone down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env --env-file env/.env.app
 
@@ -36,6 +36,12 @@ analytics: network
 
 sync: network
 	$(DC) build sync-service && $(DC) up -d --force-recreate sync-service
+
+trigger-sync: ## Garmin-Sync für alle aktiven User anfordern (sync-service verarbeitet binnen 1 Minute)
+	@export $$(grep -v '^#' env/.env | xargs) 2>/dev/null; \
+	$(DC) exec -T db psql -U $${DB_APP_USER} -d garmin \
+	  -c "UPDATE users SET sync_requested = true WHERE garmin_linked = true AND is_active = true;"
+	@echo "Sync angefordert — läuft binnen 1 Minute. Fortschritt: make logs-sync"
 
 logs-dashboard:
 	$(DC) logs -f api

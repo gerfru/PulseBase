@@ -201,8 +201,8 @@ inside the API or sync-service. Reasons:
 
 - **Dependency isolation**: scikit-learn, scipy, numpy, and joblib don't belong in the
   API image — they'd triple its size and have no business there
-- **Independent schedule**: inference runs daily at 7:00, training weekly on Sundays —
-  completely decoupled from the Garmin sync schedule (6:00) and the API
+- **Independent schedule**: inference is triggered after every Garmin sync (via `ml_requested` flag)
+  and runs on a daily fallback schedule (7:00); training runs weekly on Sundays — decoupled from the API
 - **Failure isolation**: a broken model or training run doesn't affect the API or sync
 
 The ML service writes results to `ml_predictions` in the shared TimescaleDB. The API reads

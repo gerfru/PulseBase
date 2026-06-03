@@ -86,6 +86,7 @@ async def test_garmin_link_success_redirects(client):
         patch("src.routes.garmin.save_user_token", AsyncMock(return_value=None)),
         patch("src.routes.garmin.serialize_token_dir", return_value=b"{}"),
         patch("src.routes.garmin.set_garmin_linked", AsyncMock(return_value=None)),
+        patch("src.routes.garmin.request_sync", AsyncMock(return_value=None)),
     ):
         r = await client.post(
             "/garmin/link",
@@ -297,6 +298,7 @@ async def test_garmin_link_loads_existing_token(client):
         patch("src.routes.garmin.save_user_token", AsyncMock(return_value=None)),
         patch("src.routes.garmin.serialize_token_dir", return_value=b"{}"),
         patch("src.routes.garmin.set_garmin_linked", AsyncMock(return_value=None)),
+        patch("src.routes.garmin.request_sync", AsyncMock(return_value=None)),
         patch("src.deps.settings", mock_settings),
     ):
         r = await client.post(

@@ -258,17 +258,6 @@ async def test_account_export_json_structure(authenticated_page):
     assert isinstance(body["user"], dict)
 
 
-# ── Sync button ───────────────────────────────────────────────────────────────
-
-
-async def test_sync_button_shows_feedback(authenticated_page):
-    await authenticated_page.goto("/dashboard")
-    await authenticated_page.locator("#sync-btn").click()
-    # Toast or button state change should appear within 3s
-    toast = authenticated_page.locator("#toast")
-    await toast.wait_for(state="visible", timeout=3000)
-
-
 # ── Metrics overview + Help page ─────────────────────────────────────────────
 
 

@@ -183,7 +183,7 @@ Umsetzung via native Docker Compose `env_file`-Listen — kein extra Tooling, ke
 | `env/.env` | db, flyway | DB_USER/PASSWORD (Admin), HOST_IP |
 | `env/.env.app` | api, sync, ml | DB_APP_USER/PASSWORD (Least Privilege), FERNET_KEY |
 | `env/.env.api` | api | SESSION_SECRET, HTTPS_ONLY, TRIMP_*, RESEND_*, APP_BASE_URL, SENTRY_DSN |
-| `env/.env.sync` | sync-service | SYNC_HOUR, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN |
+| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN |
 | `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, SENTRY_DSN |
 
 Dateiberechtigungen: `make secure-env` setzt `chmod 600` auf alle Secret-Files.
