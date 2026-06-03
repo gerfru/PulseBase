@@ -1,9 +1,11 @@
 import asyncio
 import signal
+import uuid
 from datetime import date
 from pathlib import Path
 
 import structlog
+from structlog.contextvars import bind_contextvars, clear_contextvars
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -54,32 +56,36 @@ logger = structlog.get_logger(__name__)
 
 async def run_inference(user_id: int, settings: Settings) -> None:
     """Orchestrate all ML inference models for one user. All results written to ml_predictions."""
-    today = date.today()
-    act_rows = await get_activity_trimp_inputs(user_id)
-    hrmax = await get_hrmax(user_id)
-    hrv_hist = await get_hrv_history_for_energy(user_id)
-    sleep_h = await get_sleep_data_7d(user_id)
-    daily_today = await get_today_daily_summary(user_id)
-    hr_records, resting_hr_today = await get_todays_activity_hr_records(user_id)
+    bind_contextvars(job_id=str(uuid.uuid4())[:8])
+    try:
+        today = date.today()
+        act_rows = await get_activity_trimp_inputs(user_id)
+        hrmax = await get_hrmax(user_id)
+        hrv_hist = await get_hrv_history_for_energy(user_id)
+        sleep_h = await get_sleep_data_7d(user_id)
+        daily_today = await get_today_daily_summary(user_id)
+        hr_records, resting_hr_today = await get_todays_activity_hr_records(user_id)
 
-    await _run_anomaly(user_id, today)
-    await _run_anomaly_spo2(user_id, today)
-    await _run_anomaly_sleep(user_id, today)
-    await _run_anomaly_steps(user_id, today)
-    await _run_anomaly_stress(user_id, today)
-    await _run_correlations(user_id, today)
-    await _run_readiness(user_id, today, settings)
-    await _run_battery_pattern(user_id, today, settings)
-    await _run_energy_metrics(user_id, today, act_rows, hrmax, hrv_hist, sleep_h)
-    await _run_training_effect(user_id, today, act_rows, hrmax, resting_hr_today)
-    await _run_sleep_and_spo2(user_id, today)
-    await _run_hrv_and_recovery(user_id, today, hrv_hist, act_rows, hrmax)
-    await _run_body_battery_and_stress(
-        user_id, today, act_rows, hrmax, hrv_hist, sleep_h, daily_today
-    )
-    await _run_running_and_intensity(
-        user_id, today, hrmax, hr_records, resting_hr_today
-    )
+        await _run_anomaly(user_id, today)
+        await _run_anomaly_spo2(user_id, today)
+        await _run_anomaly_sleep(user_id, today)
+        await _run_anomaly_steps(user_id, today)
+        await _run_anomaly_stress(user_id, today)
+        await _run_correlations(user_id, today)
+        await _run_readiness(user_id, today, settings)
+        await _run_battery_pattern(user_id, today, settings)
+        await _run_energy_metrics(user_id, today, act_rows, hrmax, hrv_hist, sleep_h)
+        await _run_training_effect(user_id, today, act_rows, hrmax, resting_hr_today)
+        await _run_sleep_and_spo2(user_id, today)
+        await _run_hrv_and_recovery(user_id, today, hrv_hist, act_rows, hrmax)
+        await _run_body_battery_and_stress(
+            user_id, today, act_rows, hrmax, hrv_hist, sleep_h, daily_today
+        )
+        await _run_running_and_intensity(
+            user_id, today, hrmax, hr_records, resting_hr_today
+        )
+    finally:
+        clear_contextvars()
 
 
 async def run_training(user_id: int, settings: Settings) -> None:
@@ -171,6 +177,8 @@ async def main() -> None:  # pragma: no cover
             dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.1
         )
         logger.info("sentry.initialized")
+    else:
+        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
 
     logger.info("ml.initial_run")
     await run_all_users(settings, include_training=True)
