@@ -587,7 +587,7 @@ def test_verify_csrf_token_none_form_token():
 
 
 async def test_internal_verify_reset_token_found():
-    with patch("src.routes.auth.get_reset_token_user_id", AsyncMock(return_value=42)):
+    with patch("src.auth_tokens.get_reset_token_user_id", AsyncMock(return_value=42)):
         from src.routes.auth import _verify_reset_token
 
         result = await _verify_reset_token("test-token-xyz")
@@ -595,7 +595,7 @@ async def test_internal_verify_reset_token_found():
 
 
 async def test_internal_verify_reset_token_not_found():
-    with patch("src.routes.auth.get_reset_token_user_id", AsyncMock(return_value=None)):
+    with patch("src.auth_tokens.get_reset_token_user_id", AsyncMock(return_value=None)):
         from src.routes.auth import _verify_reset_token
 
         result = await _verify_reset_token("invalid-token")
