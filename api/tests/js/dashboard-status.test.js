@@ -14,7 +14,7 @@ vi.mock('../../src/static/dashboard-loaders.js', () => ({
     loadEnergyMetrics: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { fmtSyncAge, showToast, loadSyncStatus, loadMlStatus, triggerSync } = await import(
+const { fmtSyncAge, showToast, loadSyncStatus, loadMlStatus } = await import(
     '../../src/static/dashboard-status.js'
 );
 
@@ -25,7 +25,6 @@ beforeEach(() => {
     document.body.innerHTML =
         '<div id="toast"></div>' +
         '<span id="sync-last"></span>' +
-        '<button id="sync-btn">↻ Sync</button>' +
         '<div id="ml-status"></div>';
 });
 
@@ -81,51 +80,19 @@ describe('loadSyncStatus', () => {
         expect(document.getElementById('sync-last').textContent).toBe('vor 10m');
     });
 
-    it('sets sync-loading and schedules poll when sync is pending', async () => {
+    it('schedules poll when sync is pending', async () => {
         vi.useFakeTimers();
         global.fetch = vi.fn().mockResolvedValue({
             json: () => Promise.resolve({ last_sync_at: null, pending: true }),
         });
         await loadSyncStatus();
-        expect(document.getElementById('sync-btn').classList.contains('sync-loading')).toBe(true);
+        expect(global.fetch).toHaveBeenCalledOnce();
         vi.clearAllTimers();
     });
 
     it('does not throw when fetch fails', async () => {
         global.fetch = vi.fn().mockRejectedValue(new Error('network error'));
         await expect(loadSyncStatus()).resolves.toBeUndefined();
-    });
-});
-
-describe('triggerSync', () => {
-    it('shows error toast when API returns non-ok response', async () => {
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: false,
-            json: () => Promise.resolve({ error: { message: 'Sync fehlgeschlagen' } }),
-        });
-        await triggerSync();
-        expect(document.getElementById('toast').textContent).toBe('Sync fehlgeschlagen');
-    });
-
-    it('sets sync-loading and schedules poll on success', async () => {
-        vi.useFakeTimers();
-        global.fetch = vi.fn().mockResolvedValue({ ok: true });
-        await triggerSync();
-        expect(document.getElementById('sync-btn').classList.contains('sync-loading')).toBe(true);
-        vi.clearAllTimers();
-    });
-
-    it('shows connection error toast when fetch throws', async () => {
-        global.fetch = vi.fn().mockRejectedValue(new Error('network'));
-        await triggerSync();
-        expect(document.getElementById('toast').textContent).toBe('Verbindungsfehler');
-    });
-
-    it('does nothing when sync is already loading', async () => {
-        document.getElementById('sync-btn').classList.add('sync-loading');
-        global.fetch = vi.fn();
-        await triggerSync();
-        expect(fetch).not.toHaveBeenCalled();
     });
 });
 
@@ -206,7 +173,7 @@ describe('pollMlStatus (via loadMlStatus timer)', () => {
 });
 
 describe('pollSyncStatus reschedules when still pending', () => {
-    it('sets a new poll timer when pending=true during poll (line 80)', async () => {
+    it('fetches again when pending=true during poll', async () => {
         vi.useFakeTimers();
         global.fetch = vi.fn()
             .mockResolvedValueOnce({
@@ -221,18 +188,15 @@ describe('pollSyncStatus reschedules when still pending', () => {
             });
 
         await loadSyncStatus();
-        // First poll fires → pending=true → reschedules (line 80)
+        // First poll fires → pending=true → reschedules
         await vi.advanceTimersByTimeAsync(5001);
         expect(global.fetch).toHaveBeenCalledTimes(2);
-        // Second poll fires → pending=false → done
-        await vi.advanceTimersByTimeAsync(5001);
-        expect(document.getElementById('sync-btn').classList.contains('sync-loading')).toBe(false);
         vi.clearAllTimers();
     });
 });
 
 describe('pollSyncStatus (via loadSyncStatus timer)', () => {
-    it('clears sync-loading and shows toast when poll finds pending=false', async () => {
+    it('shows toast when poll finds pending=false', async () => {
         vi.useFakeTimers();
         global.fetch = vi.fn()
             .mockResolvedValueOnce({
@@ -246,7 +210,6 @@ describe('pollSyncStatus (via loadSyncStatus timer)', () => {
         await loadSyncStatus();
         await vi.advanceTimersByTimeAsync(5001);
 
-        expect(document.getElementById('sync-btn').classList.contains('sync-loading')).toBe(false);
         expect(document.getElementById('toast').textContent).toBe('Sync abgeschlossen');
         vi.clearAllTimers();
     });

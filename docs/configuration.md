@@ -13,7 +13,7 @@ Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.api.example
 | `env/.env` | db, flyway | Admin-DB-Credentials, HOST_IP |
 | `env/.env.app` | api, sync-service, ml-service | App-DB-Credentials, FERNET_KEY |
 | `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, SENTRY_DSN, TRIMP_* |
-| `env/.env.sync` | sync-service | SYNC_HOUR, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN |
+| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN |
 | `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR, SENTRY_DSN |
 
 > **Warum diese Trennung?** Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nur für Flyway-Migrationen nötig. App-Services bekommen ausschließlich `DB_APP_USER`/`DB_APP_PASSWORD` mit eingeschränkten Rechten (SELECT/INSERT/UPDATE/DELETE). Damit sind Admin-Creds nie im Prozess-Environment von api/sync/ml sichtbar (H-11).
@@ -117,9 +117,9 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
-| `SYNC_HOUR` | int | — | `6` | Stunde (UTC) für den täglichen Garmin-Sync (0–23). Libre-Sync läuft alle 5 Minuten unabhängig davon. |
+| `SYNC_INTERVAL_HOURS` | int | — | `2` | Polling-Intervall in Stunden für den Garmin-Sync. Libre-Sync läuft alle 5 Minuten unabhängig davon. |
 | `SYNC_LOOKBACK_DAYS` | int | — | `30` | Wie viele Tage beim initialen Backfill (erster Sync nach Account-Verknüpfung) geholt werden |
-| `SYNC_DAILY_DAYS` | int | — | `2` | Wie viele Tage beim täglichen Sync und beim manuellen Sync-Button nachgeladen werden |
+| `SYNC_DAILY_DAYS` | int | — | `2` | Wie viele Tage pro Interval-Run nachgeladen werden |
 
 *(FERNET_KEY kommt aus `env/.env.app` — identischer Wert für alle App-Services)*
 
@@ -181,7 +181,7 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_USER`,
 | `RESEND_FROM_EMAIL` | — | — | default | — | — |
 | `APP_BASE_URL` | — | — | default | — | — |
 | `SENTRY_DSN` | — | — | optional `""` | optional `""` | optional `""` |
-| `SYNC_HOUR` | — | — | — | default `6` | — |
+| `SYNC_INTERVAL_HOURS` | — | — | — | default `2` | — |
 | `SYNC_LOOKBACK_DAYS` | — | — | — | default `30` | — |
 | `SYNC_DAILY_DAYS` | — | — | — | default `2` | — |
 | `ML_INFER_HOUR` | — | — | — | — | default `7` |

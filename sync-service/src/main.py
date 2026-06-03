@@ -9,7 +9,6 @@ from typing import TypeVar
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 from tenacity import Retrying, stop_after_attempt, wait_exponential
 
 from config import Settings
@@ -255,6 +254,7 @@ async def sync_all_users(
         except Exception as e:
             logger.error("sync.failed", user_id=user["id"], error=str(e), exc_info=True)
         finally:
+            await repo.set_ml_requested(user["id"])
             await repo.mark_sync_done(user["id"])
 
 
@@ -313,7 +313,8 @@ async def main() -> None:  # pragma: no cover
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         sync_all_users,
-        CronTrigger(hour=settings.sync_hour, minute=0),
+        "interval",
+        hours=settings.sync_interval_hours,
         args=[repo, settings.sync_daily_days, settings],
     )
     scheduler.add_job(
@@ -331,7 +332,7 @@ async def main() -> None:  # pragma: no cover
     )
     scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
-    logger.info("scheduler.started", sync_hour=settings.sync_hour)
+    logger.info("scheduler.started", sync_interval_hours=settings.sync_interval_hours)
 
     await shutdown_event.wait()
 
