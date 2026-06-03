@@ -2,12 +2,14 @@ import asyncio
 import json
 import signal
 import tempfile
+import uuid
 from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
 from typing import TypeVar
 
 import structlog
+from structlog.contextvars import bind_contextvars, clear_contextvars
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from tenacity import Retrying, stop_after_attempt, wait_exponential
 
@@ -134,53 +136,61 @@ async def _sync_day(
 async def sync_user(
     user: dict, repo: TimescaleRepository, days: int, settings: Settings
 ) -> None:
-    logger.info("sync.started", user_id=user["id"], days=days)
+    bind_contextvars(job_id=str(uuid.uuid4())[:8])
+    try:
+        logger.info("sync.started", user_id=user["id"], days=days)
 
-    blob = await repo.get_user_token(user["id"], "garmin")
-    if blob is None:
-        file_dir = str(settings.token_base_dir / str(user["id"]))
-        if Path(file_dir).exists():
-            serialized = serialize_token_dir(file_dir)
-            blob = (
+        blob = await repo.get_user_token(user["id"], "garmin")
+        if blob is None:
+            file_dir = str(settings.token_base_dir / str(user["id"]))
+            if Path(file_dir).exists():
+                serialized = serialize_token_dir(file_dir)
+                blob = (
+                    fernet_encrypt(serialized, settings.fernet_key)
+                    if settings.fernet_key
+                    else serialized
+                )
+                await repo.save_user_token(user["id"], "garmin", blob)
+        if blob is None:
+            logger.warning("sync.no_token", user_id=user["id"])
+            return
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            raw = (
+                fernet_decrypt(blob, settings.fernet_key)
+                if settings.fernet_key
+                else blob
+            )
+            restore_token_dir(raw, tmpdir)
+
+            client = GarminClient(
+                email=user["garmin_email"],
+                password="",  # nosec B106 — intentionally empty; auth uses stored tokens
+                token_dir=tmpdir,
+            )
+            client.connect()
+
+            end = date.today()
+            start = end - timedelta(days=days)
+
+            await _sync_activities(client, repo, user["id"], start, end)
+
+            current = start
+            while current <= end:
+                await _sync_day(client, repo, user["id"], current)
+                current += timedelta(days=1)
+
+            serialized = serialize_token_dir(tmpdir)
+            encrypted = (
                 fernet_encrypt(serialized, settings.fernet_key)
                 if settings.fernet_key
                 else serialized
             )
-            await repo.save_user_token(user["id"], "garmin", blob)
-    if blob is None:
-        logger.warning("sync.no_token", user_id=user["id"])
-        return
+            await repo.save_user_token(user["id"], "garmin", encrypted)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        raw = fernet_decrypt(blob, settings.fernet_key) if settings.fernet_key else blob
-        restore_token_dir(raw, tmpdir)
-
-        client = GarminClient(
-            email=user["garmin_email"],
-            password="",  # nosec B106 — intentionally empty; auth uses stored tokens
-            token_dir=tmpdir,
-        )
-        client.connect()
-
-        end = date.today()
-        start = end - timedelta(days=days)
-
-        await _sync_activities(client, repo, user["id"], start, end)
-
-        current = start
-        while current <= end:
-            await _sync_day(client, repo, user["id"], current)
-            current += timedelta(days=1)
-
-        serialized = serialize_token_dir(tmpdir)
-        encrypted = (
-            fernet_encrypt(serialized, settings.fernet_key)
-            if settings.fernet_key
-            else serialized
-        )
-        await repo.save_user_token(user["id"], "garmin", encrypted)
-
-    logger.info("sync.done", user_id=user["id"])
+        logger.info("sync.done", user_id=user["id"])
+    finally:
+        clear_contextvars()
 
 
 async def sync_libre_user(
@@ -274,6 +284,8 @@ async def main() -> None:  # pragma: no cover
             dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.1
         )
         logger.info("sentry.initialized")
+    else:
+        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
 
     repo = TimescaleRepository(settings.db_url)
     await repo.init()

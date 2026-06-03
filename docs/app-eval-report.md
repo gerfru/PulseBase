@@ -34,6 +34,7 @@
 | 2026-06-03 | Wave 10 Runde 3 — Architektur & Betrieb | M-45, M-46, M-48, M-49, L-40, L-43 gefixt |
 | 2026-06-03 | Wave 10 Runde 4 — Tests | M-53 ✅ (false positive), M-55 ✅ (bereits vorhanden), L-47–50 gefixt · 1 Test (request_sync Exception), 3 Tests (seizures/risk Boundary), 2 Tests (Garmin+Libre Kombination), 1 E2E-Test (Export JSON-Inhalt) |
 | 2026-06-03 | Wave 10 Runde 5 — Code-Qualität | M-50, M-51, M-52, L-44–46, L-57, L-58 gefixt · L-60 ✅ false positive (M-26-Fix bereits korrekt) · 14 neue Tests (TestRunPhysicalEnergy, TestRunAcwr, TestRunTrainingMonotony, TestRunAutonomicEnergy, TestRunCognitiveEnergy, TestComputeHrvBaseline, TestRunCorrelations, TestBackfillAndTrain) |
+| 2026-06-03 | Wave 10 Runde 6 — Observability | M-47 (ProcessorFormatter Bridge + WriteLoggerFactory alle 3 Services), L-52 (sentry.disabled Warning), L-53 (WriteLoggerFactory thread-safe), L-54 (Correlation-ID job_id in sync_user + run_inference), L-55 (_error_requests Counter), L-56 (/health → nur status:ok) gefixt |
 
 ---
 
@@ -46,7 +47,7 @@
 | Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | — |
 | Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | — |
 | CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-19 (manuell), M-56, L-51 |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | M-47, L-52–56 |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-19 (manuell) |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
@@ -144,7 +145,7 @@
 | M-44 | ✅ | W10 R1 | **Auth fehlt am Data Access Layer (3. Schicht)** — DB-Funktionen ohne Ownership-Prüfung | `api/src/db/users.py` | Security |
 | M-45 | ✅ | W10 R3 | **ml-service SIGTERM `wait=False` — laufende ML-Jobs werden abgebrochen** — M-01 (W1) adressierte fehlenden Handler; `wait=False` bricht laufende `fit()`/`predict()`-Jobs ab · Fix: `scheduler.shutdown(wait=True)` | `ml-service/src/main.py:206` | Architektur |
 | M-46 | ✅ | W10 R3 | **api-test Port 8001 nicht auf `127.0.0.1` gebunden** — `"8001:8000"` bindet auf `0.0.0.0` · Fix: `"127.0.0.1:8001:8000"` | `docker-compose.test.yml:46` | Architektur |
-| M-47 | ❌ | — | **Stdlib-Logs nicht JSON (split log format)** — `ProcessorFormatter`-Bridge für Third-Party-Logger fehlt · Fix: `structlog.stdlib.ProcessorFormatter` mit `foreign_pre_chain` | `api/src/logging_config.py:24`, alle Services | Observability |
+| M-47 | ✅ | W10 R6 | **Stdlib-Logs nicht JSON (split log format)** — `ProcessorFormatter`-Bridge für Third-Party-Logger fehlt · Fix: `structlog.stdlib.ProcessorFormatter` mit `foreign_pre_chain` + `WriteLoggerFactory` in allen 3 Services | `api/src/logging_config.py`, alle Services | Observability |
 | M-48 | ✅ | W10 R3 | **Compose-Healthcheck trifft `/health` statt `/ready`** — Container gilt als `healthy` auch wenn DB-Verbindung noch nicht steht · Fix: `test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]` | `docker-compose.yml:120` | Observability |
 | M-49 | ✅ | W10 R3 | **`logger.error(...)` landet nicht in Sentry (kein `SentryProcessor`)** — explizite `logger.error()`-Aufrufe erzeugen keine Sentry-Events · Fix: `_sentry_error_processor()` (eigene Processor-Funktion) in alle drei `logging_config.py` | `api/src/logging_config.py`, alle Services | Observability |
 | M-50 | ✅ | W10 R5 | **`_run_energy_metrics()` God-Function (63 Zeilen, 5 Concerns)** — in 5 Sub-Funktionen aufgeteilt: `_run_physical_energy`, `_run_acwr`, `_run_training_monotony`, `_run_autonomic_energy`, `_run_cognitive_energy` | `ml-service/src/inference_models.py:82` | Code-Qualität |
@@ -218,11 +219,11 @@
 | L-49 | ✅ | W10 R4 | **sync-service: kein Test für Garmin+Libre-Kombinations-User** — `TestSyncDualLinkedUser` ergänzt: beide Jobs werden aufgerufen; Garmin-Fehler blockiert Libre nicht | `sync-service/tests/test_main.py` | Tests |
 | L-50 | ✅ | W10 R4 | **`/account/export` E2E prüft nicht JSON-Download-Inhalt** — `test_account_export_json_structure` ergänzt: Content-Disposition + alle 9 Top-Level-Keys + Typen validiert via `authenticated_page.request.get()` | `api/tests/e2e/test_smoke.py` | Tests |
 | L-51 | ❌ | — | **Tote Branch-Namen in `no-commit-to-branch`** — `--branch, dev, --branch, master` · Fix: auf `--branch, main` reduzieren | `.pre-commit-config.yaml:19` | CI/CD |
-| L-52 | ❌ | — | **Kein `sentry.disabled`-Warning beim Start** | `api/src/main.py`, alle Services | Observability |
-| L-53 | ❌ | — | **`PrintLoggerFactory` nicht Thread-safe für Production** | alle `logging_config.py` | Observability |
-| L-54 | ❌ | — | **Kein Correlation-ID in sync/ml-service Logs** | `sync-service/src/main.py:136`, `ml-service/src/main.py:55` | Observability |
-| L-55 | ❌ | — | **Kein Error-Rate-Signal** — `_error_requests`-Counter für `4xx/5xx` fehlt | `api/src/main.py:61` | Observability |
-| L-56 | ❌ | — | **`/health` exponiert interne Zähler ohne Auth** | `api/src/main.py:162–168` | Observability |
+| L-52 | ✅ | W10 R6 | **Kein `sentry.disabled`-Warning beim Start** — `else: logger.warning("sentry.disabled", ...)` in allen 3 Services | `api/src/main.py`, `sync-service/src/main.py`, `ml-service/src/main.py` | Observability |
+| L-53 | ✅ | W10 R6 | **`PrintLoggerFactory` nicht Thread-safe für Production** — auf `WriteLoggerFactory()` umgestellt in allen 3 Services | alle `logging_config.py` | Observability |
+| L-54 | ✅ | W10 R6 | **Kein Correlation-ID in sync/ml-service Logs** — `bind_contextvars(job_id=...)` + `clear_contextvars()` in `sync_user()` und `run_inference()` | `sync-service/src/main.py`, `ml-service/src/main.py` | Observability |
+| L-55 | ✅ | W10 R6 | **Kein Error-Rate-Signal** — `_error_requests`-Counter für `4xx/5xx` in `RequestIDMiddleware` | `api/src/main.py` | Observability |
+| L-56 | ✅ | W10 R6 | **`/health` exponiert interne Zähler ohne Auth** — `/health` gibt nur `{"status": "ok"}` zurück | `api/src/main.py` | Observability |
 | L-57 | ✅ | W10 R5 | **f-String in `structlog`-Call** — statisches Event `"anomaly.done"` + `metric=log_key` Feld | `ml-service/src/inference_anomaly.py:41` | Code-Qualität |
 | L-58 | ✅ | W10 R5 | **Dupliziertes Backfill+Training-Muster** — verifiziert: identischer Block in `run_on_request` + `run_all_users` · `_backfill_and_train()` extrahiert | `ml-service/src/main.py:119,144` | Code-Qualität |
 | L-59 | ✅ | — | **`auth.py` Dateigröße nach H-14** — verifiziert: 381 Zeilen < 400Z-Schwelle → resolved | `api/src/routes/auth.py` | Code-Qualität |
@@ -237,11 +238,10 @@
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-52, M-53, M-55, M-57–M-62, L-01–L-50, L-57–L-60, L-61, L-63 (außer H-07, M-19, M-42) |
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-52, M-53, M-55, M-57–M-62, L-01–L-56, L-57–L-60, L-61, L-63 (außer H-07, M-19, M-42) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-62 (TEST-L4), M-42 (eigener Wave), M-54 (TEST-L4) |
 | **Architektur/Betrieb** | ❌ L-42 (api.py domain-übergreifend) |
-| **Observability** | ❌ M-47, L-52–56 |
 | **CI/CD** | ❌ M-56, L-51 |
 
 ---
@@ -253,11 +253,11 @@
 | ~~**W10 R3**~~ | ~~Architektur & Betrieb~~ | ~~M-45, M-46, M-48, M-49, L-40, L-43~~ | ✅ |
 | ~~**W10 R4**~~ | ~~Tests (Rest)~~ | ~~M-53, M-55 (resolved), L-47–50~~ | ✅ |
 | ~~**W10 R5**~~ | ~~Code-Qualität~~ | ~~M-50, M-51, M-52, L-44–46, L-57, L-58, L-60~~ | ✅ |
-| **W10 R6** | Observability | M-47 (ProcessorFormatter Bridge), L-52–56 (sentry.disabled, WriteLoggerFactory, Correlation-ID, Error-Rate, /health Zähler) | ~2h |
+| ~~**W10 R6**~~ | ~~Observability~~ | ~~M-47 (ProcessorFormatter Bridge + WriteLoggerFactory), L-52 (sentry.disabled), L-53 (WriteLoggerFactory), L-54 (Correlation-ID job_id), L-55 (_error_requests), L-56 (/health cleanup)~~ | ✅ |
 | **W10 R7** | CI/CD + Security | M-56 (Trivy Artefakt), L-51 (Branch-Namen), M-42 (CSP Nonce + strict-dynamic), L-42 (api.py Split oder ARCH-L5) | ~3h |
 | **Eval 5** | Re-Audit | Vollständiges Re-Audit nach Wave 10 (6 Subagenten parallel) | — |
 
-**Gesamtaufwand verbleibend:** ~9h · Ziel: alle automatisierbaren Findings gefixt, Security-Achse dauerhaft 🟢
+**Gesamtaufwand verbleibend:** ~3h · Ziel: alle automatisierbaren Findings gefixt, Security-Achse dauerhaft 🟢
 
 ---
 

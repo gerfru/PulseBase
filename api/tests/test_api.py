@@ -10,10 +10,7 @@ from tests.conftest import TEST_USER
 async def test_health(client):
     r = await client.get("/health")
     assert r.status_code == 200
-    data = r.json()
-    assert data["status"] == "ok"
-    assert "active_requests" in data
-    assert "total_requests" in data
+    assert r.json() == {"status": "ok"}
 
 
 async def test_ready_ok(client):
