@@ -36,11 +36,12 @@ Two levels — pick what you need:
 - [API Reference](docs/api.md) — Alle Endpunkte mit Request/Response-Format
 - [Design Decisions](docs/design-decisions.md) — Warum kein Grafana, kein ORM, kein JWT, Caddy vs Traefik, ...
 - [Setup Guide](docs/setup.md) — Vollständige Installationsanleitung
+- [External Services](docs/external-services.md) — Let's Encrypt, Sentry, Uptime Kuma Setup
 
 ## Quickstart
 
 ```bash
-cp env/.env.example env/.env              # fill in DB admin credentials + HOST_IP=your-domain.com
+cp env/.env.example env/.env              # fill in HOST_IP, ACME_EMAIL (standalone only)
 cp env/.env.app.example env/.env.app      # fill in DB_APP_USER, DB_APP_PASSWORD, FERNET_KEY (make gen-secrets)
 cp env/.env.api.example env/.env.api      # fill in SESSION_SECRET (make gen-secrets, min. 32 chars) + APP_BASE_URL
 cp env/.env.sync.example env/.env.sync

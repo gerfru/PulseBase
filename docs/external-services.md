@@ -99,25 +99,36 @@ Internetzugriff auf den Server — ideal für Homelab und self-hosted Setups.
 **Setup:**
 
 Uptime Kuma läuft bereits als Compose-Service (`make up` startet es automatisch).
+Das Dashboard ist über die Tailscale-IP des Mac mini erreichbar (konfigurierbar in `env/.env`).
 
-1. Dashboard öffnen: [http://localhost:3001](http://localhost:3001)
-   (oder via SSH-Tunnel von einem anderen Gerät)
+1. Tailscale-IP ermitteln (einmalig auf dem Mac mini):
+   ```bash
+   tailscale ip -4   # → z.B. 100.64.0.1
+   ```
 
-2. Beim ersten Start Admin-Account anlegen (nur einmalig).
+2. `TAILSCALE_IP` in `env/.env` eintragen:
+   ```
+   TAILSCALE_IP=100.64.0.1
+   ```
 
-3. **Add New Monitor:**
+3. Nach `make up`: Dashboard öffnen auf einem beliebigen Gerät im Tailscale-Netz:
+   `http://100.64.0.1:3001`
+
+4. Beim ersten Start Admin-Account anlegen (nur einmalig).
+
+5. **Add New Monitor:**
    - Monitor Type: `HTTP(s)`
    - Friendly Name: `PulseBase API`
    - URL: `http://api:8000/health`
      *(interner Docker-Hostname — kein Internetzugriff nötig)*
    - Heartbeat Interval: `60` Sekunden
 
-4. Optional — zweiter Monitor für DB-Readiness:
+6. Optional — zweiter Monitor für DB-Readiness:
    - Friendly Name: `PulseBase Ready`
    - URL: `http://api:8000/ready`
    - Erkennt auch DB-Verbindungsprobleme und fehlgeschlagene Migrations
 
-5. Notification konfigurieren:
+7. Notification konfigurieren:
    - Settings → Notifications → Add Notification
    - Unterstützt E-Mail, Telegram, Discord, Slack, ntfy und viele mehr
    - Den Notification-Channel beim Monitor unter "Notifications" zuweisen
