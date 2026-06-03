@@ -21,23 +21,38 @@ def _sentry_error_processor(logger: Any, method: str, event_dict: Any) -> Any:
 
 def configure_logging() -> None:
     """Configure structlog for JSON output with UTC timestamps and stdlib bridge."""
+    _pre: list[Any] = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.ExceptionRenderer(),
+    ]
+
     structlog.configure(
         processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.stdlib.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
-            structlog.processors.StackInfoRenderer(),
+            *_pre,
             _sentry_error_processor,
-            structlog.processors.ExceptionRenderer(),
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.WriteLoggerFactory(),
     )
 
-    # Bridge: route stdlib logs (uvicorn, httpx, etc.) through structlog's JSON output
-    logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.INFO)
+    # M-47: route stdlib logs (uvicorn, httpx, …) through JSON pipeline
+    _handler = logging.StreamHandler(sys.stdout)
+    _handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            foreign_pre_chain=_pre,
+            processor=structlog.processors.JSONRenderer(),
+        )
+    )
+    _root = logging.getLogger()
+    _root.handlers.clear()
+    _root.addHandler(_handler)
+    _root.setLevel(logging.INFO)
+
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
