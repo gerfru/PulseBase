@@ -15,7 +15,7 @@ def _sentry_error_processor(logger: Any, method: str, event_dict: Any) -> Any:
         elif exc_info and exc_info is not False:
             sentry_sdk.capture_exception(exc_info)
         else:
-            sentry_sdk.capture_message(str(event_dict.get("event", "")), level=method)
+            sentry_sdk.capture_message(str(event_dict.get("event", "")), level=method)  # type: ignore[arg-type]
     return event_dict
 
 
