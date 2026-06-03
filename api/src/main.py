@@ -1,4 +1,5 @@
 import asyncio
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -31,6 +32,8 @@ logger = structlog.get_logger(__name__)
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        nonce = secrets.token_urlsafe(16)
+        request.state.nonce = nonce
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -44,7 +47,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self'; "
+            f"script-src 'nonce-{nonce}' 'strict-dynamic'; "
             "style-src 'self' 'unsafe-inline'; "
             "font-src 'self'; "
             "img-src 'self' data: https:; "
