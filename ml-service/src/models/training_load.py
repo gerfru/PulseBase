@@ -16,6 +16,17 @@ def compute_acwr(atl: float, ctl: float) -> dict[str, Any]:
     }
 
 
+def _day_trimp_for_row(row: dict[str, Any] | None, hrmax: float) -> float:
+    if not (row and row.get("avg_hr") and row.get("duration_seconds")):
+        return 0.0
+    rhr = row.get("resting_hr") or 60.0
+    denom = hrmax - rhr
+    if denom <= 0:
+        return 0.0
+    hfr = max(0.0, (row["avg_hr"] - rhr) / denom)
+    return (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
+
+
 def compute_training_monotony(
     activity_rows: list[dict[str, Any]],
     hrmax: float,
@@ -26,18 +37,10 @@ def compute_training_monotony(
     Same TRIMP formula as compute_physical_energy (HRr polynomial).
     """
     by_date = {r["activity_date"]: r for r in activity_rows}
-    trimps = []
-    for i in range(window_days - 1, -1, -1):
-        d = today - timedelta(days=i)
-        row = by_date.get(d)
-        trimp = 0.0
-        if row and row.get("avg_hr") and row.get("duration_seconds"):
-            rhr = row.get("resting_hr") or 60.0
-            denom = hrmax - rhr
-            if denom > 0:
-                hfr = max(0.0, (row["avg_hr"] - rhr) / denom)
-                trimp = (row["duration_seconds"] / 60.0) * hfr * (hfr * 4 + 1)
-        trimps.append(trimp)
+    trimps = [
+        _day_trimp_for_row(by_date.get(today - timedelta(days=i)), hrmax)
+        for i in range(window_days - 1, -1, -1)
+    ]
 
     if not any(t > 0 for t in trimps):
         return {"monotony": None, "reason": "no_training_data"}

@@ -6,6 +6,7 @@ from pathlib import Path
 import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
+from starlette.responses import Response
 
 import src.deps as _deps
 from fastapi import HTTPException
@@ -18,7 +19,7 @@ router = APIRouter()
 
 
 @router.get("/libre/link")
-async def libre_link_form(request: Request):
+async def libre_link_form(request: Request) -> Response:
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(
         request,
@@ -34,7 +35,7 @@ async def libre_link(
     libre_email: str = Form(),
     libre_password: str = Form(),
     csrf_token: str | None = Form(default=None),
-):
+) -> Response:
     from libre.client import LibreAuthError
     from libre.client import authenticate as libre_authenticate
 
@@ -99,7 +100,9 @@ async def libre_link(
 
 
 @router.post("/libre/unlink")
-async def libre_unlink(request: Request, csrf_token: str | None = Form(default=None)):
+async def libre_unlink(
+    request: Request, csrf_token: str | None = Form(default=None)
+) -> Response:
     user = await _deps.require_user(request)
     if not verify_csrf_token(request, csrf_token):
         raise HTTPException(status_code=403, detail="Ungültige Anfrage.")

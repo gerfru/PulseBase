@@ -19,7 +19,7 @@ async def test_login_success_redirects(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
-        with patch("src.routes.auth.reset_failed_login", AsyncMock()):
+        with patch("src.auth_helpers.reset_failed_login", AsyncMock()):
             r = await client.post(
                 "/login",
                 data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
@@ -32,7 +32,7 @@ async def test_login_success_sets_session(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
-        with patch("src.routes.auth.reset_failed_login", AsyncMock()):
+        with patch("src.auth_helpers.reset_failed_login", AsyncMock()):
             r = await client.post(
                 "/login",
                 data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
@@ -468,7 +468,7 @@ async def test_login_failed_increments_counter(client):
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
         with patch(
-            "src.routes.auth.increment_failed_login", AsyncMock(return_value=1)
+            "src.auth_helpers.increment_failed_login", AsyncMock(return_value=1)
         ) as mock_inc:
             r = await client.post(
                 "/login",
@@ -490,10 +490,12 @@ async def test_login_triggers_lockout_on_max_attempts(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=almost_locked)
     ):
-        with patch("src.routes.auth.increment_failed_login", AsyncMock(return_value=5)):
-            with patch("src.routes.auth.lock_user_until", AsyncMock()) as mock_lock:
+        with patch(
+            "src.auth_helpers.increment_failed_login", AsyncMock(return_value=5)
+        ):
+            with patch("src.auth_helpers.lock_user_until", AsyncMock()) as mock_lock:
                 with patch(
-                    "src.routes.auth.send_lockout_email", AsyncMock()
+                    "src.auth_helpers.send_lockout_email", AsyncMock()
                 ) as mock_mail:
                     r = await client.post(
                         "/login",
@@ -511,7 +513,7 @@ async def test_login_success_resets_counter(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
-        with patch("src.routes.auth.reset_failed_login", AsyncMock()) as mock_reset:
+        with patch("src.auth_helpers.reset_failed_login", AsyncMock()) as mock_reset:
             r = await client.post(
                 "/login",
                 data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
@@ -954,7 +956,7 @@ async def test_session_cookie_is_httponly_after_login(client):
     with patch(
         "src.routes.auth.get_user_by_email", AsyncMock(return_value=_USER_WITH_HASH)
     ):
-        with patch("src.routes.auth.reset_failed_login", AsyncMock()):
+        with patch("src.auth_helpers.reset_failed_login", AsyncMock()):
             r = await client.post(
                 "/login",
                 data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},

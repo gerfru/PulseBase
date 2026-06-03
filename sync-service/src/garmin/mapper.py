@@ -54,6 +54,19 @@ def map_activity(raw: dict[str, Any], user_id: int) -> Activity:
     )
 
 
+def _build_metric_index(metrics: list) -> dict[int, dict]:
+    index: dict[int, dict] = {}
+    for metric_group in metrics:
+        for entry in metric_group.get("metrics", []):
+            if not isinstance(entry, dict):
+                continue
+            idx = entry.get("sequenceNumber", 0)
+            if idx not in index:
+                index[idx] = {}
+            index[idx][metric_group.get("metricType")] = entry.get("value")
+    return index
+
+
 def map_records(details: dict[str, Any] | None) -> list[ActivityRecord]:
     if not details:
         return []
@@ -61,16 +74,7 @@ def map_records(details: dict[str, Any] | None) -> list[ActivityRecord]:
 
     metrics = details.get("activityDetailMetrics") or []
     polyline = (details.get("geoPolylineDTO") or {}).get("polyline", [])
-
-    metric_by_index: dict[int, dict] = {}
-    for metric_group in metrics:
-        for entry in metric_group.get("metrics", []):
-            if not isinstance(entry, dict):
-                continue
-            idx = entry.get("sequenceNumber", 0)
-            if idx not in metric_by_index:
-                metric_by_index[idx] = {}
-            metric_by_index[idx][metric_group.get("metricType")] = entry.get("value")
+    metric_by_index = _build_metric_index(metrics)
 
     for i, point in enumerate(polyline):
         ts_raw = point.get("time")
