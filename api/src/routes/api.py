@@ -29,7 +29,6 @@ from src.db import (
     get_activity_hrmax,
     get_user_sex,
     get_weekly_stats,
-    request_sync,
     save_seizure,
     set_activity_rpe,
     update_epilepsy_mode,
@@ -212,20 +211,6 @@ async def api_ml_status(request: Request) -> dict:
 
 
 # ── Sync ──────────────────────────────────────────────────────────────────────
-
-
-@router.post("/api/sync", response_model=None)
-async def api_sync(request: Request) -> dict | JSONResponse:
-    user = await _deps.require_user(request)
-    if not user.get("garmin_linked"):
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": {"code": "NOT_LINKED", "message": "Garmin account not linked"}
-            },
-        )
-    await request_sync(user["id"])
-    return {"status": "requested"}
 
 
 @router.get("/api/sync-status")

@@ -12,7 +12,7 @@ import {
 } from './dashboard-nav.js';
 import { loadEvidence, buildMlTabs } from './dashboard-hero.js';
 import { load, loadReadiness, loadMlInsights, loadEnergyMetrics, loadTrainingLoad } from './dashboard-loaders.js';
-import { showToast, loadMlStatus, loadSyncStatus, triggerSync } from './dashboard-status.js';
+import { showToast, loadMlStatus, loadSyncStatus } from './dashboard-status.js';
 
 function shiftPeriod(delta) {
     incrementOffset(delta);
@@ -38,7 +38,6 @@ document.querySelectorAll('.time-btn').forEach((btn) => {
 document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => setTab(btn.dataset.tab));
 });
-document.getElementById('sync-btn').addEventListener('click', triggerSync);
 document
     .getElementById('formula-dialog-close')
     .addEventListener('click', () => document.getElementById('formula-dialog').close());

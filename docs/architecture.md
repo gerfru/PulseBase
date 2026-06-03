@@ -79,7 +79,7 @@ after migrations have completed successfully.
 
 ## Data Flow
 
-### Sync (daily at configured hour)
+### Sync (every 2 hours by default, configurable via `SYNC_INTERVAL_HOURS`)
 
 ```
 Garmin Connect API
@@ -113,7 +113,7 @@ LibreLinkUp API (EU endpoint)
 
 Libre tokens are stored encrypted in the `user_tokens` DB table (same as Garmin tokens).
 
-### ML Inference (daily at configured hour, default 7:00)
+### ML Inference (after every Garmin sync + daily fallback at `ML_INFER_HOUR`, default 7:00)
 
 ```
 TimescaleDB

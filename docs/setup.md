@@ -36,7 +36,7 @@ HOST_IP=your-domain.com
 Edit `env/.env.sync`:
 
 ```bash
-SYNC_HOUR=6
+SYNC_INTERVAL_HOURS=2   # poll Garmin every X hours (default: 2)
 SYNC_LOOKBACK_DAYS=30
 SYNC_DAILY_DAYS=2
 ```
@@ -121,14 +121,10 @@ session token and then deleted from memory — it is never stored anywhere.
 
 ---
 
-## 8. Trigger the first sync
+## 8. First sync
 
-```bash
-make sync
-```
-
-This restarts the sync-service, which immediately syncs the last `SYNC_LOOKBACK_DAYS`
-days for all linked users. Watch progress with:
+After linking Garmin, a sync starts automatically within 1 minute (the link sets
+`sync_requested = true`, the sync-service polls for it every minute). Watch progress:
 
 ```bash
 make logs-sync
@@ -140,7 +136,7 @@ After sync completes, go to `https://your-domain.com/dashboard`.
 
 ## Day-to-day
 
-The sync-service runs automatically every day at `SYNC_HOUR` (default: 6:00).
+The sync-service polls Garmin every `SYNC_INTERVAL_HOURS` (default: 2 hours).
 No manual action needed after initial setup.
 
 ---
@@ -154,7 +150,8 @@ No manual action needed after initial setup.
 | `make down` | Stop all services |
 | `make reset` | Stop + wipe all data + re-run migrations (deletes all users!) |
 | `make migrate` | Run pending Flyway migrations |
-| `make sync` | Rebuild sync-service + restart (triggers Garmin sync immediately) |
+| `make trigger-sync` | Request immediate Garmin sync for all users (no rebuild, processed within 1 min) |
+| `make sync` | Rebuild sync-service + restart (triggers full backfill sync) |
 | `make dashboard` | Rebuild and restart the API/dashboard container |
 | `make analytics` | Rebuild and restart the ML analytics service |
 | `make logs-dashboard` | Live logs from the API |

@@ -212,7 +212,7 @@
 | L-44 | ❌ | — | **Sequentielle `await` in `_run_correlations`-Schleife** — 3× unabhängige DB-Queries sequenziell · Fix: `await asyncio.gather(...)` | `ml-service/src/inference_anomaly.py:109` | Code-Qualität |
 | L-45 | ❌ | — | **`require_user()` gibt ungetyptes `dict` zurück** | `api/src/deps.py:73` | Code-Qualität |
 | L-46 | ❌ | — | **`zip(*pairs)` ohne Längen-Assertion** | `ml-service/src/inference_anomaly.py:113` | Code-Qualität |
-| L-47 | ✅ | W10 R4 | **`POST /api/sync` Failure-Pfad ungetestet** — `test_sync_request_sync_raises_returns_500` ergänzt: `request_sync()` wirft Exception → 500 | `api/tests/test_api_endpoints.py` | Tests |
+| L-47 | ✅ | W10 R4 | **`POST /api/sync` Failure-Pfad ungetestet** — Test ergänzt in W10 R4; Endpoint später entfernt (Sync wird jetzt automatisch nach Garmin-Link + alle 2h getriggert) | `api/tests/test_api_endpoints.py` | Tests |
 | L-48 | ✅ | W10 R4 | **`/api/seizures/risk` ohne Boundary-Tests** — 3 Tests ergänzt: Response-Struktur (`level`/`flags`), warning-Level, high-Level | `api/tests/test_api_endpoints.py` | Tests |
 | L-49 | ✅ | W10 R4 | **sync-service: kein Test für Garmin+Libre-Kombinations-User** — `TestSyncDualLinkedUser` ergänzt: beide Jobs werden aufgerufen; Garmin-Fehler blockiert Libre nicht | `sync-service/tests/test_main.py` | Tests |
 | L-50 | ✅ | W10 R4 | **`/account/export` E2E prüft nicht JSON-Download-Inhalt** — `test_account_export_json_structure` ergänzt: Content-Disposition + alle 9 Top-Level-Keys + Typen validiert via `authenticated_page.request.get()` | `api/tests/e2e/test_smoke.py` | Tests |

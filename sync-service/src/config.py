@@ -11,9 +11,9 @@ class Settings(BaseSettings):
     db_app_user: str
     db_app_password: str
 
-    sync_hour: int = 6
+    sync_interval_hours: int = 2
     sync_lookback_days: int = 30
-    sync_daily_days: int = 2  # days synced on daily run and manual button
+    sync_daily_days: int = 2  # days fetched per interval run
     fernet_key: str
     sentry_dsn: str = ""
     token_base_dir: Path = Path("/app/tokens")

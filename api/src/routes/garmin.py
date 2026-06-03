@@ -14,6 +14,7 @@ from src.crypto import (
 )
 from src.db import (
     get_user_token,
+    request_sync,
     save_user_token,
     set_garmin_linked,
     set_garmin_unlinked,
@@ -74,6 +75,7 @@ async def garmin_link(
             await save_user_token(user["id"], "garmin", blob)
 
         await set_garmin_linked(user["id"], garmin_email)
+        await request_sync(user["id"])
         logger.info(
             "garmin.link.success", user_id=user["id"], ip_hash=_ip_hash(request)
         )
