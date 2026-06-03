@@ -60,16 +60,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 _active_requests: int = 0
-_total_requests: int = 0
+_error_requests: int = 0
 _metrics_lock = asyncio.Lock()
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        global _active_requests, _total_requests
+        global _active_requests, _error_requests
         async with _metrics_lock:
             _active_requests += 1
-            _total_requests += 1
         request_id = str(uuid.uuid4())[:8]
         clear_contextvars()
         bind_contextvars(request_id=request_id)
@@ -79,6 +78,9 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         finally:
             async with _metrics_lock:
                 _active_requests -= 1
+        if response.status_code >= 400:
+            async with _metrics_lock:
+                _error_requests += 1
         duration_ms = round((time.perf_counter() - start) * 1000, 1)
         logger.info(
             "http.request",
@@ -129,6 +131,8 @@ async def lifespan(app: FastAPI):  # pragma: no cover
             traces_sample_rate=0.1,
         )
         logger.info("sentry.initialized")
+    else:
+        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
     yield
 
 
@@ -162,11 +166,7 @@ async def needs_login_handler(request: Request, exc: NeedsLogin):
 
 @app.get("/health")
 async def health():
-    return {
-        "status": "ok",
-        "active_requests": _active_requests,
-        "total_requests": _total_requests,
-    }
+    return {"status": "ok"}
 
 
 @app.get("/ready")
