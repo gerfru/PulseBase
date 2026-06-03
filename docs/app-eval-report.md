@@ -4,7 +4,7 @@
 **Regelquelle:** Dev-Best-Practices Plugin (essential/app/github/architecture-rules.md)
 **ASVS-Level:** L2 (Auth + sensible Gesundheitsdaten, DSGVO, Epilepsie-Modus)
 **Team:** Solo · Homelab
-**Dokumentierte Ausnahmen (nicht gemeldet):** ARCH-M2, ARCH-M3, ARCH-L2, ARCH-L3, ARCH-L4, CICD-M3, QUAL-M2, OBS-L1, OBS-L2, TEST-L1, TEST-L2, TEST-L3, TEST-L4, SEC-L1, CICD-L4
+**Dokumentierte Ausnahmen (nicht gemeldet):** ARCH-M2, ARCH-M3, ARCH-L2, ARCH-L3, ARCH-L4, ARCH-L5, CICD-M3, QUAL-M2, OBS-L1, OBS-L2, TEST-L1, TEST-L2, TEST-L3, TEST-L4, SEC-L1, CICD-L4
 
 ---
 
@@ -35,6 +35,7 @@
 | 2026-06-03 | Wave 10 Runde 4 — Tests | M-53 ✅ (false positive), M-55 ✅ (bereits vorhanden), L-47–50 gefixt · 1 Test (request_sync Exception), 3 Tests (seizures/risk Boundary), 2 Tests (Garmin+Libre Kombination), 1 E2E-Test (Export JSON-Inhalt) |
 | 2026-06-03 | Wave 10 Runde 5 — Code-Qualität | M-50, M-51, M-52, L-44–46, L-57, L-58 gefixt · L-60 ✅ false positive (M-26-Fix bereits korrekt) · 14 neue Tests (TestRunPhysicalEnergy, TestRunAcwr, TestRunTrainingMonotony, TestRunAutonomicEnergy, TestRunCognitiveEnergy, TestComputeHrvBaseline, TestRunCorrelations, TestBackfillAndTrain) |
 | 2026-06-03 | Wave 10 Runde 6 — Observability | M-47 (ProcessorFormatter Bridge + WriteLoggerFactory alle 3 Services), L-52 (sentry.disabled Warning), L-53 (WriteLoggerFactory thread-safe), L-54 (Correlation-ID job_id in sync_user + run_inference), L-55 (_error_requests Counter), L-56 (/health → nur status:ok) gefixt |
+| 2026-06-03 | Wave 10 Runde 7 — CI/CD + Security | L-51 (no-commit-to-branch auf main), M-56 (Trivy format:table + upload-artifact alle 3 Images), M-42 (CSP Nonce: NonceTemplates, SecurityHeadersMiddleware, 14 Script-Tags, javascript:-URL-Fix) gefixt |
 
 ---
 
@@ -42,11 +43,11 @@
 
 | Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | Noch offen |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | L-42 |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-42 (Nonce, Aufwand hoch), L-28 (Ausnahme) |
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | — |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
 | Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | — |
 | Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | — |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-19 (manuell), M-56, L-51 |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-19 (manuell) |
 | Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-19 (manuell) |
 
 **Eval 3 Begründung:**
@@ -140,7 +141,7 @@
 | M-39 | ✅ | W9 | **sync-service `garmin/client.py` komplett ungetestet** | `sync-service/src/garmin/client.py` | Tests |
 | M-40 | ✅ | W10 R1 | **Kein CSRF-Schutz auf `POST /logout`** — Forced-Logout via Cross-Site-POST möglich | `api/src/routes/auth.py:257–260` | Security |
 | M-41 | ✅ | W10 R1 | **Account-Lockout Race Condition** — `failed_login_attempts` stale gelesen; parallele Requests können Lockout-Trigger umgehen | `api/src/routes/auth.py:142–143` | Security |
-| M-42 | ❌ | — | **CSP ohne Nonce — Gold-Standard nicht erreicht** — `script-src 'self'` ohne Nonce · Fix: Nonce-Middleware + `script-src 'nonce-{n}' 'strict-dynamic'` · Vorher im Report-Only-Modus testen | `api/src/main.py:44–57` | Security |
+| M-42 | ✅ | W10 R7 | **CSP ohne Nonce — Gold-Standard nicht erreicht** — `script-src 'self'` ohne Nonce · Fix: `NonceTemplates` + `SecurityHeadersMiddleware` (nonce per Request), `script-src 'nonce-{n}' 'strict-dynamic'`, 14 Script-Tags in 8 Templates, `javascript:`-URLs → `data-history-back` | `api/src/main.py`, `api/src/deps.py`, Templates | Security |
 | M-43 | ✅ | W10 R1 | **Password-Reset-Token nach GET-Aufruf weiterhin gültig** — M-06 (W2) fixte Invalidierung nach POST; GET rendert Formular ohne Token zu binden | `api/src/routes/auth.py:322–335` | Security |
 | M-44 | ✅ | W10 R1 | **Auth fehlt am Data Access Layer (3. Schicht)** — DB-Funktionen ohne Ownership-Prüfung | `api/src/db/users.py` | Security |
 | M-45 | ✅ | W10 R3 | **ml-service SIGTERM `wait=False` — laufende ML-Jobs werden abgebrochen** — M-01 (W1) adressierte fehlenden Handler; `wait=False` bricht laufende `fit()`/`predict()`-Jobs ab · Fix: `scheduler.shutdown(wait=True)` | `ml-service/src/main.py:206` | Architektur |
@@ -154,7 +155,7 @@
 | M-53 | ✅ | W10 R4 | **`fail_under = 80` in ml-service ≠ CLAUDE.md-Dokumentation „30%"** — verifiziert: CLAUDE.md enthält kein „30%" im Coverage-Kontext; CI-Gate-Drift wurde via M-61 (W10 R2) korrigiert → false positive | `ml-service/pyproject.toml:37` | Tests |
 | M-54 | — | — | **`@requires_data` E2E-Tests werden in CI nie ausgeführt** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21–23` | Tests |
 | M-55 | ✅ | W10 R4 | **`inference_models.py` ohne Unit-Tests** — verifiziert: `test_inference.py` enthält alle 8 `TestRun*`-Klassen (TestRunReadiness … TestRunRunningAndIntensity) — implizit in W10 R2 ergänzt | `ml-service/tests/test_inference.py` | Tests |
-| M-56 | ❌ | — | **Trivy `ignore-unfixed: true` ohne Artefakt/Audit-Spur** — Pipeline ist grün bei CRITICAL-CVEs ohne jede Spur · Fix: `format: table` + `actions/upload-artifact` | `.github/workflows/ci.yml:135,143,151` | CI/CD |
+| M-56 | ✅ | W10 R7 | **Trivy `ignore-unfixed: true` ohne Artefakt/Audit-Spur** — Pipeline ist grün bei CRITICAL-CVEs ohne jede Spur · Fix: `format: table` + `actions/upload-artifact` (`if: always()`, 90 Tage Retention) für alle 3 Images | `.github/workflows/ci.yml` | CI/CD |
 | M-57 | ✅ | W10 R2 | **`or True` in Rate-Limit-Assertion** — macht Test bedingungslos wahr; keine echte Verifikation des Rate-Limit-Decorators | `api/tests/test_coverage.py:513` | Tests |
 | M-58 | ✅ | W10 R2 | **`call_count >= 0` immer wahr** — Assertion in body-battery-Test ohne Bedeutung | `ml-service/tests/test_inference.py:371` | Tests |
 | M-59 | ✅ | W10 R2 | **sync-service `fail_under = 50`** — 20–30 Punkte unter Projektsoll; auf 65% angehoben | `sync-service/pyproject.toml:36` | Tests |
@@ -209,7 +210,7 @@
 | L-39 | ✅ | W10 R1 | **`httpOnly`-Cookie-Flag nicht explizit durch Test abgesichert** | `api/src/main.py:148–154` | Security |
 | L-40 | ✅ | W10 R3 | **`docker-compose.test.yml` ohne Resource Limits und Log-Rotation** | `docker-compose.test.yml` | Architektur |
 | L-41 | — | — | **3-Service-Splitting ohne explizite Begründung in CLAUDE.md** (dokumentierte Ausnahme ARCH-L4) | `CLAUDE.md` | Architektur |
-| L-42 | ❌ | — | **`routes/api.py` domain-übergreifend (352 Zeilen, wächst)** | `api/src/routes/api.py` | Architektur |
+| L-42 | — | — | **`routes/api.py` technisch-flat statt feature-split** (dokumentierte Ausnahme ARCH-L5) — Split erst bei >400Z oder zweitem Entwickler | `api/src/routes/api.py` | Architektur |
 | L-43 | ✅ | W10 R3 | **ML-Healthcheck prüft keine Modell-Integrität** | `docker-compose.yml:191–193` | Architektur |
 | L-44 | ✅ | W10 R5 | **Sequentielle `await` in `_run_correlations`-Schleife** — auf `asyncio.gather()` umgestellt | `ml-service/src/inference_anomaly.py:109` | Code-Qualität |
 | L-45 | ✅ | W10 R5 | **`require_user()` gibt ungetyptes `dict` zurück** — `UserRow` TypedDict in `deps.py` definiert | `api/src/deps.py:73` | Code-Qualität |
@@ -218,7 +219,7 @@
 | L-48 | ✅ | W10 R4 | **`/api/seizures/risk` ohne Boundary-Tests** — 3 Tests ergänzt: Response-Struktur (`level`/`flags`), warning-Level, high-Level | `api/tests/test_api_endpoints.py` | Tests |
 | L-49 | ✅ | W10 R4 | **sync-service: kein Test für Garmin+Libre-Kombinations-User** — `TestSyncDualLinkedUser` ergänzt: beide Jobs werden aufgerufen; Garmin-Fehler blockiert Libre nicht | `sync-service/tests/test_main.py` | Tests |
 | L-50 | ✅ | W10 R4 | **`/account/export` E2E prüft nicht JSON-Download-Inhalt** — `test_account_export_json_structure` ergänzt: Content-Disposition + alle 9 Top-Level-Keys + Typen validiert via `authenticated_page.request.get()` | `api/tests/e2e/test_smoke.py` | Tests |
-| L-51 | ❌ | — | **Tote Branch-Namen in `no-commit-to-branch`** — `--branch, dev, --branch, master` · Fix: auf `--branch, main` reduzieren | `.pre-commit-config.yaml:19` | CI/CD |
+| L-51 | ✅ | W10 R7 | **Tote Branch-Namen in `no-commit-to-branch`** — `--branch, dev, --branch, master` · Fix: auf `--branch, main` reduziert | `.pre-commit-config.yaml:19` | CI/CD |
 | L-52 | ✅ | W10 R6 | **Kein `sentry.disabled`-Warning beim Start** — `else: logger.warning("sentry.disabled", ...)` in allen 3 Services | `api/src/main.py`, `sync-service/src/main.py`, `ml-service/src/main.py` | Observability |
 | L-53 | ✅ | W10 R6 | **`PrintLoggerFactory` nicht Thread-safe für Production** — auf `WriteLoggerFactory()` umgestellt in allen 3 Services | alle `logging_config.py` | Observability |
 | L-54 | ✅ | W10 R6 | **Kein Correlation-ID in sync/ml-service Logs** — `bind_contextvars(job_id=...)` + `clear_contextvars()` in `sync_user()` und `run_inference()` | `sync-service/src/main.py`, `ml-service/src/main.py` | Observability |
@@ -234,15 +235,13 @@
 
 ---
 
-## Offene Findings (nach Wave 10 Runde 5)
+## Offene Findings (nach Wave 10 Runde 7)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-52, M-53, M-55, M-57–M-62, L-01–L-56, L-57–L-60, L-61, L-63 (außer H-07, M-19, M-42) |
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-62, L-01–L-63 (außer H-07, M-19) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
-| **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-62 (TEST-L4), M-42 (eigener Wave), M-54 (TEST-L4) |
-| **Architektur/Betrieb** | ❌ L-42 (api.py domain-übergreifend) |
-| **CI/CD** | ❌ M-56, L-51 |
+| **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
 ---
 
@@ -254,10 +253,10 @@
 | ~~**W10 R4**~~ | ~~Tests (Rest)~~ | ~~M-53, M-55 (resolved), L-47–50~~ | ✅ |
 | ~~**W10 R5**~~ | ~~Code-Qualität~~ | ~~M-50, M-51, M-52, L-44–46, L-57, L-58, L-60~~ | ✅ |
 | ~~**W10 R6**~~ | ~~Observability~~ | ~~M-47 (ProcessorFormatter Bridge + WriteLoggerFactory), L-52 (sentry.disabled), L-53 (WriteLoggerFactory), L-54 (Correlation-ID job_id), L-55 (_error_requests), L-56 (/health cleanup)~~ | ✅ |
-| **W10 R7** | CI/CD + Security | M-56 (Trivy Artefakt), L-51 (Branch-Namen), M-42 (CSP Nonce + strict-dynamic), L-42 (api.py Split oder ARCH-L5) | ~3h |
+| ~~**W10 R7**~~ | ~~CI/CD + Security~~ | ~~L-51 (Branch-Namen), M-56 (Trivy Artefakt), M-42 (CSP Nonce + strict-dynamic) · L-42 → ARCH-L5~~ | ✅ |
 | **Eval 5** | Re-Audit | Vollständiges Re-Audit nach Wave 10 (6 Subagenten parallel) | — |
 
-**Gesamtaufwand verbleibend:** ~3h · Ziel: alle automatisierbaren Findings gefixt, Security-Achse dauerhaft 🟢
+**Gesamtaufwand verbleibend:** — · Wave 10 vollständig abgeschlossen · Alle automatisierbaren Findings gefixt
 
 ---
 
@@ -303,6 +302,7 @@
 | ARCH-L2 | Technisch-basierte `db/`-Ordnerstruktur — Solo-Projekt |
 | ARCH-L3 | Kein `/api/v1/`-Prefix — keine externen Consumer |
 | ARCH-L4 | 3-Service-Splitting bewusst: Scheduling-Isolation, ML-Workload-Trennung, unabhängige Restart-Zyklen, unterschiedliche Memory-Limits (api 512 MB, ml 1 GB). Kein klassisches Microservices-Muster. |
+| ARCH-L5 | `routes/api.py` technisch-flat (alle JSON-Endpunkte in einer Datei, ~340Z). Feature-Split wäre sauberer, aber: Solo-Projekt, geteilte `require_user`/`limiter`-Deps, Domain-Grenzen per Kommentarblöcke erkennbar. Split bei >400Z oder zweitem Entwickler. |
 | CICD-M3 | Branch Protection nicht erzwingbar (Free-Plan, privates Repo) |
 | CICD-L4 | GitHub-native Secret Scanning nicht verfügbar (Free-Plan) |
 | QUAL-M2 | Duplizierter GarminClient in api/ + sync-service/ — bewusst |

@@ -133,6 +133,15 @@ jobs:
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          format: table
+          output: trivy-api.txt
+      - name: Upload api Trivy results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-api
+          path: trivy-api.txt
+          retention-days: 90
       - name: Build sync image
         run: docker build -t pulsebase-sync:ci sync-service/
       - name: Scan sync
@@ -142,6 +151,15 @@ jobs:
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          format: table
+          output: trivy-sync.txt
+      - name: Upload sync Trivy results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-sync
+          path: trivy-sync.txt
+          retention-days: 90
       - name: Build ml image
         run: docker build -t pulsebase-ml:ci ml-service/
       - name: Scan ml
@@ -151,6 +169,15 @@ jobs:
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          format: table
+          output: trivy-ml.txt
+      - name: Upload ml Trivy results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-ml
+          path: trivy-ml.txt
+          retention-days: 90
 
   js-test:
     name: JS Tests (Vitest)

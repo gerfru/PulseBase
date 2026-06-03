@@ -96,7 +96,16 @@ async def require_user(request: Request) -> UserRow:
     return cast(UserRow, user)
 
 
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+class NonceTemplates(Jinja2Templates):
+    def TemplateResponse(
+        self, request: Request, name: str, context: dict | None = None, **kwargs
+    ):  # type: ignore[override]
+        ctx = {**(context or {})}
+        ctx.setdefault("nonce", getattr(request.state, "nonce", ""))
+        return super().TemplateResponse(request, name, ctx, **kwargs)
+
+
+templates = NonceTemplates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals["v"] = str(int(time.time()))
 
 

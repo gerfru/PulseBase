@@ -43,5 +43,5 @@ details.help-details { margin-top: var(--sp-3); }
 </div>
 {% endblock %}
 {% block scripts %}
-<script type="module" src="/static/help.js?v={{ v }}"></script>
+<script nonce="{{ nonce }}" type="module" src="/static/help.js?v={{ v }}"></script>
 {% endblock %}

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PulseBase{% endblock %}</title>
-    <script src="/static/theme-init.js?v={{ v }}"></script>
+    <script nonce="{{ nonce }}" src="/static/theme-init.js?v={{ v }}"></script>
     <link rel="stylesheet" href="/static/tailwind.min.css?v={{ v }}">
     <link rel="stylesheet" href="/static/style.css?v={{ v }}">
     {% block extra_head %}{% endblock %}
@@ -21,7 +21,8 @@
         <a href="/accessibility" class="hover:text-slate-400 transition-colors">Barrierefreiheit</a>
     </footer>
 
-    <script src="/static/colors.js?v={{ v }}"></script>
+    <script nonce="{{ nonce }}" src="/static/colors.js?v={{ v }}"></script>
+    <script nonce="{{ nonce }}">document.querySelectorAll('[data-history-back]').forEach(function(e){e.addEventListener('click',function(ev){ev.preventDefault();history.back();});});</script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
