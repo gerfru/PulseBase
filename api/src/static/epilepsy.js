@@ -1,7 +1,7 @@
 const SEVERITY_LABELS = ['', 'Sehr leicht', 'Leicht', 'Mittel', 'Schwer', 'Sehr schwer'];
 let selectedSeverity = null;
 
-function esc(s) {
+export function esc(s) {
     return String(s ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -9,7 +9,11 @@ function esc(s) {
         .replace(/"/g, '&quot;');
 }
 
-function renderSeverityChips() {
+export function _resetSelectedSeverity() {
+    selectedSeverity = null;
+}
+
+export function renderSeverityChips() {
     const container = document.getElementById('severity-chips');
     container.innerHTML = '';
     for (let i = 1; i <= 5; i++) {
@@ -35,7 +39,7 @@ function renderSeverityChips() {
     container.appendChild(label);
 }
 
-async function loadRisk() {
+export async function loadRisk() {
     const r = await fetch('/api/seizures/risk').then((r) => r.json());
     const dot = document.getElementById('risk-dot');
     const lbl = document.getElementById('risk-label');
@@ -48,24 +52,34 @@ async function loadRisk() {
     lbl.textContent = textMap[r.level] || r.level;
     detail.textContent = `Schlafschuld letzte 7 Nächte: ${r.sleep_debt_h}h`;
 
-    flagsEl.innerHTML = '';
-    for (const f of r.flags || []) {
+    renderRiskFlags(flagsEl, r.flags || []);
+}
+
+export function renderRiskFlags(container, flags) {
+    container.innerHTML = '';
+    for (const f of flags) {
         const fc = { ok: 'emerald', amber: 'amber', red: 'red' }[f.color] || 'slate';
         const row = document.createElement('div');
         row.className = `flex items-center gap-2 px-3 py-2 rounded-lg bg-${fc}-500/10 border border-${fc}-500/20`;
-        row.innerHTML = `<span class="text-xs font-medium text-${fc}-400">${f.label}</span>
-                         <span class="text-xs text-slate-400">${f.detail}</span>`;
-        flagsEl.appendChild(row);
+        const span1 = document.createElement('span');
+        span1.className = `text-xs font-medium text-${fc}-400`;
+        span1.textContent = f.label;
+        const span2 = document.createElement('span');
+        span2.className = 'text-xs text-slate-400';
+        span2.textContent = f.detail;
+        row.appendChild(span1);
+        row.appendChild(span2);
+        container.appendChild(row);
     }
 }
 
-function formatDuration(sec) {
+export function formatDuration(sec) {
     if (!sec) return null;
     if (sec < 60) return `${sec}s`;
     return `${Math.floor(sec / 60)}min ${sec % 60}s`;
 }
 
-function formatDate(iso) {
+export function formatDate(iso) {
     const d = new Date(iso);
     return d.toLocaleString('de-AT', {
         day: '2-digit',
@@ -78,7 +92,7 @@ function formatDate(iso) {
 
 const TYPE_LABELS = { focal: 'Fokal', generalized: 'Generalisiert', unknown: 'Unbekannt' };
 
-async function loadEvents() {
+export async function loadEvents() {
     const events = await fetch('/api/seizures?days=365').then((r) => r.json());
     const el = document.getElementById('event-list');
     if (!events.length) {
@@ -102,7 +116,7 @@ async function loadEvents() {
         .join('');
 }
 
-async function logSeizure() {
+export async function logSeizure() {
     const occurredAt = document.getElementById('occurred-at').value;
     if (!occurredAt) {
         alert('Bitte Datum und Uhrzeit angeben.');

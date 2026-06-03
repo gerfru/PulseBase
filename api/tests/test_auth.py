@@ -211,7 +211,7 @@ async def test_reset_request_unknown_email_returns_200(client):
 async def test_reset_request_valid_email_returns_200(client):
     with (
         patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.auth.save_reset_token", AsyncMock()),
+        patch("src.auth_tokens.save_reset_token", AsyncMock()),
     ):
         r = await client.post("/auth/reset-request", data={"email": TEST_USER["email"]})
     assert r.status_code == 200
@@ -220,7 +220,7 @@ async def test_reset_request_valid_email_returns_200(client):
 async def test_reset_request_sends_email_when_api_key_set(client):
     with (
         patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.auth.save_reset_token", AsyncMock()),
+        patch("src.auth_tokens.save_reset_token", AsyncMock()),
         patch("src.mail.settings") as mock_settings,
         patch("src.mail.resend_client") as mock_resend,
     ):
