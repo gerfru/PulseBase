@@ -65,6 +65,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 _active_requests: int = 0
 _error_requests: int = 0
 _metrics_lock = asyncio.Lock()
+_start_time: float = time.monotonic()
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -120,8 +121,8 @@ async def lifespan(app: FastAPI):  # pragma: no cover
         from cryptography.fernet import Fernet
 
         Fernet(settings.fernet_key.encode())
-    except Exception:
-        raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
+    except ValueError as e:
+        raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64") from e
     if settings.sentry_dsn:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -172,6 +173,15 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/metrics")
+async def app_metrics():
+    return {
+        "active_requests": _active_requests,
+        "error_requests_total": _error_requests,
+        "uptime_seconds": round(time.monotonic() - _start_time),
+    }
+
+
 @app.get("/ready")
 async def ready():
     try:
@@ -184,6 +194,7 @@ async def ready():
             return JSONResponse(status_code=503, content={"status": "no_migrations"})
         return {"status": "ready"}
     except Exception:
+        logger.exception("readiness.check_failed")
         return JSONResponse(status_code=503, content={"status": "unavailable"})
 
 

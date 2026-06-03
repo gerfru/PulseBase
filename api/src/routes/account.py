@@ -4,6 +4,7 @@ import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, RedirectResponse
+from starlette.responses import Response
 
 import src.deps as _deps
 from src.db import (
@@ -24,7 +25,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
-def _settings_error(request: Request, user: UserRow, error: str):
+def _settings_error(request: Request, user: UserRow, error: str) -> Response:
     return _deps.templates.TemplateResponse(
         request,
         "settings.html",
@@ -40,7 +41,7 @@ async def delete_account(
     email: str = Form(),
     password: str = Form(),
     csrf_token: str | None = Form(default=None),
-):
+) -> Response:
     user = await require_user(request)
 
     if not verify_csrf_token(request, csrf_token):
@@ -63,7 +64,7 @@ async def delete_account(
 
 @router.get("/account/export")
 @limiter.limit("10/hour")
-async def export_account(request: Request):
+async def export_account(request: Request) -> Response:
     user = await require_user(request)
     data = await export_user_data(user["id"])
     return JSONResponse(

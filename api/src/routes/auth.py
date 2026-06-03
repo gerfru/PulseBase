@@ -1,5 +1,4 @@
 import hashlib
-from datetime import datetime, timedelta, timezone
 
 import asyncpg
 import structlog
@@ -9,129 +8,38 @@ from pydantic.networks import EmailStr
 from fastapi.responses import RedirectResponse
 from starlette.responses import Response
 
+from src.auth_helpers import (
+    _establish_session,
+    _handle_invalid_credentials,
+    _handle_unverified_email,
+    _lockout_response,
+)
 from src.auth_tokens import (
     _make_reset_token,
     _make_verify_token,
     _verify_email_token,
     _verify_reset_token,
 )
-from src.mail import send_lockout_email, send_reset_email, send_verify_email
+from src.mail import send_reset_email, send_verify_email
 from src.db import (
     clear_reset_token,
     create_user,
     get_user_by_email,
-    increment_failed_login,
-    lock_user_until,
-    reset_failed_login,
     save_consent,
     set_email_verified,
     update_password,
 )
 from src.deps import (
-    DUMMY_HASH,
     _ip_hash,
     generate_csrf_token,
     hash_password,
     limiter,
     templates,
     verify_csrf_token,
-    verify_password,
 )
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
-
-_MAX_ATTEMPTS = 5
-_LOCKOUT_MINUTES = 15
-
-
-def _lockout_response(user: dict | None, request: Request) -> Response | None:
-    if not (
-        user
-        and user["locked_until"]
-        and user["locked_until"] > datetime.now(timezone.utc)
-    ):
-        return None
-    remaining = (
-        int((user["locked_until"] - datetime.now(timezone.utc)).total_seconds() / 60)
-        + 1
-    )
-    logger.warning(
-        "auth.login.fail",
-        reason="locked",
-        user_id=user["id"],
-        ip_hash=_ip_hash(request),
-    )
-    return templates.TemplateResponse(
-        request,
-        "login.html",
-        {
-            "error": f"Account gesperrt. Bitte in {remaining} Minuten erneut versuchen.",
-            "csrf_token": generate_csrf_token(request),
-        },
-        status_code=400,
-    )
-
-
-async def _handle_invalid_credentials(
-    user: dict | None,
-    password: str,
-    email: str,
-    request: Request,
-) -> Response | None:
-    password_hash: str = user["password_hash"] if user else DUMMY_HASH
-    valid = verify_password(password, password_hash)
-    if user and valid:
-        return None
-    if user:
-        new_attempts = await increment_failed_login(user["id"])
-        if new_attempts >= _MAX_ATTEMPTS:
-            until = datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)
-            await lock_user_until(user["id"], until)
-            await send_lockout_email(user["email"], _LOCKOUT_MINUTES)
-    logger.warning(
-        "auth.login.fail",
-        reason="bad_credentials",
-        email_hash=hashlib.sha256(email.encode()).hexdigest()[:12],
-        ip_hash=_ip_hash(request),
-    )
-    return templates.TemplateResponse(
-        request,
-        "login.html",
-        {
-            "error": "E-Mail oder Passwort falsch.",
-            "csrf_token": generate_csrf_token(request),
-        },
-        status_code=400,
-    )
-
-
-def _handle_unverified_email(user: dict, request: Request) -> Response | None:
-    if user["email_verified_at"]:
-        return None
-    logger.warning(
-        "auth.login.fail",
-        reason="unverified",
-        user_id=user["id"],
-        ip_hash=_ip_hash(request),
-    )
-    return templates.TemplateResponse(
-        request,
-        "login.html",
-        {
-            "error": "Bitte bestätige zuerst deine E-Mail-Adresse.",
-            "show_resend": True,
-            "csrf_token": generate_csrf_token(request),
-        },
-        status_code=400,
-    )
-
-
-async def _establish_session(request: Request, user: dict) -> None:
-    await reset_failed_login(user["id"])
-    request.session.clear()
-    request.session["user_id"] = str(user["id"])
-    logger.info("auth.login.success", user_id=user["id"], ip_hash=_ip_hash(request))
 
 
 @router.get("/login")
@@ -162,7 +70,8 @@ async def login(
         return lockout
     if resp := await _handle_invalid_credentials(user, password, email, request):
         return resp
-    assert user is not None
+    if user is None:
+        raise RuntimeError("user_record missing after credential check")
     if resp := _handle_unverified_email(user, request):
         return resp
     await _establish_session(request, user)

@@ -1,11 +1,29 @@
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import garminconnect
 import structlog
+from tenacity import Retrying, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger(__name__)
+
+_T = TypeVar("_T")
+
+
+def garmin_call(fn: Callable[[], _T]) -> _T:
+    """Call a synchronous Garmin API function with up to 3 retries and exponential backoff."""
+    for attempt in Retrying(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        reraise=True,
+    ):
+        with attempt:
+            return fn()
+    raise RuntimeError(
+        "unreachable: tenacity reraises on exhaustion"
+    )  # pragma: no cover
 
 
 class GarminClient:
