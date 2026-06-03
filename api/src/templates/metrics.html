@@ -33,5 +33,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script nonce="{{ nonce }}" src="/static/vendor/purify.min.js"></script>
 <script nonce="{{ nonce }}" type="module" src="/static/metrics.js?v={{ v }}"></script>
 {% endblock %}
