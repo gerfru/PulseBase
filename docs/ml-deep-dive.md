@@ -72,13 +72,13 @@ Sonderfall: Wenn `σ < 1.0` → `z = 0.0` (keine relevante Varianz, Division ver
 ### Schwellwert
 
 ```python
-_THRESHOLD = 1.5
+_THRESHOLD = 2.0
 is_anomaly = z > _THRESHOLD
 ```
 
-Begründung für 1.5 statt des üblichen 2.0: Bei n ≈ 30 Datenpunkten ist ein konservativerer
-Threshold sinnvoll. Bei Normalverteilung werden damit ~13 % aller Tage als auffällig markiert —
-bewusstes Design als "Frühwarnsystem". Nicht zur klinischen Diagnose geeignet.
+Bei Normalverteilung markiert 2.0σ ca. 2.5 % aller Tage als auffällig (einseitig).
+Das entspricht dem klassischen statistischen Ausreißer-Kriterium und reduziert False Positives.
+Nicht zur klinischen Diagnose geeignet.
 
 ### Ausgabe (gespeichert in `ml_predictions.metadata`)
 
@@ -86,7 +86,7 @@ bewusstes Design als "Frühwarnsystem". Nicht zur klinischen Diagnose geeignet.
 {
   "is_anomaly": false,
   "z_score": 1.29,
-  "threshold": 1.5,
+  "threshold": 2.0,
   "baseline_mean": 43.5,
   "baseline_std": 3.2
 }

@@ -165,11 +165,13 @@ token = signer.dumps(user_id)  # HMAC-signiert mit SESSION_SECRET
 
 ### 3.5 Garmin/LibreLink Credential-Handling
 
-Garmin-Passwörter werden **niemals** gespeichert. Der Flow:
-1. User gibt Garmin-Credentials im `/garmin/link`-Formular ein
-2. `garminconnect`-Library authenticiert sich gegen Garmin Connect und erhält einen Session-Token
-3. Nur dieser Token wird Fernet-verschlüsselt in der DB gespeichert
-4. Credentials sind nach dem Request aus dem Speicher weg
+Garmin- und LibreLink-Passwörter werden **niemals** gespeichert. Der Flow (identisch für beide Services):
+1. User gibt Credentials im `/garmin/link` oder `/libre/link`-Formular ein
+2. Client-Library authenticiert sich und erhält einen Session-Token
+3. Token wird **ausschließlich in einem `tempfile.TemporaryDirectory()`** geschrieben (kein permanenter Pfad auf Disk)
+4. Token-Daten werden Fernet-verschlüsselt und in der DB gespeichert (`user_tokens`-Tabelle, V20)
+5. Tempdir (und damit der Klartext-Token) wird beim Verlassen des Context-Managers automatisch gelöscht
+6. Credentials sind nach dem Request aus dem Speicher weg
 
 **Fernet-Verschlüsselung:**
 ```python
@@ -363,7 +365,7 @@ Zusätzlich zur Schema-Validierung sind folgende Endpunkte rate-limitiert (slowa
 
 | Secret | Zweck | Scope | Rotation |
 |---|---|---|---|
-| `SESSION_SECRET` | Cookie-Signierung (HMAC) | API | Rotieren erzwingt alle User auszuloggen |
+| `SESSION_SECRET` | Cookie-Signierung (HMAC), min. 32 Zeichen | API | Rotieren erzwingt alle User auszuloggen |
 | `FERNET_KEY` | Token-Verschlüsselung at rest | API + Sync | Rotation erfordert Re-Encrypt aller Tokens |
 | `DB_APP_PASSWORD` | DB-Verbindung (Least Privilege User) | API + Sync + ML | Standard DB-Rotation |
 | `DB_PASSWORD` | DB-Admin (nur für Migrations) | Flyway | Selten |
@@ -378,7 +380,7 @@ env/.env       → nur db + flyway (DB_USER/PASSWORD Admin-Creds, HOST_IP)
 env/.env.app   → api + sync + ml (DB_APP_USER/PASSWORD, FERNET_KEY)
 env/.env.api   → nur api (SESSION_SECRET, RESEND_API_KEY, APP_BASE_URL, ...)
 env/.env.sync  → nur sync-service (SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, ...)
-env/.env.ml    → nur ml-service (ML_INFER_HOUR, kein FERNET_KEY nötig)
+env/.env.ml    → nur ml-service (ML_INFER_HOUR — ml-service greift nie auf Tokens zu, kein FERNET_KEY nötig)
 ```
 
 Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind damit nie im Prozess-Environment von api/sync/ml sichtbar — kein Leak via `/proc/<pid>/environ` (H-11, W9).
@@ -541,13 +543,16 @@ pip-audit -r /tmp/req-api.txt
 ### 11.4 Pre-commit Hook-Reihenfolge
 
 ```
-gitleaks      ← Secrets-Scan zuerst (Commit mit Secret sofort verhindern)
-bandit        ← SAST (vor Lint — findet Security-Issues vor Code-Style-Korrekturen)
-ruff          ← Lint + Fix
+gitleaks       ← Secrets-Scan zuerst (Commit mit Secret sofort verhindern)
+pre-commit-hooks ← trailing-whitespace, check-yaml/json/toml, no-commit-to-branch
+bandit         ← SAST (vor ruff — findet Security-Issues vor Code-Style-Korrekturen)
+ruff           ← Lint + Fix
+ruff-format    ← Format
 detect-secrets ← Baseline-basierter Secret-Scan (ergänzt gitleaks)
-semgrep       ← SAST cross-file (p/python + p/owasp-top-ten)
-mypy          ← Type Check (findet implizite None-Dereferenzierungen)
+mypy           ← Type Check (findet implizite None-Dereferenzierungen)
 ```
+
+gitleaks läuft zuerst: Selbst wenn spätere Hooks fehlschlagen und der Commit abbricht, ist sichergestellt dass kein Secret committed wurde. bandit läuft vor ruff damit Security-Issues nicht durch Auto-Fixes überdeckt werden.
 
 gitleaks läuft zuerst: Selbst wenn spätere Hooks fehlschlagen und der Commit abbricht, ist sichergestellt dass kein Secret committed wurde.
 

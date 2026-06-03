@@ -67,6 +67,22 @@ class TestConfigureLogging:
         configure_logging()
         assert logging.getLogger("apscheduler").level == logging.WARNING
 
+    def test_log_level_defaults_to_info(self, monkeypatch):
+        """M-81: Default LOG_LEVEL must be INFO when env var is absent."""
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+        from logging_config import configure_logging
+
+        configure_logging()
+        assert logging.getLogger().level == logging.INFO
+
+    def test_log_level_from_env_debug(self, monkeypatch):
+        """M-81: LOG_LEVEL=DEBUG must set root logger to DEBUG."""
+        monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+        from logging_config import configure_logging
+
+        configure_logging()
+        assert logging.getLogger().level == logging.DEBUG
+
 
 # ── backfill_energy (CLI entry point) ─────────────────────────────────────────
 

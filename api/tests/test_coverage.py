@@ -170,6 +170,66 @@ async def test_libre_link_generic_error_returns_400(client):
     assert r.status_code == 400
 
 
+# ── libre_link — H-20/H-21: tempdir + encryption always used ─────────────────
+
+
+async def test_libre_link_uses_tempdir_not_permanent_path(client):
+    """H-20: libre_link must use TemporaryDirectory, not a permanent /app/tokens/ path."""
+    fake = _make_fake_libre()
+    captured: list = []
+
+    def fake_tempdir(*args, **kwargs):
+        ctx = MagicMock()
+        ctx.__enter__ = MagicMock(return_value="/tmp/fake_tmpdir")
+        ctx.__exit__ = MagicMock(return_value=False)
+        captured.append(True)
+        return ctx
+
+    with (
+        patch.dict(sys.modules, {"libre.client": fake}),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.libre.tempfile.TemporaryDirectory", side_effect=fake_tempdir),
+        patch("src.routes.libre.save_user_token", AsyncMock(return_value=None)),
+        patch("src.routes.libre.set_libre_linked", AsyncMock(return_value=None)),
+    ):
+        r = await client.post(
+            "/libre/link",
+            data={
+                "libre_email": "test@libre.com",
+                "libre_password": "pass",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code == 303
+    assert captured, "TemporaryDirectory was not called — permanent path still in use"
+
+
+async def test_libre_link_always_encrypts_token(client):
+    """H-21: The else-plaintext branch must no longer exist; fernet_encrypt always called."""
+    fake = _make_fake_libre()
+    encrypt_calls: list = []
+
+    def mock_encrypt(data, key):
+        encrypt_calls.append((data, key))
+        return b"encrypted-blob"
+
+    with (
+        patch.dict(sys.modules, {"libre.client": fake}),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.libre.fernet_encrypt", side_effect=mock_encrypt),
+        patch("src.routes.libre.save_user_token", AsyncMock(return_value=None)),
+        patch("src.routes.libre.set_libre_linked", AsyncMock(return_value=None)),
+    ):
+        r = await client.post(
+            "/libre/link",
+            data={
+                "libre_email": "test@libre.com",
+                "libre_password": "pass",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code == 303
+    assert len(encrypt_calls) == 1, "fernet_encrypt must be called exactly once"
+
+
 # ── libre_unlink — token dir exists ──────────────────────────────────────────
 
 
@@ -398,7 +458,7 @@ def test_fernet_key_validator_rejects_empty_value():
         "DB_PASSWORD": "test",  # pragma: allowlist secret
         "DB_APP_USER": "test",
         "DB_APP_PASSWORD": "test",  # pragma: allowlist secret
-        "SESSION_SECRET": "test-secret",  # pragma: allowlist secret
+        "SESSION_SECRET": "a" * 32,  # pragma: allowlist secret
         "FERNET_KEY": "",
     }
     with patch.dict(os.environ, env_overrides):
@@ -419,7 +479,7 @@ def test_fernet_key_validator_accepts_valid_key():
         "DB_PASSWORD": "test",  # pragma: allowlist secret
         "DB_APP_USER": "test",
         "DB_APP_PASSWORD": "test",  # pragma: allowlist secret
-        "SESSION_SECRET": "test-secret",  # pragma: allowlist secret
+        "SESSION_SECRET": "a" * 32,  # pragma: allowlist secret
         "FERNET_KEY": valid_key,
     }
     with patch.dict(os.environ, env_overrides):
@@ -427,6 +487,46 @@ def test_fernet_key_validator_accepts_valid_key():
 
         s = Settings()  # type: ignore[call-arg]
         assert s.fernet_key == valid_key
+
+
+# ── SESSION_SECRET validator ─────────────────────────────────────────────────
+
+
+def test_session_secret_validator_rejects_short_value():
+    """M-75: SESSION_SECRET shorter than 32 chars must raise ValidationError."""
+    import os
+    from pydantic import ValidationError
+    from cryptography.fernet import Fernet
+
+    env_overrides = {
+        "DB_APP_USER": "test",
+        "DB_APP_PASSWORD": "test",  # pragma: allowlist secret
+        "SESSION_SECRET": "too-short",  # pragma: allowlist secret
+        "FERNET_KEY": Fernet.generate_key().decode(),
+    }
+    with patch.dict(os.environ, env_overrides):
+        with pytest.raises(ValidationError, match="SESSION_SECRET"):
+            from src.db.pool import Settings
+
+            Settings()
+
+
+def test_session_secret_validator_accepts_32_chars():
+    """M-75: SESSION_SECRET of exactly 32 characters must be accepted."""
+    import os
+    from cryptography.fernet import Fernet
+
+    env_overrides = {
+        "DB_APP_USER": "test",
+        "DB_APP_PASSWORD": "test",  # pragma: allowlist secret
+        "SESSION_SECRET": "a" * 32,  # pragma: allowlist secret
+        "FERNET_KEY": Fernet.generate_key().decode(),
+    }
+    with patch.dict(os.environ, env_overrides):
+        from src.db.pool import Settings
+
+        s = Settings()  # type: ignore[call-arg]
+        assert len(s.session_secret) == 32
 
 
 # ── Evidence Catalog ──────────────────────────────────────────────────────────
@@ -643,3 +743,31 @@ async def test_clear_reset_token_calls_pool():
 
         await clear_reset_token(1)
     mock_pool.execute.assert_awaited_once()
+
+
+# ── logging_config LOG_LEVEL ──────────────────────────────────────────────────
+
+
+def test_log_level_defaults_to_info():
+    """M-81: Default LOG_LEVEL must be INFO when env var is absent."""
+    import logging
+    import os
+
+    with patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("LOG_LEVEL", None)
+        from src.logging_config import configure_logging
+
+        configure_logging()
+    assert logging.getLogger().level == logging.INFO
+
+
+def test_log_level_from_env_debug():
+    """M-81: LOG_LEVEL=DEBUG must set root logger to DEBUG."""
+    import logging
+    import os
+
+    with patch.dict(os.environ, {"LOG_LEVEL": "DEBUG"}):
+        from src.logging_config import configure_logging
+
+        configure_logging()
+    assert logging.getLogger().level == logging.DEBUG

@@ -4,6 +4,7 @@ Tests run_all_users, run_on_request, and run_inference. All DB calls and
 inference sub-functions are mocked — no DB connection required.
 """
 
+import signal
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -317,3 +318,58 @@ class TestRunInference:
             assert mock.call_count == 1, (
                 f"{mock._mock_name} was not called exactly once"
             )
+
+
+# ── Shutdown / SIGTERM ────────────────────────────────────────────────────────
+
+
+class TestShutdown:
+    async def test_sigterm_handler_is_non_blocking(self):
+        """M-83: SIGTERM handler must only set an asyncio.Event, never call scheduler.shutdown."""
+        from main import main
+
+        captured_sigterm_handler = None
+
+        def _capture_handler(sig, handler):
+            nonlocal captured_sigterm_handler
+            if sig == signal.SIGTERM:
+                captured_sigterm_handler = handler
+
+        mock_loop = MagicMock()
+        mock_loop.add_signal_handler.side_effect = _capture_handler
+
+        mock_event = MagicMock()
+        mock_event.wait = AsyncMock()
+        mock_event.set = MagicMock()
+        mock_event.is_set.return_value = False
+
+        mock_scheduler = MagicMock()
+
+        mock_settings = MagicMock()
+        mock_settings.sentry_dsn = ""
+
+        with (
+            patch("main.init_pool", new_callable=AsyncMock),
+            patch("main.close_pool", new_callable=AsyncMock),
+            patch("main.run_all_users", new_callable=AsyncMock),
+            patch("main._configure_ml_scheduler", return_value=mock_scheduler),
+            patch("main.asyncio.get_running_loop", return_value=mock_loop),
+            patch("main.asyncio.Event", return_value=mock_event),
+            patch("main.Settings", return_value=mock_settings),
+        ):
+            await main()
+
+        assert captured_sigterm_handler is not None, (
+            "SIGTERM handler was not registered"
+        )
+
+        # scheduler.shutdown was called once in the finally block (correct: graceful shutdown)
+        shutdown_calls_before = mock_scheduler.shutdown.call_count
+
+        # Call the captured SIGTERM handler — it must NOT add another scheduler.shutdown call
+        captured_sigterm_handler()
+
+        mock_event.set.assert_called_once()
+        assert mock_scheduler.shutdown.call_count == shutdown_calls_before, (
+            "SIGTERM handler must not call scheduler.shutdown directly (blocking)"
+        )

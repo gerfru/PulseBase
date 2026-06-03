@@ -117,16 +117,26 @@ Libre tokens are stored encrypted in the `user_tokens` DB table (same as Garmin 
 
 ```
 TimescaleDB
-  → ml-service reads history (resting HR, sleep, HRV)
-  → anomaly.py    Z-score on resting HR
-  → correlation.py  Pearson r: sleep score → next-day HRV
-  → readiness.py  RandomForestRegressor: [hrv, sleep, resting_hr] → predicted score
-  → ml_predictions table (upsert)
-  → /api/ml-insights exposes results to dashboard
+  → ml-service reads history (resting HR, sleep, HRV, activities, glucose)
+  → anomaly.py         Z-score (resting HR, SpO2, stress, steps, sleep duration)
+  → correlation.py     Pearson r (sleep→HRV, sleep→RHR, body-battery→RHR)
+  → readiness.py       RandomForestRegressor: energy-composite target → score 0–100
+  → battery_pattern.py K-Means clustering: body-battery intraday features → 3 patterns
+  → energy_metrics.py  Physical (TSB), Autonomic (HRV σ-norm), Cognitive (sleep debt)
+  → body_battery.py    Fresh-State model: sleep quality + HRV factor + drain
+  → training_load.py   ACWR + Training Monotony
+  → hrv_recovery.py    HRV recovery trajectory post-peak
+  → sleep_metrics.py   Sleep consistency (circular σ on wake/sleep times)
+  → spo2_metrics.py    SpO2 trend + apnea flag
+  → stress_metrics.py  Stress score (HRV-based)
+  → running_economy.py GCT / vertical oscillation / vertical ratio score
+  → ml_predictions table (upsert per model, per user, per day)
+  → /api/ml-insights exposes latest predictions to dashboard
 ```
 
-ML model training runs once per week (Sunday 3:00). Models are serialized with `joblib`
-to a Docker volume (`ml-models`). Inference runs daily and writes to `ml_predictions`.
+ML model training (RandomForest, K-Means) runs once per week (Sunday 03:00 UTC).
+Models are serialized atomically with `joblib` to a Docker volume (`ml-models`).
+All other models are rule-based/algorithmic and run on every inference cycle.
 
 ### Web Request (dashboard)
 
@@ -156,11 +166,49 @@ internal (PulseBase-only)
   ├── pulsebase-api
   ├── pulsebase-db
   ├── pulsebase-flyway
-  └── pulsebase-sync
+  ├── pulsebase-sync
+  └── pulsebase-ml
 ```
 
 No ports are exposed to the host in the default setup — all traffic enters via Caddy
 on the `proxy` network.
+
+---
+
+## Graceful Shutdown
+
+Both sync-service and ml-service use an `asyncio.Event`-based SIGTERM pattern:
+
+```python
+shutdown_event = asyncio.Event()
+
+def _on_sigterm() -> None:
+    logger.info("shutdown.sigterm_received")
+    shutdown_event.set()          # non-blocking — no scheduler.shutdown() here
+
+loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
+await shutdown_event.wait()       # blocks until SIGTERM
+scheduler.shutdown(wait=True)     # gracefully outside the signal handler
+```
+
+Docker Compose `stop_grace_period` values allow time for in-flight jobs:
+
+| Service | `stop_grace_period` | Reason |
+|---------|--------------------|-|
+| api | 45s | uvicorn `--timeout-graceful-shutdown 30` + buffer |
+| sync-service | 90s | long-running Garmin sync jobs |
+| ml-service | 60s | ML inference/training |
+
+---
+
+## Health Checks
+
+| Service | Endpoint / Mechanism | Notes |
+|---------|---------------------|-------|
+| api | `/ready` (HTTP 200 → DB ping + Flyway check) | Dockerfile + Compose both use `/ready` |
+| api | `/health` (HTTP 200 → `{"status":"ok"}`) | Liveness only — no DB call |
+| sync-service | `/tmp/sync_alive` mtime < 2 min | Written at startup, updated by scheduler |
+| ml-service | `/tmp/ml_alive` + `/app/models` dir | Written at startup |
 
 ---
 

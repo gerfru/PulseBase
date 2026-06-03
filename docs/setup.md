@@ -18,19 +18,26 @@
 git clone https://github.com/gerfru/PulseBase.git
 cd PulseBase
 cp env/.env.example env/.env
+cp env/.env.app.example env/.env.app
 cp env/.env.api.example env/.env.api
 cp env/.env.sync.example env/.env.sync
 cp env/.env.ml.example env/.env.ml
 ```
 
-Edit `env/.env` (shared DB credentials):
+Edit `env/.env` (DB-Admin + Traefik, nur für Flyway/DB-Service):
 
 ```bash
 DB_USER=garmin
 DB_PASSWORD=<strong password>
+HOST_IP=your-domain.com
+```
+
+Edit `env/.env.app` (Shared App-Credentials für api + sync-service + ml-service):
+
+```bash
 DB_APP_USER=garmin_app
 DB_APP_PASSWORD=<strong password>
-HOST_IP=your-domain.com
+FERNET_KEY=<from make gen-secrets>
 ```
 
 Edit `env/.env.sync`:
@@ -49,13 +56,15 @@ ML_INFER_HOUR=7   # hour (UTC) for daily ML inference; training runs Sunday 3:00
 
 ---
 
-## 2. Generate session secret
+## 2. Generate secrets
 
 ```bash
 make gen-secrets
 ```
 
-Copy the output value into `env/.env.api` at `SESSION_SECRET`.
+Copy the output values:
+- `SESSION_SECRET` → `env/.env.api` (min. 32 characters, required)
+- `FERNET_KEY` → `env/.env.app` (used by all 3 app services for token encryption)
 
 ---
 
@@ -159,7 +168,7 @@ No manual action needed after initial setup.
 | `make logs-analytics` | Live logs from the ML analytics service |
 | `make status` | Show container status |
 | `make db` | Open a psql shell on the database |
-| `make gen-secrets` | Generate a random SESSION_SECRET value (put in `env/.env.api`) |
+| `make gen-secrets` | Generate SESSION_SECRET (→ `env/.env.api`) and FERNET_KEY (→ `env/.env.app`) |
 | `make secure-env` | Set `chmod 600` on all env files |
 
 ---
