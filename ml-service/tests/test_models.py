@@ -492,7 +492,7 @@ def test_extract_features_ok():
         "auc",
         "n_dips",
     }
-    assert feat["daily_range"] >= 0
+    assert feat["daily_range"] == 9.0
     assert 0 <= feat["auc"] <= 100
 
 

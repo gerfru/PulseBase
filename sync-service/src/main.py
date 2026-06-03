@@ -235,27 +235,35 @@ async def sync_user(
 async def sync_libre_user(
     user: dict, repo: TimescaleRepository, settings: Settings
 ) -> None:
-    blob = await repo.get_user_token(user["id"], "libre")
-    if blob is None:
-        file_path = (
-            settings.token_base_dir / str(user["id"]) / "libre" / "libre_token.json"
-        )
-        if file_path.exists():
-            raw = file_path.read_bytes()
-            blob = (
-                fernet_encrypt(raw, settings.fernet_key) if settings.fernet_key else raw
+    bind_contextvars(job_id=str(uuid.uuid4())[:8])
+    try:
+        blob = await repo.get_user_token(user["id"], "libre")
+        if blob is None:
+            file_path = (
+                settings.token_base_dir / str(user["id"]) / "libre" / "libre_token.json"
             )
-            await repo.save_user_token(user["id"], "libre", blob)
-    if blob is None:
-        raise LibreAuthError("Kein LibreLinkUp-Token — Neu-Verknüpfung erforderlich")
+            if file_path.exists():
+                raw = file_path.read_bytes()
+                blob = (
+                    fernet_encrypt(raw, settings.fernet_key)
+                    if settings.fernet_key
+                    else raw
+                )
+                await repo.save_user_token(user["id"], "libre", blob)
+        if blob is None:
+            raise LibreAuthError(
+                "Kein LibreLinkUp-Token — Neu-Verknüpfung erforderlich"
+            )
 
-    raw = fernet_decrypt(blob, settings.fernet_key) if settings.fernet_key else blob
-    token_data = json.loads(raw)
-    client = connect_with_token(token_data["token"])
-    readings = get_recent_glucose(client, hours=2)
-    rows = [map_glucose_reading(r, user["id"]) for r in readings]
-    await repo.bulk_insert_glucose(user["id"], rows)
-    logger.info("libre_sync.done", user_id=user["id"], readings=len(rows))
+        raw = fernet_decrypt(blob, settings.fernet_key) if settings.fernet_key else blob
+        token_data = json.loads(raw)
+        client = connect_with_token(token_data["token"])
+        readings = get_recent_glucose(client, hours=2)
+        rows = [map_glucose_reading(r, user["id"]) for r in readings]
+        await repo.bulk_insert_glucose(user["id"], rows)
+        logger.info("libre_sync.done", user_id=user["id"], readings=len(rows))
+    finally:
+        clear_contextvars()
 
 
 async def sync_all_libre(repo: TimescaleRepository, settings: Settings) -> None:

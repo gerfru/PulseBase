@@ -189,11 +189,11 @@ cd api && .venv/bin/pytest tests/test_auth.py::test_login_success_redirects -v
 | Service | Aktuell | Minimum (CI) | Ziel |
 |---------|---------|--------------|------|
 | api (Python) | ~99% | 70% | 100% |
-| api (JS) | ~100% Lines / ~100% Functions (4 Dateien) | 65% Lines / 70% Functions | — |
-| sync-service | ~55%+ | 50% | 70%+ |
-| ml-service | ~55%+ | 50% | 70%+ |
+| api (JS) | ~100% Lines / ~100% Functions (4 Dateien) | 70% Lines / 70% Functions | — |
+| sync-service | ~65%+ | 65% | 70%+ |
+| ml-service | ~80%+ | 80% | 80%+ |
 
-Die JS-Schwelle gilt für die vier gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: Coverage stieg durch `test_crypto.py` + `test_garmin_client.py` auf >50% (W9, M-38/M-39).
+Die JS-Schwelle gilt für die vier gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: CI-Gate auf 65% angehoben (W10 R2, M-59). ml-service: CI-Gate auf 80% angehoben (W10 R2, M-61).
 
 ---
 
@@ -202,10 +202,10 @@ Die JS-Schwelle gilt für die vier gemessenen Utility-Dateien. `dashboard-hero.j
 Reihenfolge beim Commit:
 
 1. **gitleaks** — Secret-Scan (kein Commit wenn Secrets im Diff)
-2. **pre-commit-hooks** — trailing whitespace, YAML/JSON/TOML-Validierung, `no-commit-to-branch` (blockiert direkten Push auf `main`, `dev`, `master`)
-3. **ruff** — Python Lint + Auto-Fix
-4. **ruff-format** — Python Formatting
-5. **bandit** — SAST: Security-Check für `api/src/`, `sync-service/src/`, `ml-service/src/`
+2. **pre-commit-hooks** — trailing whitespace, YAML/JSON/TOML-Validierung, `no-commit-to-branch` (blockiert direkten Push auf `main`)
+3. **bandit** — SAST: Security-Check für `api/src/`, `sync-service/src/`, `ml-service/src/`
+4. **ruff** — Python Lint + Auto-Fix
+5. **ruff-format** — Python Formatting
 6. **detect-secrets** — Baseline-Check gegen `.secrets.baseline`
 7. **biome** — JS Lint + Format für `api/src/static/`
 8. **mypy-api** — Type Check `api/src/`
