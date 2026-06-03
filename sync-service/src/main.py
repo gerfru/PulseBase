@@ -3,24 +3,21 @@ import json
 import signal
 import tempfile
 import uuid
-from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
-from typing import TypeVar
 
 import structlog
 from structlog.contextvars import bind_contextvars, clear_contextvars
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from tenacity import Retrying, stop_after_attempt, wait_exponential
 
 from config import Settings
+from scheduler import configure_scheduler
 from crypto import (
     fernet_decrypt,
     fernet_encrypt,
     restore_token_dir,
     serialize_token_dir,
 )
-from garmin.client import GarminClient
+from garmin.client import GarminClient, garmin_call
 from libre.client import LibreAuthError, connect_with_token
 from libre.client import get_recent_glucose
 from libre.mapper import map_reading as map_glucose_reading
@@ -41,23 +38,6 @@ configure_logging()
 logger = structlog.get_logger(__name__)
 
 
-_T = TypeVar("_T")
-
-
-def _garmin_call(fn: Callable[[], _T]) -> _T:
-    """Call a synchronous Garmin API function with up to 3 retries and exponential backoff."""
-    for attempt in Retrying(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=30),
-        reraise=True,
-    ):
-        with attempt:
-            return fn()
-    raise RuntimeError(
-        "unreachable: tenacity reraises on exhaustion"
-    )  # pragma: no cover
-
-
 async def _sync_activities(
     client: GarminClient,
     repo: TimescaleRepository,
@@ -65,14 +45,14 @@ async def _sync_activities(
     start: date,
     end: date,
 ) -> None:
-    for raw in _garmin_call(lambda: client.get_activities(start, end)):
+    for raw in garmin_call(lambda: client.get_activities(start, end)):
         garmin_id = raw.get("activityId")
         if not garmin_id:
             continue
         activity = map_activity(raw, user_id)
         activity_db_id = await repo.save_activity(activity)
         if activity_db_id and not await repo.records_exist(activity_db_id):
-            details = _garmin_call(lambda: client.get_activity_details(garmin_id))
+            details = garmin_call(lambda: client.get_activity_details(garmin_id))
             activity.records = map_records(details)
             if activity.records:
                 await repo.bulk_insert_records(activity_db_id, activity.records)
@@ -82,7 +62,7 @@ async def _sync_daily_summary_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        summary_raw = _garmin_call(lambda: client.get_daily_summary(current))
+        summary_raw = garmin_call(lambda: client.get_daily_summary(current))
         await repo.upsert_daily(map_summary(summary_raw, user_id, current))
     except Exception as e:
         logger.warning("daily_summary.failed", date=str(current), error=str(e))
@@ -92,7 +72,7 @@ async def _sync_sleep_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        sleep_raw = _garmin_call(lambda: client.get_sleep(current))
+        sleep_raw = garmin_call(lambda: client.get_sleep(current))
         session = map_sleep(sleep_raw, user_id)
         if (
             session
@@ -108,7 +88,7 @@ async def _sync_hrv_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        hrv_raw = _garmin_call(lambda: client.get_hrv(current))
+        hrv_raw = garmin_call(lambda: client.get_hrv(current))
         hrv = map_hrv(hrv_raw, user_id, current)
         if hrv:
             await repo.upsert_hrv(hrv)
@@ -120,7 +100,7 @@ async def _sync_body_battery_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        bb_raw = _garmin_call(lambda: client.get_body_battery(current))
+        bb_raw = garmin_call(lambda: client.get_body_battery(current))
         await repo.bulk_insert(
             "body_battery_intraday", user_id, map_body_battery(bb_raw, user_id)
         )
@@ -132,7 +112,7 @@ async def _sync_stress_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        stress_raw = _garmin_call(lambda: client.get_stress(current))
+        stress_raw = garmin_call(lambda: client.get_stress(current))
         await repo.bulk_insert(
             "stress_intraday", user_id, map_stress(stress_raw, user_id)
         )
@@ -144,7 +124,7 @@ async def _sync_training_status_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        ts_raw = _garmin_call(lambda: client.get_training_status(current))
+        ts_raw = garmin_call(lambda: client.get_training_status(current))
         status = map_training_status(ts_raw)
         if status:
             await repo.upsert_training_status(user_id, current, status)
@@ -335,39 +315,6 @@ async def _run_initial_sync(
     return False
 
 
-async def _write_alive_sentinel() -> None:
-    Path("/tmp/sync_alive").touch()  # nosec B108
-
-
-def _configure_scheduler(
-    repo: TimescaleRepository, settings: Settings
-) -> AsyncIOScheduler:
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(
-        sync_all_users,
-        "interval",
-        hours=settings.sync_interval_hours,
-        args=[repo, settings.sync_daily_days, settings],
-    )
-    scheduler.add_job(
-        process_sync_requests,
-        "interval",
-        minutes=1,
-        args=[repo, settings.sync_daily_days, settings],
-    )
-    scheduler.add_job(
-        sync_all_libre,
-        "interval",
-        minutes=5,
-        args=[repo, settings],
-        id="libre_sync",
-    )
-    scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
-    scheduler.start()
-    logger.info("scheduler.started", sync_interval_hours=settings.sync_interval_hours)
-    return scheduler
-
-
 async def main() -> None:  # pragma: no cover
     settings = Settings()  # type: ignore[call-arg]
     try:
@@ -407,7 +354,13 @@ async def main() -> None:  # pragma: no cover
         await repo.close()
         return
 
-    scheduler = _configure_scheduler(repo, settings)
+    scheduler = configure_scheduler(
+        repo,
+        settings,
+        sync_all_users_fn=sync_all_users,
+        process_sync_requests_fn=process_sync_requests,
+        sync_all_libre_fn=sync_all_libre,
+    )
     await shutdown_event.wait()
 
     logger.info("shutdown.graceful_start")

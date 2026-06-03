@@ -1,6 +1,6 @@
 """Unit tests for sync-service main.py orchestration.
 
-Tests the independently testable parts: _garmin_call retry logic,
+Tests the independently testable parts: garmin_call retry logic,
 sync_all_users error-tolerance, process_sync_requests ML-flag side-effects,
 and sync_all_libre error classification. All external dependencies
 (DB, Garmin/Libre clients) are mocked — no network or DB required.
@@ -18,8 +18,8 @@ from libre.client import LibreAuthError
 from datetime import date
 from pathlib import Path
 
+from garmin.client import garmin_call
 from main import (
-    _garmin_call,
     _sync_activities,
     _sync_day,
     process_sync_requests,
@@ -30,21 +30,21 @@ from main import (
 )
 
 
-# ── _garmin_call — Tenacity retry logic ──────────────────────────────────────
+# ── garmin_call — Tenacity retry logic ──────────────────────────────────────
 
 
 class TestGarminCall:
     @patch("time.sleep")
     def test_succeeds_on_first_try(self, mock_sleep):
         fn = MagicMock(return_value="ok")
-        assert _garmin_call(fn) == "ok"
+        assert garmin_call(fn) == "ok"
         assert fn.call_count == 1
         mock_sleep.assert_not_called()
 
     @patch("time.sleep")
     def test_retries_on_exception_and_succeeds(self, mock_sleep):
         fn = MagicMock(side_effect=[RuntimeError("fail"), RuntimeError("fail"), "ok"])
-        result = _garmin_call(fn)
+        result = garmin_call(fn)
         assert result == "ok"
         assert fn.call_count == 3
 
@@ -52,14 +52,14 @@ class TestGarminCall:
     def test_raises_after_max_retries(self, mock_sleep):
         fn = MagicMock(side_effect=ValueError("always fails"))
         with pytest.raises(ValueError, match="always fails"):
-            _garmin_call(fn)
+            garmin_call(fn)
         assert fn.call_count == 3
 
     @patch("time.sleep")
     def test_returns_none_correctly(self, mock_sleep):
         fn = MagicMock(return_value=None)
         # None is a valid return — must not trigger retry
-        assert _garmin_call(fn) is None
+        assert garmin_call(fn) is None
         assert fn.call_count == 1
 
 
@@ -264,7 +264,7 @@ class TestSyncActivities:
         activity_mock.records = []
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_activity", return_value=activity_mock),
             patch("main.map_records", return_value=[]),
         ):
@@ -284,7 +284,7 @@ class TestSyncActivities:
 
         repo = AsyncMock()
 
-        with patch("main._garmin_call", side_effect=lambda fn: fn()):
+        with patch("main.garmin_call", side_effect=lambda fn: fn()):
             await _sync_activities(
                 client,
                 repo,
@@ -304,7 +304,7 @@ class TestSyncActivities:
         repo.records_exist.return_value = True  # already stored
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_activity", return_value=MagicMock(records=[])),
         ):
             await _sync_activities(
@@ -331,7 +331,7 @@ class TestSyncActivities:
         activity_mock.records = []  # will be set by _sync_activities
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_activity", return_value=activity_mock),
             patch("main.map_records", return_value=[record_mock]),
         ):
@@ -359,7 +359,7 @@ class TestSyncDay:
         sleep_mock.garmin_sleep_id = 555
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_summary", return_value=MagicMock()),
             patch("main.map_sleep", return_value=sleep_mock),
             patch("main.map_hrv", return_value=MagicMock()),
@@ -380,7 +380,7 @@ class TestSyncDay:
         repo = AsyncMock()
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_summary", side_effect=RuntimeError("network error")),
             patch("main.map_sleep", return_value=None),
             patch("main.map_hrv", return_value=None),
@@ -398,7 +398,7 @@ class TestSyncDay:
         client = MagicMock()
         repo = AsyncMock()
 
-        with patch("main._garmin_call", side_effect=RuntimeError("api down")):
+        with patch("main.garmin_call", side_effect=RuntimeError("api down")):
             await _sync_day(client, repo, user_id=1, current=date(2026, 1, 1))
 
         repo.upsert_daily.assert_not_awaited()

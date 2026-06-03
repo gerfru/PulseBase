@@ -41,6 +41,21 @@ def _median(vals: Any) -> float | None:
     return v[len(v) // 2]
 
 
+def _build_feature_row(
+    cur: dict[str, Any],
+    active: list[str],
+    medians: dict[str, Any],
+) -> list[float] | None:
+    feat_vals = []
+    for f in active:
+        v = cur.get(f)
+        v = v if v is not None else medians[f]
+        if v is None:  # pragma: no cover
+            return None
+        feat_vals.append(float(v))
+    return feat_vals
+
+
 def prepare_training_data(
     rows: list[dict[str, Any]],
 ) -> tuple[np.ndarray, np.ndarray, list[str]] | None:
@@ -58,16 +73,8 @@ def prepare_training_data(
     X_rows, y_vals = [], []
     for i in range(len(rows) - 1):
         cur, nxt = rows[i], rows[i + 1]
-        feat_vals = []
-        skip = False
-        for f in active:
-            v = cur.get(f)
-            v = v if v is not None else medians[f]
-            if v is None:  # pragma: no cover
-                skip = True
-                break
-            feat_vals.append(float(v))
-        if skip:  # pragma: no cover
+        feat_vals = _build_feature_row(cur, active, medians)
+        if feat_vals is None:  # pragma: no cover
             continue
         target = _energy_based_score(nxt)
         if target is None:

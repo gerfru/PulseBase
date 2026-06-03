@@ -82,9 +82,9 @@ async def update_spo2_enabled(user_id: int, spo2_enabled: bool) -> None:
 async def set_garmin_linked(user_id: int, garmin_email: str) -> None:
     pool = await get_pool()
     await pool.execute(
-        "UPDATE users SET garmin_linked = true, garmin_email = $1 WHERE id = $2",
-        garmin_email,
+        "UPDATE users SET garmin_linked = true, garmin_email = $2 WHERE id = $1",
         user_id,
+        garmin_email,
     )
 
 
@@ -124,7 +124,8 @@ async def set_libre_unlinked(user_id: int) -> None:
 
 
 async def update_password(user_id: int, password_hash: str) -> None:
-    assert user_id > 0  # CALLER MUST verify session ownership
+    if user_id <= 0:
+        raise ValueError(f"invalid user_id: {user_id}")
     pool = await get_pool()
     await pool.execute(
         "UPDATE users SET password_hash = $1 WHERE id = $2",
@@ -211,7 +212,8 @@ async def get_ml_status(user_id: int) -> dict:
 
 
 async def delete_user(user_id: int) -> None:
-    assert user_id > 0  # CALLER MUST verify session ownership
+    if user_id <= 0:
+        raise ValueError(f"invalid user_id: {user_id}")
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -251,7 +253,8 @@ async def get_user_token(
 async def save_user_token(
     user_id: int, service: Literal["garmin", "libre"], token_data: bytes
 ) -> None:
-    assert user_id > 0  # CALLER MUST verify session ownership
+    if user_id <= 0:
+        raise ValueError(f"invalid user_id: {user_id}")
     pool = await get_pool()
     await pool.execute(
         """
@@ -354,6 +357,11 @@ async def _load_user_records(conn, query: str, user_id: int) -> list[dict]:
 
 
 async def export_user_data(user_id: int) -> dict:
+    """Export all personal data for a user (DSGVO Art. 20 data portability).
+
+    Returns user profile + 6 data tables: activities, sleep_sessions, hrv_daily,
+    daily_summary, seizure_events, glucose_readings.
+    """
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(

@@ -32,6 +32,12 @@ def build_training_load(
     lookback_days: int,
     forecast_days: int,
 ) -> dict[str, Any]:
+    """Compute Banister training load (ATL/CTL/TSB) from activity history.
+
+    Uses exponentially weighted TRIMP (Edwards 1993, τ_ATL=7d, τ_CTL=42d). Warms up
+    over 180 days so CTL is ≥95% converged at the display start. Returns history,
+    zero-load forecast, and today's ATL/CTL/TSB snapshot.
+    """
     today = date.today()
     warmup_start = today - timedelta(days=_WARMUP_DAYS)
 

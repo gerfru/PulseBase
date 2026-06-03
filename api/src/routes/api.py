@@ -333,5 +333,6 @@ async def api_glucose_stats(
 
 
 @router.get("/api/evidence")
-async def api_evidence() -> dict:
+async def api_evidence(request: Request) -> dict:
+    await _deps.require_user(request)
     return EVIDENCE

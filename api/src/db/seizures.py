@@ -151,6 +151,11 @@ def _merge_level(current: str, new: str) -> str:
 
 
 async def get_seizure_risk(user_id: int) -> dict:
+    """Compute rule-based seizure risk from the last 7 days.
+
+    Evaluates six risk factors: sleep debt, high stress, HRV drop, low body battery,
+    intense training, and resting HR spike. Returns level ("ok"/"warning"/"red") + flags list.
+    """
     pool = await get_pool()
 
     sleep_rows = await pool.fetch(

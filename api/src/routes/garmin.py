@@ -3,6 +3,7 @@ import tempfile
 import structlog
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
+from starlette.responses import Response
 
 import src.deps as _deps
 from fastapi import HTTPException
@@ -27,7 +28,7 @@ router = APIRouter()
 
 
 @router.get("/garmin/link")
-async def garmin_link_form(request: Request):
+async def garmin_link_form(request: Request) -> Response:
     user = await _deps.require_user(request)
     return _deps.templates.TemplateResponse(
         request,
@@ -43,7 +44,7 @@ async def garmin_link(
     garmin_email: str = Form(),
     garmin_password: str = Form(),
     csrf_token: str | None = Form(default=None),
-):
+) -> Response:
     user = await _deps.require_user(request)
     if not verify_csrf_token(request, csrf_token):
         return _deps.templates.TemplateResponse(
@@ -96,7 +97,9 @@ async def garmin_link(
 
 
 @router.post("/garmin/unlink")
-async def garmin_unlink(request: Request, csrf_token: str | None = Form(default=None)):
+async def garmin_unlink(
+    request: Request, csrf_token: str | None = Form(default=None)
+) -> Response:
     user = await _deps.require_user(request)
     if not verify_csrf_token(request, csrf_token):
         raise HTTPException(status_code=403, detail="Ungültige Anfrage.")

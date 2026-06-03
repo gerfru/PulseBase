@@ -25,15 +25,15 @@ PulseBase speichert Gesundheitsdaten. Diese fallen unter **Art. 9 DSGVO** ("beso
 
 ### 1.2 Wer greift an?
 
-PulseBase ist ein Homelab-Projekt ohne öffentliche Benutzer. Das ändert das Threat Model erheblich: Das Hauptrisiko ist kein gezielter Angreifer, sondern systematisches Scannen und opportunistische Angriffe.
+PulseBase ist eine öffentlich zugängliche Self-Hosted-App mit echten Nutzern. Gesundheitsdaten nach Art. 9 DSGVO erfordern das volle Threat Model — kein reduzierter Homelab-Scope.
 
 | Threat Actor | Motivation | Wahrscheinlichkeit |
 |---|---|---|
 | Automatisierte Scanner (Shodan, Masscan) | Credential Stuffing, bekannte CVEs ausnutzen | Hoch |
 | Opportunistische Angreifer | Niedrig hängende Früchte (schwache Passwörter, Standard-Credentials) | Mittel |
-| Insider (anderer Homelab-Nutzer im selben Netz) | Daten einsehen, Konto übernehmen | Niedrig |
+| Gezielte Angreifer | Gesundheitsdaten exfiltrieren, Konto übernehmen | Mittel |
 | Supply Chain (kompromittierte Abhängigkeit) | Code-Ausführung im Container | Mittel |
-| Physischer Zugriff (Mac mini gestohlen) | Daten-Dump, Token-Extraktion | Sehr niedrig |
+| Physischer Zugriff auf den Server | Daten-Dump, Token-Extraktion | Sehr niedrig |
 
 ### 1.3 Angriffsfläche
 
@@ -63,7 +63,7 @@ PulseBase ist ein Homelab-Projekt ohne öffentliche Benutzer. Das ändert das Th
 ### 1.4 Explizit außerhalb des Scope
 
 - **DDoS:** Mitigation durch Cloudflare/Caddy; kein eigener Schutz implementiert
-- **Seitenkanal-Angriffe** auf der Hardware (Homelab-Ausnahme)
+- **Seitenkanal-Angriffe** auf der Hardware (außerhalb des Software-Scopes)
 - **Angriffe nach vollständiger Host-Kompromittierung** (root auf Mac mini)
 
 ---
@@ -119,7 +119,7 @@ DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt()).decode()
 PulseBase nutzt **signierte Cookie-Sessions** (Starlette `SessionMiddleware`) statt JWT.
 
 **Warum kein JWT?**
-JWT erfordert Token-Invalidierung (z.B. bei Konto-Kompromittierung) entweder via Datenbank-Lookup (dann verliert man Statelessness) oder via kurze TTL + Refresh-Token-Rotation (erhöhte Komplexität). Für ein Single-Server-Homelab bringt JWT keinen Vorteil.
+JWT erfordert Token-Invalidierung (z.B. bei Konto-Kompromittierung) entweder via Datenbank-Lookup (dann verliert man Statelessness) oder via kurze TTL + Refresh-Token-Rotation (erhöhte Komplexität). Für ein Single-Server-Deployment bringt JWT keinen Vorteil.
 
 **Session-Cookie-Eigenschaften:**
 - `httpOnly=True` — kein JavaScript-Zugriff (verhindert Cookie-Diebstahl via XSS)
@@ -224,12 +224,11 @@ Beide Parameter müssen passen. Wenn `$2` (eingeloggte User-ID) nicht zum Datens
 
 ### 5.1 TLS und HSTS
 
-**TLS:** Caddy oder Traefik terminiert TLS. Für öffentliches Deployment: ACME/Let's Encrypt. Für internen Betrieb: self-signed Zertifikat akzeptabel. HSTS ist aktiviert (`max-age=31536000; includeSubDomains`) — Browser merken sich, dass diese Domain nur per HTTPS erreichbar ist.
+**TLS:** Caddy oder Traefik terminiert TLS mit ACME/Let's Encrypt (Pflicht für öffentliches Deployment). HSTS ist aktiviert (`max-age=31536000; includeSubDomains`) — Browser erzwingen HTTPS nach dem ersten Aufruf.
 
-**Warum self-signed akzeptabel im Homelab:**
-Die Domain `your-domain.com` ist ausschließlich im internen Tailscale-Netz erreichbar. Ein MITM-Angriff erfordert Zugriff auf das interne Netz (bereits kompromittiert). Let's Encrypt würde DNS-01-Challenge oder öffentliche Domain erfordern. Dokumentierte Ausnahme: ARCH-M3.
-
-**Standalone (Traefik):** Gleiche Situation, ebenfalls self-signed.
+**Deployment-Optionen:**
+- **homelab-gateway (Caddy):** ACME via HTTP-01 oder DNS-01 in `homelab-gateway`-Konfiguration — empfohlen.
+- **Standalone (Traefik):** `certificatesResolvers` mit ACME in `traefik/traefik.yml` konfigurieren. Self-signed TLS ist für öffentliches Deployment nicht akzeptabel.
 
 ### 5.2 Security Headers
 
@@ -494,7 +493,7 @@ trivy image --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed pulsebase-ap
 
 `--ignore-unfixed`: Findings ohne verfügbaren Fix werden ignoriert — der Developer kann diese nicht beheben, sie erhöhen nur den Lärm. `--exit-code 1` bricht den CI-Build ab wenn CRITICAL oder HIGH Findings mit verfügbarem Fix existieren.
 
-### 10.4 Host-Härtung (Homelab, Mac mini)
+### 10.4 Host-Härtung (Mac mini / Linux Server)
 
 - SSH: Nur Key-Auth (`PasswordAuthentication no`)
 - UFW: Nur 22, 80, 443 offen
@@ -618,7 +617,7 @@ make dashboard  # API neu bauen + starten
 make analytics  # ML-Service neu bauen + starten
 ```
 
-**Keine Zero-Downtime-Deployment derzeit:** `make dashboard` startet den Container neu — kurze Downtime (~5-10s). Für Homelab akzeptabel.
+**Keine Zero-Downtime-Deployment derzeit:** `make dashboard` startet den Container neu — kurze Downtime (~5-10s). Dokumentierter Tech-Debt (CICD-M4).
 
 **Rollback:**
 ```bash
@@ -660,7 +659,7 @@ docker compose up -d pulsebase-api:previous-tag
 | Lücke | Risiko | Mitigation |
 |---|---|---|
 | Manuelle Penetration | IDOR, Logic-Bugs | App-Eval mit ASVS-Fokus (dieser Report) |
-| DAST (Dynamic Scanning) | Laufzeit-Injection | Kein OWASP ZAP in CI — zu aufwändig für Homelab |
+| DAST (Dynamic Scanning) | Laufzeit-Injection | Kein OWASP ZAP in CI — manueller App-Eval (ASVS) als Ersatz |
 | Fuzzing | Unerwartete Inputs | Pydantic-Validierung als Ersatz |
 | E2E CSRF-Test | CSRF-Bypass | Manueller Test ausreichend |
 | Auth-Flow E2E (Register, Verify, Reset) | Regressions in Auth | test_auth_flows.py ✅ (W9) |

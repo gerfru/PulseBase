@@ -35,7 +35,7 @@ class TestSyncActivities:
         repo.save_activity.return_value = None  # no DB ID → no record fetch
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_activity", return_value=MagicMock(records=[])),
         ):
             await _sync_activities(client, repo, _USER_ID, _DATE, _DATE)
@@ -53,7 +53,7 @@ class TestSyncActivities:
         repo.save_activity.return_value = None
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_activity", return_value=MagicMock(records=[])),
         ):
             await _sync_activities(client, repo, _USER_ID, _DATE, _DATE)
@@ -66,7 +66,7 @@ class TestSyncActivities:
         repo = AsyncMock()
         client.get_activities.return_value = []
 
-        with patch("main._garmin_call", side_effect=lambda fn: fn()):
+        with patch("main.garmin_call", side_effect=lambda fn: fn()):
             await _sync_activities(client, repo, _USER_ID, _DATE, _DATE)
 
         repo.save_activity.assert_not_called()
@@ -85,7 +85,7 @@ class TestSyncActivities:
         mock_activity.records = mock_records
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_activity", return_value=mock_activity),
             patch("main.map_records", return_value=mock_records),
         ):
@@ -102,7 +102,7 @@ class TestSyncActivities:
         repo.records_exist.return_value = True  # already in DB
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_activity", return_value=MagicMock(records=[])),
         ):
             await _sync_activities(client, repo, _USER_ID, _DATE, _DATE)
@@ -117,7 +117,7 @@ class TestSyncActivities:
         client.get_activities.side_effect = RuntimeError("connection timeout")
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             pytest.raises(RuntimeError, match="connection timeout"),
         ):
             await _sync_activities(client, repo, _USER_ID, _DATE, _DATE)
@@ -137,7 +137,7 @@ class TestSyncDay:
         mock_session.garmin_sleep_id = "sleep-abc"
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_summary", return_value=MagicMock()),
             patch("main.map_sleep", return_value=mock_session),
             patch("main.map_hrv", return_value=MagicMock()),
@@ -164,7 +164,7 @@ class TestSyncDay:
         mock_session.garmin_sleep_id = "sleep-xyz"
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_sleep", return_value=mock_session),
             patch("main.map_hrv", return_value=None),
             patch("main.map_body_battery", return_value=[]),
@@ -187,7 +187,7 @@ class TestSyncDay:
         client.get_stress.side_effect = ConnectionError("down")
         client.get_training_status.side_effect = ConnectionError("down")
 
-        with patch("main._garmin_call", side_effect=lambda fn: fn()):
+        with patch("main.garmin_call", side_effect=lambda fn: fn()):
             await _sync_day(client, repo, _USER_ID, _DATE)  # must not raise
 
         repo.upsert_daily.assert_not_called()
@@ -206,7 +206,7 @@ class TestSyncDay:
         mock_session.garmin_sleep_id = "sleep-abc"
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_summary", return_value=MagicMock()),
             patch("main.map_sleep", return_value=mock_session),
             patch("main.map_hrv", return_value=None),
@@ -225,7 +225,7 @@ class TestSyncDay:
         repo.sleep_exists.return_value = True
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_summary", return_value=MagicMock()),
             patch("main.map_sleep", return_value=None),
             patch("main.map_hrv", return_value=None),
@@ -244,7 +244,7 @@ class TestSyncDay:
         repo.sleep_exists.return_value = True
 
         with (
-            patch("main._garmin_call", side_effect=lambda fn: fn()),
+            patch("main.garmin_call", side_effect=lambda fn: fn()),
             patch("main.map_summary", return_value=MagicMock()),
             patch("main.map_sleep", return_value=None),
             patch("main.map_hrv", return_value=None),
