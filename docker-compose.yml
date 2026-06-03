@@ -259,7 +259,7 @@ services:
     image: louislam/uptime-kuma:1
     container_name: pulsebase-uptime
     ports:
-      - "127.0.0.1:3001:3001"
+      - "${TAILSCALE_IP}:3001:3001"
     volumes:
       - uptime-kuma-data:/app/data
     networks:

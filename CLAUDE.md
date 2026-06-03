@@ -70,7 +70,7 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 ## Monitoring & Logging
 
 - Structured Logging (JSON): TS → Pino, Python → structlog. Timestamps UTC
-- Error Tracking: Sentry. Uptime: UptimeRobot. Logs: Better Stack / Axiom
+- Error Tracking: Sentry. Uptime: Uptime Kuma (self-hosted). Logs: Loki + Promtail (self-hosted)
 - Alert-Schwellen: Error Rate > 1%, p95 > 2s, CPU/Memory > 80%
 - OpenTelemetry als Standard. Metrics/Traces erst bei Bedarf
 
@@ -117,8 +117,10 @@ make db               # psql-Shell (liest DB_APP_USER aus env/.env.app)
 
 ```
 api/src/
-├── main.py              App-Setup + Router-Registrierung
+├── main.py              App-Setup + Router-Registrierung + /health /ready /api/metrics
 ├── deps.py              Settings (Pydantic), require_user(), Limiter, Templates
+├── auth_helpers.py      Login-Helfer: _lockout_response, _handle_invalid_credentials, _establish_session
+├── auth_tokens.py       Token-Helfer: _make_reset_token, _verify_reset_token, _make_verify_token
 ├── evidence_catalog.py  Thin Loader → liest api/src/data/evidence_catalog.json
 ├── mail.py              E-Mail-Helpers: send_lockout/reset/verify_email via Resend API
 ├── training_load.py     Banister TRIMP für Physical Energy (Edwards 1993)
@@ -134,7 +136,7 @@ api/src/
 │   ├── seizures.py      Anfallsereignisse (Epilepsie-Modus, V15)
 │   └── glucose.py       Glukose-Readings (Libre-User, V9)
 ├── routes/
-│   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW) — E-Mail via src.mail
+│   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW)
 │   ├── account.py       /account/delete (DSGVO Art. 17), /account/export (DSGVO Art. 20)
 │   ├── api.py           Alle /api/* JSON-Endpunkte
 │   ├── garmin.py        /garmin/link, /garmin/unlink
@@ -150,6 +152,7 @@ api/src/
 
 sync-service/src/
 ├── main.py           APScheduler + Sync-Loop pro User (Garmin täglich, Libre 5-min)
+├── scheduler.py      configure_scheduler() + _write_alive_sentinel() — APScheduler-Setup
 ├── config.py         Settings (Pydantic): DB-Credentials, SYNC_HOUR, FERNET_KEY
 ├── crypto.py         Fernet: fernet_encrypt/decrypt, serialize/restore_token_dir
 ├── domain/
@@ -332,6 +335,8 @@ GET /accessibility           Barrierefreiheitserklärung (BFSG)
 DB_USER=garmin
 DB_PASSWORD=
 HOST_IP=your-domain.com
+TAILSCALE_IP=100.x.x.x      # tailscale ip -4 — für Monitoring-UIs (Uptime Kuma :3001, Loki :3100)
+ACME_EMAIL=your@email.com   # nur standalone-Modus mit Traefik
 ```
 
 **`env/.env.app`** — shared, alle 3 App-Services (api + sync-service + ml-service):
@@ -373,9 +378,11 @@ Routes importieren direkt aus `api/src/db/`. Eine dedizierte `api/src/services/`
 Begründung: Ein Service-Layer lohnt sich wenn Business-Logik von mehreren Routen geteilt wird oder mehrere Entwickler parallel arbeiten. Beides trifft hier nicht zu — die Logik ist route-spezifisch und das Team ist ein Entwickler. Das ist unabhängig davon ob die App öffentlich zugänglich ist oder nicht.
 Trigger für Einführung: >3 Entwickler oder Business-Logik die über mehrere Routen hinweg geteilt wird.
 
-### ARCH-M3: Traefik (standalone) benötigt ACME/Let's Encrypt ⚠️
+### ARCH-M3: Traefik standalone — ACME konfiguriert ✅
 
-`traefik/traefik.yml` hat noch kein `certificatesResolvers`. Für öffentliches Deployment **muss** ACME konfiguriert werden (HTTP-01 oder DNS-01). Alternative: homelab-gateway (Caddy) übernimmt TLS-Terminierung. Self-signed TLS ist für den produktiven Betrieb mit echten Nutzern nicht akzeptabel.
+`traefik/traefik.yml` enthält `certificatesResolvers.letsencrypt` (HTTP-01). Zertifikate werden automatisch geholt und erneuert.
+Einmalig vor erstem Start: `ACME_EMAIL` in `env/.env` setzen + `chmod 600 traefik/acme/acme.json`.
+Gilt nur für `make up-standalone`. Bei Betrieb mit homelab-gateway übernimmt Caddy die TLS-Terminierung.
 
 ### CICD-M3: Branch Protection nicht erzwingbar (privates Repo, Gratis-Plan)
 
@@ -406,13 +413,11 @@ Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-
 
 `api/src/routes/api.py` enthält alle JSON-Endpunkte in einer Datei (~340 Zeilen). Eine Feature-basierte Aufteilung (z.B. `api_health.py`, `api_ml.py`, `api_seizures.py`, `api_glucose.py`) wäre sauberer, aber: Solo-Projekt, alle Endpunkte teilen dieselben `require_user`- und `limiter`-Abhängigkeiten, die Domain-Grenzen sind durch Kommentarblöcke bereits klar erkennbar. Split einführen wenn die Datei 400 Zeilen überschreitet oder ein zweiter Entwickler onboarded wird.
 
-### OBS-L1: Kein externes Uptime-Monitoring
+### OBS-L1: Uptime-Monitoring via Uptime Kuma ✅
 
-Kein UptimeRobot oder ähnliches konfiguriert. Internes Docker-Healthcheck ist vorhanden (`/health`, `/ready`).
-
-**Setup (einmalig):**
-1. UptimeRobot → New Monitor → HTTP(s) → URL: `https://<APP_BASE_URL>/health` → Interval: 5 min
-2. Alert-Kontakt: E-Mail oder Telegram konfigurieren (bei Down + Recovery)
+Uptime Kuma läuft als Compose-Service (`make up` startet es automatisch).
+Dashboard: `http://localhost:3001` — einmalig Admin-Account anlegen + Monitor auf `http://api:8000/health` konfigurieren.
+Details: [docs/external-services.md](docs/external-services.md#3-uptime-kuma--uptime-monitoring-self-hosted)
 
 ### Monitoring & Alert-Setup (L-79)
 
