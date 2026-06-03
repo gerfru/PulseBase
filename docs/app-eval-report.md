@@ -3,7 +3,7 @@
 **Stack:** FastAPI · TimescaleDB (PostgreSQL 16) · Python 3.14 · Docker Compose
 **Regelquelle:** Dev-Best-Practices Plugin (essential/app/github/architecture-rules.md)
 **ASVS-Level:** L2 (Auth + sensible Gesundheitsdaten, DSGVO, Epilepsie-Modus)
-**Team:** Solo · Homelab
+**Team:** Solo · Self-Hosted (Public Release)
 **Dokumentierte Ausnahmen (nicht gemeldet):** ARCH-M2, ARCH-M3, ARCH-L2, ARCH-L3, ARCH-L4, ARCH-L5, CICD-M3, QUAL-M2, OBS-L1, OBS-L2, TEST-L1, TEST-L2, TEST-L3, TEST-L4, SEC-L1, CICD-L4
 
 ---
@@ -84,7 +84,7 @@
 - **Architektur 🟡:** M-83 ist eine Regression durch M-45: `scheduler.shutdown(wait=True)` als blockierender Aufruf in einem `loop.add_signal_handler`-Callback friert den Event-Loop für die Dauer laufender ML-Jobs ein. sync-service nutzt korrekt das `asyncio.Event`-Muster (Referenz). M-84: ml-service ohne FERNET_KEY-Validator im Gegensatz zu api und sync-service.
 - **Code-Qualität 🟡:** M-78 (`assert user_id > 0` als Security-Guard in `api/src/db/users.py:127,214,254` — durch Python `-O`-Flag deaktivierbar). M-85–87: 3 Dateien möglicherweise wieder >400Z nach Wave 12 R2 [zu verifizieren].
 - **Tests 🟡:** M-79 (sync-service `fail_under=65%` — M-59 hob von 50% auf 65% an; Ziel ist 70%).
-- **CI/CD 🟡:** M-80 (kein automatisierter Deployment-Step in Pipeline — für Public Release strukturelles Gap, für Homelab als Tech-Debt dokumentierbar).
+- **CI/CD 🟡:** M-80 (kein automatisierter Deployment-Step in Pipeline — strukturelles Gap, als Tech-Debt dokumentiert CICD-M4).
 - **Observability 🟡:** M-81 (LOG_LEVEL hardcoded in allen 3 `logging_config.py` — 12-Factor-Verstoß), M-82 (In-Memory-Metriken `_active_requests`/`_error_requests` nicht extern abrufbar; M-20 W7 fügte Counter hinzu, aber kein `/metrics`-Endpoint für Prometheus/externe Monitoring-Systeme).
 
 ---
@@ -206,7 +206,7 @@
 | M-77 | ✅ | W13 R1 | **`TRUSTED_PROXY_CIDRS` fehlt in `.env.api.example`** — Betreiber der den Proxy tauscht erhält keinen Hinweis; fehlerhafte CIDR-Konfiguration bricht Rate-Limiting-IP-Basis | `api/src/main.py:44-47`, `env/.env.api.example` | Security |
 | M-78 | ❌ | — | **`assert` als Security-Guard in DB-Schicht** — `assert user_id > 0` u.ä. in `update_password()`, `delete_user()`, `save_user_token()`; `assert` wird durch Python `-O`-Flag deaktiviert; keine verlässliche Guard-Anweisung in Produktion | `api/src/db/users.py:127,214,254` | Code-Qualität |
 | M-79 | ✅ | W13 R3 | **sync-service `fail_under=65%` (Mindestziel: 70%)** — M-59 (W10 R2) hob von 50% auf 65% an; Ziel laut architecture-rules.md ist 70-80% | `sync-service/pyproject.toml:8`, `.github/workflows/ci.yml:272` | Tests |
-| M-80 | ✅ | W13 R3 | **Kein automatisierter Deployment-Step (CD-Pipeline fehlt)** — CI endet nach Build+Test; Deployment erfolgt manuell via `make up`; kein Rollback-Mechanismus in der Pipeline · Für Public Release: strukturelles Gap · Für Homelab: als Tech-Debt dokumentieren | `.github/workflows/ci.yml` | CI/CD |
+| M-80 | ✅ | W13 R3 | **Kein automatisierter Deployment-Step (CD-Pipeline fehlt)** — CI endet nach Build+Test; Deployment erfolgt manuell via `make up`; kein Rollback-Mechanismus in der Pipeline · Als Tech-Debt dokumentiert (CICD-M4) | `.github/workflows/ci.yml` | CI/CD |
 | M-81 | ✅ | W13 R2 | **`LOG_LEVEL` hardcoded `INFO` in allen 3 Services** — 12-Factor-Verstoß; Debug-Logging in Produktion erfordert Image-Rebuild · Fix: `getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)` | `api/src/logging_config.py:38`, `sync-service/src/logging_config.py:37`, `ml-service/src/logging_config.py:38` | Observability |
 | M-82 | ❌ | — | **In-Memory-Metriken nicht extern abrufbar** — M-20 (W7) fügte `_active_requests`/`_error_requests`-Counter hinzu; kein `/metrics`-Endpoint (Prometheus), keine Saturation-Trends für externe Systeme | `api/src/main.py:65-95` | Observability |
 | M-83 | ✅ | W13 R2 | **ml-service SIGTERM `shutdown(wait=True)` blockiert Event Loop** — Regression aus M-45 (W10 R3): M-45 änderte `wait=False` → `wait=True` um laufende Jobs nicht abzubrechen; `shutdown(wait=True)` als Lambda in `loop.add_signal_handler`-Callback ist aber ein blockierender Call im Event-Loop-Thread · sync-service nutzt korrekt das `asyncio.Event`-Muster als Referenz | `ml-service/src/main.py:220` | Architektur |
@@ -391,7 +391,7 @@
 | ID | Beschreibung |
 |---|---|
 | ARCH-M2 | Kein Service-Layer (Routes → DB direkt) — Solo-Projekt |
-| ARCH-M3 | Traefik self-signed TLS — Homelab-Ausnahme |
+| ARCH-M3 | Traefik ohne ACME — muss für Public Release mit `certificatesResolvers` (Let's Encrypt) konfiguriert werden |
 | ARCH-L2 | Technisch-basierte `db/`-Ordnerstruktur — Solo-Projekt |
 | ARCH-L3 | Kein `/api/v1/`-Prefix — keine externen Consumer |
 | ARCH-L4 | 3-Service-Splitting bewusst: Scheduling-Isolation, ML-Workload-Trennung, unabhängige Restart-Zyklen, unterschiedliche Memory-Limits (api 512 MB, ml 1 GB). Kein klassisches Microservices-Muster. |
@@ -400,8 +400,8 @@
 | CICD-L4 | GitHub-native Secret Scanning nicht verfügbar (Free-Plan) |
 | QUAL-M2 | Duplizierter GarminClient in api/ + sync-service/ — bewusst |
 | OBS-L1 | Kein externes Uptime-Monitoring — Reminder: UptimeRobot einrichten |
-| OBS-L2 | Kein OpenTelemetry — Solo-Homelab; `request_id` als Korrelation ausreichend |
-| SEC-L1 | HSTS bei self-signed TLS — Homelab-Ausnahme (ARCH-M3) |
+| OBS-L2 | Kein OpenTelemetry — Single-Server; `request_id` als Korrelation ausreichend |
+| SEC-L1 | HSTS bei self-signed TLS — entfällt mit ARCH-M3-Fix (ACME) |
 | TEST-L1 | `require_user`-Mock ohne `assert_called_once()` — Tests verifizieren Verhalten |
 | TEST-L2 | JS-Coverage auf 4/24 Static-JS-Dateien — DOM-heavy Files via Playwright E2E |
 | TEST-L3 | `dashboard-hero.js` bewusst aus Vitest `coverage.include` ausgeschlossen — `heroRecommendation()` hat Unit-Tests; DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E; Coverage-Merge Unit+E2E mit Python-Playwright-Stack nicht praktikabel |

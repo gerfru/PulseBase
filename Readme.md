@@ -54,7 +54,7 @@ make sync                   # trigger first sync immediately
 
 **Standalone (with bundled Traefik, self-signed cert):**
 ```bash
-make up-standalone          # starts with bundled Traefik — ideal for local/homelab use
+make up-standalone          # starts with bundled Traefik (configure ACME in traefik/traefik.yml)
 ```
 
 **Homelab with [homelab-gateway](https://github.com/gerfru/homelab-gateway):** use `make up` after starting homelab-gateway.
@@ -86,7 +86,7 @@ Full walkthrough: [docs/setup.md](docs/setup.md)
 
 ## Security
 
-- HTTPS via Caddy (homelab-gateway) or Traefik (standalone) — self-signed cert, accept browser warning once
+- HTTPS via Caddy (homelab-gateway with ACME) or Traefik standalone (configure `certificatesResolvers` in `traefik/traefik.yml`)
 - Rate limiting on login (10/min), register (5/min), reset (3/h), Garmin/Libre link (5/h)
 - Account lockout after 5 failed login attempts (15-minute automatic lockout + email notification)
 - Email verification required after registration (signed token, 24h TTL, resend endpoint)

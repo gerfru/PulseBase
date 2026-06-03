@@ -372,10 +372,9 @@ ML_INFER_HOUR=7
 Routes importieren direkt aus `api/src/db/`. Eine dedizierte `api/src/services/`-Schicht fehlt.
 Begründung: Solo-Projekt, Komplexität rechtfertigt Schicht nicht. Bei Wachstum (>3 Entwickler, komplexe Business-Logik) einführen.
 
-### ARCH-M3: Traefik (standalone) nutzt self-signed TLS (kein ACME/Let's Encrypt)
+### ARCH-M3: Traefik (standalone) benötigt ACME/Let's Encrypt ⚠️
 
-`traefik/traefik.yml` hat kein `certificatesResolvers`. Traefik fällt auf selbst-signiertes Zertifikat zurück.
-Für lokalen/internen Betrieb akzeptabel. Für öffentliches Deployment: `certificatesResolvers` mit ACME (HTTP-01 oder DNS-01) in `traefik/traefik.yml` ergänzen, oder eigenen Reverse Proxy (Caddy, nginx) mit automatischem HTTPS vorschalten.
+`traefik/traefik.yml` hat noch kein `certificatesResolvers`. Für öffentliches Deployment **muss** ACME konfiguriert werden (HTTP-01 oder DNS-01). Alternative: homelab-gateway (Caddy) übernimmt TLS-Terminierung. Self-signed TLS ist für den produktiven Betrieb mit echten Nutzern nicht akzeptabel.
 
 ### CICD-M3: Branch Protection nicht erzwingbar (privates Repo, Gratis-Plan)
 
@@ -385,7 +384,7 @@ Begründung: Solo-Projekt, Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-com
 ### CICD-M4: Kein automatisierter Deployment-Step (CD-Pipeline fehlt)
 
 CI endet nach Build+Test; Deployment erfolgt manuell via `make up`. Rollback via Docker-Tag (`docker compose pull && up -d` mit gepinntem Tag).
-Begründung: Homelab-Betrieb; kein Multi-Environment-Setup. Bei Bedarf: GitHub Actions → SSH → `docker compose pull && up -d` als CD-Step ergänzen.
+Begründung: Single-Server-Deployment ohne Multi-Environment-Setup. Bei Bedarf: GitHub Actions → SSH → `docker compose pull && up -d` als CD-Step ergänzen (CICD-M4).
 
 ### QUAL-M2: Duplizierter GarminClient in api/ und sync-service/
 
@@ -408,7 +407,25 @@ Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-
 ### OBS-L1: Kein externes Uptime-Monitoring
 
 Kein UptimeRobot oder ähnliches konfiguriert. Internes Docker-Healthcheck ist vorhanden (`/health`, `/ready`).
-Reminder: `https://<APP_BASE_URL>/health` als Monitor-URL bei UptimeRobot konfigurieren.
+
+**Setup (einmalig):**
+1. UptimeRobot → New Monitor → HTTP(s) → URL: `https://<APP_BASE_URL>/health` → Interval: 5 min
+2. Alert-Kontakt: E-Mail oder Telegram konfigurieren (bei Down + Recovery)
+
+### Monitoring & Alert-Setup (L-79)
+
+Log-Aggregation läuft via Loki + Promtail (`make up` startet beides automatisch).
+Logs abfragen: `curl "http://localhost:3100/loki/api/v1/query_range?query={container=\"pulsebase-api\"}&limit=50"`
+
+**Sentry Alert-Rules (einmalig im Sentry-Dashboard konfigurieren):**
+
+| Alert | Bedingung | Aktion |
+|---|---|---|
+| Error Rate | `error.rate > 1%` in 10 min | E-Mail / Slack |
+| P95 Latenz | `p95(transaction.duration) > 2000ms` | E-Mail |
+| Neuer Issue | Jeder neue unbekannte Error | E-Mail sofort |
+
+Sentry-Projekt → Alerts → Create Alert Rule → `issue.category:error` + Frequency-Threshold.
 
 ### TEST-L1: Mock-Qualität für `require_user` in Route-Tests
 
