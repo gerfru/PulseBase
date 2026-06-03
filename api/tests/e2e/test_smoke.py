@@ -236,6 +236,28 @@ async def test_account_export_unauthenticated_redirects_to_login():
         await browser.close()
 
 
+async def test_account_export_json_structure(authenticated_page):
+    """Authenticated export returns JSON download with all expected top-level keys."""
+    response = await authenticated_page.request.get(f"{BASE_URL}/account/export")
+    assert response.status == 200
+    assert "attachment" in response.headers.get("content-disposition", "")
+    body = await response.json()
+    for key in (
+        "exported_at",
+        "schema_version",
+        "user",
+        "activities",
+        "sleep_sessions",
+        "hrv_daily",
+        "daily_summary",
+        "seizure_events",
+        "glucose_readings",
+    ):
+        assert key in body, f"Missing key in export: {key}"
+    assert isinstance(body["activities"], list)
+    assert isinstance(body["user"], dict)
+
+
 # ── Sync button ───────────────────────────────────────────────────────────────
 
 

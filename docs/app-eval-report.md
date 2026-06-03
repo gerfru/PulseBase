@@ -32,6 +32,7 @@
 | 2026-06-02 | Wave 10 Runde 1 — Security Quick Wins | H-16, H-17, M-40, M-41, M-43, M-44, L-36–39 gefixt · L-59 ✅ resolved · M-52 ❌ confirmed open |
 | 2026-06-02 | Wave 10 Runde 2 — Tests + Bugfixes | H-18, M-57–M-62, L-61 gefixt · L-62 → TEST-L4 · M-53 partiell (CI-Gate 30%→80%) · 23 neue Tests (_sync_activities/_sync_day, ml-service Orchestrierung) · metrics.js Rendering-Regression · sync-service SIGTERM + unhealthy |
 | 2026-06-03 | Wave 10 Runde 3 — Architektur & Betrieb | M-45, M-46, M-48, M-49, L-40, L-43 gefixt |
+| 2026-06-03 | Wave 10 Runde 4 — Tests | M-53 ✅ (false positive), M-55 ✅ (bereits vorhanden), L-47–50 gefixt · 1 Test (request_sync Exception), 3 Tests (seizures/risk Boundary), 2 Tests (Garmin+Libre Kombination), 1 E2E-Test (Export JSON-Inhalt) |
 
 ---
 
@@ -144,13 +145,13 @@
 | M-46 | ✅ | W10 R3 | **api-test Port 8001 nicht auf `127.0.0.1` gebunden** — `"8001:8000"` bindet auf `0.0.0.0` · Fix: `"127.0.0.1:8001:8000"` | `docker-compose.test.yml:46` | Architektur |
 | M-47 | ❌ | — | **Stdlib-Logs nicht JSON (split log format)** — `ProcessorFormatter`-Bridge für Third-Party-Logger fehlt · Fix: `structlog.stdlib.ProcessorFormatter` mit `foreign_pre_chain` | `api/src/logging_config.py:24`, alle Services | Observability |
 | M-48 | ✅ | W10 R3 | **Compose-Healthcheck trifft `/health` statt `/ready`** — Container gilt als `healthy` auch wenn DB-Verbindung noch nicht steht · Fix: `test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]` | `docker-compose.yml:120` | Observability |
-| M-49 | ✅ | W10 R3 | **`logger.error(...)` landet nicht in Sentry (kein `SentryProcessor`)** — explizite `logger.error()`-Aufrufe erzeugen keine Sentry-Events · Fix: `structlog.SentryProcessor(level=logging.ERROR)` in alle drei `logging_config.py` | `api/src/logging_config.py`, alle Services | Observability |
+| M-49 | ✅ | W10 R3 | **`logger.error(...)` landet nicht in Sentry (kein `SentryProcessor`)** — explizite `logger.error()`-Aufrufe erzeugen keine Sentry-Events · Fix: `_sentry_error_processor()` (eigene Processor-Funktion) in alle drei `logging_config.py` | `api/src/logging_config.py`, alle Services | Observability |
 | M-50 | ❌ | — | **`_run_energy_metrics()` God-Function (63 Zeilen, 5 Concerns)** — verhindert Einzel-Tests · Fix: in fünf `_run_*`-Funktionen aufteilen | `ml-service/src/inference_models.py:82` | Code-Qualität |
 | M-51 | ❌ | — | **`_run_body_battery_and_stress()` 60 Zeilen mit Inline-Berechnung** — manuelle HRV-Baseline-Berechnung inline · Fix: `compute_hrv_baseline()` extrahieren | `ml-service/src/inference_models.py:248` | Code-Qualität |
 | M-52 | ❌ | — | **`login()` immer noch 70 Zeilen nach H-15-Teilfix** — verifiziert: Z.115–184 = 70Z | `api/src/routes/auth.py:117` | Code-Qualität |
-| M-53 | ❌ | — | **`fail_under = 80` in ml-service ≠ CLAUDE.md-Dokumentation „30%"** — Dokumentations-Drift · Fix: CLAUDE.md korrigieren auf 80% | `ml-service/pyproject.toml:37` | Tests |
+| M-53 | ✅ | W10 R4 | **`fail_under = 80` in ml-service ≠ CLAUDE.md-Dokumentation „30%"** — verifiziert: CLAUDE.md enthält kein „30%" im Coverage-Kontext; CI-Gate-Drift wurde via M-61 (W10 R2) korrigiert → false positive | `ml-service/pyproject.toml:37` | Tests |
 | M-54 | — | — | **`@requires_data` E2E-Tests werden in CI nie ausgeführt** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21–23` | Tests |
-| M-55 | ❌ | — | **`inference_models.py` ohne Unit-Tests** — 8 `_run_*`-Funktionen nicht abgedeckt · Fix: Unit-Tests für alle 8 `_run_*`-Funktionen | `ml-service/tests/` | Tests |
+| M-55 | ✅ | W10 R4 | **`inference_models.py` ohne Unit-Tests** — verifiziert: `test_inference.py` enthält alle 8 `TestRun*`-Klassen (TestRunReadiness … TestRunRunningAndIntensity) — implizit in W10 R2 ergänzt | `ml-service/tests/test_inference.py` | Tests |
 | M-56 | ❌ | — | **Trivy `ignore-unfixed: true` ohne Artefakt/Audit-Spur** — Pipeline ist grün bei CRITICAL-CVEs ohne jede Spur · Fix: `format: table` + `actions/upload-artifact` | `.github/workflows/ci.yml:135,143,151` | CI/CD |
 | M-57 | ✅ | W10 R2 | **`or True` in Rate-Limit-Assertion** — macht Test bedingungslos wahr; keine echte Verifikation des Rate-Limit-Decorators | `api/tests/test_coverage.py:513` | Tests |
 | M-58 | ✅ | W10 R2 | **`call_count >= 0` immer wahr** — Assertion in body-battery-Test ohne Bedeutung | `ml-service/tests/test_inference.py:371` | Tests |
@@ -211,10 +212,10 @@
 | L-44 | ❌ | — | **Sequentielle `await` in `_run_correlations`-Schleife** — 3× unabhängige DB-Queries sequenziell · Fix: `await asyncio.gather(...)` | `ml-service/src/inference_anomaly.py:109` | Code-Qualität |
 | L-45 | ❌ | — | **`require_user()` gibt ungetyptes `dict` zurück** | `api/src/deps.py:73` | Code-Qualität |
 | L-46 | ❌ | — | **`zip(*pairs)` ohne Längen-Assertion** | `ml-service/src/inference_anomaly.py:113` | Code-Qualität |
-| L-47 | ❌ | — | **`POST /api/sync` Failure-Pfad ungetestet** | `api/tests/test_api_endpoints.py:154` | Tests |
-| L-48 | ❌ | — | **`/api/seizures/risk` ohne Boundary-Tests** | `api/tests/` | Tests |
-| L-49 | ❌ | — | **sync-service: kein Test für Garmin+Libre-Kombinations-User** | `sync-service/tests/test_main.py` | Tests |
-| L-50 | ❌ | — | **`/account/export` E2E prüft nicht JSON-Download-Inhalt** | `api/tests/e2e/test_smoke.py:213` | Tests |
+| L-47 | ✅ | W10 R4 | **`POST /api/sync` Failure-Pfad ungetestet** — `test_sync_request_sync_raises_returns_500` ergänzt: `request_sync()` wirft Exception → 500 | `api/tests/test_api_endpoints.py` | Tests |
+| L-48 | ✅ | W10 R4 | **`/api/seizures/risk` ohne Boundary-Tests** — 3 Tests ergänzt: Response-Struktur (`level`/`flags`), warning-Level, high-Level | `api/tests/test_api_endpoints.py` | Tests |
+| L-49 | ✅ | W10 R4 | **sync-service: kein Test für Garmin+Libre-Kombinations-User** — `TestSyncDualLinkedUser` ergänzt: beide Jobs werden aufgerufen; Garmin-Fehler blockiert Libre nicht | `sync-service/tests/test_main.py` | Tests |
+| L-50 | ✅ | W10 R4 | **`/account/export` E2E prüft nicht JSON-Download-Inhalt** — `test_account_export_json_structure` ergänzt: Content-Disposition + alle 9 Top-Level-Keys + Typen validiert via `authenticated_page.request.get()` | `api/tests/e2e/test_smoke.py` | Tests |
 | L-51 | ❌ | — | **Tote Branch-Namen in `no-commit-to-branch`** — `--branch, dev, --branch, master` · Fix: auf `--branch, main` reduzieren | `.pre-commit-config.yaml:19` | CI/CD |
 | L-52 | ❌ | — | **Kein `sentry.disabled`-Warning beim Start** | `api/src/main.py`, alle Services | Observability |
 | L-53 | ❌ | — | **`PrintLoggerFactory` nicht Thread-safe für Production** | alle `logging_config.py` | Observability |
@@ -235,11 +236,11 @@
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-46, M-48–M-49, M-57–M-62, L-01–L-40, L-43, L-59, L-61, L-63 (außer H-07, M-19, M-42) |
+| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-46, M-48–M-49, M-53, M-55, M-57–M-62, L-01–L-40, L-43, L-47–L-50, L-59, L-61, L-63 (außer H-07, M-19, M-42) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-62 (TEST-L4), M-42 (eigener Wave), M-54 (TEST-L4) |
 | **Architektur/Betrieb** | ❌ L-42 (api.py domain-übergreifend) |
-| **Tests** | ❌ M-53 (fail_under CLAUDE.md Drift) · M-55 (inference_models.py Tests) · L-47–50 |
+| **Tests** | ❌ — alle W10 R4-Findings gefixt |
 | **Code-Qualität** | ❌ M-50, M-51, M-52, L-44–46, L-57 |
 | **Observability** | ❌ M-47, L-52–56 |
 | **CI/CD** | ❌ M-56, L-51 |
@@ -252,7 +253,7 @@
 | Runde | Fokus | Findings | Aufwand |
 |-------|-------|---------|---------|
 | ~~**W10 R3**~~ | ~~Architektur & Betrieb~~ | ~~M-45, M-46, M-48, M-49, L-40, L-43~~ | ✅ |
-| **W10 R4** | Tests (Rest) | M-53 (fail_under CLAUDE.md Drift), M-55 (inference_models.py Tests), L-47–50 | ~2h |
+| ~~**W10 R4**~~ | ~~Tests (Rest)~~ | ~~M-53, M-55 (resolved), L-47–50~~ | ✅ |
 | **W10 R5** | Code-Qualität | M-50 (_run_energy_metrics), M-51 (_run_body_battery), M-52 (login() kürzen), L-44–46, L-57 + [?] L-58/L-60 verifizieren | ~2h |
 | **W10 R6** | Observability | M-47 (ProcessorFormatter Bridge), L-52–56 (sentry.disabled, WriteLoggerFactory, Correlation-ID, Error-Rate, /health Zähler) | ~2h |
 | **W10 R7** | CI/CD + Security | M-56 (Trivy Artefakt), L-51 (Branch-Namen), M-42 (CSP Nonce + strict-dynamic), L-42 (api.py Split oder ARCH-L5) | ~3h |

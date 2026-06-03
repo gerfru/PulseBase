@@ -161,6 +161,25 @@ async def test_sync_linked_returns_requested(client):
     assert r.json()["status"] == "requested"
 
 
+async def test_sync_request_sync_raises_returns_500():
+    from httpx import AsyncClient, ASGITransport
+    from src.main import app as _app
+
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_GARMIN)),
+        patch(
+            "src.routes.api.request_sync",
+            AsyncMock(side_effect=Exception("queue full")),
+        ),
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=_app, raise_app_exceptions=False),
+            base_url="http://test",
+        ) as c:
+            r = await c.post("/api/sync")
+    assert r.status_code == 500
+
+
 async def test_api_sync_status_returns_data(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
@@ -320,6 +339,58 @@ async def test_seizure_risk(client):
     ):
         r = await client.get("/api/seizures/risk")
     assert r.status_code == 200
+
+
+async def test_seizure_risk_response_has_level_and_flags(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.api.get_seizure_risk",
+            AsyncMock(return_value={"level": "ok", "flags": []}),
+        ),
+    ):
+        r = await client.get("/api/seizures/risk")
+    assert r.status_code == 200
+    body = r.json()
+    assert "level" in body
+    assert "flags" in body
+
+
+async def test_seizure_risk_warning_level(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.api.get_seizure_risk",
+            AsyncMock(
+                return_value={
+                    "level": "warning",
+                    "flags": [{"type": "sleep_debt", "value": 5.2}],
+                }
+            ),
+        ),
+    ):
+        r = await client.get("/api/seizures/risk")
+    assert r.status_code == 200
+    assert r.json()["level"] == "warning"
+    assert len(r.json()["flags"]) == 1
+
+
+async def test_seizure_risk_high_level(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.api.get_seizure_risk",
+            AsyncMock(
+                return_value={
+                    "level": "high",
+                    "flags": [{"type": "hrv_drop", "value": 25}],
+                }
+            ),
+        ),
+    ):
+        r = await client.get("/api/seizures/risk")
+    assert r.status_code == 200
+    assert r.json()["level"] == "high"
 
 
 # ── Glucose ───────────────────────────────────────────────────────────────────
