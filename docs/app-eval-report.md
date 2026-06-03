@@ -38,24 +38,32 @@
 | 2026-06-03 | Wave 10 Runde 7 — CI/CD + Security | L-51 (no-commit-to-branch auf main), M-56 (Trivy format:table + upload-artifact alle 3 Images), M-42 (CSP Nonce: NonceTemplates, SecurityHeadersMiddleware, 14 Script-Tags, javascript:-URL-Fix) gefixt |
 | 2026-06-03 | Verifikation Wave 10 — alle 127 ✅-Einträge geprüft (3 parallele Subagenten) | 117 verifiziert · L-59 REGRESSION (auth.py 421Z nach M-52) · L-64 NEU (epilepsy.js flags.label/flags.detail innerHTML) |
 | 2026-06-03 | Wave 11 — Code-Qualität + Security Nacharbeit | L-59 (auth_tokens.py extrahiert, auth.py 390Z), L-64 (epilepsy.js createElement + textContent + epilepsy.test.js) gefixt |
+| 2026-06-03 | Eval 5 — Vollständiger Re-Audit nach Wave 11 (6 Subagenten parallel) | 1H · 12M · 1L (neu entdeckt) |
+| 2026-06-03 | Wave 12 Runde 1 — Security Quick Wins | M-63 (statTile esc()), M-64 (DOMPurify) gefixt |
 
 ---
 
 ## Achsen-Übersicht
 
-| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | Noch offen |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | — |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | — |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | — |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-19 (manuell) |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | H-07 (manuell), M-19 (manuell) |
+| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | Noch offen |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | — |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | H-07 (manuell), L-28 (Ausnahme) |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | H-19, M-65–72 (Eval 5) |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | M-74 (Eval 5) |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | M-19 (manuell), L-65 (Eval 5) |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | H-07 (manuell), M-19 (manuell), M-73 (Eval 5) |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
 - **Code-Qualität 🔴:** 4 neue High-Befunde (DAL-Bypass backfill.py, Dateigrößen, lange Funktionen).
 - **Security/Tests/CI/Obs 🟡:** Jeweils 1–3 mittlere Befunde, kein systemisches Versagen.
+
+**Eval 5 Begründung (nach Wave 11):**
+- **Code-Qualität 🟡:** H-19 (sync-service `main()` 87Z — deutlich über 50Z-Schwelle, SIGTERM/Scheduler/Startup gemischt); 7 weitere Funktionen über 50Z in api/sync/ml (`register`, `reset_password`, `export_user_data`, `_sync_day`, `sync_user`, ml-`main()`, `_run_body_battery_and_stress`).
+- **Security 🟡:** M-63 (`statTile()` Template-Literal ohne `esc()` in activity.js) + M-64 (`customHtml` via `innerHTML` ohne DOMPurify in metrics.js) — Pattern-Verletzungen; aktuell kein bestätigter User-Input-Flow, aber strukturell XSS-anfällig.
+- **Observability 🟡:** M-73 (`sync_libre_user()` ohne `bind_contextvars(job_id=...)`) — L-54-Fix (W10 R6) adressierte `sync_user` + `run_inference`; `sync_libre_user` wurde übersehen.
+- **Architektur 🟢, Tests 🟢, CI/CD 🟢:** Alle drei Achsen sauber. Wave 11 vollständig erfolgreich. M-74 (tautologische Assertion) und L-65 (pre-commit Reihenfolge) sind geringfügige Findings ohne Produktionsrisiko.
 
 **Eval 4 Begründung (nach Wave 9):**
 - **Security 🟡:** H-16 (Fernet dead-code Guard), 5 neue Mediums (CSRF /logout, Lockout Race Condition, CSP ohne Nonce, Reset-Token GET-Leck, DAL Auth fehlt). Positive Basis bleibt stark: keine SQLi, Rate Limiting vollständig, CSRF auf allen anderen Routen korrekt.
@@ -95,6 +103,7 @@
 | H-16 | ✅ | W10 R1 | **Fernet dead-code: Garmin-Token potentiell unverschlüsselt** — `if settings.fernet_key`-Guards implizieren Code-Pfad ohne Verschlüsselung; Key ist als Pflichtfeld validiert | `api/src/routes/garmin.py:63–83` | Security |
 | H-17 | ✅ | W10 R1 | **Login mit `is_active=False` nicht getestet** — H-08 (W0) fixte die Implementation; Test für deaktivierten-User-Pfad fehlte | `api/tests/test_auth.py` | Tests |
 | H-18 | ✅ | W10 R2 | **`_sync_activities` + `_sync_day` komplett ungetestet** — gesamter Garmin-Sync-Kernpfad ohne Unit-Tests; 12 neue Tests in `test_sync_logic.py` | `sync-service/tests/test_sync_logic.py` (neu) | Tests |
+| H-19 | ❌ | Eval 5 | **`main()` in sync-service 87 Zeilen** — SIGTERM-Handling, Scheduler-Setup und Startup-Logik gemischt; deutlich über 50Z-Schwelle · Fix: `_configure_scheduler()` + `_setup_shutdown()` extrahieren | `sync-service/src/main.py:271–357` | Code-Qualität |
 
 ---
 
@@ -164,6 +173,18 @@
 | M-60 | ✅ | W10 R2 | **ml-service `main.py` Orchestrierung ungetestet** — `run_all_users`, `run_on_request`, `run_inference`; 11 neue Tests | `ml-service/tests/test_main.py` (neu) | Tests |
 | M-61 | ✅ | W10 R2 | **ml-service CI Coverage-Gate 30% ≠ pyproject.toml 80%** — CLI-Flag überschrieb lokales Setting; Gate auf 80% gesetzt | `.github/workflows/ci.yml:248` | CI/CD |
 | M-62 | ✅ | W10 R2 | **sync-service: SIGTERM-Handler nach initialem Sync registriert** — `make down` hing bis zu 90s während Startup-Sync; Container `unhealthy` weil Sentinel-Datei erst nach Sync geschrieben; `SYNC_LOOKBACK_DAYS=730` als Ursache · Fix: Handler vor Sync; Sync als cancellbarer Task; Sentinel bei Start; `start_period` 30s → 120s | `sync-service/src/main.py:281–322` | Architektur |
+| M-63 | ✅ | W12 R1 | **DOM XSS: `statTile()` via Template-Literal in `innerHTML` ohne Escaping** — `stats`-Felder (u.a. `sport_label`, `value`) aus API-Response direkt in HTML-Template; bestehende `esc()`-Funktion nicht genutzt · Fix: lokale `esc()`-Funktion in `activity.js` ergänzt; `esc(label)` + `esc(value)` in `statTile()` | `api/src/static/activity.js:180,265` | Security |
+| M-64 | ✅ | W12 R1 | **DOM XSS: `customHtml` via `innerHTML` ohne DOMPurify** — Renderer-HTML aus metrics-Modulen ohne Sanitisierung; aktuell kein direkter User-Input-Flow, aber strukturell XSS-anfällig · Fix: `vendor/purify.min.js` ergänzt, `DOMPurify.sanitize()` in `metrics.js:61` | `api/src/static/metrics.js:61` | Security |
+| M-65 | ❌ | Eval 5 | **f-String als Event-String in `structlog`-Calls** — `logger.warning(f"mail.{log_key}...")` statt strukturierte Events; verhindert Log-Aggregation nach Event-Key · Fix: statischer Event-String + `log_key=log_key` als Feld | `api/src/mail.py:12,26,29` | Code-Qualität |
+| M-66 | ❌ | Eval 5 | **`register()` 52 Zeilen** — Validation und User-Creation gemischt · Fix: `_validate_register_form()` + `_perform_registration()` extrahieren | `api/src/routes/auth.py:188–239` | Code-Qualität |
+| M-67 | ❌ | Eval 5 | **`reset_password()` 51 Zeilen** — Request-Validation und Password-Update gemischt · Fix: `_validate_reset_request()` extrahieren | `api/src/routes/auth.py:339–389` | Code-Qualität |
+| M-68 | ❌ | Eval 5 | **`export_user_data()` 79 Zeilen** — 3 ungetrennte Daten-Blöcke (Profil, Aktivitäten, ML) · Fix: `_load_user_records()` als Helfer extrahieren | `api/src/db/users.py:320–398` | Code-Qualität |
+| M-69 | ❌ | Eval 5 | **`_sync_day()` 53 Zeilen** — repetitive Try-Catch-Blöcke für jede Metrik · Fix: generisches `_sync_metric(fn, *args)` extrahieren | `sync-service/src/main.py:81–133` | Code-Qualität |
+| M-70 | ❌ | Eval 5 | **`sync_user()` 58 Zeilen** — Token-Recovery und Daily-Loop nicht separiert · Fix: `_setup_garmin_client()` + `_sync_date_range()` extrahieren | `sync-service/src/main.py:136–193` | Code-Qualität |
+| M-71 | ❌ | Eval 5 | **`main()` in ml-service 55 Zeilen** — Scheduler-Setup und Signal-Handling inline · Fix: `_configure_ml_scheduler()` extrahieren | `ml-service/src/main.py:169–223` | Code-Qualität |
+| M-72 | ❌ | Eval 5 | **`_run_body_battery_and_stress()` 57 Zeilen** — nach M-51-Teilfix (W10 R5) noch über 50Z-Schwelle · Fix: weitere Sub-Funktion für Battery-Computation extrahieren | `ml-service/src/inference_models.py:280–336` | Code-Qualität |
+| M-73 | ❌ | Eval 5 | **`sync_libre_user()` ohne Correlation-ID** — L-54 (W10 R6) fixte `sync_user` + `run_inference`; `sync_libre_user` wurde übersehen · Fix: `bind_contextvars(job_id=...)` + `clear_contextvars()` in try/finally | `sync-service/src/main.py:196` | Observability |
+| M-74 | ❌ | Eval 5 | **Tautologische Assertion `daily_range >= 0`** — mathematisch immer wahr (`max(vals) - min(vals) >= 0`); testet kein echtes Verhalten · Fix: Assertion durch inhaltlich sinnvolle Prüfung ersetzen (z.B. `> 0` bei >1 Sample) | `ml-service/tests/test_models.py:495` | Tests |
 
 ---
 
@@ -235,21 +256,34 @@
 | L-62 | — | — | **E2E `@requires_data`-Tests in CI still übersprungen** (dokumentierte Ausnahme TEST-L4) | `api/tests/e2e/test_smoke.py:21` | Tests |
 | L-63 | ✅ | W10 R2 | **metrics.js: `result.value`/`result.sub` per `textContent` → Rendering-Regression** — M-33-Fix setzte alle Metric-Detail-Werte per `textContent`; Renderer-Funktionen liefern styled HTML-Spans, kein User-Input → alle 8 Metric-Seiten zeigten rohe HTML-Tags · Fix: `innerHTML` für Renderer-Ausgaben wiederhergestellt | `api/src/static/metrics.js:38` | Code-Qualität |
 | L-64 | ✅ | W11 | **`epilepsy.js`: `flags.label`/`flags.detail` via Template-Literal in `innerHTML` ohne Escaping** — H-10 adressierte seizure notes/event-type/sport-type/metrics.js; risk-flag-Labels nicht abgedeckt · Fix: `renderRiskFlags()` extrahiert + exportiert, `createElement + textContent`; 4 neue Tests in `epilepsy.test.js` | `api/src/static/epilepsy.js:51`, `api/tests/js/epilepsy.test.js` (neu) | Security |
+| L-65 | ❌ | Eval 5 | **Pre-commit Hook-Reihenfolge: `bandit` nach `ruff`** — github-rules.md Soll: gitleaks → bandit → lint → format → typecheck; Ist: gitleaks → ruff → bandit; kein funktionaler Impact, aber Abweichung von Canonical-Reihenfolge · Fix: bandit-Hook vor ruff verschieben | `.pre-commit-config.yaml:21–34` | CI/CD |
 
 ---
 
-## Offene Findings (nach Wave 10 Runde 7)
+## Offene Findings (nach Eval 5 / Wave 11)
 
 | Gruppe | Findings |
 |--------|---------|
-| **Alle Wellen abgeschlossen** | ✅ H-01–H-18, M-01–M-62, L-01–L-58, L-60–L-63 (außer H-07, M-19) |
+| **Eval 1–5, Wave 1–11 gefixt** | ✅ H-01–H-18, M-01–M-62, L-01–L-58, L-60–L-64 (außer H-07, M-19) |
+| **Eval 5 — Neu offen** | ❌ H-19 · M-65–M-74 · L-65 |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN eintragen), M-19 (UptimeRobot einrichten) |
-| **Nacharbeit (Verifikation)** | ✅ L-59 (auth_tokens.py extrahiert, 390Z), ✅ L-64 (createElement + textContent) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-28 (SEC-L1), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
 ---
 
-## Roadmap — Wave 10 R3–R7
+## Roadmap — Wave 12
+
+| Runde | Fokus | Findings | Aufwand |
+|-------|-------|---------|---------|
+| ~~**W12 R1**~~ | ~~Security Quick Wins~~ | ~~M-63 (statTile `esc()`), M-64 (DOMPurify/DOM-API)~~ | ✅ |
+| **W12 R2** | Code-Qualität — Funktionslängen | H-19, M-65–72 (Funktion-Extraktion in api/sync/ml) | M |
+| **W12 R3** | Observability + Tests + CI | M-73 (sync_libre_user job_id), M-74 (tautologische Assertion), L-65 (pre-commit Reihenfolge) | S |
+
+**Gesamtaufwand verbleibend:** 1H · 12M · 1L · geschätzt 1–2 Tage · Keine kritischen Security-Blocker
+
+---
+
+## Roadmap — Wave 10 R3–R7 (abgeschlossen)
 
 | Runde | Fokus | Findings | Aufwand |
 |-------|-------|---------|---------|
@@ -258,9 +292,7 @@
 | ~~**W10 R5**~~ | ~~Code-Qualität~~ | ~~M-50, M-51, M-52, L-44–46, L-57, L-58, L-60~~ | ✅ |
 | ~~**W10 R6**~~ | ~~Observability~~ | ~~M-47 (ProcessorFormatter Bridge + WriteLoggerFactory), L-52 (sentry.disabled), L-53 (WriteLoggerFactory), L-54 (Correlation-ID job_id), L-55 (_error_requests), L-56 (/health cleanup)~~ | ✅ |
 | ~~**W10 R7**~~ | ~~CI/CD + Security~~ | ~~L-51 (Branch-Namen), M-56 (Trivy Artefakt), M-42 (CSP Nonce + strict-dynamic) · L-42 → ARCH-L5~~ | ✅ |
-| **Eval 5** | Re-Audit | Vollständiges Re-Audit nach Wave 10 (6 Subagenten parallel) | — |
-
-**Gesamtaufwand verbleibend:** — · Wave 10 vollständig abgeschlossen · Alle automatisierbaren Findings gefixt
+| ~~**Eval 5**~~ | ~~Re-Audit~~ | ~~Vollständiges Re-Audit nach Wave 11 (6 Subagenten parallel)~~ | ✅ |
 
 ---
 

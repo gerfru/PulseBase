@@ -58,7 +58,7 @@ async function load() {
         if (helpLink) helpLink.href = `/help#${name}`;
 
         if (result.customHtml) {
-            document.getElementById('custom-html-block').innerHTML = result.customHtml;
+            document.getElementById('custom-html-block').innerHTML = DOMPurify.sanitize(result.customHtml);
         }
 
         if (result.kpis?.length) {
