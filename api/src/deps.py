@@ -3,7 +3,9 @@ import hmac
 import ipaddress
 import secrets
 import time
+from datetime import date as Date
 from pathlib import Path
+from typing import TypedDict, cast
 
 import bcrypt
 import structlog
@@ -66,18 +68,32 @@ async def _rate_limit_exceeded_handler(
     )
 
 
+class UserRow(TypedDict):
+    id: int
+    name: str
+    email: str
+    garmin_linked: bool
+    garmin_email: str | None
+    libre_linked: bool
+    libre_email: str | None
+    date_of_birth: Date | None
+    sex: str | None
+    epilepsy_mode: bool
+    spo2_enabled: bool
+
+
 class NeedsLogin(Exception):
     pass
 
 
-async def require_user(request: Request) -> dict:
+async def require_user(request: Request) -> UserRow:
     user_id = request.session.get("user_id")
     if not user_id:
         raise NeedsLogin()
     user = await get_user_by_id(int(user_id))
     if not user:
         raise NeedsLogin()
-    return user
+    return cast(UserRow, user)
 
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))

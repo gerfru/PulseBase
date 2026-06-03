@@ -11,13 +11,47 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from main import run_all_users, run_inference, run_on_request
+from main import _backfill_and_train, run_all_users, run_inference, run_on_request
 
 
 def _make_settings() -> MagicMock:
     s = MagicMock()
     s.model_dir = Path("/tmp/ml_models")
     return s
+
+
+# ── _backfill_and_train ───────────────────────────────────────────────────────
+
+
+class TestBackfillAndTrain:
+    async def test_calls_run_training_always(self):
+        settings = _make_settings()
+        with (
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=0),
+            patch("main.run_training", new_callable=AsyncMock) as mock_train,
+        ):
+            await _backfill_and_train(42, settings)
+        mock_train.assert_called_once_with(42, settings)
+
+    async def test_backfills_when_gaps_exist(self):
+        settings = _make_settings()
+        with (
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=3),
+            patch("main.backfill_user", new_callable=AsyncMock) as mock_backfill,
+            patch("main.run_training", new_callable=AsyncMock),
+        ):
+            await _backfill_and_train(42, settings)
+        mock_backfill.assert_called_once_with(42)
+
+    async def test_skips_backfill_when_no_gaps(self):
+        settings = _make_settings()
+        with (
+            patch("main.count_energy_gaps", new_callable=AsyncMock, return_value=0),
+            patch("main.backfill_user", new_callable=AsyncMock) as mock_backfill,
+            patch("main.run_training", new_callable=AsyncMock),
+        ):
+            await _backfill_and_train(42, settings)
+        mock_backfill.assert_not_called()
 
 
 # ── run_all_users ─────────────────────────────────────────────────────────────
