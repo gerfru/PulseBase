@@ -370,7 +370,8 @@ ML_INFER_HOUR=7
 ### ARCH-M2: Kein Service-Layer (Routes → DB direkt)
 
 Routes importieren direkt aus `api/src/db/`. Eine dedizierte `api/src/services/`-Schicht fehlt.
-Begründung: Solo-Projekt, Komplexität rechtfertigt Schicht nicht. Bei Wachstum (>3 Entwickler, komplexe Business-Logik) einführen.
+Begründung: Ein Service-Layer lohnt sich wenn Business-Logik von mehreren Routen geteilt wird oder mehrere Entwickler parallel arbeiten. Beides trifft hier nicht zu — die Logik ist route-spezifisch und das Team ist ein Entwickler. Das ist unabhängig davon ob die App öffentlich zugänglich ist oder nicht.
+Trigger für Einführung: >3 Entwickler oder Business-Logik die über mehrere Routen hinweg geteilt wird.
 
 ### ARCH-M3: Traefik (standalone) benötigt ACME/Let's Encrypt ⚠️
 
@@ -393,7 +394,8 @@ Begründung: Single-Server-Deployment ohne Multi-Environment-Setup. Bei Bedarf: 
 ### ARCH-L2: Technisch-basierte db/-Ordnerstruktur
 
 `api/src/db/` ist technisch strukturiert (kein Feature-Split). Eine Feature-basierte Struktur (`api/src/activities/`, `api/src/health/`) würde ~20 Dateien betreffen.
-Begründung: Solo-Projekt, kein konkreter Nutzen gegenüber aktuellem Overhead. Refactoring erst bei deutlichem Wachstum der Codebasis.
+Begründung: Feature-Splitting der DB-Schicht bringt Nutzen wenn Teams parallel an unterschiedlichen Domains arbeiten oder die Dateien so groß werden dass die Orientierung schwierig wird. Beides trifft nicht zu — alle `db/`-Dateien sind klein (<200Z), ein Entwickler arbeitet daran, und die Domain-Grenzen sind durch Dateinamen klar erkennbar. Nicht die Deployment-Art, sondern die Codegröße und Teamstruktur sind der richtige Trigger.
+Trigger für Refactoring: Dateien >400Z oder ein zweiter Entwickler der isoliert an einer Domain arbeitet.
 
 ### ARCH-L3: API nicht versioniert (kein `/api/v1/`-Präfix)
 
@@ -426,6 +428,12 @@ Logs abfragen: `curl "http://localhost:3100/loki/api/v1/query_range?query={conta
 | Neuer Issue | Jeder neue unbekannte Error | E-Mail sofort |
 
 Sentry-Projekt → Alerts → Create Alert Rule → `issue.category:error` + Frequency-Threshold.
+
+### OBS-L2: Kein OpenTelemetry / Distributed Tracing
+
+Kein OpenTelemetry-SDK, kein Tracing-Backend (Tempo, Jaeger, etc.).
+Begründung: OpenTelemetry macht Sinn wenn Requests über mehrere unabhängige Systeme laufen und man verstehen will wo Zeit verloren geht. Hier laufen alle 3 Services auf demselben Server im selben Docker-Netz — Netzwerklatenzen zwischen Services sind vernachlässigbar. Für Request-Korrelation ist `request_id` (Header + structlog context) ausreichend. Loki + Sentry decken Logs und Errors ab. Kein Observability-Problem das OTel lösen würde und das jetzt existiert.
+Trigger für Einführung: Multi-Server-Setup, externe API-Latenz wird zum Problem, oder ein Tracing-Backend ist bereits vorhanden.
 
 ### TEST-L1: Mock-Qualität für `require_user` in Route-Tests
 

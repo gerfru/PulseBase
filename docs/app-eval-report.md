@@ -390,12 +390,12 @@
 
 | ID | Beschreibung |
 |---|---|
-| ARCH-M2 | Kein Service-Layer (Routes → DB direkt) — Solo-Projekt |
+| ARCH-M2 | Kein Service-Layer (Routes → DB direkt) — Logik ist route-spezifisch, kein geteilter Business-Logic-Bedarf; Trigger: >3 Entwickler oder domainübergreifende Business-Logik |
 | ARCH-M3 | Traefik ohne ACME — muss für Public Release mit `certificatesResolvers` (Let's Encrypt) konfiguriert werden |
-| ARCH-L2 | Technisch-basierte `db/`-Ordnerstruktur — Solo-Projekt |
-| ARCH-L3 | Kein `/api/v1/`-Prefix — keine externen Consumer |
+| ARCH-L2 | Technisch-basierte `db/`-Ordnerstruktur — Dateien <200Z, Domain-Grenzen durch Dateinamen klar; Trigger: Dateien >400Z oder parallele Team-Arbeit an isolierten Domains |
+| ARCH-L3 | Kein `/api/v1/`-Prefix — keine externen Consumer; Trigger: externe API-Stabilität wird verlangt |
 | ARCH-L4 | 3-Service-Splitting bewusst: Scheduling-Isolation, ML-Workload-Trennung, unabhängige Restart-Zyklen, unterschiedliche Memory-Limits (api 512 MB, ml 1 GB). Kein klassisches Microservices-Muster. |
-| ARCH-L5 | `routes/api.py` technisch-flat (alle JSON-Endpunkte in einer Datei, ~340Z). Feature-Split wäre sauberer, aber: Solo-Projekt, geteilte `require_user`/`limiter`-Deps, Domain-Grenzen per Kommentarblöcke erkennbar. Split bei >400Z oder zweitem Entwickler. |
+| ARCH-L5 | `routes/api.py` technisch-flat (~340Z) — alle Endpunkte teilen `require_user`/`limiter`-Deps, Domain-Grenzen per Kommentarblöcke erkennbar; Trigger: >400Z oder zweiter Entwickler |
 | CICD-M3 | Branch Protection nicht erzwingbar (Free-Plan, privates Repo) |
 | CICD-L4 | GitHub-native Secret Scanning nicht verfügbar (Free-Plan) |
 | QUAL-M2 | Duplizierter GarminClient in api/ + sync-service/ — bewusst |
