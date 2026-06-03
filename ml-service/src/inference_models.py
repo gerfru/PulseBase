@@ -277,26 +277,19 @@ def _compute_hrv_baseline(hrv_hist: list) -> float:
     return sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0.0
 
 
-async def _run_body_battery_and_stress(
+async def _run_body_battery(
     user_id: int,
     today: date,
+    yesterday_bb: float | None,
+    last_night_h: float,
+    last_night_deep: float | None,
+    last_night_rem: float | None,
+    hrv_last: float | None,
+    hrv_baseline: float,
     act_rows: list[dict[str, Any]],
     hrmax: float,
-    hrv_hist: list,
-    sleep_h: list,
     daily_today: dict | None,
 ) -> None:
-    yesterday_bb = await get_yesterday_prediction(user_id, "body_battery_custom")
-    if yesterday_bb is None and daily_today:
-        yesterday_bb = daily_today.get("body_battery_high")
-    last_night = sleep_h[-1] if sleep_h else {}
-    last_night_h = last_night.get("total_h") or 0.0
-    last_night_deep = last_night.get("deep_h")
-    last_night_rem = last_night.get("rem_h")
-    hrv_valid = [v for v in hrv_hist if v is not None]
-    hrv_baseline = _compute_hrv_baseline(hrv_hist)
-    hrv_last = hrv_valid[-1] if hrv_valid else None
-
     bb_result = compute_body_battery(
         yesterday_bb,
         last_night_h,
@@ -321,6 +314,13 @@ async def _run_body_battery_and_stress(
             hrv_factor=bb_result.get("hrv_factor"),
         )
 
+
+async def _run_stress_score(
+    user_id: int,
+    today: date,
+    hrv_hist: list,
+    daily_today: dict | None,
+) -> None:
     stress_result = compute_stress_score(
         hrv_hist, daily_today.get("avg_stress") if daily_today else None
     )
@@ -334,6 +334,41 @@ async def _run_body_battery_and_stress(
             score=stress_result["score"],
             dev=stress_result.get("hrv_deviation"),
         )
+
+
+async def _run_body_battery_and_stress(
+    user_id: int,
+    today: date,
+    act_rows: list[dict[str, Any]],
+    hrmax: float,
+    hrv_hist: list,
+    sleep_h: list,
+    daily_today: dict | None,
+) -> None:
+    yesterday_bb = await get_yesterday_prediction(user_id, "body_battery_custom")
+    if yesterday_bb is None and daily_today:
+        yesterday_bb = daily_today.get("body_battery_high")
+    last_night = sleep_h[-1] if sleep_h else {}
+    last_night_h = last_night.get("total_h") or 0.0
+    last_night_deep = last_night.get("deep_h")
+    last_night_rem = last_night.get("rem_h")
+    hrv_valid = [v for v in hrv_hist if v is not None]
+    hrv_baseline = _compute_hrv_baseline(hrv_hist)
+    hrv_last = hrv_valid[-1] if hrv_valid else None
+    await _run_body_battery(
+        user_id,
+        today,
+        yesterday_bb,
+        last_night_h,
+        last_night_deep,
+        last_night_rem,
+        hrv_last,
+        hrv_baseline,
+        act_rows,
+        hrmax,
+        daily_today,
+    )
+    await _run_stress_score(user_id, today, hrv_hist, daily_today)
 
 
 async def _run_running_and_intensity(

@@ -9,7 +9,9 @@ logger = structlog.get_logger(__name__)
 
 async def _send_email(to: str, subject: str, html: str, log_key: str) -> bool:
     if not settings.resend_api_key:
-        logger.warning(f"mail.{log_key}.skipped", reason="RESEND_API_KEY not set")
+        logger.warning(
+            "mail.send_skipped", log_key=log_key, reason="RESEND_API_KEY not set"
+        )
         return False
     resend_client.api_key = settings.resend_api_key
     try:
@@ -23,10 +25,10 @@ async def _send_email(to: str, subject: str, html: str, log_key: str) -> bool:
         )
         return True
     except resend_exc.ResendError as e:
-        logger.warning(f"mail.{log_key}.failed", reason=e.message)
+        logger.warning("mail.send_failed", log_key=log_key, reason=e.message)
         return False
     except Exception:
-        logger.exception(f"mail.{log_key}.unexpected")
+        logger.exception("mail.send_error", log_key=log_key)
         return False
 
 

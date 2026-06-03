@@ -317,6 +317,42 @@ async def save_consent(
     )
 
 
+_EXPORT_ACTIVITIES_SQL = """
+    SELECT id, user_id, garmin_activity_id, started_at, duration_seconds,
+           sport_type, distance_meters, calories, avg_hr, max_hr,
+           avg_pace_sec_per_km, avg_cadence, avg_power, elevation_gain,
+           avg_speed_kmh, aerobic_effect, anaerobic_effect, user_rpe, created_at
+    FROM activities WHERE user_id = $1 ORDER BY started_at LIMIT 50000
+"""
+_EXPORT_SLEEP_SQL = """
+    SELECT id, user_id, garmin_sleep_id, start_time, end_time,
+           total_sleep_seconds, deep_sleep_seconds, light_sleep_seconds,
+           rem_sleep_seconds, awake_seconds, sleep_score
+    FROM sleep_sessions WHERE user_id = $1 ORDER BY start_time LIMIT 50000
+"""
+_EXPORT_HRV_SQL = """
+    SELECT date, user_id, hrv_last_night, hrv_weekly_avg, hrv_status
+    FROM hrv_daily WHERE user_id = $1 ORDER BY date LIMIT 50000
+"""
+_EXPORT_DAILY_SQL = """
+    SELECT date, user_id, steps, calories_total, avg_stress, max_stress,
+           avg_spo2, min_spo2, body_battery_high, body_battery_low, resting_hr
+    FROM daily_summary WHERE user_id = $1 ORDER BY date LIMIT 50000
+"""
+_EXPORT_SEIZURES_SQL = """
+    SELECT id, user_id, occurred_at, duration_seconds, type, severity, notes, created_at
+    FROM seizure_events WHERE user_id = $1 ORDER BY occurred_at LIMIT 50000
+"""
+_EXPORT_GLUCOSE_SQL = """
+    SELECT time, user_id, value_mgdl, trend, is_high, is_low
+    FROM glucose_readings WHERE user_id = $1 ORDER BY time LIMIT 50000
+"""
+
+
+async def _load_user_records(conn, query: str, user_id: int) -> list[dict]:
+    return [dict(r) for r in await conn.fetch(query, user_id)]
+
+
 async def export_user_data(user_id: int) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -330,61 +366,12 @@ async def export_user_data(user_id: int) -> dict:
         if row is None:
             raise RuntimeError(f"export_user_data: user {user_id} not found")
         user = dict(row)
-        activities = [
-            dict(r)
-            for r in await conn.fetch(
-                """SELECT id, user_id, garmin_activity_id, started_at, duration_seconds,
-                          sport_type, distance_meters, calories, avg_hr, max_hr,
-                          avg_pace_sec_per_km, avg_cadence, avg_power, elevation_gain,
-                          avg_speed_kmh, aerobic_effect, anaerobic_effect, user_rpe, created_at
-                   FROM activities WHERE user_id = $1 ORDER BY started_at LIMIT 50000""",
-                user_id,
-            )
-        ]
-        sleep = [
-            dict(r)
-            for r in await conn.fetch(
-                """SELECT id, user_id, garmin_sleep_id, start_time, end_time,
-                          total_sleep_seconds, deep_sleep_seconds, light_sleep_seconds,
-                          rem_sleep_seconds, awake_seconds, sleep_score
-                   FROM sleep_sessions WHERE user_id = $1 ORDER BY start_time LIMIT 50000""",
-                user_id,
-            )
-        ]
-        hrv = [
-            dict(r)
-            for r in await conn.fetch(
-                """SELECT date, user_id, hrv_last_night, hrv_weekly_avg, hrv_status
-                   FROM hrv_daily WHERE user_id = $1 ORDER BY date LIMIT 50000""",
-                user_id,
-            )
-        ]
-        daily = [
-            dict(r)
-            for r in await conn.fetch(
-                """SELECT date, user_id, steps, calories_total, avg_stress, max_stress,
-                          avg_spo2, min_spo2, body_battery_high, body_battery_low, resting_hr
-                   FROM daily_summary WHERE user_id = $1 ORDER BY date LIMIT 50000""",
-                user_id,
-            )
-        ]
-        seizures = [
-            dict(r)
-            for r in await conn.fetch(
-                """SELECT id, user_id, occurred_at, duration_seconds, type, severity,
-                          notes, created_at
-                   FROM seizure_events WHERE user_id = $1 ORDER BY occurred_at LIMIT 50000""",
-                user_id,
-            )
-        ]
-        glucose = [
-            dict(r)
-            for r in await conn.fetch(
-                """SELECT time, user_id, value_mgdl, trend, is_high, is_low
-                   FROM glucose_readings WHERE user_id = $1 ORDER BY time LIMIT 50000""",
-                user_id,
-            )
-        ]
+        activities = await _load_user_records(conn, _EXPORT_ACTIVITIES_SQL, user_id)
+        sleep = await _load_user_records(conn, _EXPORT_SLEEP_SQL, user_id)
+        hrv = await _load_user_records(conn, _EXPORT_HRV_SQL, user_id)
+        daily = await _load_user_records(conn, _EXPORT_DAILY_SQL, user_id)
+        seizures = await _load_user_records(conn, _EXPORT_SEIZURES_SQL, user_id)
+        glucose = await _load_user_records(conn, _EXPORT_GLUCOSE_SQL, user_id)
     return {
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "schema_version": "1.0",
