@@ -116,6 +116,14 @@ async def run_training(user_id: int, settings: Settings) -> None:
         )
 
 
+async def _backfill_and_train(uid: int, settings: Settings) -> None:
+    gaps = await count_energy_gaps(uid)
+    if gaps > 0:
+        logger.info("backfill.needed", user_id=uid, gaps=gaps)
+        await backfill_user(uid)
+    await run_training(uid, settings)
+
+
 async def run_on_request(settings: Settings) -> None:
     """Handle manual ML runs triggered by the sync-service after a Garmin sync.
 
@@ -128,11 +136,7 @@ async def run_on_request(settings: Settings) -> None:
     for user in users:
         uid = user["id"]
         try:
-            gaps = await count_energy_gaps(uid)
-            if gaps > 0:
-                logger.info("backfill.needed", user_id=uid, gaps=gaps)
-                await backfill_user(uid)
-            await run_training(uid, settings)
+            await _backfill_and_train(uid, settings)
             await run_inference(uid, settings)
             logger.info("ml_request.done", user_id=uid)
         except Exception as e:
@@ -150,11 +154,7 @@ async def run_all_users(settings: Settings, include_training: bool = False) -> N
         uid = user["id"]
         try:
             if include_training:
-                gaps = await count_energy_gaps(uid)
-                if gaps > 0:
-                    logger.info("backfill.needed", user_id=uid, gaps=gaps)
-                    await backfill_user(uid)
-                await run_training(uid, settings)
+                await _backfill_and_train(uid, settings)
             await run_inference(uid, settings)
         except Exception as e:
             logger.error("ml.failed", user_id=uid, error=str(e), exc_info=True)

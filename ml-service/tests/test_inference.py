@@ -8,6 +8,8 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -218,6 +220,134 @@ class TestRunEnergyMetrics:
             await _run_energy_metrics(1, _TODAY, act_rows, 185.0, [], [])
         model_keys = [c.args[2] for c in mock_save.call_args_list]
         assert "acwr" in model_keys
+
+
+class TestRunPhysicalEnergy:
+    async def test_saves_and_returns_phys(self):
+        from inference_models import _run_physical_energy
+
+        with patch(
+            "inference_models.save_prediction", new_callable=AsyncMock
+        ) as mock_save:
+            result = await _run_physical_energy(1, _TODAY, [], 185.0)
+        mock_save.assert_called_once()
+        assert mock_save.call_args.args[2] == "energy_physical"
+        assert isinstance(result, dict)
+
+    async def test_returns_phys_dict_with_score_key(self):
+        from inference_models import _run_physical_energy
+
+        with patch("inference_models.save_prediction", new_callable=AsyncMock):
+            result = await _run_physical_energy(1, _TODAY, [], 185.0)
+        assert "score" in result
+
+
+class TestRunAcwr:
+    async def test_skips_when_atl_or_ctl_missing(self):
+        from inference_models import _run_acwr
+
+        with patch(
+            "inference_models.save_prediction", new_callable=AsyncMock
+        ) as mock_save:
+            await _run_acwr(1, _TODAY, {"atl": None, "ctl": None})
+        mock_save.assert_not_called()
+
+    async def test_saves_when_atl_and_ctl_present(self):
+        from inference_models import _run_acwr
+
+        with patch(
+            "inference_models.save_prediction", new_callable=AsyncMock
+        ) as mock_save:
+            await _run_acwr(1, _TODAY, {"atl": 50.0, "ctl": 45.0})
+        mock_save.assert_called_once()
+        assert mock_save.call_args.args[2] == "acwr"
+
+
+class TestRunTrainingMonotony:
+    async def test_skips_when_monotony_is_none(self):
+        from inference_models import _run_training_monotony
+
+        with patch(
+            "inference_models.save_prediction", new_callable=AsyncMock
+        ) as mock_save:
+            await _run_training_monotony(1, _TODAY, [], 185.0)
+        mock_save.assert_not_called()
+
+    async def test_saves_when_monotony_present(self):
+        from inference_models import _run_training_monotony
+        from datetime import timedelta
+
+        act_rows = [
+            {
+                "activity_date": _TODAY - timedelta(days=i),
+                "avg_hr": 150,
+                "duration_seconds": 3600,
+                "resting_hr": 52,
+            }
+            for i in range(7)
+        ]
+        with patch(
+            "inference_models.save_prediction", new_callable=AsyncMock
+        ) as mock_save:
+            await _run_training_monotony(1, _TODAY, act_rows, 185.0)
+        model_keys = [c.args[2] for c in mock_save.call_args_list]
+        assert "training_monotony" in model_keys
+
+
+class TestRunAutonomicEnergy:
+    async def test_saves_autonomic_energy(self):
+        from inference_models import _run_autonomic_energy
+
+        with patch(
+            "inference_models.save_prediction", new_callable=AsyncMock
+        ) as mock_save:
+            await _run_autonomic_energy(1, _TODAY, [50.0] * 10)
+        mock_save.assert_called_once()
+        assert mock_save.call_args.args[2] == "energy_autonomic"
+
+
+class TestRunCognitiveEnergy:
+    async def test_saves_cognitive_energy(self):
+        from inference_models import _run_cognitive_energy
+
+        sleep_h = [{"total_h": 7.5} for _ in range(7)]
+        with patch(
+            "inference_models.save_prediction", new_callable=AsyncMock
+        ) as mock_save:
+            await _run_cognitive_energy(1, _TODAY, sleep_h)
+        mock_save.assert_called_once()
+        assert mock_save.call_args.args[2] == "energy_cognitive"
+
+
+class TestComputeHrvBaseline:
+    def test_returns_zero_when_fewer_than_7_values(self):
+        from inference_models import _compute_hrv_baseline
+
+        assert _compute_hrv_baseline([]) == 0.0
+        assert _compute_hrv_baseline([50.0] * 6) == 0.0
+
+    def test_computes_mean_of_last_30_when_sufficient(self):
+        from inference_models import _compute_hrv_baseline
+
+        hrv = [50.0] * 7
+        result = _compute_hrv_baseline(hrv)
+        assert result == 50.0
+
+    def test_skips_none_values(self):
+        from inference_models import _compute_hrv_baseline
+
+        # 7 non-None values interspersed with None
+        hrv = [50.0, None, 60.0, None, 55.0, 52.0, 48.0, None, 53.0, 51.0]
+        valid = [50.0, 60.0, 55.0, 52.0, 48.0, 53.0, 51.0]
+        result = _compute_hrv_baseline(hrv)
+        assert result == pytest.approx(sum(valid) / len(valid))
+
+    def test_uses_at_most_last_30_values(self):
+        from inference_models import _compute_hrv_baseline
+
+        hrv = [100.0] * 10 + [50.0] * 30
+        result = _compute_hrv_baseline(hrv)
+        assert result == 50.0
 
 
 class TestRunTrainingEffect:
@@ -539,3 +669,90 @@ class TestRunHrvAndRecoverySavePaths:
             await _run_hrv_and_recovery(1, _TODAY, hrv_hist, [], 185.0)
         model_keys = [c.args[2] for c in mock_save.call_args_list]
         assert "hrv_recovery" in model_keys
+
+
+# ── inference_anomaly — _run_correlations ─────────────────────────────────────
+
+
+class TestRunCorrelations:
+    async def test_skips_key_when_fewer_than_2_pairs(self):
+        from inference_anomaly import _run_correlations
+
+        with (
+            patch(
+                "inference_anomaly.get_sleep_hrv_pairs",
+                new_callable=AsyncMock,
+                return_value=[(50.0, 55.0)],  # only 1 pair → skip
+            ),
+            patch(
+                "inference_anomaly.get_sleep_resting_hr_pairs",
+                new_callable=AsyncMock,
+                return_value=[],  # empty → skip
+            ),
+            patch(
+                "inference_anomaly.get_bb_resting_hr_pairs",
+                new_callable=AsyncMock,
+                return_value=[(80.0, 52.0), (75.0, 54.0)],  # 2 pairs → save
+            ),
+            patch(
+                "inference_anomaly.save_prediction", new_callable=AsyncMock
+            ) as mock_save,
+        ):
+            await _run_correlations(1, _TODAY)
+        assert mock_save.call_count == 1
+        assert mock_save.call_args.args[2] == "correlation_bb_rhr"
+
+    async def test_saves_correlation_for_valid_pairs(self):
+        from inference_anomaly import _run_correlations
+
+        pairs = [(float(i), float(i + 1)) for i in range(10)]
+        with (
+            patch(
+                "inference_anomaly.get_sleep_hrv_pairs",
+                new_callable=AsyncMock,
+                return_value=pairs,
+            ),
+            patch(
+                "inference_anomaly.get_sleep_resting_hr_pairs",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "inference_anomaly.get_bb_resting_hr_pairs",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "inference_anomaly.save_prediction", new_callable=AsyncMock
+            ) as mock_save,
+        ):
+            await _run_correlations(1, _TODAY)
+        assert mock_save.call_count == 1
+        assert mock_save.call_args.args[2] == "correlation_sleep_hrv"
+
+    async def test_fetches_all_pairs_concurrently(self):
+        """asyncio.gather is used — all three DB functions are called."""
+        from inference_anomaly import _run_correlations
+
+        with (
+            patch(
+                "inference_anomaly.get_sleep_hrv_pairs",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as m1,
+            patch(
+                "inference_anomaly.get_sleep_resting_hr_pairs",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as m2,
+            patch(
+                "inference_anomaly.get_bb_resting_hr_pairs",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as m3,
+            patch("inference_anomaly.save_prediction", new_callable=AsyncMock),
+        ):
+            await _run_correlations(1, _TODAY)
+        m1.assert_called_once_with(1)
+        m2.assert_called_once_with(1)
+        m3.assert_called_once_with(1)
