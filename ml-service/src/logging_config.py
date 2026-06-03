@@ -1,7 +1,22 @@
 import logging
 import sys
+from typing import Any
 
+import sentry_sdk
 import structlog
+
+
+def _sentry_error_processor(logger: Any, method: str, event_dict: Any) -> Any:
+    """Forward ERROR/CRITICAL structlog events to Sentry. No-op when DSN not configured."""
+    if method in ("error", "critical"):
+        exc_info = event_dict.get("exc_info")
+        if exc_info is True:
+            sentry_sdk.capture_exception()
+        elif exc_info and exc_info is not False:
+            sentry_sdk.capture_exception(exc_info)
+        else:
+            sentry_sdk.capture_message(str(event_dict.get("event", "")), level=method)  # type: ignore[arg-type]
+    return event_dict
 
 
 def configure_logging() -> None:
@@ -12,6 +27,7 @@ def configure_logging() -> None:
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.StackInfoRenderer(),
+            _sentry_error_processor,
             structlog.processors.ExceptionRenderer(),
             structlog.processors.JSONRenderer(),
         ],

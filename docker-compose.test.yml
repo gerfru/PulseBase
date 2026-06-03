@@ -17,6 +17,16 @@ services:
       retries: 5
     networks:
       - test-internal
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '0.50'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   flyway-test:
     image: flyway/flyway:11@sha256:782c5c207ffb5ac6336139fda4f4295bd9991ef63ad36919406d4268740069bb
@@ -37,13 +47,23 @@ services:
         condition: service_healthy
     networks:
       - test-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.25'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api-test:
     build: ./api
     container_name: pulsebase-api-test
     restart: unless-stopped
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     env_file:
       - env/.env.app
       - env/.env.api
@@ -64,6 +84,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '0.50'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   test-internal:
