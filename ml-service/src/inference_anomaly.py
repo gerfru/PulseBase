@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Callable
 from datetime import date
 
@@ -38,7 +39,8 @@ async def _run_anomaly_for(
     result = detect_metric_anomaly(history, today_val)
     await save_prediction(user_id, today, model_key, result.get("z_score"), result)
     logger.info(
-        f"{log_key}.done",
+        "anomaly.done",
+        metric=log_key,
         user_id=user_id,
         z=result.get("z_score"),
         is_anomaly=result.get("is_anomaly"),
@@ -101,14 +103,14 @@ async def _run_anomaly_stress(user_id: int, today: date) -> None:
 
 
 async def _run_correlations(user_id: int, today: date) -> None:
-    correlation_tasks = [
-        (get_sleep_hrv_pairs(user_id), "correlation_sleep_hrv"),
-        (get_sleep_resting_hr_pairs(user_id), "correlation_sleep_rhr"),
-        (get_bb_resting_hr_pairs(user_id), "correlation_bb_rhr"),
-    ]
-    for coro, model_key in correlation_tasks:
-        pairs = await coro
-        if not pairs:
+    keys = ["correlation_sleep_hrv", "correlation_sleep_rhr", "correlation_bb_rhr"]
+    results = await asyncio.gather(
+        get_sleep_hrv_pairs(user_id),
+        get_sleep_resting_hr_pairs(user_id),
+        get_bb_resting_hr_pairs(user_id),
+    )
+    for pairs, model_key in zip(results, keys):
+        if len(pairs) < 2:
             continue
         xs, ys = zip(*pairs)
         corr = compute_sleep_hrv_correlation(list(xs), list(ys))

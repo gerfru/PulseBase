@@ -79,14 +79,12 @@ async def _run_battery_pattern(user_id: int, today: date, settings: Settings) ->
     )
 
 
-async def _run_energy_metrics(
+async def _run_physical_energy(
     user_id: int,
     today: date,
     act_rows: list[dict[str, Any]],
     hrmax: float,
-    hrv_hist: list,
-    sleep_h: list,
-) -> None:
+) -> dict[str, Any]:
     phys = compute_physical_energy(act_rows, hrmax, today)
     await save_prediction(user_id, today, "energy_physical", phys.get("score"), phys)
     logger.info(
@@ -95,7 +93,10 @@ async def _run_energy_metrics(
         score=phys.get("score"),
         tsb=phys.get("tsb"),
     )
+    return phys
 
+
+async def _run_acwr(user_id: int, today: date, phys: dict[str, Any]) -> None:
     if phys.get("atl") is not None and phys.get("ctl") is not None:
         acwr_result = compute_acwr(phys["atl"], phys["ctl"])
         await save_prediction(
@@ -108,6 +109,13 @@ async def _run_energy_metrics(
             level=acwr_result.get("level"),
         )
 
+
+async def _run_training_monotony(
+    user_id: int,
+    today: date,
+    act_rows: list[dict[str, Any]],
+    hrmax: float,
+) -> None:
     mono_result = compute_training_monotony(act_rows, hrmax, today)
     if mono_result.get("monotony") is not None:
         await save_prediction(
@@ -124,6 +132,8 @@ async def _run_energy_metrics(
             strain=mono_result.get("strain"),
         )
 
+
+async def _run_autonomic_energy(user_id: int, today: date, hrv_hist: list) -> None:
     auton = compute_autonomic_energy(hrv_hist)
     await save_prediction(user_id, today, "energy_autonomic", auton.get("score"), auton)
     logger.info(
@@ -133,6 +143,8 @@ async def _run_energy_metrics(
         dev=auton.get("deviation"),
     )
 
+
+async def _run_cognitive_energy(user_id: int, today: date, sleep_h: list) -> None:
     cog = compute_cognitive_energy(sleep_h)
     await save_prediction(user_id, today, "energy_cognitive", cog.get("score"), cog)
     logger.info(
@@ -141,6 +153,21 @@ async def _run_energy_metrics(
         score=cog.get("score"),
         debt_hours=cog.get("debt_hours"),
     )
+
+
+async def _run_energy_metrics(
+    user_id: int,
+    today: date,
+    act_rows: list[dict[str, Any]],
+    hrmax: float,
+    hrv_hist: list,
+    sleep_h: list,
+) -> None:
+    phys = await _run_physical_energy(user_id, today, act_rows, hrmax)
+    await _run_acwr(user_id, today, phys)
+    await _run_training_monotony(user_id, today, act_rows, hrmax)
+    await _run_autonomic_energy(user_id, today, hrv_hist)
+    await _run_cognitive_energy(user_id, today, sleep_h)
 
 
 async def _run_training_effect(
@@ -245,6 +272,11 @@ async def _run_hrv_and_recovery(
         )
 
 
+def _compute_hrv_baseline(hrv_hist: list) -> float:
+    hrv_valid = [v for v in hrv_hist if v is not None]
+    return sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0.0
+
+
 async def _run_body_battery_and_stress(
     user_id: int,
     today: date,
@@ -262,9 +294,7 @@ async def _run_body_battery_and_stress(
     last_night_deep = last_night.get("deep_h")
     last_night_rem = last_night.get("rem_h")
     hrv_valid = [v for v in hrv_hist if v is not None]
-    hrv_baseline = (
-        sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0
-    )
+    hrv_baseline = _compute_hrv_baseline(hrv_hist)
     hrv_last = hrv_valid[-1] if hrv_valid else None
 
     bb_result = compute_body_battery(
