@@ -44,7 +44,8 @@ repos:
       - id: semgrep
         name: semgrep
         entry: semgrep
-        language: system
+        language: python
+        additional_dependencies: [semgrep==1.164.0]
         args: [scan, api/src/, sync-service/src/, ml-service/src/, --config, p/python, --config, p/owasp-top-ten, --error]
         pass_filenames: false
         files: ^(api|sync-service|ml-service)/src/.*\.py$

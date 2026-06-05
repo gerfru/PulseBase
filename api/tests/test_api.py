@@ -146,6 +146,8 @@ async def test_register_page(client):
         "/api/seizures/risk",
         "/api/glucose",
         "/api/glucose/stats",
+        # Operational
+        "/api/metrics",
     ],
 )
 async def test_unauthenticated_redirects_to_login(client, path):

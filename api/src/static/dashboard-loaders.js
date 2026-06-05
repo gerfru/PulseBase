@@ -15,7 +15,7 @@ function renderActivitiesTable(activities) {
             </tr></thead>
             <tbody>${activities
                 .map(
-                    (a) => `<tr data-id="${a.id}" style="cursor:pointer">
+                    (a) => `<tr data-id="${Number(a.id)}" style="cursor:pointer">
                 <td class="sport">${sportLabel(a.sport_type)}</td>
                 <td>${fmtDate(a.started_at)}</td>
                 <td>${fmtDuration(a.duration_seconds)}</td>

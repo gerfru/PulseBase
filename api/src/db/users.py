@@ -3,6 +3,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+import asyncpg
+
 from .pool import get_pool
 
 
@@ -352,7 +354,11 @@ _EXPORT_GLUCOSE_SQL = """
 """
 
 
-async def _load_user_records(conn, query: str, user_id: int) -> list[dict]:
+async def _load_user_records(
+    conn: asyncpg.Connection | asyncpg.pool.PoolConnectionProxy,  # type: ignore[type-arg]
+    query: str,
+    user_id: int,
+) -> list[dict]:
     return [dict(r) for r in await conn.fetch(query, user_id)]
 
 

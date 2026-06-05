@@ -631,9 +631,17 @@ def test_garmin_link_has_rate_limit_decorator():
 
 
 def test_libre_link_has_rate_limit_decorator():
-    """libre_link POST must have a @limiter.limit decorator applied."""
-    from src.routes.libre import router
+    """libre_link POST must have a @limiter.limit('5/hour') decorator applied."""
+    import inspect
 
+    from src.routes.libre import libre_link, router
+
+    fn = libre_link
+    while hasattr(fn, "__wrapped__"):
+        fn = fn.__wrapped__
+    assert "5/hour" in inspect.getsource(fn), (
+        "libre_link must have @limiter.limit('5/hour') decorator"
+    )
     post_routes = [
         r
         for r in router.routes
