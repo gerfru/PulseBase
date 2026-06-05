@@ -3,6 +3,7 @@
   "extends": ["config:recommended"],
   "pinDigests": true,
   "platformAutomerge": false,
+  "ignoreDeps": ["grafana/loki", "grafana/promtail", "louislam/uptime-kuma"],
   "packageRules": [
     {
       "description": "Python dev-dep patch-Updates: sicher, automatisch mergen",
