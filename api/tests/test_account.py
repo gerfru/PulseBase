@@ -57,23 +57,53 @@ async def test_delete_account_wrong_password_returns_400(client):
     assert "Passwort" in r.text
 
 
-# ── Delete: success ───────────────────────────────────────────────────────────
+# ── Delete: two-step e-mail confirmation ─────────────────────────────────────
 
 
-async def test_delete_account_success_redirects_and_clears_session(client):
-    with patch("src.routes.account.require_user", AsyncMock(return_value=TEST_USER)):
-        with patch(
+async def test_delete_account_success_sends_email_and_shows_pending_page(client):
+    """L-04: POST /account/delete no longer deletes immediately; sends confirmation e-mail."""
+    with (
+        patch("src.routes.account.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
             "src.routes.account.get_user_by_email",
             AsyncMock(return_value=_USER_WITH_HASH),
-        ):
-            with patch("src.routes.account.delete_user", AsyncMock()) as mock_delete:
-                r = await client.post(
-                    "/account/delete",
-                    data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
-                )
+        ),
+        patch("src.routes.account.set_pending_deletion", AsyncMock()) as mock_pending,
+        patch(
+            "src.routes.account.send_deletion_confirm_email",
+            AsyncMock(return_value=True),
+        ) as mock_email,
+        patch("src.routes.account._make_deletion_token", return_value="test-token"),
+    ):
+        r = await client.post(
+            "/account/delete",
+            data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
+        )
+    assert r.status_code == 200
+    assert "Bestätigungs-E-Mail" in r.text or "Bestätigung" in r.text
+    mock_pending.assert_awaited_once_with(TEST_USER["id"])
+    mock_email.assert_awaited_once_with(TEST_USER["email"], "test-token")
+
+
+async def test_confirm_delete_account_valid_token_deletes_and_redirects(client):
+    with (
+        patch(
+            "src.routes.account._verify_deletion_token",
+            return_value=TEST_USER["id"],
+        ),
+        patch("src.routes.account.get_user_by_id", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.account.delete_user", AsyncMock()) as mock_delete,
+    ):
+        r = await client.get("/account/delete/confirm/valid-token")
     assert r.status_code == 303
     assert r.headers["location"] == "/login?deleted=1"
     mock_delete.assert_awaited_once_with(TEST_USER["id"])
+
+
+async def test_confirm_delete_account_invalid_token_returns_400(client):
+    with patch("src.routes.account._verify_deletion_token", return_value=None):
+        r = await client.get("/account/delete/confirm/bad-token")
+    assert r.status_code == 400
 
 
 # ── Delete: NeedsLogin when require_user raises ───────────────────────────────

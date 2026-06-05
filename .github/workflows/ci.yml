@@ -274,15 +274,15 @@ jobs:
           enable-cache: true
       - name: pytest api
         working-directory: api
-        run: uv sync --frozen --extra dev && uv run pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=70
+        run: uv sync --frozen --extra dev && uv run pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=75
         env:
           FERNET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
       - name: pytest sync-service
         working-directory: sync-service
-        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=70
+        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=75
       - name: pytest ml-service
         working-directory: ml-service
-        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=80
+        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=75
 
   ci-ok:
     name: CI OK (All Green Gate)

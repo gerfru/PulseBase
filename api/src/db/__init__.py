@@ -2,6 +2,7 @@ from .pool import Settings, get_pool
 from .users import (
     create_user,
     delete_user,
+    set_pending_deletion,
     export_user_data,
     get_user_by_email,
     get_user_by_id,
@@ -64,6 +65,7 @@ __all__ = [
     "get_pool",
     "create_user",
     "delete_user",
+    "set_pending_deletion",
     "export_user_data",
     "get_user_token",
     "clear_reset_token",

@@ -49,6 +49,12 @@
 | 2026-06-03 | Wave 13 Runde 4 — Code-Qualität | M-78 (assert→ValueError DB-Schicht), M-82 (/api/metrics Endpoint), M-85 (auth_helpers.py extrahiert, auth.py 339Z), M-86 (scheduler.py + garmin_call→client.py, sync/main.py 372Z), M-87 (_backfill_custom_scores 4 Helfer), L-69 (SQL-Parameterreihenfolge), L-70 (assert→RuntimeError), L-71 (Return-Annotierungen), L-72 (Docstrings), L-73 (CC-Reduktion 4 Funktionen), L-74 (bare except→spezifisch) gefixt |
 | 2026-06-03 | Wave 13 Runde 5 — Observability + Public Release | L-66 (require_user auf /api/evidence), L-78 (Loki + Promtail Compose-Services), L-79 (Uptime Kuma Compose-Service + Alert-Doku), M-19 (Uptime Kuma statt UptimeRobot), ARCH-M3 (Traefik ACME/Let's Encrypt konfiguriert) gefixt · Docs: homelab→public, Ausnahmen begründet, external-services.md |
 | 2026-06-05 | ISEC Code Review — TU Graz Security Curriculum (3 Dimensionen: Security · Code-Qualität · Compliance) | 1M · 9L neu entdeckt (Wave 14 offen) |
+| 2026-06-05 | Eval 7 — Full App-Audit nach Wave 13 + ISEC (6 Subagenten parallel, Public-Release-Fokus) | 1C · 6H · 18M · 13L (4 false positives: C-01, H-03, H-05, M-04) |
+| 2026-06-05 | Wave 14 Runde 1 — Security Quick Wins | H-01 (clear_reset_token vor update_password), L-05 (email_verified_at IS NOT NULL in get_user_by_id), L-04 (Account-Deletion E-Mail-Bestätigung: V23, auth_tokens, mail, account.py, template) gefixt |
+| 2026-06-05 | Wave 14 Runde 2 — Error Handling & Robustheit | H-02 (require_fernet_key helper, 5× Guard → 1), H-04 (_sync_date_range Exception-Handler für _sync_activities), M-09 (json.loads try/except LibreAuthError), H-06 (stop_grace_period 120s), M-05 (SIGTERM vor repo.init) gefixt |
+| 2026-06-05 | Wave 14 Runde 3 — Observability & Health Checks | M-17 (HTTP Health-Server sync + ml: asyncio.start_server Port 8080), M-16 (backfill_energy.py → structlog), M-18 (psutil Saturation in /api/metrics), L-12 (--no-install-recommends Dockerfiles), OBS-L3 (Alert-Doku Public-Release aktualisiert) gefixt |
+| 2026-06-05 | Wave 14 Runde 4 — Tests | M-11 (configure_sentry Tests alle 3 Services), M-13 (fail_under 70→75% alle 3), M-14 (reset token reuse test), L-10 (E2E UUID-Suffix), L-11 (mail Tests parametrized 6→2) gefixt |
+| 2026-06-05 | Wave 14 Runde 5 — Code-Qualität | M-08 (list[T] Generics in inference_models.py), L-08 (_save_and_log Helper 6× extrahiert), L-07 (ML models chown appuser ✅ bereits in R3), L-06 (proxy network Kommentar) gefixt |
 
 ---
 

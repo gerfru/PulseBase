@@ -33,6 +33,19 @@ from models.trimp import compute_trimp
 logger = structlog.get_logger(__name__)
 
 
+async def _save_and_log(
+    user_id: int,
+    today: date,
+    key: str,
+    pred_score: float | None,
+    meta: dict[str, Any],
+    log_event: str,
+    **log_ctx: Any,
+) -> None:
+    await save_prediction(user_id, today, key, pred_score, meta)
+    logger.info(log_event, user_id=user_id, **log_ctx)
+
+
 async def _run_readiness(user_id: int, today: date, settings: Settings) -> None:
     model_path = settings.model_dir / f"readiness_rf_{user_id}.joblib"
     features = await get_latest_features(user_id)
@@ -65,10 +78,13 @@ async def _run_battery_pattern(user_id: int, today: date, settings: Settings) ->
     bp = battery_predict_today(today_bb, str(settings.model_dir), user_id)
     if bp is None:
         return
-    await save_prediction(user_id, today, "battery_pattern", float(bp["cluster"]), bp)
-    logger.info(
+    await _save_and_log(
+        user_id,
+        today,
+        "battery_pattern",
+        float(bp["cluster"]),
+        bp,
         "battery_pattern.done",
-        user_id=user_id,
         pattern=bp["pattern"],
         cluster=bp["cluster"],
     )
@@ -89,12 +105,13 @@ async def _run_training_effect(
     te = compute_training_effect_today(
         btr["trimp_today"], btr["ctl"], rhr_for_vo2, hrmax
     )
-    await save_prediction(
-        user_id, today, "training_effect_custom", te.get("score"), {**btr, **te}
-    )
-    logger.info(
+    await _save_and_log(
+        user_id,
+        today,
+        "training_effect_custom",
+        te.get("score"),
+        {**btr, **te},
         "training_effect.done",
-        user_id=user_id,
         effect=te.get("effect"),
         trimp=btr.get("trimp_today"),
     )
@@ -104,12 +121,13 @@ async def _run_sleep_and_spo2(user_id: int, today: date) -> None:
     spo2_rows = await get_spo2_history(user_id, days=7)
     spo2_result = compute_spo2_trend(spo2_rows)
     if spo2_result.get("mean_spo2") is not None:
-        await save_prediction(
-            user_id, today, "spo2_trend", spo2_result.get("mean_spo2"), spo2_result
-        )
-        logger.info(
+        await _save_and_log(
+            user_id,
+            today,
+            "spo2_trend",
+            spo2_result.get("mean_spo2"),
+            spo2_result,
             "spo2_trend.done",
-            user_id=user_id,
             mean=spo2_result.get("mean_spo2"),
             trend=spo2_result.get("trend"),
             apnea=spo2_result.get("apnea_flag"),
@@ -118,12 +136,13 @@ async def _run_sleep_and_spo2(user_id: int, today: date) -> None:
     sess_rows = await get_sleep_sessions_14d(user_id)
     cons_result = compute_sleep_consistency(sess_rows)
     if cons_result.get("score") is not None:
-        await save_prediction(
-            user_id, today, "sleep_consistency", cons_result.get("score"), cons_result
-        )
-        logger.info(
+        await _save_and_log(
+            user_id,
+            today,
+            "sleep_consistency",
+            cons_result.get("score"),
+            cons_result,
             "sleep_consistency.done",
-            user_id=user_id,
             score=cons_result.get("score"),
             std_wake=cons_result.get("std_wake_h"),
         )
@@ -143,7 +162,7 @@ async def _run_sleep_and_spo2(user_id: int, today: date) -> None:
 async def _run_hrv_and_recovery(
     user_id: int,
     today: date,
-    hrv_hist: list,
+    hrv_hist: list[float | None],
     act_rows: list[dict[str, Any]],
     hrmax: float,
 ) -> None:
@@ -176,7 +195,7 @@ async def _run_hrv_and_recovery(
         )
 
 
-def _compute_hrv_baseline(hrv_hist: list) -> float:
+def _compute_hrv_baseline(hrv_hist: list[float | None]) -> float:
     hrv_valid = [v for v in hrv_hist if v is not None]
     return sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0.0
 
@@ -228,7 +247,7 @@ async def _run_body_battery(
 async def _run_stress_score(
     user_id: int,
     today: date,
-    hrv_hist: list,
+    hrv_hist: list[float | None],
     daily_today: dict | None,
 ) -> None:
     stress_result = compute_stress_score(
@@ -251,8 +270,8 @@ async def _run_body_battery_and_stress(
     today: date,
     act_rows: list[dict[str, Any]],
     hrmax: float,
-    hrv_hist: list,
-    sleep_h: list,
+    hrv_hist: list[float | None],
+    sleep_h: list[dict[str, Any]],
     daily_today: dict | None,
 ) -> None:
     yesterday_bb = await get_yesterday_prediction(user_id, "body_battery_custom")
@@ -287,7 +306,7 @@ async def _run_running_and_intensity(
     user_id: int,
     today: date,
     hrmax: float,
-    hr_records: list,
+    hr_records: list[int],
     resting_hr_today: float | None,
 ) -> None:
     run_rows = await get_running_economy_activities(user_id)
