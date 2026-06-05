@@ -2,8 +2,15 @@ import hashlib
 
 import asyncpg
 import bcrypt
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from src.mail import (
+    send_deletion_confirm_email,
+    send_lockout_email,
+    send_reset_email,
+    send_verify_email,
+)
 from tests.conftest import TEST_USER
 
 _TEST_PASSWORD = "testpassword123"  # pragma: allowlist secret
@@ -368,63 +375,101 @@ async def test_reset_password_success_clears_session(client):
     assert "max-age=0" in set_cookie.lower() or "session=" in set_cookie
 
 
+async def test_reset_token_invalidated_before_password_update(client):
+    """H-01: clear_reset_token must fire before update_password to prevent replay attacks."""
+    call_order: list[str] = []
+
+    async def mock_clear(user_id: int) -> None:
+        call_order.append("clear_reset_token")
+
+    async def mock_update(user_id: int, hashed: str) -> None:
+        call_order.append("update_password")
+
+    with (
+        patch(
+            "src.routes.auth._verify_reset_token",
+            AsyncMock(return_value=TEST_USER["id"]),
+        ),
+        patch("src.routes.auth.clear_reset_token", side_effect=mock_clear),
+        patch("src.routes.auth.update_password", side_effect=mock_update),
+    ):
+        await client.get("/auth/reset/any-token")
+        r = await client.post(
+            "/auth/reset/any-token",
+            data={
+                "password": "newpassword1",  # pragma: allowlist secret
+                "password_confirm": "newpassword1",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code == 303
+    assert call_order == ["clear_reset_token", "update_password"]
+
+
+async def test_reset_token_cannot_be_reused_after_success(client):
+    """M-14: A second POST with the same token after a successful reset must fail."""
+    with (
+        patch(
+            "src.routes.auth._verify_reset_token",
+            AsyncMock(return_value=TEST_USER["id"]),
+        ),
+        patch("src.routes.auth.update_password", AsyncMock()),
+        patch("src.routes.auth.clear_reset_token", AsyncMock()),
+    ):
+        await client.get("/auth/reset/used-token")
+        await client.post(
+            "/auth/reset/used-token",
+            data={
+                "password": "newpassword1",  # pragma: allowlist secret
+                "password_confirm": "newpassword1",  # pragma: allowlist secret
+            },
+        )
+
+    # Second attempt: session was cleared after first reset, so request is rejected
+    with patch("src.routes.auth._verify_reset_token", AsyncMock(return_value=None)):
+        r = await client.post(
+            "/auth/reset/used-token",
+            data={
+                "password": "anotherpass1",  # pragma: allowlist secret
+                "password_confirm": "anotherpass1",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code in (400, 403)
+
+
 # ── Account lockout ───────────────────────────────────────────────────────────
 
 
-async def test_lockout_email_skipped_when_no_api_key(client):
+_MAIL_CASES = [
+    (send_lockout_email, {"to_email": "test@example.com", "lockout_minutes": 15}),
+    (send_reset_email, {"to_email": "test@example.com", "token": "tok"}),
+    (send_verify_email, {"to_email": "test@example.com", "token": "tok"}),
+    (send_deletion_confirm_email, {"to_email": "test@example.com", "token": "tok"}),
+]
+
+
+@pytest.mark.parametrize(
+    "send_fn,kwargs", _MAIL_CASES, ids=["lockout", "reset", "verify", "deletion"]
+)
+async def test_mail_no_api_key_returns_false(client, send_fn, kwargs):
+    """L-11: All mail functions return False when RESEND_API_KEY is not set."""
     with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = ""
-        from src.mail import send_lockout_email
-
-        result = await send_lockout_email("victim@example.com", lockout_minutes=15)
+        result = await send_fn(**kwargs)
     assert result is False
 
 
-async def test_lockout_email_exception_returns_false(client):
+@pytest.mark.parametrize(
+    "send_fn,kwargs", _MAIL_CASES, ids=["lockout", "reset", "verify", "deletion"]
+)
+async def test_mail_exception_returns_false(client, send_fn, kwargs):
+    """L-11: All mail functions return False when the send call raises."""
     with patch("src.mail.settings") as mock_settings:
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
         with patch("src.mail.resend_client") as mock_resend:
             mock_resend.Emails.send = MagicMock(side_effect=Exception("send failed"))
-            from src.mail import send_lockout_email
-
-            result = await send_lockout_email("victim@example.com", lockout_minutes=15)
-    assert result is False
-
-
-async def test_reset_email_exception_returns_false(client):
-    with patch("src.mail.settings") as mock_settings:
-        mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
-        mock_settings.resend_from_email = "noreply@example.com"
-        mock_settings.app_base_url = "https://example.com"
-        with patch("src.mail.resend_client") as mock_resend:
-            mock_resend.Emails.send = MagicMock(side_effect=Exception("send failed"))
-            from src.mail import send_reset_email
-
-            result = await send_reset_email("user@example.com", "sometoken")
-    assert result is False
-
-
-async def test_verify_email_skipped_returns_false(client):
-    with patch("src.mail.settings") as mock_settings:
-        mock_settings.resend_api_key = ""
-        from src.mail import send_verify_email
-
-        result = await send_verify_email("user@example.com", "sometoken")
-    assert result is False
-
-
-async def test_verify_email_exception_returns_false(client):
-    with patch("src.mail.settings") as mock_settings:
-        mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
-        mock_settings.resend_from_email = "noreply@example.com"
-        mock_settings.app_base_url = "https://example.com"
-        with patch("src.mail.resend_client") as mock_resend:
-            mock_resend.Emails.send = MagicMock(side_effect=Exception("send failed"))
-            from src.mail import send_verify_email
-
-            result = await send_verify_email("user@example.com", "sometoken")
+            result = await send_fn(**kwargs)
     assert result is False
 
 

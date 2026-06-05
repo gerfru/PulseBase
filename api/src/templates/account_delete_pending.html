@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Kontolöschung bestätigen{% endblock %}
+{% block content %}
+<div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-100 mb-1">PulseBase</h1>
+    <p class="text-slate-400 text-sm mb-8">Kontolöschung</p>
+
+    <div class="w-full max-w-sm">
+        <div class="card">
+            {% if error %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">{{ error }}</div>
+            {% else %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/25 text-amber-300 text-sm">
+                Wir haben dir eine Bestätigungs-E-Mail geschickt. Klicke auf den Link in der E-Mail um dein Konto endgültig zu löschen.
+            </div>
+            <p class="text-slate-400 text-sm">
+                Der Link ist 24 Stunden gültig. Falls du das nicht warst, kannst du diesen Vorgang ignorieren — dein Konto bleibt unverändert.
+            </p>
+            {% endif %}
+        </div>
+        <p class="mt-5 text-center text-sm text-slate-400">
+            <a href="/settings" class="text-emerald-400 hover:underline">Zurück zu Einstellungen</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

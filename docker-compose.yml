@@ -103,7 +103,7 @@ services:
     build: ./sync-service
     container_name: pulsebase-sync
     restart: unless-stopped
-    stop_grace_period: 90s
+    stop_grace_period: 120s
     labels:
       - "monitoring=true"
     depends_on:
@@ -119,8 +119,8 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "find", "/tmp/sync_alive", "-mmin", "-2"]
-      interval: 60s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
       timeout: 5s
       start_period: 120s
       retries: 3
@@ -139,7 +139,7 @@ services:
     build: ./ml-service
     container_name: pulsebase-ml
     restart: unless-stopped
-    stop_grace_period: 60s
+    stop_grace_period: 120s
     labels:
       - "monitoring=true"
     depends_on:
@@ -158,10 +158,10 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "sh", "-c", "find /tmp/ml_alive -mmin -2 && test -d /app/models"]
-      interval: 60s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
       timeout: 5s
-      start_period: 30s
+      start_period: 60s
       retries: 3
     deploy:
       resources:
@@ -182,4 +182,4 @@ networks:
   internal:
     driver: bridge
   proxy:
-    external: true
+    external: true  # must exist: docker network create proxy

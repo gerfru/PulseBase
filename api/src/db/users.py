@@ -42,7 +42,7 @@ async def get_user_by_id(user_id: int) -> dict | None:
         """
         SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email,
                date_of_birth, sex, epilepsy_mode, spo2_enabled
-        FROM users WHERE id = $1 AND is_active = true
+        FROM users WHERE id = $1 AND is_active = true AND email_verified_at IS NOT NULL
         """,
         user_id,
     )
@@ -211,6 +211,14 @@ async def get_ml_status(user_id: int) -> dict:
         if row and row["last_ml_at"]
         else None,
     }
+
+
+async def set_pending_deletion(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET pending_deletion_at = NOW() WHERE id = $1",
+        user_id,
+    )
 
 
 async def delete_user(user_id: int) -> None:

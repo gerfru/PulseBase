@@ -46,6 +46,7 @@ from inference_models import (
     _run_sleep_and_spo2,
     _run_training_effect,
 )
+from health_server import start_health_server
 from logging_config import configure_logging, configure_sentry
 from models.battery_pattern import fit_and_save as battery_fit_and_save
 from models.readiness import train_and_save
@@ -213,6 +214,8 @@ async def main() -> None:  # pragma: no cover
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
+
+    await start_health_server()
 
     logger.info("ml.initial_run")
     initial_task = asyncio.create_task(run_all_users(settings, include_training=True))

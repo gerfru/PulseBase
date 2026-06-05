@@ -352,8 +352,8 @@ async def reset_password(
             {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
             status_code=400,
         )
-    await update_password(user_id, hash_password(password))
     await clear_reset_token(user_id)
+    await update_password(user_id, hash_password(password))
     request.session.clear()
     logger.info("auth.password_reset.success", user_id=user_id)
     return RedirectResponse("/login?reset=1", status_code=303)

@@ -3,6 +3,7 @@
 import logging
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -53,3 +54,29 @@ def test_db_url_property_contains_credentials(monkeypatch):
     settings = Settings()  # type: ignore[call-arg]
     expected = "postgresql://myuser:mypass@dbhost:5433/mydb"  # pragma: allowlist secret
     assert settings.db_url == expected
+
+
+# ── configure_sentry ──────────────────────────────────────────────────────────
+
+
+def test_configure_sentry_noop_when_no_dsn():
+    """M-11: configure_sentry must not call sentry_sdk.init when SENTRY_DSN is not set."""
+    from logging_config import configure_sentry
+
+    settings = MagicMock()
+    settings.sentry_dsn = ""
+    with patch("sentry_sdk.init") as mock_init:
+        configure_sentry(settings)
+    mock_init.assert_not_called()
+
+
+def test_configure_sentry_no_pii_when_dsn_set():
+    """M-11: configure_sentry must set send_default_pii=False."""
+    from logging_config import configure_sentry
+
+    settings = MagicMock()
+    settings.sentry_dsn = "https://x@sentry.io/1"
+    with patch("sentry_sdk.init") as mock_init:
+        configure_sentry(settings)
+    mock_init.assert_called_once()
+    assert mock_init.call_args.kwargs["send_default_pii"] is False
