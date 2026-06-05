@@ -31,7 +31,7 @@ from garmin.mapper import (
     map_summary,
     map_training_status,
 )
-from logging_config import configure_logging
+from logging_config import configure_logging, configure_sentry
 from repositories.timescale import TimescaleRepository
 
 configure_logging()
@@ -65,7 +65,9 @@ async def _sync_daily_summary_for_day(
         summary_raw = garmin_call(lambda: client.get_daily_summary(current))
         await repo.upsert_daily(map_summary(summary_raw, user_id, current))
     except Exception as e:
-        logger.warning("daily_summary.failed", date=str(current), error=str(e))
+        logger.error(
+            "daily_summary.failed", date=str(current), error=str(e), exc_info=True
+        )
 
 
 async def _sync_sleep_for_day(
@@ -81,7 +83,7 @@ async def _sync_sleep_for_day(
         ):
             await repo.save_sleep(session)
     except Exception as e:
-        logger.warning("sleep.failed", date=str(current), error=str(e))
+        logger.error("sleep.failed", date=str(current), error=str(e), exc_info=True)
 
 
 async def _sync_hrv_for_day(
@@ -93,7 +95,7 @@ async def _sync_hrv_for_day(
         if hrv:
             await repo.upsert_hrv(hrv)
     except Exception as e:
-        logger.warning("hrv.failed", date=str(current), error=str(e))
+        logger.error("hrv.failed", date=str(current), error=str(e), exc_info=True)
 
 
 async def _sync_body_battery_for_day(
@@ -105,7 +107,9 @@ async def _sync_body_battery_for_day(
             "body_battery_intraday", user_id, map_body_battery(bb_raw, user_id)
         )
     except Exception as e:
-        logger.warning("body_battery.failed", date=str(current), error=str(e))
+        logger.error(
+            "body_battery.failed", date=str(current), error=str(e), exc_info=True
+        )
 
 
 async def _sync_stress_for_day(
@@ -117,7 +121,7 @@ async def _sync_stress_for_day(
             "stress_intraday", user_id, map_stress(stress_raw, user_id)
         )
     except Exception as e:
-        logger.warning("stress.failed", date=str(current), error=str(e))
+        logger.error("stress.failed", date=str(current), error=str(e), exc_info=True)
 
 
 async def _sync_training_status_for_day(
@@ -129,7 +133,9 @@ async def _sync_training_status_for_day(
         if status:
             await repo.upsert_training_status(user_id, current, status)
     except Exception as e:
-        logger.warning("training_status.failed", date=str(current), error=str(e))
+        logger.error(
+            "training_status.failed", date=str(current), error=str(e), exc_info=True
+        )
 
 
 async def _sync_day(
@@ -152,11 +158,9 @@ async def _get_garmin_token(
         file_dir = str(settings.token_base_dir / str(user["id"]))
         if Path(file_dir).exists():
             serialized = serialize_token_dir(file_dir)
-            blob = (
-                fernet_encrypt(serialized, settings.fernet_key)
-                if settings.fernet_key
-                else serialized
-            )
+            if not settings.fernet_key:
+                raise RuntimeError("FERNET_KEY must be set — see config.py validator")
+            blob = fernet_encrypt(serialized, settings.fernet_key)
             await repo.save_user_token(user["id"], "garmin", blob)
     return blob
 
@@ -164,7 +168,9 @@ async def _get_garmin_token(
 def _init_garmin_client(
     user: dict, blob: bytes, settings: Settings, tmpdir: str
 ) -> GarminClient:
-    raw = fernet_decrypt(blob, settings.fernet_key) if settings.fernet_key else blob
+    if not settings.fernet_key:
+        raise RuntimeError("FERNET_KEY must be set — see config.py validator")
+    raw = fernet_decrypt(blob, settings.fernet_key)
     restore_token_dir(raw, tmpdir)
     client = GarminClient(
         email=user["garmin_email"],
@@ -201,11 +207,9 @@ async def sync_user(
             client = _init_garmin_client(user, blob, settings, tmpdir)
             await _sync_date_range(client, repo, user["id"], days)
             serialized = serialize_token_dir(tmpdir)
-            encrypted = (
-                fernet_encrypt(serialized, settings.fernet_key)
-                if settings.fernet_key
-                else serialized
-            )
+            if not settings.fernet_key:
+                raise RuntimeError("FERNET_KEY must be set — see config.py validator")
+            encrypted = fernet_encrypt(serialized, settings.fernet_key)
             await repo.save_user_token(user["id"], "garmin", encrypted)
         logger.info("sync.done", user_id=user["id"])
     finally:
@@ -224,18 +228,20 @@ async def sync_libre_user(
             )
             if file_path.exists():
                 raw = file_path.read_bytes()
-                blob = (
-                    fernet_encrypt(raw, settings.fernet_key)
-                    if settings.fernet_key
-                    else raw
-                )
+                if not settings.fernet_key:
+                    raise RuntimeError(
+                        "FERNET_KEY must be set — see config.py validator"
+                    )
+                blob = fernet_encrypt(raw, settings.fernet_key)
                 await repo.save_user_token(user["id"], "libre", blob)
         if blob is None:
             raise LibreAuthError(
                 "Kein LibreLinkUp-Token — Neu-Verknüpfung erforderlich"
             )
 
-        raw = fernet_decrypt(blob, settings.fernet_key) if settings.fernet_key else blob
+        if not settings.fernet_key:
+            raise RuntimeError("FERNET_KEY must be set — see config.py validator")
+        raw = fernet_decrypt(blob, settings.fernet_key)
         token_data = json.loads(raw)
         client = connect_with_token(token_data["token"])
         readings = get_recent_glucose(client, hours=2)
@@ -324,20 +330,7 @@ async def main() -> None:  # pragma: no cover
     except Exception:
         raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
 
-    if settings.sentry_dsn:
-        import os
-        import sentry_sdk
-
-        sentry_sdk.init(
-            dsn=settings.sentry_dsn,
-            send_default_pii=False,
-            traces_sample_rate=0.1,
-            environment=os.getenv("APP_ENV", "production"),
-            release=os.getenv("APP_VERSION", "unknown"),
-        )
-        logger.info("sentry.initialized")
-    else:
-        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
+    configure_sentry(settings)
 
     repo = TimescaleRepository(settings.db_url)
     await repo.init()

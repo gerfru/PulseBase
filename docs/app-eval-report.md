@@ -48,19 +48,21 @@
 | 2026-06-03 | Wave 13 Runde 3 — Tests + CI/CD | M-79 (fail_under 65→70%), M-80 (CICD-M4 Tech-Debt), L-75 (POST /api/sync entfernt), L-76 (pragma allowlist secret), L-77 (platformAutomerge: false) gefixt |
 | 2026-06-03 | Wave 13 Runde 4 — Code-Qualität | M-78 (assert→ValueError DB-Schicht), M-82 (/api/metrics Endpoint), M-85 (auth_helpers.py extrahiert, auth.py 339Z), M-86 (scheduler.py + garmin_call→client.py, sync/main.py 372Z), M-87 (_backfill_custom_scores 4 Helfer), L-69 (SQL-Parameterreihenfolge), L-70 (assert→RuntimeError), L-71 (Return-Annotierungen), L-72 (Docstrings), L-73 (CC-Reduktion 4 Funktionen), L-74 (bare except→spezifisch) gefixt |
 | 2026-06-03 | Wave 13 Runde 5 — Observability + Public Release | L-66 (require_user auf /api/evidence), L-78 (Loki + Promtail Compose-Services), L-79 (Uptime Kuma Compose-Service + Alert-Doku), M-19 (Uptime Kuma statt UptimeRobot), ARCH-M3 (Traefik ACME/Let's Encrypt konfiguriert) gefixt · Docs: homelab→public, Ausnahmen begründet, external-services.md |
+| 2026-06-05 | ISEC Code Review — TU Graz Security Curriculum (3 Dimensionen: Security · Code-Qualität · Compliance) | 1M · 9L neu entdeckt (Wave 14 offen) |
 
 ---
 
 ## Achsen-Übersicht
 
-| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | W12 | Eval 6 | W13 | W13 R4+R5 | Noch offen |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | — |
-| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | H-07 (manuell) |
-| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | — |
-| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | — |
-| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | — |
-| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | H-07 (manuell) |
+| Achse | Eval 1 | Eval 2 | W1 | W2 | W5 | W6 | W7/8 | Eval 3 | W9 | Eval 4 | W10 | W11 | Eval 5 | W12 | Eval 6 | W13 | W13 R4+R5 | ISEC | Noch offen |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Architektur & 12-Factor | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | — |
+| Security (ASVS L2) | 🔴 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | H-07 (manuell) · M-88 · L-81–L-86 |
+| Code-Qualität | 🔴 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | — |
+| Tests & Zuverlässigkeit | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | — |
+| CI/CD & Delivery | 🟡 | 🟡 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 | 🟢 | 🟢 | 🟢 | — |
+| Observability & Betrieb | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | 🟡 | 🟢 | 🟡 | 🟡 | 🟢 | 🟢 | H-07 (manuell) |
+| Compliance (DSGVO/EU AI) | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | 🟡 | L-87–L-89 |
 
 **Eval 3 Begründung:**
 - **Architektur 🔴:** H-11 (Admin-Credentials in App-Service-Env) ist High-Severity-Befund; stop_grace_period für api+sync fehlt trotz W7-Fix (W7 adressierte nur ml-service).
@@ -88,6 +90,11 @@
 - **Tests 🟡:** M-79 (sync-service `fail_under=65%` — M-59 hob von 50% auf 65% an; Ziel ist 70%).
 - **CI/CD 🟡:** M-80 (kein automatisierter Deployment-Step in Pipeline — strukturelles Gap, als Tech-Debt dokumentiert CICD-M4).
 - **Observability 🟡:** M-81 (LOG_LEVEL hardcoded in allen 3 `logging_config.py` — 12-Factor-Verstoß), M-82 (In-Memory-Metriken `_active_requests`/`_error_requests` nicht extern abrufbar; M-20 W7 fügte Counter hinzu, aber kein `/metrics`-Endpoint für Prometheus/externe Monitoring-Systeme).
+
+**ISEC Code Review Begründung (2026-06-05, nach Wave 13 — TU Graz Security Curriculum):**
+- **Security 🟡:** M-88 (kein `max_length` auf Passwort-Feldern — `bcrypt >= 4.0` wirft `ValueError` bei >72 Bytes → HTTP 500 auf allen 4 Auth-Endpunkten); 5 Security-LOWs: latenter DOM XSS in `mlStatTile()` dashboard-hero.js, `/ready` leakt Infrastruktur-Detail, Garmin-Passwort bleibt in `client.password` nach Login, Fernet-Dead-Code-Branches in sync-service/main.py (H-16/H-21 fixten nur api/), CSRF auf sitzungslosen E-Mail-Endpunkten. Basis bleibt stark — alle bisherigen Security-Findings ✅ gefixt.
+- **Compliance 🟡:** 3 neue Findings: DSGVO Art. 32 (Gesundheitsdaten ohne Spaltenverschlüsselung), DSGVO Art. 9/35 (kein DPIA-Dokument für Sonderkategorie-Verarbeitung), EU AI Act Art. 13 (ML-Prognosen ohne Unsicherheits-Indikatoren im UI). Kein direktes Sicherheitsrisiko; Rechenschaftspflicht-Lücken.
+- **Andere Achsen 🟢:** Architektur, Code-Qualität, Tests, CI/CD, Observability — keine neuen Findings.
 
 ---
 
@@ -216,6 +223,7 @@
 | M-85 | ✅ | W13 R4 | **`api/src/routes/auth.py` 429Z → 339Z** — Login-Helfer (`_lockout_response`, `_handle_invalid_credentials`, `_handle_unverified_email`, `_establish_session`) in `api/src/auth_helpers.py` extrahiert | `api/src/routes/auth.py`, `api/src/auth_helpers.py` (neu) | Code-Qualität |
 | M-86 | ✅ | W13 R4 | **`sync-service/src/main.py` 419Z → 372Z** — `garmin_call` → `garmin/client.py`; `_configure_scheduler` + `_write_alive_sentinel` → `scheduler.py` (neu) | `sync-service/src/main.py`, `sync-service/src/scheduler.py` (neu) | Code-Qualität |
 | M-87 | ✅ | W13 R4 | **`_backfill_custom_scores()` CC=15 → 4 Helfer** — `_save_body_battery`, `_save_stress_score`, `_save_running_economy`, `_save_hrv_recovery` extrahiert; Orchestrator jetzt ~22Z | `ml-service/src/backfill.py:73` | Code-Qualität |
+| M-88 | ❌ | W14 R1 | **Kein `max_length` auf Passwort-Form-Feldern → bcrypt ValueError → HTTP 500** — `password: str = Form()` ohne Längen-Limit auf `/login`, `/register`, `/auth/reset/{token}`, `/account/delete`; `bcrypt >= 4.0` wirft `ValueError: Password must be 72 bytes or fewer` bei >72 Bytes → unkontrollierter 500 auf allen 4 Auth-Endpunkten; legitime User mit langem Passwort bekommen 500 statt Validierungsfehler · Fix: `max_length=128` auf alle 4 `password: str = Form()`-Parameter | `api/src/routes/auth.py:57,139,318`, `api/src/routes/account.py:42` | Security |
 
 ---
 
@@ -303,21 +311,53 @@
 | L-78 | ✅ | W13 R5 | **Log-Aggregation via Loki + Promtail** — beide als Compose-Services; Promtail sammelt Docker-Logs aller 3 Services; Loki unter `${TAILSCALE_IP}:3100` abfragbar; 7-Tage-Retention | `docker-compose.yml`, `monitoring/loki-config.yml`, `monitoring/promtail-config.yml` | Observability |
 | L-79 | ✅ | W13 R5 | **Alert-System konfiguriert** — Uptime Kuma (Compose-Service, HTTP-Monitor auf `/health`); Sentry Alert Rules in `docs/external-services.md` dokumentiert | `docker-compose.yml`, `docs/external-services.md` | Observability |
 | L-80 | ✅ | W13 R2 | **`PYTHONUNBUFFERED` fehlt in allen Dockerfiles** — ohne `ENV PYTHONUNBUFFERED=1` puffert Python stdout; Logs können bei Container-Crash verloren gehen · Fix: `ENV PYTHONUNBUFFERED=1` in alle 3 Dockerfiles | `api/Dockerfile`, `sync-service/Dockerfile`, `ml-service/Dockerfile` | Observability |
+| L-81 | ❌ | W14 R1 | **DOM XSS (latent): `mlStatTile()` `value`/`sub`-Parameter ohne Escaping in `innerHTML`** — anders als `label` (korrekt per `esc()`); aktuell alle Aufrufer übergeben numerische Werte (`Math.round(rf.value)`, `corr.r.toFixed(2)`); zukünftige Aufrufer mit API-Strings führen ohne Code-Änderung zu XSS · Fix: `esc(String(value))` und `esc(String(sub))` in `mlStatTile()` | `api/src/static/dashboard-hero.js:322-323` | Security |
+| L-82 | ❌ | W14 R1 | **`/ready`-Endpoint leakt interne Infrastruktur-Details (unauthentifiziert)** — gibt `{"status": "no_migrations"}` zurück und verrät damit Flyway-Nutzung + Migrations-Status; L-56 (W10 R6) fixte `/health` korrekt; `/ready` nicht adressiert · Fix: Fehler-Response auf generisches `{"status": "unavailable"}` vereinheitlichen | `api/src/main.py:201-204` | Security |
+| L-83 | ❌ | W14 R1 | **Garmin-Passwort persistiert in `GarminClient.password` nach `connect()`** — `del garmin_password` in `garmin.py:73` entfernt nur die lokale Referenz; `client.password` (gesetzt in `__init__`) hält Klartext bis GC; H-16/H-21 adressierten Verschlüsselung, nicht Memory-Hygiene · Fix: `client.password = ""` direkt nach `client.connect()` | `api/src/routes/garmin.py:73`, `api/src/garmin/client.py:15` | Security |
+| L-84 | ❌ | W14 R1 | **Dead-Code Fernet-Bypass in sync-service** — `fernet_encrypt(...) if settings.fernet_key else serialized` (4×) ist toter Code (Startup-Validator erzwingt Key); signalisiert aber "unverschlüsselt OK"-Betriebsart; H-16 (W10 R1) fixte `api/src/routes/garmin.py`, H-21 (W13 R1) fixte `api/src/routes/libre.py` — sync-service/src/main.py nicht adressiert · Fix: bedingte Branches entfernen, direkt `fernet_encrypt`/`fernet_decrypt` aufrufen | `sync-service/src/main.py:155-157,205-206,228-229,238` | Security |
+| L-85 | ❌ | W14 R2 | **`POST /auth/resend-verify` + `POST /auth/reset-request` ohne CSRF-Token** — sitzungslose Endpunkte; SameSite=Lax schützt session-gebundene POSTs, aber diese Endpunkte benötigen keine Session; Angreifer kann Opfer unaufgefordert Reset-/Verify-E-Mail schicken; Impact gering (unerwünschte E-Mail), Rate Limit 3/h begrenzt Missbrauch · Fix: Accepted-Risk dokumentieren oder minimales Honeypot-Feld ergänzen | `api/src/routes/auth.py:197,237` | Security |
+| L-86 | ❌ | W14 R1 | **`resend_verify` Warning-Response leakt E-Mail-Registrierungsstatus** — bei Resend-API-Ausfall gibt der Endpoint `warning`-Context zurück wenn die E-Mail existiert+unverifiziert ist; alle anderen Fälle (inkl. nicht-registriert) erhalten generischen `info`-Context · Fix: `warning`-Branch auf identischen `info`-Text vereinheitlichen | `api/src/routes/auth.py:207-211` | Security |
+| L-87 | ❌ | W14 R2 | **DSGVO Art. 32: Gesundheitsdaten ohne Spaltenverschlüsselung** — `sleep_sessions`, `hrv_daily`, `daily_summary`, `seizure_events`, `glucose_readings` in Klartext-Spalten; nur `user_tokens` Fernet-verschlüsselt; DSGVO Art. 32 nennt Verschlüsselung explizit als angemessene technische Maßnahme für Gesundheitsdaten (Art. 9) · Fix: Spaltenverschlüsselung für `seizure_events` + `glucose_readings` oder DSGVO-Risikoakzeptanz-Dokument mit Begründung (Full-Disk-Encryption + Zugangskontrollen als Ersatz) | DB-Schema | Compliance |
+| L-88 | ❌ | W14 R2 | **DSGVO Art. 9 + Art. 35: Kein DPIA-Dokument für Sonderkategorie-Gesundheitsdaten** — App verarbeitet Gesundheitsdaten, Epilepsie-Events, Glukose-Werte (Art. 9-Kategorien); Consent-Mechanismus (3 Checkboxen + `user_consents`-Log) liefert Rechtsgrundlage, aber kein Rechenschaftspflicht-Nachweis (Art. 5(2)) für Verarbeitungsrisiken · Fix: `docs/dpia.md` — Minimalformat: Zweck + Rechtsgrundlage + Datenkategorien + Risiken + Maßnahmen | `docs/` | Compliance |
+| L-89 | ❌ | W14 R2 | **EU AI Act Art. 13: ML-Prognosen ohne Unsicherheits-Indikatoren** — Readiness-RF, Anomalie-Z-Scores, Korrelationen ohne Konfidenzangabe oder "KI-Prognose"-Label am Wert im UI; `model_meta_rf.n_rows` bereits in DB gespeichert (`save_prediction` W9) aber nicht exponiert; EU AI Act (Limited Risk) verlangt Transparenz am Punkt der Nutzung · Fix: "KI-Prognose (n=X Tage)"-Badge am Readiness-Wert in dashboard-hero.js; `n_rows` aus `/api/ml-insights` exponieren | `api/src/static/dashboard-hero.js`, `api/src/db/ml.py` | Compliance |
 
 ---
 
-## Offene Findings (nach Wave 13 R4+R5 — Public Release)
+## Offene Findings (nach ISEC Code Review — Wave 14 offen)
 
 | Gruppe | Findings |
 |--------|---------|
 | **Eval 1–6, Wave 1–13 gefixt** | ✅ H-01–H-21, M-01–M-87, L-01–L-80 |
-| **Noch offen** | — (alle umsetzbaren Findings gefixt) |
+| **ISEC Review — Offen** | ❌ M-88, L-81–L-89 (Wave 14) |
 | **Manuell / extern** | ❌ H-07 (Sentry DSN in `env/.env.api` eintragen → `docs/external-services.md`) |
 | **Dokumentierte Ausnahmen** | — L-13 (TEST-L2), L-21 (OBS-L2), L-33 (TEST-L3), L-41 (ARCH-L4), L-42 (ARCH-L5), L-62 (TEST-L4), M-54 (TEST-L4) |
 
 ---
 
-## Roadmap — Wave 13
+## Roadmap — Wave 14
+
+| Runde | Fokus | Findings | Aufwand |
+|-------|-------|---------|---------|
+| **W14 R1** | Security Quick Wins | M-88, L-81, L-82, L-83, L-84, L-86 | ~45 min |
+| **W14 R2** | CSRF + Compliance | L-85, L-87, L-88, L-89 | ~60 min |
+
+**W14 R1 Details:**
+- M-88: `max_length=128` auf alle 4 `password: str = Form()`-Parameter (auth.py:57,139,318; account.py:42)
+- L-81: `esc(String(value))` + `esc(String(sub))` in `mlStatTile()` (dashboard-hero.js:322-323)
+- L-82: `/ready`-Fehlerfall auf `{"status": "unavailable"}` vereinheitlichen (main.py:201-204)
+- L-83: `client.password = ""` nach `client.connect()` in garmin.py
+- L-84: Bedingte `if settings.fernet_key else`-Branches in sync-service/src/main.py entfernen (4×)
+- L-86: `warning`-Branch in `resend_verify` auf generischen `info`-Text angleichen (auth.py:207-211)
+
+**W14 R2 Details:**
+- L-85: `POST /auth/resend-verify` + `POST /auth/reset-request` — CSRF-Token oder Accepted-Risk dokumentieren
+- L-87: DSGVO Art. 32 — Risikoakzeptanz-Dokument (Full-Disk-Encryption + Zugangskontrollen als Begründung) oder pgcrypto für `seizure_events`/`glucose_readings`
+- L-88: `docs/dpia.md` erstellen — Minimalformat DPIA für Sonderkategorie-Gesundheitsdaten (Art. 9 + Art. 35)
+- L-89: "KI-Prognose (n=X Tage)"-Badge am Readiness-Score in dashboard-hero.js; `n_rows` aus `/api/ml-insights` exponieren
+
+---
+
+## Roadmap — Wave 13 (abgeschlossen)
 
 | Runde | Fokus | Findings | Aufwand |
 |-------|-------|---------|---------|

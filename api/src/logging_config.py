@@ -39,7 +39,7 @@ def configure_logging() -> None:
         ],
         wrapper_class=structlog.make_filtering_bound_logger(_level),
         context_class=dict,
-        logger_factory=structlog.WriteLoggerFactory(),
+        logger_factory=structlog.WriteLoggerFactory(file=sys.stdout),
     )
 
     # M-47: route stdlib logs (uvicorn, httpx, …) through JSON pipeline
@@ -58,3 +58,21 @@ def configure_logging() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+
+def configure_sentry(settings: Any, integrations: list[Any] | None = None) -> None:
+    """Initialize Sentry SDK from settings.sentry_dsn. No-op when DSN is not set."""
+    dsn = getattr(settings, "sentry_dsn", None)
+    _log = structlog.get_logger(__name__)
+    if not dsn:
+        _log.warning("sentry.disabled", reason="SENTRY_DSN not configured")
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        send_default_pii=False,
+        traces_sample_rate=0.1,
+        environment=os.environ.get("APP_ENV", "production"),
+        release=os.environ.get("APP_VERSION", "unknown"),
+        integrations=integrations or [],
+    )
+    _log.info("sentry.initialized")
