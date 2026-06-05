@@ -340,7 +340,7 @@ async def test_reset_password_success_clears_session(client):
     from tests.conftest import make_session
 
     token = "any-token"
-    token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     make_session(
         client, user_id=TEST_USER["id"], extra={"reset_token_hash": token_hash}
     )
@@ -964,3 +964,4 @@ async def test_session_cookie_is_httponly_after_login(client):
     assert r.status_code == 303
     set_cookie = r.headers.get("set-cookie", "")
     assert "httponly" in set_cookie.lower()
+    assert "samesite=lax" in set_cookie.lower()

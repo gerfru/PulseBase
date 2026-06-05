@@ -44,6 +44,7 @@ async def test_security_headers_present(client):
     assert "payment=()" in r.headers.get("permissions-policy", "")
     assert r.headers.get("x-frame-options") == "DENY"
     assert r.headers.get("x-content-type-options") == "nosniff"
+    assert r.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
 
 
 async def test_hsts_header_set_when_https_only(client):
@@ -52,6 +53,8 @@ async def test_hsts_header_set_when_https_only(client):
     with patch.object(main_settings, "https_only", True):
         r = await client.get("/health")
     assert "strict-transport-security" in r.headers
+    assert "max-age=31536000" in r.headers["strict-transport-security"]
+    assert "includeSubDomains" in r.headers["strict-transport-security"]
 
 
 async def test_csp_no_external_font_sources(client):

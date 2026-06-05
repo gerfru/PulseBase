@@ -28,7 +28,7 @@ jobs:
           ADDED=$(git diff "origin/$BASE_REF"...HEAD \
             -- . ':(exclude)*.lock' ':(exclude)*-lock.json' ':(exclude)*.lockb' \
                ':(exclude)*.md' ':(exclude)*/data/*.json' \
-            | grep -cP '^\+' || echo 0)
+            | grep -cE '^\+[^+]' || echo 0)
           echo "Lines added (excl. lockfiles): $ADDED"
           if [ "$ADDED" -gt 400 ]; then
             echo "::error::PR zu groß (${ADDED} Zeilen hinzugefügt, Maximum: 400)"
@@ -199,7 +199,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    needs: [lint, js-lint, security, typecheck, test, js-test, trivy]
+    needs: [lint, js-lint, security, typecheck, test, js-test, trivy, check-pr-size]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -229,6 +229,16 @@ jobs:
       - name: Install Playwright browsers
         run: uv run playwright install chromium --with-deps
         working-directory: api
+
+      - name: Validate test secrets
+        run: |
+          if [ -z "$TEST_EMAIL" ] || [ -z "$TEST_PASSWORD" ]; then
+            echo "::error::E2E_TEST_EMAIL and E2E_TEST_PASSWORD must be set as repository secrets"
+            exit 1
+          fi
+        env:
+          TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}  # pragma: allowlist secret
 
       - name: Create CI test user
         working-directory: api

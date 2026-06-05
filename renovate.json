@@ -2,8 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "pinDigests": true,
-  "platformAutomerge": false,
-  "ignoreDeps": ["grafana/loki", "grafana/promtail", "louislam/uptime-kuma"],
+  "platformAutomerge": true,
   "packageRules": [
     {
       "description": "Python dev-dep patch-Updates: sicher, automatisch mergen",
@@ -73,6 +72,11 @@
       "matchUpdateTypes": ["minor", "major"],
       "automerge": false,
       "labels": ["dependencies", "review-needed"]
+    },
+    {
+      "description": "Monitoring-Stack manuell verwaltet — kein Auto-Update (Loki, Promtail, Uptime Kuma)",
+      "matchPackageNames": ["grafana/loki", "grafana/promtail", "louislam/uptime-kuma"],
+      "enabled": false
     }
   ]
 }
