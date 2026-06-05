@@ -9,14 +9,16 @@ Usage:
 """
 
 import asyncio
-import logging
+
+import structlog
 
 from backfill import backfill_user
 from config import Settings
 from db import close_pool, get_pool, init_pool
+from logging_config import configure_logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger(__name__)
+configure_logging()
+logger = structlog.get_logger(__name__)
 
 
 async def main() -> None:
@@ -32,8 +34,8 @@ async def main() -> None:
         for user in users:
             n = await backfill_user(user["id"])
             if n == 0:
-                logger.info(f"user={user['id']}: no gaps — already up to date")
-        logger.info("Done. Trigger RF retraining: UPDATE users SET ml_requested = true")
+                logger.info("backfill.up_to_date", user_id=user["id"])
+        logger.info("backfill.done")
     finally:
         await close_pool()
 

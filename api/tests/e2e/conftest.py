@@ -2,6 +2,7 @@ import hashlib
 import os
 import pathlib
 import secrets
+import uuid
 from datetime import datetime, timezone, timedelta
 
 import asyncpg
@@ -12,6 +13,8 @@ from playwright.async_api import async_playwright, BrowserContext, Page
 BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8001")
 TEST_EMAIL = os.getenv("TEST_EMAIL", "")
 TEST_PASSWORD = os.getenv("TEST_PASSWORD", "")  # pragma: allowlist secret
+
+_run_id = uuid.uuid4().hex[:8]
 
 
 @pytest.fixture(scope="session")
@@ -106,7 +109,7 @@ async def delete_test_user():
     unit-test conftest poisons the environment with DB_USER=test.
     """
     env = _read_env_file()
-    email = "delete-test@e2e.local"
+    email = f"delete-test-{_run_id}@e2e.local"
     password = "DeleteMe!2026Test"  # pragma: allowlist secret
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
@@ -254,7 +257,7 @@ async def unverified_test_user():
 @pytest.fixture
 async def reset_test_user():
     """Verified user with a pre-injected reset token — used to test the password-reset flow."""
-    email = "reset-test@e2e.local"
+    email = f"reset-test-{_run_id}@e2e.local"
     password = "ResetTest!2026Pass"  # pragma: allowlist secret
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     conn = await _make_db_conn()

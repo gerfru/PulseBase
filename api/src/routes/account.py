@@ -7,10 +7,13 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.responses import Response
 
 import src.deps as _deps
+from src.auth_tokens import _make_deletion_token, _verify_deletion_token
 from src.db import (
     delete_user,
     export_user_data,
     get_user_by_email,
+    get_user_by_id,
+    set_pending_deletion,
 )
 from src.deps import (
     UserRow,
@@ -20,6 +23,7 @@ from src.deps import (
     verify_csrf_token,
     verify_password,
 )
+from src.mail import send_deletion_confirm_email
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -56,8 +60,43 @@ async def delete_account(
     ):
         return _settings_error(request, user, "Passwort falsch.")
 
-    await delete_user(user["id"])
-    logger.info("auth.account.delete", user_id=user["id"], ip_hash=_ip_hash(request))
+    await set_pending_deletion(user["id"])
+    token = _make_deletion_token(user["id"])
+    sent = await send_deletion_confirm_email(user["email"], token)
+    if not sent:
+        logger.warning(
+            "auth.account.delete.email_not_sent",
+            user_id=user["id"],
+            confirm_url=f"/account/delete/confirm/{token}",
+        )
+    logger.info(
+        "auth.account.delete.pending", user_id=user["id"], ip_hash=_ip_hash(request)
+    )
+    return _deps.templates.TemplateResponse(
+        request,
+        "account_delete_pending.html",
+        {"user": user},
+    )
+
+
+@router.get("/account/delete/confirm/{token}")
+@limiter.limit("10/hour")
+async def confirm_delete_account(request: Request, token: str) -> Response:
+    user_id = _verify_deletion_token(token)
+    if not user_id:
+        return _deps.templates.TemplateResponse(
+            request,
+            "account_delete_pending.html",
+            {"error": "Link ungültig oder abgelaufen."},
+            status_code=400,
+        )
+
+    user = await get_user_by_id(user_id)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    await delete_user(user_id)
+    logger.info("auth.account.delete.confirmed", user_id=user_id)
     request.session.clear()
     return RedirectResponse("/login?deleted=1", status_code=303)
 

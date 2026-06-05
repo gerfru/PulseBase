@@ -72,6 +72,19 @@ async def test_require_user_returns_user_when_found():
     assert result == TEST_USER
 
 
+async def test_require_user_rejects_unverified_email_user():
+    """L-05: get_user_by_id filters by email_verified_at IS NOT NULL;
+    an unverified user resolves to None which triggers NeedsLogin."""
+    from src.deps import require_user, NeedsLogin
+
+    class FakeRequest:
+        session = {"user_id": 1}
+
+    with patch("src.deps.get_user_by_id", AsyncMock(return_value=None)):
+        with pytest.raises(NeedsLogin):
+            await require_user(FakeRequest())
+
+
 # ── garmin_link — success path ────────────────────────────────────────────────
 
 
@@ -779,3 +792,29 @@ def test_log_level_from_env_debug():
 
         configure_logging()
     assert logging.getLogger().level == logging.DEBUG
+
+
+# ── configure_sentry ──────────────────────────────────────────────────────────
+
+
+def test_configure_sentry_noop_when_no_dsn():
+    """M-11: configure_sentry must not call sentry_sdk.init when SENTRY_DSN is not set."""
+    with patch("sentry_sdk.init") as mock_init:
+        settings = MagicMock()
+        settings.sentry_dsn = ""
+        from src.logging_config import configure_sentry
+
+        configure_sentry(settings)
+        mock_init.assert_not_called()
+
+
+def test_configure_sentry_no_pii_when_dsn_set():
+    """M-11: configure_sentry must set send_default_pii=False."""
+    with patch("sentry_sdk.init") as mock_init:
+        settings = MagicMock()
+        settings.sentry_dsn = "https://x@sentry.io/1"
+        from src.logging_config import configure_sentry
+
+        configure_sentry(settings)
+        mock_init.assert_called_once()
+        assert mock_init.call_args.kwargs["send_default_pii"] is False
