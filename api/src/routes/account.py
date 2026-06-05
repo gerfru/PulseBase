@@ -38,8 +38,8 @@ def _settings_error(request: Request, user: UserRow, error: str) -> Response:
 @limiter.limit("3/hour")
 async def delete_account(
     request: Request,
-    email: str = Form(),
-    password: str = Form(),
+    email: str = Form(max_length=320),
+    password: str = Form(max_length=128),
     csrf_token: str | None = Form(default=None),
 ) -> Response:
     user = await require_user(request)
@@ -69,5 +69,8 @@ async def export_account(request: Request) -> Response:
     data = await export_user_data(user["id"])
     return JSONResponse(
         content=jsonable_encoder(data),
-        headers={"Content-Disposition": "attachment; filename=pulsebase-export.json"},
+        headers={
+            "Content-Disposition": "attachment; filename=pulsebase-export.json",
+            "Cache-Control": "no-store",
+        },
     )

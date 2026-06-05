@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
@@ -180,30 +181,36 @@ def _compute_hrv_baseline(hrv_hist: list) -> float:
     return sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0.0
 
 
+@dataclass
+class BodyBatteryInputs:
+    yesterday_bb: float | None
+    last_night_h: float
+    last_night_deep: float | None
+    last_night_rem: float | None
+    hrv_last: float | None
+    hrv_baseline: float
+    act_rows: list[dict[str, Any]]
+    hrmax: float
+    daily_today: dict[str, Any] | None
+
+
 async def _run_body_battery(
     user_id: int,
     today: date,
-    yesterday_bb: float | None,
-    last_night_h: float,
-    last_night_deep: float | None,
-    last_night_rem: float | None,
-    hrv_last: float | None,
-    hrv_baseline: float,
-    act_rows: list[dict[str, Any]],
-    hrmax: float,
-    daily_today: dict | None,
+    inputs: BodyBatteryInputs,
 ) -> None:
     bb_result = compute_body_battery(
-        yesterday_bb,
-        last_night_h,
-        last_night_deep,
-        last_night_rem,
-        hrv_last,
-        hrv_baseline,
+        inputs.yesterday_bb,
+        inputs.last_night_h,
+        inputs.last_night_deep,
+        inputs.last_night_rem,
+        inputs.hrv_last,
+        inputs.hrv_baseline,
         compute_trimp(
-            next((r for r in act_rows if r.get("activity_date") == today), {}), hrmax
+            next((r for r in inputs.act_rows if r.get("activity_date") == today), {}),
+            inputs.hrmax,
         ),
-        daily_today.get("avg_stress") if daily_today else None,
+        inputs.daily_today.get("avg_stress") if inputs.daily_today else None,
     )
     if bb_result.get("score") is not None:
         await save_prediction(
@@ -261,15 +268,17 @@ async def _run_body_battery_and_stress(
     await _run_body_battery(
         user_id,
         today,
-        yesterday_bb,
-        last_night_h,
-        last_night_deep,
-        last_night_rem,
-        hrv_last,
-        hrv_baseline,
-        act_rows,
-        hrmax,
-        daily_today,
+        BodyBatteryInputs(
+            yesterday_bb=yesterday_bb,
+            last_night_h=last_night_h,
+            last_night_deep=last_night_deep,
+            last_night_rem=last_night_rem,
+            hrv_last=hrv_last,
+            hrv_baseline=hrv_baseline,
+            act_rows=act_rows,
+            hrmax=hrmax,
+            daily_today=daily_today,
+        ),
     )
     await _run_stress_score(user_id, today, hrv_hist, daily_today)
 

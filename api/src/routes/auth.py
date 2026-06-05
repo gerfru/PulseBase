@@ -54,7 +54,7 @@ async def login_form(request: Request) -> Response:
 async def login(
     request: Request,
     email: str = Form(max_length=320),
-    password: str = Form(),
+    password: str = Form(max_length=128),
     csrf_token: str | None = Form(default=None),
 ) -> Response:
     if not verify_csrf_token(request, csrf_token):
@@ -134,10 +134,10 @@ async def register_form(request: Request) -> Response:
 @limiter.limit("5/minute")
 async def register(
     request: Request,
-    name: str = Form(),
-    email: str = Form(),
-    password: str = Form(),
-    password_confirm: str = Form(),
+    name: str = Form(max_length=100),
+    email: str = Form(max_length=320),
+    password: str = Form(max_length=128),
+    password_confirm: str = Form(max_length=128),
     consent_health: str = Form(default=""),
     consent_terms: str = Form(default=""),
     consent_age: str = Form(default=""),
@@ -191,14 +191,25 @@ async def logout(
 
 @router.get("/auth/resend-verify")
 async def resend_verify_form(request: Request) -> Response:
-    return templates.TemplateResponse(request, "verify_pending.html")
+    return templates.TemplateResponse(
+        request, "verify_pending.html", {"csrf_token": generate_csrf_token(request)}
+    )
 
 
 @router.post("/auth/resend-verify")
 @limiter.limit("3/hour")
 async def resend_verify(
-    request: Request, email: str = Form(max_length=320)
+    request: Request,
+    email: str = Form(max_length=320),
+    csrf_token: str | None = Form(default=None),
 ) -> Response:
+    if not verify_csrf_token(request, csrf_token):
+        return templates.TemplateResponse(
+            request,
+            "verify_pending.html",
+            {"error": "Ungültige Anfrage.", "csrf_token": generate_csrf_token(request)},
+            status_code=400,
+        )
     user = await get_user_by_email(email)
     sent = False
     if user and not user["email_verified_at"]:
@@ -231,14 +242,25 @@ async def verify_email(request: Request, token: str) -> Response:
 
 @router.get("/auth/reset-request")
 async def reset_request_form(request: Request) -> Response:
-    return templates.TemplateResponse(request, "reset_request.html")
+    return templates.TemplateResponse(
+        request, "reset_request.html", {"csrf_token": generate_csrf_token(request)}
+    )
 
 
 @router.post("/auth/reset-request")
 @limiter.limit("3/hour")
 async def reset_request(
-    request: Request, email: str = Form(max_length=320)
+    request: Request,
+    email: str = Form(max_length=320),
+    csrf_token: str | None = Form(default=None),
 ) -> Response:
+    if not verify_csrf_token(request, csrf_token):
+        return templates.TemplateResponse(
+            request,
+            "reset_request.html",
+            {"error": "Ungültige Anfrage.", "csrf_token": generate_csrf_token(request)},
+            status_code=400,
+        )
     user = await get_user_by_email(email)
     if user:
         token = await _make_reset_token(user["id"])
@@ -247,7 +269,8 @@ async def reset_request(
         request,
         "reset_request.html",
         {
-            "info": "Falls diese E-Mail registriert ist, erhältst du in Kürze einen Link."
+            "info": "Falls diese E-Mail registriert ist, erhältst du in Kürze einen Link.",
+            "csrf_token": generate_csrf_token(request),
         },
     )
 
@@ -261,9 +284,7 @@ async def reset_password_form(request: Request, token: str) -> Response:
             {"error": "Link ungültig oder abgelaufen. Bitte neu anfordern."},
             status_code=400,
         )
-    request.session["reset_token_hash"] = hashlib.sha256(token.encode()).hexdigest()[
-        :16
-    ]
+    request.session["reset_token_hash"] = hashlib.sha256(token.encode()).hexdigest()
     return templates.TemplateResponse(
         request,
         "reset_password.html",
@@ -285,7 +306,7 @@ def _validate_reset_request(
             {"token": token, "error": "Ungültige Anfrage. Bitte neu laden."},
             status_code=403,
         )
-    expected_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+    expected_hash = hashlib.sha256(token.encode()).hexdigest()
     if request.session.pop("reset_token_hash", None) != expected_hash:
         return templates.TemplateResponse(
             request,
@@ -315,8 +336,8 @@ def _validate_reset_request(
 async def reset_password(
     request: Request,
     token: str,
-    password: str = Form(),
-    password_confirm: str = Form(),
+    password: str = Form(max_length=128),
+    password_confirm: str = Form(max_length=128),
     csrf_token: str | None = Form(default=None),
 ) -> Response:
     if resp := _validate_reset_request(

@@ -41,8 +41,8 @@ async def garmin_link_form(request: Request) -> Response:
 @limiter.limit("5/hour")
 async def garmin_link(
     request: Request,
-    garmin_email: str = Form(),
-    garmin_password: str = Form(),
+    garmin_email: str = Form(max_length=320),
+    garmin_password: str = Form(max_length=128),
     csrf_token: str | None = Form(default=None),
 ) -> Response:
     user = await _deps.require_user(request)
