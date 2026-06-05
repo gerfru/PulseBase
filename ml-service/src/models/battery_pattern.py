@@ -61,6 +61,35 @@ def _fill_missing_labels(labels: dict[int, str], n: int) -> None:
             labels[cid] = "erholung"
 
 
+def _classify_cluster(
+    rank: int,
+    cid: int,
+    centers: Any,
+    existing_labels: dict[int, str],
+) -> str:
+    """Return the semantic label for one cluster given its AUC rank and center features.
+
+    Features order in centers: morning_avg, evening_avg, daily_range, auc, n_dips.
+    Rules (in priority order):
+      1. Rank-0 (highest AUC) with below-median daily_range → stabil_hoch
+      2. Largest evening-minus-morning delta and stabil_hoch not yet assigned → stabil_hoch
+      3. Positive delta (rising curve) → erholung
+      4. Otherwise → erschoepft
+    """
+    ranges = centers[:, 2]
+    deltas = centers[:, 1] - centers[:, 0]  # evening_avg - morning_avg
+    if rank == 0 and ranges[cid] < float(np.median(ranges)):
+        return "stabil_hoch"
+    if (
+        deltas[cid] == float(deltas.max())
+        and "stabil_hoch" not in existing_labels.values()
+    ):
+        return "stabil_hoch"
+    if deltas[cid] >= 0:
+        return "erholung"
+    return "erschoepft"
+
+
 def _assign_pattern_labels(kmeans: KMeans) -> dict[int, str]:
     """Map cluster IDs to semantic labels based on cluster centers.
 
@@ -69,34 +98,16 @@ def _assign_pattern_labels(kmeans: KMeans) -> dict[int, str]:
       stabil_hoch  — high, stable energy throughout the day
       erholung     — low start, rising curve (recovery day)
       erschoepft   — overall low or rapidly draining battery (overreached/fatigued)
-
-    Assignment heuristic: highest AUC + below-median daily_range → stabil_hoch;
-    highest evening-minus-morning delta → erholung; remainder → erschoepft.
     """
     centers = kmeans.cluster_centers_
     # Features order: morning_avg, evening_avg, daily_range, auc, n_dips
     aucs = centers[:, 3]
-    ranges = centers[:, 2]
-    morning = centers[:, 0]
-    evening = centers[:, 1]
-
-    labels: dict[int, str] = {}
     sorted_by_auc = np.argsort(aucs)[::-1]
 
-    # Highest auc + smallest range → stable_high
-    # Lowest morning but highest (evening - morning) → recovering
-    # Remaining → drained
-    deltas = evening - morning
+    labels: dict[int, str] = {}
     for rank, cluster_id in enumerate(sorted_by_auc):
         cid = int(cluster_id)
-        if rank == 0 and ranges[cid] < np.median(ranges):
-            labels[cid] = "stabil_hoch"
-        elif deltas[cid] == deltas.max() and "stabil_hoch" not in labels.values():
-            labels[cid] = "stabil_hoch"
-        elif deltas[cid] >= 0 and cid not in labels:
-            labels[cid] = "erholung"
-        else:
-            labels[cid] = "erschoepft"
+        labels[cid] = _classify_cluster(rank, cid, centers, labels)
 
     _fill_missing_labels(labels, _N_CLUSTERS)
     return labels

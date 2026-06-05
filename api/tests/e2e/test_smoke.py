@@ -94,13 +94,15 @@ async def test_time_range_30t_becomes_active(authenticated_page):
     assert "active" in classes
 
 
-async def test_period_nav_back_changes_range(authenticated_page):
-    range_before = (await authenticated_page.locator("#nav-range").inner_text()).strip()
-    await authenticated_page.locator("#nav-back").click()
-    await authenticated_page.wait_for_function(
+async def test_period_nav_back_changes_range(isolated_page):
+    await isolated_page.goto("/dashboard")
+    await isolated_page.wait_for_load_state("networkidle")
+    range_before = (await isolated_page.locator("#nav-range").inner_text()).strip()
+    await isolated_page.locator("#nav-back").click()
+    await isolated_page.wait_for_function(
         f"() => document.querySelector('#nav-range').textContent.trim() !== {repr(range_before)}"
     )
-    range_after = await authenticated_page.locator("#nav-range").inner_text()
+    range_after = await isolated_page.locator("#nav-range").inner_text()
     assert range_after.strip() != range_before
 
 
@@ -157,16 +159,16 @@ async def test_settings_page_loads(authenticated_page):
 # ── Theme toggle ──────────────────────────────────────────────────────────────
 
 
-async def test_theme_toggle_switches_dark_class(authenticated_page):
-    await authenticated_page.goto("/settings")
-    html = authenticated_page.locator("html")
+async def test_theme_toggle_switches_dark_class(isolated_page):
+    await isolated_page.goto("/settings")
+    html = isolated_page.locator("html")
     classes_before = await html.get_attribute("class") or ""
     # Click theme toggle (checkbox or button in settings)
-    toggle = authenticated_page.locator("#theme-toggle")
+    toggle = isolated_page.locator("#theme-toggle")
     assert await toggle.count() > 0, "#theme-toggle not found on settings page"
     # sr-only peer checkbox: sibling div intercepts pointer events, force bypasses it
     await toggle.click(force=True)
-    await authenticated_page.wait_for_function(
+    await isolated_page.wait_for_function(
         f"() => document.documentElement.getAttribute('class') !== {repr(classes_before)}"
     )
     classes_after = await html.get_attribute("class") or ""

@@ -20,6 +20,7 @@ from src.deps import (
     NeedsLogin,
     _rate_limit_exceeded_handler,
     limiter,
+    require_user,
     settings,
 )
 from src.logging_config import configure_logging
@@ -115,7 +116,9 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # pragma: no cover
-    await get_pool()
+    import os
+
+    pool = await get_pool()
     logger.info("db.pool_initialized")
     try:
         from cryptography.fernet import Fernet
@@ -133,11 +136,15 @@ async def lifespan(app: FastAPI):  # pragma: no cover
             integrations=[StarletteIntegration(), FastApiIntegration()],
             send_default_pii=False,
             traces_sample_rate=0.1,
+            environment=os.getenv("APP_ENV", "production"),
+            release=os.getenv("APP_VERSION", "unknown"),
         )
         logger.info("sentry.initialized")
     else:
         logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
     yield
+    await pool.close()
+    logger.info("db.pool_closed")
 
 
 app = FastAPI(title="PulseBase API", lifespan=lifespan)
@@ -174,7 +181,8 @@ async def health():
 
 
 @app.get("/api/metrics")
-async def app_metrics():
+async def app_metrics(request: Request):
+    await require_user(request)
     return {
         "active_requests": _active_requests,
         "error_requests_total": _error_requests,

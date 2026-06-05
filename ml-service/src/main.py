@@ -36,10 +36,10 @@ from inference_anomaly import (
     _run_anomaly_stress,
     _run_correlations,
 )
+from inference_energy import _run_energy_metrics
 from inference_models import (
     _run_battery_pattern,
     _run_body_battery_and_stress,
-    _run_energy_metrics,
     _run_hrv_and_recovery,
     _run_readiness,
     _run_running_and_intensity,
@@ -66,12 +66,14 @@ async def run_inference(user_id: int, settings: Settings) -> None:
         daily_today = await get_today_daily_summary(user_id)
         hr_records, resting_hr_today = await get_todays_activity_hr_records(user_id)
 
-        await _run_anomaly(user_id, today)
-        await _run_anomaly_spo2(user_id, today)
-        await _run_anomaly_sleep(user_id, today)
-        await _run_anomaly_steps(user_id, today)
-        await _run_anomaly_stress(user_id, today)
-        await _run_correlations(user_id, today)
+        await asyncio.gather(
+            _run_anomaly(user_id, today),
+            _run_anomaly_spo2(user_id, today),
+            _run_anomaly_sleep(user_id, today),
+            _run_anomaly_steps(user_id, today),
+            _run_anomaly_stress(user_id, today),
+            _run_correlations(user_id, today),
+        )
         await _run_readiness(user_id, today, settings)
         await _run_battery_pattern(user_id, today, settings)
         await _run_energy_metrics(user_id, today, act_rows, hrmax, hrv_hist, sleep_h)
@@ -198,6 +200,8 @@ def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
 
 
 async def main() -> None:  # pragma: no cover
+    import os
+
     settings = Settings()  # type: ignore[call-arg]
     await init_pool(settings.db_url)
 
@@ -205,16 +209,15 @@ async def main() -> None:  # pragma: no cover
         import sentry_sdk
 
         sentry_sdk.init(
-            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.1
+            dsn=settings.sentry_dsn,
+            send_default_pii=False,
+            traces_sample_rate=0.1,
+            environment=os.getenv("APP_ENV", "production"),
+            release=os.getenv("APP_VERSION", "unknown"),
         )
         logger.info("sentry.initialized")
     else:
         logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
-
-    logger.info("ml.initial_run")
-    await run_all_users(settings, include_training=True)
-
-    scheduler = _configure_ml_scheduler(settings)
 
     shutdown_event = asyncio.Event()
 
@@ -224,6 +227,22 @@ async def main() -> None:  # pragma: no cover
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
+
+    logger.info("ml.initial_run")
+    initial_task = asyncio.create_task(run_all_users(settings, include_training=True))
+    shutdown_task = asyncio.create_task(shutdown_event.wait())
+    await asyncio.wait(
+        {initial_task, shutdown_task}, return_when=asyncio.FIRST_COMPLETED
+    )
+    shutdown_task.cancel()
+    if not initial_task.done():
+        initial_task.cancel()
+        try:
+            await initial_task
+        except asyncio.CancelledError:
+            logger.info("ml.initial_run_cancelled")
+
+    scheduler = _configure_ml_scheduler(settings)
 
     try:
         await shutdown_event.wait()

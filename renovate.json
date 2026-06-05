@@ -5,10 +5,19 @@
   "platformAutomerge": false,
   "packageRules": [
     {
-      "description": "Python patch-Updates: sicher, automatisch mergen",
+      "description": "Python dev-dep patch-Updates: sicher, automatisch mergen",
       "matchManagers": ["pep621"],
+      "matchDepTypes": ["dev"],
       "matchUpdateTypes": ["patch"],
       "automerge": true
+    },
+    {
+      "description": "Python prod-dep patch-Updates: manueller Review",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": false,
+      "labels": ["dependencies"]
     },
     {
       "description": "Python minor-Updates: manueller Review — kann Breaking Changes enthalten",
