@@ -31,3 +31,11 @@ class Settings(BaseSettings):
     @property
     def db_url(self) -> str:
         return f"postgresql://{self.db_app_user}:{self.db_app_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
+
+def require_fernet_key(settings: Settings) -> str:
+    """Return the validated FERNET_KEY or raise RuntimeError. Field-validator already
+    rejects empty strings at startup, so this is mainly a typed accessor."""
+    if not settings.fernet_key:
+        raise RuntimeError("FERNET_KEY must be set — see config.py validator")
+    return settings.fernet_key

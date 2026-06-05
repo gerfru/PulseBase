@@ -71,3 +71,19 @@ async def send_verify_email(to_email: str, token: str) -> bool:
         ),
         log_key="verify",
     )
+
+
+async def send_deletion_confirm_email(to_email: str, token: str) -> bool:
+    url = f"{settings.app_base_url}/account/delete/confirm/{token}"
+    return await _send_email(
+        to=to_email,
+        subject="PulseBase — Kontolöschung bestätigen",
+        html=(
+            "<p>Du hast die Löschung deines Kontos angefordert.</p>"
+            "<p>Klicke auf diesen Link um die Löschung zu bestätigen "
+            f"(gültig 24 Stunden):</p><p><a href='{url}'>{url}</a></p>"
+            "<p>Falls du das nicht warst, kannst du diesen Link ignorieren. "
+            "Dein Konto bleibt unverändert.</p>"
+        ),
+        log_key="deletion_confirm",
+    )

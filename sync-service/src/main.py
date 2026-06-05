@@ -9,7 +9,8 @@ from pathlib import Path
 import structlog
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
-from config import Settings
+from config import Settings, require_fernet_key
+from health_server import start_health_server
 from scheduler import configure_scheduler
 from crypto import (
     fernet_decrypt,
@@ -158,9 +159,7 @@ async def _get_garmin_token(
         file_dir = str(settings.token_base_dir / str(user["id"]))
         if Path(file_dir).exists():
             serialized = serialize_token_dir(file_dir)
-            if not settings.fernet_key:
-                raise RuntimeError("FERNET_KEY must be set — see config.py validator")
-            blob = fernet_encrypt(serialized, settings.fernet_key)
+            blob = fernet_encrypt(serialized, require_fernet_key(settings))
             await repo.save_user_token(user["id"], "garmin", blob)
     return blob
 
@@ -168,9 +167,7 @@ async def _get_garmin_token(
 def _init_garmin_client(
     user: dict, blob: bytes, settings: Settings, tmpdir: str
 ) -> GarminClient:
-    if not settings.fernet_key:
-        raise RuntimeError("FERNET_KEY must be set — see config.py validator")
-    raw = fernet_decrypt(blob, settings.fernet_key)
+    raw = fernet_decrypt(blob, require_fernet_key(settings))
     restore_token_dir(raw, tmpdir)
     client = GarminClient(
         email=user["garmin_email"],
@@ -186,7 +183,10 @@ async def _sync_date_range(
 ) -> None:
     end = date.today()
     start = end - timedelta(days=days)
-    await _sync_activities(client, repo, user_id, start, end)
+    try:
+        await _sync_activities(client, repo, user_id, start, end)
+    except Exception:
+        logger.error("sync.activities_failed", user_id=user_id, exc_info=True)
     current = start
     while current <= end:
         await _sync_day(client, repo, user_id, current)
@@ -207,9 +207,7 @@ async def sync_user(
             client = _init_garmin_client(user, blob, settings, tmpdir)
             await _sync_date_range(client, repo, user["id"], days)
             serialized = serialize_token_dir(tmpdir)
-            if not settings.fernet_key:
-                raise RuntimeError("FERNET_KEY must be set — see config.py validator")
-            encrypted = fernet_encrypt(serialized, settings.fernet_key)
+            encrypted = fernet_encrypt(serialized, require_fernet_key(settings))
             await repo.save_user_token(user["id"], "garmin", encrypted)
         logger.info("sync.done", user_id=user["id"])
     finally:
@@ -228,21 +226,18 @@ async def sync_libre_user(
             )
             if file_path.exists():
                 raw = file_path.read_bytes()
-                if not settings.fernet_key:
-                    raise RuntimeError(
-                        "FERNET_KEY must be set — see config.py validator"
-                    )
-                blob = fernet_encrypt(raw, settings.fernet_key)
+                blob = fernet_encrypt(raw, require_fernet_key(settings))
                 await repo.save_user_token(user["id"], "libre", blob)
         if blob is None:
             raise LibreAuthError(
                 "Kein LibreLinkUp-Token — Neu-Verknüpfung erforderlich"
             )
 
-        if not settings.fernet_key:
-            raise RuntimeError("FERNET_KEY must be set — see config.py validator")
-        raw = fernet_decrypt(blob, settings.fernet_key)
-        token_data = json.loads(raw)
+        raw = fernet_decrypt(blob, require_fernet_key(settings))
+        try:
+            token_data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise LibreAuthError(f"Ungültiges Token-Format: {e}") from e
         client = connect_with_token(token_data["token"])
         readings = get_recent_glucose(client, hours=2)
         rows = [map_glucose_reading(r, user["id"]) for r in readings]
@@ -332,9 +327,6 @@ async def main() -> None:  # pragma: no cover
 
     configure_sentry(settings)
 
-    repo = TimescaleRepository(settings.db_url)
-    await repo.init()
-
     # SIGTERM handler registered BEFORE blocking work so make down responds immediately
     shutdown_event = asyncio.Event()
 
@@ -344,6 +336,11 @@ async def main() -> None:  # pragma: no cover
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
+
+    await start_health_server()
+
+    repo = TimescaleRepository(settings.db_url)
+    await repo.init()
 
     # Sentinel written at startup so the healthcheck passes during the initial sync
     Path("/tmp/sync_alive").touch()  # nosec B108

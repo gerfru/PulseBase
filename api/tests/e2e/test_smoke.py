@@ -291,7 +291,7 @@ async def test_help_page_loads(authenticated_page):
 
 
 async def test_account_delete(delete_test_user):
-    """Creates a disposable user, logs in, deletes the account, expects /login redirect."""
+    """Creates a disposable user, logs in, requests deletion — expects pending-confirmation page."""
     async with async_playwright() as pw:
         browser = await pw.chromium.launch()
         ctx = await browser.new_context(base_url=BASE_URL)
@@ -306,6 +306,6 @@ async def test_account_delete(delete_test_user):
         await p.fill("input[name=email]", delete_test_user["email"])
         await p.fill("input[name=password]", delete_test_user["password"])
         await p.click("button[type=submit]:has-text('Konto unwiderruflich löschen')")
-        await p.wait_for_url("**/login**", timeout=10000)
-        assert "/login" in p.url
+        # New two-step flow: POST returns the pending-confirmation page (not a redirect)
+        await p.wait_for_selector("text=Bestätigungs-E-Mail", timeout=10000)
         await browser.close()
