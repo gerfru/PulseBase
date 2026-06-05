@@ -8,10 +8,10 @@ from pathlib import Path
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.middleware.sessions import SessionMiddleware
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
@@ -23,7 +23,7 @@ from src.deps import (
     require_user,
     settings,
 )
-from src.logging_config import configure_logging
+from src.logging_config import configure_logging, configure_sentry
 from src.routes import account, api as api_routes
 from src.routes import auth, garmin, libre, pages
 
@@ -32,7 +32,9 @@ logger = structlog.get_logger(__name__)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         nonce = secrets.token_urlsafe(16)
         request.state.nonce = nonce
         response = await call_next(request)
@@ -70,7 +72,9 @@ _start_time: float = time.monotonic()
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         global _active_requests, _error_requests
         async with _metrics_lock:
             _active_requests += 1
@@ -80,12 +84,17 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         try:
             response = await call_next(request)
-        finally:
+        except Exception:
             async with _metrics_lock:
                 _active_requests -= 1
-        if response.status_code >= 400:
-            async with _metrics_lock:
                 _error_requests += 1
+            raise
+        else:
+            async with _metrics_lock:
+                _active_requests -= 1
+            if response.status_code >= 400:
+                async with _metrics_lock:
+                    _error_requests += 1
         duration_ms = round((time.perf_counter() - start) * 1000, 1)
         logger.info(
             "http.request",
@@ -100,7 +109,9 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 
 class CacheControlMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         response = await call_next(request)
         path = request.url.path
         if path.startswith("/static/") and path.endswith(".js"):
@@ -116,8 +127,6 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # pragma: no cover
-    import os
-
     pool = await get_pool()
     logger.info("db.pool_initialized")
     try:
@@ -126,22 +135,12 @@ async def lifespan(app: FastAPI):  # pragma: no cover
         Fernet(settings.fernet_key.encode())
     except ValueError as e:
         raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64") from e
-    if settings.sentry_dsn:
-        import sentry_sdk
-        from sentry_sdk.integrations.fastapi import FastApiIntegration
-        from sentry_sdk.integrations.starlette import StarletteIntegration
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
 
-        sentry_sdk.init(
-            dsn=settings.sentry_dsn,
-            integrations=[StarletteIntegration(), FastApiIntegration()],
-            send_default_pii=False,
-            traces_sample_rate=0.1,
-            environment=os.getenv("APP_ENV", "production"),
-            release=os.getenv("APP_VERSION", "unknown"),
-        )
-        logger.info("sentry.initialized")
-    else:
-        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
+    configure_sentry(
+        settings, integrations=[StarletteIntegration(), FastApiIntegration()]
+    )
     yield
     await pool.close()
     logger.info("db.pool_closed")
@@ -171,27 +170,30 @@ app.add_middleware(
 
 
 @app.exception_handler(NeedsLogin)
-async def needs_login_handler(request: Request, exc: NeedsLogin):
+async def needs_login_handler(request: Request, exc: NeedsLogin) -> RedirectResponse:
     return RedirectResponse("/login", status_code=303)
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @app.get("/api/metrics")
-async def app_metrics(request: Request):
+async def app_metrics(request: Request) -> dict[str, float | int]:
     await require_user(request)
+    async with _metrics_lock:
+        active = _active_requests
+        errors = _error_requests
     return {
-        "active_requests": _active_requests,
-        "error_requests_total": _error_requests,
+        "active_requests": active,
+        "error_requests_total": errors,
         "uptime_seconds": round(time.monotonic() - _start_time),
     }
 
 
-@app.get("/ready")
-async def ready():
+@app.get("/ready", response_model=None)
+async def ready() -> JSONResponse | dict[str, str]:
     try:
         pool = await get_pool()
         await pool.fetchval("SELECT 1")

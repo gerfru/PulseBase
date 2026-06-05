@@ -16,6 +16,7 @@
 
             {% if not info %}
             <form method="post" action="/auth/reset-request" class="flex flex-col gap-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
                     <label for="email" class="block text-sm font-medium text-slate-300 mb-1.5">E-Mail</label>
                     <input type="email" id="email" name="email" required autofocus autocomplete="email"

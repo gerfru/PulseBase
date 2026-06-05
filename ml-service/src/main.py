@@ -46,7 +46,7 @@ from inference_models import (
     _run_sleep_and_spo2,
     _run_training_effect,
 )
-from logging_config import configure_logging
+from logging_config import configure_logging, configure_sentry
 from models.battery_pattern import fit_and_save as battery_fit_and_save
 from models.readiness import train_and_save
 
@@ -200,24 +200,10 @@ def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
 
 
 async def main() -> None:  # pragma: no cover
-    import os
-
     settings = Settings()  # type: ignore[call-arg]
     await init_pool(settings.db_url)
 
-    if settings.sentry_dsn:
-        import sentry_sdk
-
-        sentry_sdk.init(
-            dsn=settings.sentry_dsn,
-            send_default_pii=False,
-            traces_sample_rate=0.1,
-            environment=os.getenv("APP_ENV", "production"),
-            release=os.getenv("APP_VERSION", "unknown"),
-        )
-        logger.info("sentry.initialized")
-    else:
-        logger.warning("sentry.disabled", reason="SENTRY_DSN not configured")
+    configure_sentry(settings)
 
     shutdown_event = asyncio.Event()
 

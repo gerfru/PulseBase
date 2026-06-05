@@ -31,6 +31,7 @@ asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 
 [tool.coverage.run]
+branch = true
 source = ["src"]
 
 [tool.coverage.report]

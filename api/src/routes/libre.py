@@ -32,8 +32,8 @@ async def libre_link_form(request: Request) -> Response:
 @limiter.limit("5/hour")
 async def libre_link(
     request: Request,
-    libre_email: str = Form(),
-    libre_password: str = Form(),
+    libre_email: str = Form(max_length=320),
+    libre_password: str = Form(max_length=128),
     csrf_token: str | None = Form(default=None),
 ) -> Response:
     from libre.client import LibreAuthError
