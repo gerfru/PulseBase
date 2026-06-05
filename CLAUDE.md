@@ -440,6 +440,12 @@ Kein OpenTelemetry-SDK, kein Tracing-Backend (Tempo, Jaeger, etc.).
 Begründung: OpenTelemetry macht Sinn wenn Requests über mehrere unabhängige Systeme laufen und man verstehen will wo Zeit verloren geht. Hier laufen alle 3 Services auf demselben Server im selben Docker-Netz — Netzwerklatenzen zwischen Services sind vernachlässigbar. Für Request-Korrelation ist `request_id` (Header + structlog context) ausreichend. Loki + Sentry decken Logs und Errors ab. Kein Observability-Problem das OTel lösen würde und das jetzt existiert.
 Trigger für Einführung: Multi-Server-Setup, externe API-Latenz wird zum Problem, oder ein Tracing-Backend ist bereits vorhanden.
 
+### OBS-L3: Alert-Schwellen für Latenz/Ressourcen nicht automatisiert durchgesetzt
+
+Sentry Error-Rate-Alerts sind manuell konfigurierbar (siehe Monitoring & Alert-Setup-Block oben). Latenz (p95 >2s) und Ressourcen (CPU/Memory >80%) haben keine automatisierten Alert-Rules in Loki oder einem Alert-Manager.
+Begründung: Kein Prometheus im Stack. Loki Alert-Rules erfordern Grafana oder AlertManager als Receiver. Für ein Solo-Homelab-Projekt ohne On-Call-Rotation ist Sentry (Error Rate) + manuelle Beobachtung ausreichend. Die vier goldenen Signale (Latency, Traffic, Errors, Saturation) sind via `error_requests_total` und structlog-Logs beobachtbar.
+Trigger für Einführung: On-Call-Rotation, SLA-Anforderungen, oder Prometheus/Grafana wird in den Stack aufgenommen.
+
 ### TEST-L1: Mock-Qualität für `require_user` in Route-Tests
 
 Route-Tests patchen `src.deps.require_user` via `AsyncMock(return_value=TEST_USER)`. Kein `assert_called_once()`.

@@ -6,3 +6,5 @@ __pycache__
 .gitignore
 tests/
 *.md
+.mypy_cache/
+.ruff_cache/

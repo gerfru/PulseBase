@@ -14,6 +14,8 @@ services:
       - timescale-data:/var/lib/postgresql/data
     networks:
       - internal
+    labels:
+      - "monitoring=true"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d garmin"]
       interval: 10s
@@ -60,53 +62,13 @@ services:
         max-size: "5m"
         max-file: "2"
 
-  traefik:
-    image: traefik:v3.3.4@sha256:cc11989f418e2cfe5e60fc40c92c1813be847f58eda15eced7d5ac890255ad9e
-    container_name: pulsebase-traefik
-    restart: unless-stopped
-    profiles:
-      - standalone
-    ports:
-      - "0.0.0.0:80:80"
-      - "0.0.0.0:443:443"
-    environment:
-      - ACME_EMAIL=${ACME_EMAIL}
-    volumes:
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/acme/acme.json:/etc/traefik/acme/acme.json
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - proxy
-    deploy:
-      resources:
-        limits:
-          memory: 128m
-          cpus: '0.25'
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   api:
     build: ./api
     container_name: pulsebase-api
     restart: unless-stopped
     stop_grace_period: 45s
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`${HOST_IP}`)"
-      - "traefik.http.routers.api.entrypoints=websecure"
-      - "traefik.http.routers.api.tls=true"
-      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.api.priority=1"
-      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      - "monitoring=true"
     env_file:
       - env/.env.app
       - env/.env.api
@@ -142,6 +104,8 @@ services:
     container_name: pulsebase-sync
     restart: unless-stopped
     stop_grace_period: 90s
+    labels:
+      - "monitoring=true"
     depends_on:
       flyway:
         condition: service_completed_successfully
@@ -176,6 +140,8 @@ services:
     container_name: pulsebase-ml
     restart: unless-stopped
     stop_grace_period: 60s
+    labels:
+      - "monitoring=true"
     depends_on:
       flyway:
         condition: service_completed_successfully
@@ -208,79 +174,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  loki:
-    image: grafana/loki:3.0.0
-    container_name: pulsebase-loki
-    ports:
-      - "127.0.0.1:3100:3100"
-    volumes:
-      - ./monitoring/loki-config.yml:/etc/loki/local-config.yml:ro
-      - loki-data:/loki
-    command: -config.file=/etc/loki/local-config.yml
-    networks:
-      - internal
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-          cpus: '0.25'
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-  promtail:
-    image: grafana/promtail:3.0.0
-    container_name: pulsebase-promtail
-    volumes:
-      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: -config.file=/etc/promtail/config.yml
-    depends_on:
-      - loki
-    networks:
-      - internal
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 128m
-          cpus: '0.10'
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    container_name: pulsebase-uptime
-    ports:
-      - "${TAILSCALE_IP}:3001:3001"
-    volumes:
-      - uptime-kuma-data:/app/data
-    networks:
-      - internal
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-          cpus: '0.25'
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "2"
-
 volumes:
   timescale-data:
   ml-models:
-  loki-data:
-  uptime-kuma-data:
 
 networks:
   internal:

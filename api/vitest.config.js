@@ -7,8 +7,7 @@ export default defineConfig({
         include: ['tests/js/**/*.test.js'],
         coverage: {
             provider: 'v8',
-            // Only measure coverage for the 4 utility files that have unit tests.
-            // DOM-heavy files (loaders, hero, metrics) are covered by Playwright E2E instead.
+            // Utility files with unit tests. DOM-heavy loader/metrics files are covered by Playwright E2E.
             include: [
                 'src/static/chart-utils.js',
                 'src/static/dashboard-utils.js',

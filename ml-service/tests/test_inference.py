@@ -188,10 +188,10 @@ class TestRunBatteryPattern:
 
 class TestRunEnergyMetrics:
     async def test_saves_energy_predictions(self):
-        from inference_models import _run_energy_metrics
+        from inference_energy import _run_energy_metrics
 
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_energy_metrics(1, _TODAY, [], 185.0, [], [])
         # energy_physical + energy_autonomic + energy_cognitive always saved
@@ -201,7 +201,7 @@ class TestRunEnergyMetrics:
         assert "energy_cognitive" in model_keys
 
     async def test_saves_acwr_when_atl_ctl_present(self):
-        from inference_models import _run_energy_metrics
+        from inference_energy import _run_energy_metrics
         from datetime import timedelta
 
         # Build act_rows that produce nonzero ATL/CTL
@@ -215,7 +215,7 @@ class TestRunEnergyMetrics:
             for i in range(10)
         ]
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_energy_metrics(1, _TODAY, act_rows, 185.0, [], [])
         model_keys = [c.args[2] for c in mock_save.call_args_list]
@@ -224,10 +224,10 @@ class TestRunEnergyMetrics:
 
 class TestRunPhysicalEnergy:
     async def test_saves_and_returns_phys(self):
-        from inference_models import _run_physical_energy
+        from inference_energy import _run_physical_energy
 
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             result = await _run_physical_energy(1, _TODAY, [], 185.0)
         mock_save.assert_called_once()
@@ -235,28 +235,28 @@ class TestRunPhysicalEnergy:
         assert isinstance(result, dict)
 
     async def test_returns_phys_dict_with_score_key(self):
-        from inference_models import _run_physical_energy
+        from inference_energy import _run_physical_energy
 
-        with patch("inference_models.save_prediction", new_callable=AsyncMock):
+        with patch("inference_energy.save_prediction", new_callable=AsyncMock):
             result = await _run_physical_energy(1, _TODAY, [], 185.0)
         assert "score" in result
 
 
 class TestRunAcwr:
     async def test_skips_when_atl_or_ctl_missing(self):
-        from inference_models import _run_acwr
+        from inference_energy import _run_acwr
 
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_acwr(1, _TODAY, {"atl": None, "ctl": None})
         mock_save.assert_not_called()
 
     async def test_saves_when_atl_and_ctl_present(self):
-        from inference_models import _run_acwr
+        from inference_energy import _run_acwr
 
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_acwr(1, _TODAY, {"atl": 50.0, "ctl": 45.0})
         mock_save.assert_called_once()
@@ -265,16 +265,16 @@ class TestRunAcwr:
 
 class TestRunTrainingMonotony:
     async def test_skips_when_monotony_is_none(self):
-        from inference_models import _run_training_monotony
+        from inference_energy import _run_training_monotony
 
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_training_monotony(1, _TODAY, [], 185.0)
         mock_save.assert_not_called()
 
     async def test_saves_when_monotony_present(self):
-        from inference_models import _run_training_monotony
+        from inference_energy import _run_training_monotony
         from datetime import timedelta
 
         act_rows = [
@@ -287,7 +287,7 @@ class TestRunTrainingMonotony:
             for i in range(7)
         ]
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_training_monotony(1, _TODAY, act_rows, 185.0)
         model_keys = [c.args[2] for c in mock_save.call_args_list]
@@ -296,10 +296,10 @@ class TestRunTrainingMonotony:
 
 class TestRunAutonomicEnergy:
     async def test_saves_autonomic_energy(self):
-        from inference_models import _run_autonomic_energy
+        from inference_energy import _run_autonomic_energy
 
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_autonomic_energy(1, _TODAY, [50.0] * 10)
         mock_save.assert_called_once()
@@ -308,11 +308,11 @@ class TestRunAutonomicEnergy:
 
 class TestRunCognitiveEnergy:
     async def test_saves_cognitive_energy(self):
-        from inference_models import _run_cognitive_energy
+        from inference_energy import _run_cognitive_energy
 
         sleep_h = [{"total_h": 7.5} for _ in range(7)]
         with patch(
-            "inference_models.save_prediction", new_callable=AsyncMock
+            "inference_energy.save_prediction", new_callable=AsyncMock
         ) as mock_save:
             await _run_cognitive_energy(1, _TODAY, sleep_h)
         mock_save.assert_called_once()

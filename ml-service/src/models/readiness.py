@@ -6,6 +6,12 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor  # type: ignore[import-untyped]
 
 _MIN_TRAINING_ROWS = 30
+
+
+def _clamp(v: float) -> float:
+    return round(min(100.0, max(0.0, v)), 1)
+
+
 _CANDIDATE_FEATURES = [
     "hrv_last_night",
     "sleep_score",
@@ -140,9 +146,6 @@ def predict_tomorrow(
         vals.append(float(v))
     X = np.array([vals])
     tree_preds = np.array([t.predict(X)[0] for t in model.estimators_])
-
-    def _clamp(v: float) -> float:
-        return round(min(100.0, max(0.0, v)), 1)
 
     return {
         "score": _clamp(float(np.mean(tree_preds))),

@@ -325,10 +325,15 @@ async def main() -> None:  # pragma: no cover
         raise ValueError("FERNET_KEY invalid — must be 32-byte URL-safe base64")
 
     if settings.sentry_dsn:
+        import os
         import sentry_sdk
 
         sentry_sdk.init(
-            dsn=settings.sentry_dsn, send_default_pii=False, traces_sample_rate=0.1
+            dsn=settings.sentry_dsn,
+            send_default_pii=False,
+            traces_sample_rate=0.1,
+            environment=os.getenv("APP_ENV", "production"),
+            release=os.getenv("APP_VERSION", "unknown"),
         )
         logger.info("sentry.initialized")
     else:
