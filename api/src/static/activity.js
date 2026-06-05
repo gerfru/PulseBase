@@ -254,7 +254,7 @@ async function load() {
 
     // Header
     const emoji = SPORT_EMOJI[a.sport_type] || SPORT_EMOJI.default;
-    const sportName = SPORT_LABEL[a.sport_type] || (a.sport_type || 'Sonstige').replace(/_/g, ' ');
+    const sportName = SPORT_LABEL[a.sport_type] || esc((a.sport_type || 'Sonstige').replace(/_/g, ' '));
     document.getElementById('act-title').textContent = `${emoji} ${sportName}`;
     document.getElementById('act-meta').textContent = `${fmtDate(a.started_at)} · ${fmtTime(a.started_at)}`;
     document.title = `PulseBase — ${sportName}`;

@@ -35,9 +35,8 @@ async function load() {
         const data = await def.fetch();
         const result = def.render(data);
 
-        // result.value is generated HTML from metrics-*.js (styled spans/badges), not raw user input
-        document.getElementById('metric-value').innerHTML = result.value;
-        if (result.sub) document.getElementById('metric-sub').innerHTML = result.sub;
+        document.getElementById('metric-value').innerHTML = DOMPurify.sanitize(result.value);
+        if (result.sub) document.getElementById('metric-sub').innerHTML = DOMPurify.sanitize(result.sub);
 
         // Inline summary (1-2 sentences from eli5)
         const summaryEl = document.getElementById('metric-summary');

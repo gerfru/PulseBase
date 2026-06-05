@@ -4,7 +4,7 @@ Called automatically by run_on_request / run_all_users when gaps are detected.
 Safe to call repeatedly: uses ON CONFLICT DO UPDATE.
 """
 
-import logging
+import structlog
 from datetime import date, timedelta
 from typing import Any
 
@@ -24,7 +24,7 @@ from models.hrv_recovery import compute_hrv_recovery_trajectory
 from models.running_economy import compute_running_economy
 from models.stress_metrics import compute_stress_score
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -> float:
@@ -192,11 +192,11 @@ async def backfill_user(user_id: int) -> int:
         return 0
 
     data = {**activity_hrv, **sleep_daily_gaps}
-    logger.info(f"user={user_id}: backfilling {len(gap_dates)} missing energy dates")
+    logger.info("backfill.started", user_id=user_id, gaps=len(gap_dates))
 
     for target in gap_dates:
         await _backfill_energy_scores(user_id, target, data)
         await _backfill_custom_scores(user_id, target, data)
 
-    logger.info(f"user={user_id}: backfill complete ({len(gap_dates)} dates)")
+    logger.info("backfill.complete", user_id=user_id, dates=len(gap_dates))
     return len(gap_dates)

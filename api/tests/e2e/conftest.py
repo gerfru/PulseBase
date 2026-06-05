@@ -45,6 +45,24 @@ async def authenticated_page(browser_context: BrowserContext) -> Page:
     await p.close()
 
 
+@pytest.fixture
+async def isolated_page() -> Page:
+    """Function-scoped page in a fresh browser context — for tests that mutate shared
+    state (theme class on <html>, URL query params) that would affect other tests
+    sharing the session-scoped authenticated_page."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        ctx = await browser.new_context(base_url=BASE_URL)
+        page = await ctx.new_page()
+        await page.goto("/login")
+        await page.fill("input[name=email]", TEST_EMAIL)
+        await page.fill("input[name=password]", TEST_PASSWORD)
+        await page.click("button[type=submit]")
+        await page.wait_for_url("**/dashboard", timeout=10000)
+        yield page
+        await browser.close()
+
+
 def _read_env_api_file() -> dict[str, str]:
     """Read key=value pairs from env/.env.api (for SESSION_SECRET etc.)."""
     env_path = pathlib.Path(__file__).parent.parent.parent.parent / "env" / ".env.api"
