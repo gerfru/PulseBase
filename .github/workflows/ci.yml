@@ -199,7 +199,10 @@ jobs:
 
   e2e:
     name: E2E Tests
-    needs: [lint, js-lint, security, typecheck, test, js-test, trivy, check-pr-size]
+    needs: [lint, js-lint, security, typecheck, test, js-test, trivy]
+    # Test-Bench immer ausführen — auch wenn vorgelagerte Jobs (z.B. PR-Size) fehlschlagen.
+    # !cancelled() = läuft trotz Fehlern, respektiert aber manuellen Abbruch.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
