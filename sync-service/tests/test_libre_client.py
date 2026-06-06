@@ -134,6 +134,23 @@ def test_get_recent_glucose_handles_naive_timestamp():
     assert reading in readings
 
 
+def test_get_recent_glucose_excludes_old_current_reading():
+    """graph.current outside the window must NOT be appended (False branch of ts >= cutoff)."""
+    now = datetime.now(timezone.utc)
+    current = MagicMock()
+    current.timestamp = now - timedelta(hours=5)  # outside 2h window
+
+    graph = MagicMock()
+    graph.history = []
+    graph.current = current
+
+    mock_client = MagicMock()
+    mock_client.get_patients.return_value = [MagicMock()]
+    mock_client.read.return_value = graph
+
+    assert get_recent_glucose(mock_client, hours=2) == []
+
+
 def test_get_recent_glucose_current_reading_with_naive_timestamp():
     """graph.current with naive timestamp must be treated as UTC and included."""
     now = datetime.now(timezone.utc)

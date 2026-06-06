@@ -818,3 +818,145 @@ def test_configure_sentry_no_pii_when_dsn_set():
         configure_sentry(settings)
         mock_init.assert_called_once()
         assert mock_init.call_args.kwargs["send_default_pii"] is False
+
+
+# ── _sentry_error_processor (ERROR events → Sentry) ───────────────────────────
+
+
+def test_sentry_processor_captures_exception_when_exc_info_true():
+    from src.logging_config import _sentry_error_processor
+
+    with patch("src.logging_config.sentry_sdk.capture_exception") as cap:
+        out = _sentry_error_processor(None, "error", {"exc_info": True})
+        cap.assert_called_once_with()
+    assert out == {"exc_info": True}
+
+
+def test_sentry_processor_captures_exc_info_tuple():
+    from src.logging_config import _sentry_error_processor
+
+    exc = (ValueError, ValueError("x"), None)
+    with patch("src.logging_config.sentry_sdk.capture_exception") as cap:
+        _sentry_error_processor(None, "critical", {"exc_info": exc})
+        cap.assert_called_once_with(exc)
+
+
+# ── auth_tokens: deletion-token helpers ───────────────────────────────────────
+
+
+def test_deletion_token_roundtrip():
+    from src.auth_tokens import _make_deletion_token, _verify_deletion_token
+
+    token = _make_deletion_token(42)
+    assert _verify_deletion_token(token) == 42
+
+
+def test_verify_deletion_token_invalid_returns_none():
+    from src.auth_tokens import _verify_deletion_token
+
+    assert _verify_deletion_token("not-a-valid-token") is None
+
+
+# ── db/users: validation guards + set_pending_deletion ────────────────────────
+
+
+async def test_update_password_rejects_nonpositive_user_id():
+    from src.db.users import update_password
+
+    with pytest.raises(ValueError):
+        await update_password(0, "hash")
+
+
+async def test_delete_user_rejects_nonpositive_user_id():
+    from src.db.users import delete_user
+
+    with pytest.raises(ValueError):
+        await delete_user(-1)
+
+
+async def test_save_user_token_rejects_nonpositive_user_id():
+    from src.db.users import save_user_token
+
+    with pytest.raises(ValueError):
+        await save_user_token(0, "garmin", b"token")
+
+
+async def test_set_pending_deletion_executes_update():
+    from src.db import users as users_mod
+
+    pool = MagicMock()
+    pool.execute = AsyncMock()
+    with patch.object(users_mod, "get_pool", AsyncMock(return_value=pool)):
+        await users_mod.set_pending_deletion(7)
+    pool.execute.assert_awaited_once()
+
+
+# ── crypto: serialize skips non-file entries (e.g. subdirectories) ────────────
+
+
+def test_serialize_token_dir_skips_subdirectories(tmp_path):
+    from src.crypto import serialize_token_dir
+
+    (tmp_path / "token.txt").write_bytes(b"data")
+    (tmp_path / "subdir").mkdir()
+    blob = serialize_token_dir(str(tmp_path))
+    files = json.loads(blob)
+    assert "token.txt" in files
+    assert "subdir" not in files
+
+
+# ── db/pool: cached pool is returned without re-creating ──────────────────────
+
+
+async def test_get_pool_returns_cached_pool():
+    from src.db import pool as pool_mod
+
+    sentinel = object()
+    pool_mod._pool = sentinel
+    try:
+        assert await pool_mod.get_pool() is sentinel
+    finally:
+        pool_mod._pool = None
+
+
+# ── deps._get_real_ip: untrusted client → ignore X-Forwarded-For ──────────────
+
+
+def test_get_real_ip_ignores_forwarded_from_untrusted_client():
+    from src.deps import _get_real_ip
+
+    class FakeClient:
+        host = "8.8.8.8"
+
+    class FakeRequest:
+        client = FakeClient()
+        headers = {"X-Forwarded-For": "1.2.3.4"}
+
+    assert _get_real_ip(FakeRequest()) == "8.8.8.8"
+
+
+# ── main: /api/metrics authenticated + middleware error counting ──────────────
+
+
+async def test_api_metrics_authenticated_returns_signals(client):
+    with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/metrics")
+    assert r.status_code == 200
+    body = r.json()
+    assert "active_requests" in body
+    assert "memory_mb" in body
+    assert "cpu_percent" in body
+
+
+async def test_request_id_middleware_increments_error_on_exception():
+    import src.main as main_mod
+
+    mw = main_mod.RequestIDMiddleware(app=lambda *a, **k: None)
+    before = main_mod._error_requests
+
+    async def boom(_request):
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        await mw.dispatch(MagicMock(), boom)
+    assert main_mod._error_requests == before + 1

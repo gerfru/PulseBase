@@ -36,5 +36,10 @@ source = ["src"]
 omit = ["src/db/__init__.py"]
 
 [tool.coverage.report]
-exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+    "^\\s*\\.\\.\\.\\s*$",
+]
 fail_under = 75
