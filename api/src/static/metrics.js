@@ -103,7 +103,10 @@ async function load() {
                 const baseScalesM =
                     chart.scales ||
                     (chart.type === 'bar' ? { y: { beginAtZero: true } } : { y: { beginAtZero: false } });
-                new Chart(document.getElementById(chartId), {
+                const canvasM = document.getElementById(chartId);
+                canvasM.setAttribute('role', 'img');
+                canvasM.setAttribute('aria-label', `Diagramm: ${chart.title}`);
+                new Chart(canvasM, {
                     type: chart.type,
                     data: { labels: chart.labels, datasets: chart.datasets },
                     options: {
@@ -127,7 +130,10 @@ async function load() {
             const baseScalesS =
                 result.chart.scales ||
                 (result.chart.type === 'bar' ? { y: { beginAtZero: true } } : { y: { beginAtZero: false } });
-            new Chart(document.getElementById('metrics-chart'), {
+            const canvasS = document.getElementById('metrics-chart');
+            canvasS.setAttribute('role', 'img');
+            canvasS.setAttribute('aria-label', `Diagramm: ${result.chart.title}`);
+            new Chart(canvasS, {
                 type: result.chart.type,
                 data: { labels: result.chart.labels, datasets: result.chart.datasets },
                 options: {

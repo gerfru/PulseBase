@@ -50,7 +50,11 @@ export function setTab(name) {
     });
     document.getElementById(`tab-${name}`).style.display = '';
     document.querySelectorAll('.tab-btn').forEach((b) => {
-        b.classList.toggle('active', b.dataset.tab === name);
+        const selected = b.dataset.tab === name;
+        b.classList.toggle('active', selected);
+        // ARIA Tabs-Pattern: aktiver Tab ist selektiert + tabbar, andere aus dem Tab-Stop genommen
+        b.setAttribute('aria-selected', selected ? 'true' : 'false');
+        b.tabIndex = selected ? 0 : -1;
     });
     history.replaceState(null, '', `#${name}`);
     setTimeout(
