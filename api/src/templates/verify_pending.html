@@ -8,13 +8,13 @@
     <div class="w-full max-w-sm">
         <div class="card">
             {% if error %}
-            <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">{{ error }}</div>
+            <div role="alert" class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">{{ error }}</div>
             {% endif %}
             {% if info %}
-            <div class="mb-4 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-sm">{{ info }}</div>
+            <div role="status" aria-live="polite" class="mb-4 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-sm">{{ info }}</div>
             {% endif %}
             {% if warning %}
-            <div class="mb-4 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/25 text-amber-300 text-sm">{{ warning }}</div>
+            <div role="status" aria-live="polite" class="mb-4 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/25 text-amber-300 text-sm">{{ warning }}</div>
             {% endif %}
 
             {% if not info %}

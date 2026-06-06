@@ -12,12 +12,12 @@
             <span class="text-sm text-slate-500 dark:text-slate-400">{{ user.name }}</span>
         </div>
         <div class="flex items-center gap-3 flex-wrap">
-            <div class="flex gap-1">
-                <button class="time-btn active" data-days="7">7T</button>
-                <button class="time-btn" data-days="14">14T</button>
-                <button class="time-btn" data-days="30">30T</button>
-                <button class="time-btn" data-days="90">90T</button>
-                <button class="time-btn" data-days="365">365T</button>
+            <div class="flex gap-1" role="group" aria-label="Zeitraum wählen">
+                <button class="time-btn active" data-days="7" aria-label="7 Tage" aria-pressed="true">7T</button>
+                <button class="time-btn" data-days="14" aria-label="14 Tage" aria-pressed="false">14T</button>
+                <button class="time-btn" data-days="30" aria-label="30 Tage" aria-pressed="false">30T</button>
+                <button class="time-btn" data-days="90" aria-label="90 Tage" aria-pressed="false">90T</button>
+                <button class="time-btn" data-days="365" aria-label="365 Tage" aria-pressed="false">365T</button>
             </div>
             <div class="flex items-center gap-2">
                 <span id="ml-status" class="sync-last" style="display:none"></span>
@@ -68,10 +68,10 @@
     </div>
 
     <!-- ── Tab-Navigation ────────────────────────────────────────── -->
-    <nav class="flex px-4 sm:px-6 mt-5 border-b border-black/[0.07] dark:border-white/[0.07]">
-        <button class="tab-btn active" data-tab="training">Training</button>
-        <button class="tab-btn" data-tab="verlauf">Verlauf</button>
-        <button class="tab-btn" data-tab="erholung">Erholung</button>
+    <nav class="flex px-4 sm:px-6 mt-5 border-b border-black/[0.07] dark:border-white/[0.07]" role="tablist" aria-label="Dashboard-Bereiche">
+        <button class="tab-btn active" data-tab="training" role="tab" id="tab-btn-training" aria-controls="tab-training" aria-selected="true">Training</button>
+        <button class="tab-btn" data-tab="verlauf" role="tab" id="tab-btn-verlauf" aria-controls="tab-verlauf" aria-selected="false" tabindex="-1">Verlauf</button>
+        <button class="tab-btn" data-tab="erholung" role="tab" id="tab-btn-erholung" aria-controls="tab-erholung" aria-selected="false" tabindex="-1">Erholung</button>
     </nav>
 
     <!-- ── Period Nav Bar ──────────────────────────────────────────── -->
@@ -82,7 +82,7 @@
     </div>
 
     <!-- ── Tab: Training ─────────────────────────────────────────── -->
-    <div id="tab-training" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12">
+    <div id="tab-training" role="tabpanel" aria-labelledby="tab-btn-training" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12">
 
         <div class="card col-span-full" id="weekly-card">
             <h2>Trainingsübersicht</h2>
@@ -115,7 +115,7 @@
     </div>
 
     <!-- ── Tab: Verlauf ──────────────────────────────────────────── -->
-    <div id="tab-verlauf" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
+    <div id="tab-verlauf" role="tabpanel" aria-labelledby="tab-btn-verlauf" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
 
         <div class="card">
             <h2>Body Battery</h2>
@@ -155,7 +155,7 @@
     </div>
 
     <!-- ── Tab: Erholung ─────────────────────────────────────────── -->
-    <div id="tab-erholung" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
+    <div id="tab-erholung" role="tabpanel" aria-labelledby="tab-btn-erholung" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
 
         <div class="card">
             <h2>Schlaf-Score</h2>

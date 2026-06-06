@@ -684,3 +684,30 @@ html:not(.dark) .recommendation-block { background: rgba(16,185,129,.07); }
   padding: 0 0 var(--sp-3); transition: color .15s;
 }
 .help-show-all-btn:hover { color: var(--accent); }
+
+/* ── Accessibility: globaler Fokus-Indikator (WCAG 2.4.7 / 1.4.11) ─────── */
+/* Garantiert einen klar sichtbaren, kontrastreichen Fokusrahmen fuer alle    */
+/* interaktiven Elemente — unabhaengig von Tailwind-Utility-Deckkraft.        */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* Skip-Link: visuell versteckt bis Tastaturfokus (WCAG 2.4.1) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: var(--sp-2);
+  top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  outline: 2px solid #fff;
+}
