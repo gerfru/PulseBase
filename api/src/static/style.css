@@ -570,8 +570,12 @@ html:not(.dark) .type-screening  { background: #ffedd5; color: #7c2d12; }
 .disclosure-block.not-for {
   background: rgba(239,68,68,.08); color: #fca5a5; border: 1px solid rgba(239,68,68,.18);
 }
+.disclosure-block.limitations {
+  background: rgba(148,163,184,.08); color: #cbd5e1; border: 1px solid rgba(148,163,184,.2);
+}
 html:not(.dark) .disclosure-block.intended { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
 html:not(.dark) .disclosure-block.not-for  { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+html:not(.dark) .disclosure-block.limitations { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
 .disclosure-disclaimer {
   font-size: .65rem; color: rgba(148,163,184,.5);
   border-top: 1px solid rgba(148,163,184,.12); padding-top: 6px; margin-top: 8px; line-height: 1.4;

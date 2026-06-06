@@ -106,6 +106,39 @@ async def test_confirm_delete_account_invalid_token_returns_400(client):
     assert r.status_code == 400
 
 
+async def test_delete_account_email_not_sent_still_shows_pending(client):
+    """Even if the confirmation e-mail fails, the pending page is shown (logged warning)."""
+    with (
+        patch("src.routes.account.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.account.get_user_by_email",
+            AsyncMock(return_value=_USER_WITH_HASH),
+        ),
+        patch("src.routes.account.set_pending_deletion", AsyncMock()),
+        patch(
+            "src.routes.account.send_deletion_confirm_email",
+            AsyncMock(return_value=False),
+        ),
+        patch("src.routes.account._make_deletion_token", return_value="test-token"),
+    ):
+        r = await client.post(
+            "/account/delete",
+            data={"email": TEST_USER["email"], "password": _TEST_PASSWORD},
+        )
+    assert r.status_code == 200
+
+
+async def test_confirm_delete_account_user_not_found_redirects_to_login(client):
+    """Valid token but the user no longer exists → redirect to /login (not 500)."""
+    with (
+        patch("src.routes.account._verify_deletion_token", return_value=999),
+        patch("src.routes.account.get_user_by_id", AsyncMock(return_value=None)),
+    ):
+        r = await client.get("/account/delete/confirm/valid-token")
+    assert r.status_code == 303
+    assert r.headers["location"] == "/login"
+
+
 # ── Delete: NeedsLogin when require_user raises ───────────────────────────────
 
 

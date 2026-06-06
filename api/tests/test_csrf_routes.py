@@ -98,6 +98,24 @@ async def test_reset_password_csrf_failure_returns_403(client):
     assert "Ungültige Anfrage" in r.text
 
 
+# ── auth/resend-verify ────────────────────────────────────────────────────────
+
+
+async def test_resend_verify_csrf_failure_returns_400(client):
+    r = await client.post("/auth/resend-verify", data={"email": "x@example.com"})
+    assert r.status_code == 400
+    assert "Ungültige Anfrage" in r.text
+
+
+# ── auth/reset-request ────────────────────────────────────────────────────────
+
+
+async def test_reset_request_csrf_failure_returns_400(client):
+    r = await client.post("/auth/reset-request", data={"email": "x@example.com"})
+    assert r.status_code == 400
+    assert "Ungültige Anfrage" in r.text
+
+
 # ── garmin/link ───────────────────────────────────────────────────────────────
 
 

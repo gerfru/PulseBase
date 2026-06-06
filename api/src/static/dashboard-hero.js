@@ -69,12 +69,12 @@ export function heroRecommendation(s) {
     if (s == null) return '';
     const [text, cls] =
         s >= 75
-            ? ['Voll belasten — Körper ist erholt', 'rec-green']
+            ? ['Deutet auf gute Erholung hin — intensives Training wäre möglich', 'rec-green']
             : s >= 60
-              ? ['Moderat trainieren — Erholung läuft', 'rec-amber']
+              ? ['Erholung läuft — moderates Training wäre passend', 'rec-amber']
               : s >= 40
-                ? ['Leichtes Training — Erholung bevorzugen', 'rec-amber']
-                : ['Heute ruhen — Erholung prioritär', 'rec-red'];
+                ? ['Erholung scheint noch im Gang — eher leicht trainieren', 'rec-amber']
+                : ['Deutet auf eingeschränkte Erholung — heute eher ruhen', 'rec-red'];
     return `<p class="hero-recommendation ${cls}">${text}</p>`;
 }
 
@@ -127,6 +127,8 @@ export function buildHeroCard() {
     const _hrvLabel = { BALANCED: 'Erholt', UNBALANCED: 'Leicht gedämpft', LOW: 'Niedrig', POOR: 'Stark gedämpft' };
 
     const rfScore = rf?.value != null ? Math.round(rf.value) : null;
+    const rfLo = rf?.confidence_low != null ? Math.round(rf.confidence_low) : null;
+    const rfHi = rf?.confidence_high != null ? Math.round(rf.confidence_high) : null;
     const rfSubCls =
         rfScore != null ? (rfScore >= 75 ? 'heute-green' : rfScore >= 50 ? 'heute-amber' : 'heute-red') : '';
 
@@ -246,6 +248,7 @@ export function buildHeroCard() {
             <span class="hero-heute-val ${rfSubCls}" style="font-size:1.05rem">~${rfScore}</span>
             <span class="hero-heute-score-lbl">ML-Prognose</span>
             <span class="hero-heute-label">Readiness Morgen</span>
+            ${rfLo != null && rfHi != null ? `<span class="metric-horizon">Spanne ${rfLo}–${rfHi}</span>` : ''}
             <span class="metric-horizon">Prognose · Morgen</span>
         </a>`
             : '';
@@ -281,6 +284,7 @@ export function buildHeroCard() {
                 </div>
                 <div class="hero-capacity-grid">${capacityTilesOnly()}</div>
                 ${mlTile}
+                ${rfScore != null ? '<p class="disclosure-disclaimer" style="margin-top:6px">Schätzung auf Basis deiner Daten — kein medizinischer Befund.</p>' : ''}
             </div>
         </div>`;
 
@@ -337,8 +341,10 @@ export function buildMlTabs() {
             let html = '<div class="ml-kpi-row">';
             if (anomaly) {
                 const z = anomaly.z_score;
+                const zTip =
+                    z != null ? `z-Score ${z.toFixed(2)} · Schwelle |Z| > 2` : 'statistisches Signal, keine Diagnose';
                 const flag = anomaly.is_anomaly
-                    ? '<span style="color:var(--red)">⚠ Anomalie</span>'
+                    ? `<span style="color:var(--red)" title="${esc(zTip)}">⚠ Mögliche Auffälligkeit</span>`
                     : '<span style="color:var(--green)">✓ Normal</span>';
                 html += mlStatTile(
                     'Ruhepuls z-Score',

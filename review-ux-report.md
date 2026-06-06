@@ -30,6 +30,59 @@ Framework-Basis: HAX (18 Guidelines) · PAIR (23 Patterns) · CHI 2024 (6 Prinzi
 
 ---
 
+## Umsetzungsstatus
+
+Umsetzung erfolgt in 4 Pull Requests (siehe Plan-Datei `bitte-erstelle-einen-plan-sorted-rabbit.md`, Abschnitt „Reihenfolge / PR-Schnitt").
+
+| PR | Inhalt | Status |
+|----|--------|--------|
+| **PR1** | Accessibility (A-1…A-7) | ✅ **Umgesetzt** (Branch `a11y/pr1-accessibility`, 2026-06-06) |
+| **PR2** | KI-Transparenz (B-1…B-5, E-2) | ✅ **Umgesetzt** (Branch `ai/pr2-ki-transparenz`, 2026-06-06) |
+| **PR3** | Anfälle editierbar + Fehler inline + Onboarding (C-1, C-3, D-1, E-1, F-1) | ⬜ offen |
+| **PR4** | ML-Feedback (C-2, Migration V25) | ⬜ offen (optional/nachgelagert) |
+
+### ✅ PR1 — Accessibility (erledigt 2026-06-06)
+
+Behebt alle 🔴-Befunde der Dimension Accessibility. Verifiziert: Biome sauber · Vitest 119/119 · pytest 390/390.
+
+- **A-1** Charts mit Textalternative — `makeChart` setzt `role="img"` + automatisch erzeugtes `aria-label` (Typ + Serien + aktueller Wert); `activity.js` und `metrics.js` analog. *(behebt [A-1] Critical)*
+- **A-2** GPS-Karte — Routen-Textzusammenfassung als `aria-label` + `sr-only`-Block in `activity.js`/`activity.html`. *(behebt [A-2] Critical)*
+- **A-3** `<main id="main">`-Landmark + Skip-Link in `base.html` (eigene `.skip-link`-Klasse, kein Tailwind-Rebuild nötig). *(behebt [A-3] High)*
+- **A-4** `role="alert"` (Fehler) / `role="status" aria-live="polite"` (Info/Erfolg/Warnung) in 8 Templates. *(behebt [A-4] High, Quick Win #1)*
+- **A-5** Dashboard-Tabs nach WAI-ARIA Tabs-Pattern (`role=tablist/tab/tabpanel`, `aria-selected`, Pfeiltasten-Navigation); Zeitraum-Buttons mit `aria-label`/`aria-pressed`.
+- **A-6** Globale `:focus-visible`-Regel in `style.css` (WCAG 2.4.7 / 1.4.11). *(behebt [A-6] Low)*
+- **A-7** `accessibility.html` ehrlich aktualisiert (umgesetzte Maßnahmen + verbleibende Einschränkungen).
+
+**Bewusst offen (ehrlich dokumentiert in `accessibility.html`):** Diagramme bieten eine *zusammenfassende* Textalternative, aber keine vollständige Datentabelle je Messpunkt; GPS-Karte ist über die Routen-Textzusammenfassung zugänglich, aber nicht vollständig per Tastatur zoom-/verschiebbar.
+
+> Hinweis: Die Befund-Codes [A-5] (Icon-Buttons) aus der ursprünglichen Liste haben sich bei der Umsetzung als bereits weitgehend gelöst herausgestellt (die meisten Icon-Buttons hatten schon `aria-label`); offen waren v. a. die Zeitraum-Buttons und das Tabs-Pattern — beide in PR1 behoben.
+
+---
+
+### ✅ PR2 — KI-Transparenz (erledigt 2026-06-06)
+
+Behebt die zwei systematischen KI-UX-Lücken aus dem Gesamtbild: **keine Unsicherheits-Anzeige** und **kein angemessener Unsicherheitsrahmen** um die ML-Outputs. Rein Frontend — die Konfidenzdaten (`confidence_low`/`confidence_high`, 10./90. Perzentil der RF-Bäume) flossen bereits über `/api/ml-insights`, nur die Ausspielung fehlte. Verifiziert: Biome sauber · Vitest 125/125.
+
+- **B-1** Konfidenzintervall sichtbar — ML-Prognose-Tile zeigt `Spanne lo–hi`; Detailseite `readiness-rf` mit KPI „Konfidenz (10–90%)". Null-/Empty-State fällt sauber auf „—" zurück. *(behebt [D2-1] High — dashboard-hero.js, metrics-ml.js)*
+- **B-2** `limitations`-Feld im Hilfe-Artikel gerendert (Block „Einschränkungen" analog Evidence-Dialog) + in die Hilfe-Suche aufgenommen. *(behebt [D2-3] Medium — help.js, style.css)*
+- **B-3** Empfehlungssprache von direktivem Imperativ („Voll belasten") → Vorschlagsform mit Unsicherheit („Deutet auf gute Erholung hin — intensives Training wäre möglich"). *(behebt [D6-1] Medium — dashboard-hero.js)*
+- **B-4** Anomalie-Label „⚠ Anomalie" → „⚠ Mögliche Auffälligkeit" + Z-Wert/Schwelle als Tooltip; konsistent auf Dashboard und Metrik-Detailseite. *(behebt [D2-2] Medium — dashboard-hero.js, metrics-ml.js)*
+- **B-5** Disclaimer-Reibung direkt unter den ML-Tiles statt nur im Footer („Schätzung auf Basis deiner Daten — kein medizinischer Befund"). *(behebt [D6-2] Medium — dashboard-hero.js)*
+- **E-2** Tag-zu-Tag-Streuung in den Hilfe-Artikeln zu Readiness und Anomalie erklärt („auf den Trend achten, nicht auf den Einzelwert"). *(behebt [D1-2] Low — help.js)*
+
+**Zusätzlich im selben PR (außerhalb der UX-Befundliste):**
+- **Bugfix Anfallstagebuch:** `epilepsy.js` wurde als klassisches `<script>` geladen, nutzt aber ES-Module-`export` (für die Vitest-Tests) → `SyntaxError`, die Seite blieb auf „Lade…" (kein Datums-Prefill, keine Schwere-Chips, Risiko/Verlauf leer). Fix: `type="module"` in `epilepsy.html` — identisch zu dashboard/help/metrics.
+- **Test-Coverage:** api · sync-service · ml-service auf **100%** gehoben (echte Lücken getestet, nicht-ausführbare ABC-Stubs/Entrypoints via `pragma`/`exclude_lines` ehrlich ausgeklammert).
+
+---
+
+## Nächste Schritte
+
+- **PR3** — Anfälle editierbar/löschbar (PATCH/DELETE `/api/seizures/{id}` + DB-Funktionen), Libre-Unlink-Bestätigungsdialog, Inline-Fehler statt `alert()` im Anfallsformular, Onboarding-/Datenlatenz-Hinweis, „zuletzt analysiert"-Indikator. *(C-1, C-3, D-1, E-1, F-1 ↔ [D3-2], [D3-3], [D4-1], [D1-1], [D5-1])* — braucht Backend-Änderungen.
+- **PR4** — Item-Level-ML-Feedback (👍/👎 auf Anomalie-/Readiness-Tiles) + Migration V25. *(C-2 ↔ [D3-1])* — optional/nachgelagert.
+
+---
+
 ## Top-3 Quick Wins
 
 1. **Fehlermeldungen für Screenreader ankündigen** · WCAG 4.1.3 (AA) · Aufwand: **S (<30min)** · `role="alert" aria-live="polite"` auf alle `{{ error }}`-/Status-Blöcke in `login.html`, `register.html`, `settings.html`, `reset_*.html`. Aktuell hat nur der Toast in [dashboard.html:185](api/src/templates/dashboard.html#L185) das Attribut.
