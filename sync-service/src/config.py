@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     db_host: str = "db"
     db_port: int = 5432
     db_name: str = "garmin"
-    db_app_user: str
-    db_app_password: str
+    db_sync_user: str
+    db_sync_password: str
 
     sync_interval_hours: int = 2
     sync_lookback_days: int = 30
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     @property
     def db_url(self) -> str:
-        return f"postgresql://{self.db_app_user}:{self.db_app_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return f"postgresql://{self.db_sync_user}:{self.db_sync_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
 def require_fernet_key(settings: Settings) -> str:
