@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     db_host: str = "db"
     db_port: int = 5432
     db_name: str = "garmin"
-    db_app_user: str
-    db_app_password: str
+    db_ml_user: str
+    db_ml_password: str
 
     model_dir: Path = Path("/app/models")
     ml_infer_hour: int = 7
@@ -17,4 +17,4 @@ class Settings(BaseSettings):
 
     @property
     def db_url(self) -> str:
-        return f"postgresql://{self.db_app_user}:{self.db_app_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return f"postgresql://{self.db_ml_user}:{self.db_ml_password}@{self.db_host}:{self.db_port}/{self.db_name}"

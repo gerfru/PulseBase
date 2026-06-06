@@ -86,6 +86,10 @@ gen-secrets:
 	@echo "FERNET_KEY=$$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
 	@echo ""
 	@echo "FERNET_KEY auch in env/.env.sync eintragen (gleicher Wert)."
+	@echo ""
+	@echo "Per-Service-DB-Rollen (V24) — in env/.env.app eintragen:"
+	@echo "DB_SYNC_PASSWORD=$$(openssl rand -hex 24)"
+	@echo "DB_ML_PASSWORD=$$(openssl rand -hex 24)"
 
 secure-env:
 	chmod 600 env/.env env/.env.api env/.env.sync env/.env.ml
