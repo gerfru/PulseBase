@@ -84,10 +84,6 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 
 ---
 
-@./claude/app-rules.md
-
----
-
 # Garmin Dashboard — Projektspezifisch
 
 ## Stack

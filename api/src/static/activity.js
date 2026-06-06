@@ -162,8 +162,12 @@ Chart.defaults.borderColor = isDark ? 'rgba(51,65,85,.6)' : 'rgba(226,232,240,.8
 Chart.defaults.interaction = { mode: 'index', intersect: false };
 Chart.defaults.elements.point.hoverRadius = 4;
 
-function makeChart(id, type, labels, datasets, scales = {}) {
-    return new Chart(document.getElementById(id), {
+function makeChart(id, type, labels, datasets, scales = {}, ariaLabel = '') {
+    const canvas = document.getElementById(id);
+    // Accessibility: Textalternative fuer Screenreader (WCAG 1.1.1).
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', ariaLabel || `Liniendiagramm mit ${labels.length} Messpunkten`);
+    return new Chart(canvas, {
         type,
         data: { labels, datasets },
         options: {
@@ -316,6 +320,14 @@ async function load() {
     const gpsPoints = records.filter((r) => r.lat && r.lng).map((r) => [r.lat, r.lng]);
     if (gpsPoints.length > 1) {
         document.getElementById('map-card').style.display = '';
+        // Accessibility: Leaflet-Karte ist rein visuell — Textalternative der Route
+        // fuer Screenreader (WCAG 1.1.1).
+        const mapEl = document.getElementById('map');
+        const routeSummary = `Streckenkarte: ${sportName} über ${fmtDist(a.distance_meters)}, Dauer ${fmtDuration(a.duration_seconds)}.`;
+        mapEl.setAttribute('role', 'img');
+        mapEl.setAttribute('aria-label', routeSummary);
+        const mapSummaryEl = document.getElementById('map-summary');
+        if (mapSummaryEl) mapSummaryEl.textContent = routeSummary;
         const map = L.map('map');
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -356,6 +368,7 @@ async function load() {
                 },
             ],
             { y: { beginAtZero: false } },
+            'Herzfrequenz-Verlauf der Aktivität',
         );
     }
 
@@ -377,6 +390,7 @@ async function load() {
                 },
             ],
             { y: { reverse: true, title: { display: true, text: 'min/km' } } },
+            'Pace-Verlauf in Minuten pro Kilometer',
         );
     } else if (isCycling && records.some((r) => r.pace_sec_per_km)) {
         document.getElementById('pace-card').style.display = '';
@@ -397,6 +411,7 @@ async function load() {
                 },
             ],
             { y: { title: { display: true, text: 'km/h' } } },
+            'Geschwindigkeits-Verlauf in Kilometern pro Stunde',
         );
     }
 
@@ -418,6 +433,7 @@ async function load() {
                 },
             ],
             { y: { title: { display: true, text: 'm' } } },
+            'Höhenprofil der Aktivität in Metern',
         );
     }
 
@@ -438,6 +454,7 @@ async function load() {
                 },
             ],
             { y: { beginAtZero: false } },
+            'Trittfrequenz-Verlauf der Aktivität',
         );
     }
 }

@@ -10,7 +10,8 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
-    {% block content %}{% endblock %}
+    <a href="#main" class="skip-link">Zum Inhalt springen</a>
+    <main id="main">{% block content %}{% endblock %}</main>
     <footer class="mt-8 pb-6 text-center text-xs text-slate-500 dark:text-slate-600 space-x-3">
         <a href="/privacy" class="hover:text-slate-400 transition-colors">Datenschutz</a>
         <span>·</span>
