@@ -114,6 +114,25 @@ export function makeChart(id, type, labels, datasets, extra = {}) {
             scales: scaleDefaults,
         },
     });
+
+    // Accessibility: Textalternative fuer Screenreader (WCAG 1.1.1).
+    // ariaSummary uebersteuert; sonst wird aus Typ, Serien-Labels und letztem
+    // Wert automatisch eine sinnvolle Beschreibung erzeugt.
+    if (canvas) {
+        canvas.setAttribute('role', 'img');
+        canvas.setAttribute('aria-label', extra.ariaSummary || chartAriaLabel(type, datasets));
+    }
+}
+
+function chartAriaLabel(type, datasets) {
+    const typeWord = type === 'bar' ? 'Balkendiagramm' : type === 'line' ? 'Liniendiagramm' : 'Diagramm';
+    const series = datasets.map((d) => d.label).filter(Boolean);
+    let label = series.length ? `${typeWord}: ${series.join(', ')}` : typeWord;
+    if (datasets.length === 1) {
+        const vals = (datasets[0].data || []).filter((v) => v != null);
+        if (vals.length) label += `. Aktueller Wert ${vals[vals.length - 1]}, ${vals.length} Datenpunkte`;
+    }
+    return label;
 }
 
 export function showEmpty(id) {

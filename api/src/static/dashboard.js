@@ -25,7 +25,9 @@ function setDays(days) {
     setCurrentDays(days);
     resetOffset();
     document.querySelectorAll('.time-btn').forEach((b) => {
-        b.classList.toggle('active', +b.dataset.days === days);
+        const active = +b.dataset.days === days;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
     updateNavBar();
     load(days);
@@ -35,8 +37,22 @@ function setDays(days) {
 document.querySelectorAll('.time-btn').forEach((btn) => {
     btn.addEventListener('click', () => setDays(+btn.dataset.days));
 });
-document.querySelectorAll('.tab-btn').forEach((btn) => {
+const _tabBtns = [...document.querySelectorAll('.tab-btn')];
+_tabBtns.forEach((btn, i) => {
     btn.addEventListener('click', () => setTab(btn.dataset.tab));
+    // ARIA Tabs-Pattern: Pfeil-/Pos1-/Ende-Navigation zwischen Tabs
+    btn.addEventListener('keydown', (e) => {
+        let next = null;
+        if (e.key === 'ArrowRight') next = _tabBtns[(i + 1) % _tabBtns.length];
+        else if (e.key === 'ArrowLeft') next = _tabBtns[(i - 1 + _tabBtns.length) % _tabBtns.length];
+        else if (e.key === 'Home') next = _tabBtns[0];
+        else if (e.key === 'End') next = _tabBtns[_tabBtns.length - 1];
+        if (next) {
+            e.preventDefault();
+            setTab(next.dataset.tab);
+            next.focus();
+        }
+    });
 });
 document
     .getElementById('formula-dialog-close')
