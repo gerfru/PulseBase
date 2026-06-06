@@ -7,40 +7,47 @@ describe('heroRecommendation', () => {
         expect(heroRecommendation(undefined)).toBe('');
     });
 
-    // Threshold changed from 80 to 75 — verify the new boundary
-    it('returns Voll belasten at score 75 (lower threshold)', () => {
+    // Threshold 75 for the green/best band
+    it('returns the good-recovery suggestion at score 75 (lower threshold)', () => {
         const html = heroRecommendation(75);
-        expect(html).toContain('Voll belasten');
+        expect(html).toContain('gute Erholung');
         expect(html).toContain('rec-green');
     });
 
-    it('returns Voll belasten above 75', () => {
-        expect(heroRecommendation(100)).toContain('Voll belasten');
-        expect(heroRecommendation(80)).toContain('Voll belasten');
-        expect(heroRecommendation(76)).toContain('Voll belasten');
+    it('returns the good-recovery suggestion above 75', () => {
+        expect(heroRecommendation(100)).toContain('gute Erholung');
+        expect(heroRecommendation(80)).toContain('gute Erholung');
+        expect(heroRecommendation(76)).toContain('gute Erholung');
     });
 
-    it('does NOT return Voll belasten at score 74 (old threshold would pass, new does not)', () => {
-        const html = heroRecommendation(74);
+    // B-3: wording is a hedged suggestion, not a directive imperative
+    it('uses hedged suggestion wording (no imperative)', () => {
+        const html = heroRecommendation(80);
+        expect(html).toContain('wäre möglich');
         expect(html).not.toContain('Voll belasten');
-        expect(html).toContain('Moderat trainieren');
+    });
+
+    it('does NOT return the good-recovery suggestion at score 74 (boundary)', () => {
+        const html = heroRecommendation(74);
+        expect(html).not.toContain('gute Erholung');
+        expect(html).toContain('moderates Training');
         expect(html).toContain('rec-amber');
     });
 
-    it('returns Moderat trainieren for scores 60–74', () => {
-        expect(heroRecommendation(74)).toContain('Moderat trainieren');
-        expect(heroRecommendation(60)).toContain('Moderat trainieren');
+    it('returns the moderate suggestion for scores 60–74', () => {
+        expect(heroRecommendation(74)).toContain('moderates Training');
+        expect(heroRecommendation(60)).toContain('moderates Training');
     });
 
-    it('returns Leichtes Training for scores 40–59', () => {
-        expect(heroRecommendation(59)).toContain('Leichtes Training');
-        expect(heroRecommendation(40)).toContain('Leichtes Training');
+    it('returns the light-training suggestion for scores 40–59', () => {
+        expect(heroRecommendation(59)).toContain('eher leicht trainieren');
+        expect(heroRecommendation(40)).toContain('eher leicht trainieren');
         expect(heroRecommendation(59)).toContain('rec-amber');
     });
 
-    it('returns Heute ruhen for scores below 40', () => {
-        expect(heroRecommendation(39)).toContain('Heute ruhen');
-        expect(heroRecommendation(0)).toContain('Heute ruhen');
+    it('returns the rest suggestion for scores below 40', () => {
+        expect(heroRecommendation(39)).toContain('eher ruhen');
+        expect(heroRecommendation(0)).toContain('eher ruhen');
         expect(heroRecommendation(0)).toContain('rec-red');
     });
 
