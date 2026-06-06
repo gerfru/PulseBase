@@ -19,10 +19,13 @@ export const ML_METRICS = {
             const rhrDelta = validRhr.length >= 2 ? validRhr.at(-1).resting_hr - validRhr.at(-2).resting_hr : null;
             return {
                 value: zscore,
-                sub: isAnom ? '⚠ Anomalie erkannt' : anomaly?.z_score != null ? '✓ Normal' : 'zu wenig Daten',
+                sub: isAnom ? '⚠ Mögliche Auffälligkeit' : anomaly?.z_score != null ? '✓ Normal' : 'zu wenig Daten',
                 kpis: [
                     { label: 'Z-Score heute (Standardabweichungen vom Ø)', value: zscore },
-                    { label: 'Status', value: isAnom ? '⚠ Anomalie' : anomaly?.z_score != null ? '✓ Normal' : '—' },
+                    {
+                        label: 'Status',
+                        value: isAnom ? '⚠ Mögliche Auffälligkeit' : anomaly?.z_score != null ? '✓ Normal' : '—',
+                    },
                     {
                         label: 'Baseline Ø (30 Tage)',
                         value: anomaly?.baseline_mean ? `${Math.round(anomaly.baseline_mean)} bpm` : '—',
@@ -75,7 +78,7 @@ export const ML_METRICS = {
                     if (anomaly == null) return null;
                     if (isAnom && (anomaly.z_score ?? 0) > 2)
                         return 'Ruhepuls ungewöhnlich hoch — mögliches Zeichen für Übertraining, Stress oder Erkrankung. Belastung heute reduzieren.';
-                    if (isAnom) return 'Anomalie erkannt. Auf körperliche Signale achten.';
+                    if (isAnom) return 'Mögliche Auffälligkeit — auf körperliche Signale achten.';
                     return 'Ruhepuls im Normalbereich. Kein Anlass zur Sorge.';
                 })(),
             };
@@ -96,6 +99,8 @@ export const ML_METRICS = {
             const meta = ml.model_meta_rf;
             const hist = history.readiness_rf || [];
             const score = rf?.value != null ? Math.round(rf.value) : null;
+            const ciLo = rf?.confidence_low != null ? Math.round(rf.confidence_low) : null;
+            const ciHi = rf?.confidence_high != null ? Math.round(rf.confidence_high) : null;
             const cls =
                 score != null ? (score >= 80 ? 'badge-balanced' : score >= 50 ? 'badge-unbalanced' : 'badge-poor') : '';
             const lbl = score != null ? (score >= 80 ? 'Gut' : score >= 50 ? 'Moderat' : 'Niedrig') : '—';
@@ -107,6 +112,10 @@ export const ML_METRICS = {
                 sub: lbl + (score != null ? ' · Readiness (0–100)' : ''),
                 kpis: [
                     { label: 'Heutiger Score', value: score ?? '—' },
+                    {
+                        label: 'Konfidenz (10–90%)',
+                        value: ciLo != null && ciHi != null ? `${ciLo}–${ciHi}` : '—',
+                    },
                     {
                         label: 'Trainingsdaten',
                         value: meta?.n_rows != null ? `${meta.n_rows} Tage` : '—',

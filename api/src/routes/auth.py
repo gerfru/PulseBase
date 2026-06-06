@@ -70,7 +70,9 @@ async def login(
         return lockout
     if resp := await _handle_invalid_credentials(user, password, email, request):
         return resp
-    if user is None:
+    if (
+        user is None
+    ):  # pragma: no cover - defensive invariant; _handle_invalid_credentials returns first
         raise RuntimeError("user_record missing after credential check")
     if resp := _handle_unverified_email(user, request):
         return resp
