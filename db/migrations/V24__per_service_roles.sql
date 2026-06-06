@@ -28,8 +28,9 @@ BEGIN
 END
 $$;
 
-GRANT CONNECT ON DATABASE garmin TO "${DB_SYNC_USER}", "${DB_ML_USER}";
-GRANT USAGE   ON SCHEMA public    TO "${DB_SYNC_USER}", "${DB_ML_USER}";
+-- Hinweis: CONNECT (Datenbank) und USAGE (Schema public) sind via PUBLIC bereits
+-- vorhanden (wie bei garmin_app/V7) — kein expliziter Grant noetig. Ein
+-- hartcodierter DB-Name wuerde zudem die Test-DB (garmin_test) brechen.
 
 -- ── pulse_sync — Garmin/Libre-Ingest ────────────────────────────────────────
 -- users: nur nicht-sensible Spalten lesen (kein password_hash / Reset-Token),
