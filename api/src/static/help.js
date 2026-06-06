@@ -354,7 +354,7 @@ const HELP_GROUPS = [
                     ['Anomalie', '|Z| > 2.0 = Anomalie (≈ äußerste 5% der Normalverteilung)'],
                 ],
                 science:
-                    'Resting Heart Rate ist ein sensitiver Biomarker des autonomen Gleichgewichts: sympathische Aktivierung durch Übertraining, Infektion oder Schlafmangel erhöht RHR messbar vor klinischen Symptomen. Die |Z| > 2.0-Schwelle entspricht den äußersten ≈ 5% einer Normalverteilung.',
+                    'Resting Heart Rate ist ein sensitiver Biomarker des autonomen Gleichgewichts: sympathische Aktivierung durch Übertraining, Infektion oder Schlafmangel erhöht RHR messbar vor klinischen Symptomen. Die |Z| > 2.0-Schwelle entspricht den äußersten ≈ 5% einer Normalverteilung. Ein Ausreißer ist ein statistisches Signal, keine Diagnose — einzelne Werte schwanken naturgemäß; der Trend über mehrere Tage ist aussagekräftiger.',
                 sources: [
                     {
                         label: 'Achten & Jeukendrup (2003): Heart Rate Monitoring',
@@ -404,7 +404,7 @@ const HELP_GROUPS = [
                     ['Konfidenz', '10./90. Perzentil der Baum-Prognosen'],
                 ],
                 science:
-                    'Personalisierter Random Forest ohne populationsbasierter Normierung. Breiman (2001) zeigt, dass RF durch Ensemble-Mittelung über viele Entscheidungsbäume Overfitting reduziert. Mindestens 30 Trainingspaare nötig.',
+                    'Personalisierter Random Forest ohne populationsbasierter Normierung. Breiman (2001) zeigt, dass RF durch Ensemble-Mittelung über viele Entscheidungsbäume Overfitting reduziert. Mindestens 30 Trainingspaare nötig. Werte können von Tag zu Tag leicht schwanken (Modell-Rauschen und gleitende Baseline) — auf den Trend achten, nicht auf den Einzelwert.',
                 sources: [
                     {
                         label: 'Breiman L (2001): Random Forests — Machine Learning 45(1)',
@@ -493,6 +493,9 @@ function renderArticle(art) {
     const notFor = ev.not_for
         ? `<div class="disclosure-block not-for"><strong>Nicht geeignet für:</strong> ${esc(ev.not_for)}</div>`
         : '';
+    const limitations = ev.limitations
+        ? `<div class="disclosure-block limitations"><strong>Einschränkungen:</strong> ${esc(ev.limitations)}</div>`
+        : '';
 
     const methodContent = [
         renderFormula(art.formula),
@@ -502,7 +505,7 @@ function renderArticle(art) {
         .filter(Boolean)
         .join('');
 
-    return `<article id="${esc(art.key)}" class="card help-article" data-searchtext="${esc(`${art.title} ${art.eli5} ${art.science ?? ''} ${ev.intended_use ?? ''}`.toLowerCase())}">
+    return `<article id="${esc(art.key)}" class="card help-article" data-searchtext="${esc(`${art.title} ${art.eli5} ${art.science ?? ''} ${ev.intended_use ?? ''} ${ev.limitations ?? ''}`.toLowerCase())}">
         <div class="help-article-header">
             ${typeBadge}
             <h2>${esc(art.title)}</h2>
@@ -511,6 +514,7 @@ function renderArticle(art) {
         ${horizon}
         ${intendedUse}
         ${notFor}
+        ${limitations}
         <p class="help-summary">${esc(art.eli5)}</p>
         ${
             methodContent
