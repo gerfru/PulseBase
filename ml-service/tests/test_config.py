@@ -17,7 +17,7 @@ class TestSettings:
     def test_db_url_contains_credentials(self):
         from config import Settings
 
-        s = Settings(db_app_user="myapp", db_app_password="s3cr3t")
+        s = Settings(db_ml_user="myapp", db_ml_password="s3cr3t")
         assert "myapp" in s.db_url
         assert "s3cr3t" in s.db_url
         assert s.db_url.startswith("postgresql://")
@@ -25,14 +25,14 @@ class TestSettings:
     def test_db_url_contains_host_and_db(self):
         from config import Settings
 
-        s = Settings(db_app_user="u", db_app_password="p")
+        s = Settings(db_ml_user="u", db_ml_password="p")
         assert "db" in s.db_url
         assert "garmin" in s.db_url
 
     def test_defaults(self):
         from config import Settings
 
-        s = Settings(db_app_user="u", db_app_password="p")
+        s = Settings(db_ml_user="u", db_ml_password="p")
         assert s.db_host == "db"
         assert s.db_port == 5432
         assert s.ml_infer_hour == 7
@@ -42,7 +42,7 @@ class TestSettings:
     def test_model_dir_is_path(self):
         from config import Settings
 
-        s = Settings(db_app_user="u", db_app_password="p")
+        s = Settings(db_ml_user="u", db_ml_password="p")
         assert isinstance(s.model_dir, Path)
 
 

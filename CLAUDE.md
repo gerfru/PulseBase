@@ -341,10 +341,17 @@ ACME_EMAIL=your@email.com   # nur standalone-Modus mit Traefik
 
 **`env/.env.app`** — shared, alle 3 App-Services (api + sync-service + ml-service):
 ```
-DB_APP_USER=garmin_app
+DB_APP_USER=garmin_app   # nur api — breite Rolle (Auth, Account-Löschung)
 DB_APP_PASSWORD=
+DB_SYNC_USER=pulse_sync  # nur sync-service — Least-Privilege-Rolle (V24)
+DB_SYNC_PASSWORD=        # make gen-secrets
+DB_ML_USER=pulse_ml      # nur ml-service — read-only Health + write ml_predictions (V24)
+DB_ML_PASSWORD=          # make gen-secrets
 FERNET_KEY=          # make gen-secrets — Fernet-Key für Token-Verschlüsselung
 ```
+Per-Service-DB-Rollen (Least Privilege, ADR-0001 / V24): Alle 6 Werte stehen in
+`.env.app`, weil sie sowohl die Flyway-Platzhalter (Rollen-Anlage) als auch die
+Container speisen. sync liest `DB_SYNC_*`, ml liest `DB_ML_*`, api liest `DB_APP_*`.
 
 **`env/.env.api`** — nur API:
 ```
