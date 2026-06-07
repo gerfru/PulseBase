@@ -75,7 +75,8 @@ export const ML_METRICS = {
                 summary:
                     'Vergleicht deinen heutigen Ruhepuls mit deiner persönlichen 30-Tage-Baseline. Erkennt ungewöhnliche Abweichungen frühzeitig.',
                 recommendation: (() => {
-                    if (anomaly == null) return null;
+                    if (anomaly == null)
+                        return 'Noch keine ML-Auswertung (zu wenig Daten) — der Ruhepuls-Verlauf unten zeigt solange deine Rohdaten.';
                     if (isAnom && (anomaly.z_score ?? 0) > 2)
                         return 'Ruhepuls ungewöhnlich hoch — mögliches Zeichen für Übertraining, Stress oder Erkrankung. Belastung heute reduzieren.';
                     if (isAnom) return 'Mögliche Auffälligkeit — auf körperliche Signale achten.';
@@ -392,7 +393,13 @@ export const ML_METRICS = {
         },
         render(ml) {
             const bp = ml.battery_pattern;
-            if (!bp?.pattern) return { value: '—', sub: 'zu wenig Daten' };
+            if (!bp?.pattern)
+                return {
+                    value: '—',
+                    sub: 'zu wenig Daten',
+                    recommendation:
+                        'Noch keine ML-Auswertung (zu wenig Daten) — der Body-Battery-Verlauf im Dashboard zeigt solange deine Rohdaten.',
+                };
 
             const BP_LABELS = {
                 stabil_hoch: 'Hohe & stabile Energie',
@@ -485,7 +492,7 @@ export const ML_METRICS = {
                     'Zeigt statistische Zusammenhänge zwischen deinen Schlaf-, HRV- und Body-Battery-Werten über 90 Tage (Pearson r).',
                 recommendation: kpis.length
                     ? null
-                    : 'Noch zu wenig Daten für Korrelationsanalyse. Mindestens 10 Datenpunkte nötig.',
+                    : 'Noch zu wenig Daten für Korrelationsanalyse (min. 10 Paare). Nutze solange die Schlaf- und HRV-Charts im Dashboard.',
                 formula: [
                     ['r-Wert', 'Pearson-Korrelationskoeffizient (−1 bis +1)'],
                     ['|r| > 0,6', 'Starker Zusammenhang'],
