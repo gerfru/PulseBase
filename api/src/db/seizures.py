@@ -28,6 +28,50 @@ async def save_seizure(
     return int(row["id"])
 
 
+async def update_seizure(
+    user_id: int,
+    seizure_id: int,
+    occurred_at: datetime,
+    duration_seconds: int | None,
+    type_: str,
+    severity: int | None,
+    notes: str | None,
+) -> bool:
+    """Update a seizure event. The user_id filter enforces ownership (prevents IDOR).
+
+    Returns True if a row was updated, False if no matching id/user_id exists.
+    """
+    pool = await get_pool()
+    result = await pool.execute(
+        """UPDATE seizure_events
+               SET occurred_at = $3, duration_seconds = $4,
+                   type = $5, severity = $6, notes = $7
+           WHERE id = $1 AND user_id = $2""",
+        seizure_id,
+        user_id,
+        occurred_at,
+        duration_seconds,
+        type_,
+        severity,
+        notes,
+    )
+    return result == "UPDATE 1"
+
+
+async def delete_seizure(user_id: int, seizure_id: int) -> bool:
+    """Delete a seizure event. The user_id filter enforces ownership (prevents IDOR).
+
+    Returns True if a row was deleted, False if no matching id/user_id exists.
+    """
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM seizure_events WHERE id = $1 AND user_id = $2",
+        seizure_id,
+        user_id,
+    )
+    return result == "DELETE 1"
+
+
 async def get_seizures(user_id: int, days: int = 365) -> list[dict]:
     pool = await get_pool()
     rows = await pool.fetch(

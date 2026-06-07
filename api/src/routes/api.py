@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from src.evidence_catalog import EVIDENCE
 
 from src.db import (
+    delete_seizure,
     get_activity_detail,
     get_daily_summaries,
     get_energy_metrics,
@@ -32,6 +33,7 @@ from src.db import (
     save_seizure,
     set_activity_rpe,
     update_epilepsy_mode,
+    update_seizure,
     update_spo2_enabled,
     update_user_profile,
 )
@@ -293,6 +295,40 @@ async def api_log_seizure(request: Request, body: SeizureBody) -> dict:
         body.notes,
     )
     return {"ok": True, "id": id_}
+
+
+@router.patch("/api/seizures/{seizure_id}", response_model=None)
+async def api_update_seizure(
+    request: Request, seizure_id: int, body: SeizureBody
+) -> dict | JSONResponse:
+    user = await _deps.require_user(request)
+    updated = await update_seizure(
+        user["id"],
+        seizure_id,
+        body.occurred_at,
+        body.duration_seconds,
+        body.type,
+        body.severity,
+        body.notes,
+    )
+    if not updated:
+        return JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": "Seizure not found"}},
+        )
+    return {"ok": True, "id": seizure_id}
+
+
+@router.delete("/api/seizures/{seizure_id}", response_model=None)
+async def api_delete_seizure(request: Request, seizure_id: int) -> dict | JSONResponse:
+    user = await _deps.require_user(request)
+    deleted = await delete_seizure(user["id"], seizure_id)
+    if not deleted:
+        return JSONResponse(
+            status_code=404,
+            content={"error": {"code": "NOT_FOUND", "message": "Seizure not found"}},
+        )
+    return {"ok": True}
 
 
 @router.get("/api/seizures")

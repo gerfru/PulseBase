@@ -950,6 +950,38 @@ Returns logged seizure events for the authenticated user.
 
 ---
 
+### `PATCH /api/seizures/{seizure_id}`
+
+Updates an existing seizure event. Session-protected. Accepts the same body and
+validation as `POST /api/seizures`. The DB layer filters on `id AND user_id`, so a
+user can only modify their own entries.
+
+**Response:**
+
+```json
+{ "ok": true, "id": 5 }
+```
+
+Returns `404` with `{ "error": { "code": "NOT_FOUND", "message": "Seizure not found" } }`
+when the id does not exist or belongs to another user.
+
+---
+
+### `DELETE /api/seizures/{seizure_id}`
+
+Deletes a seizure event. Session-protected and scoped to the authenticated user
+(`id AND user_id`). The frontend shows a confirmation dialog before calling this.
+
+**Response:**
+
+```json
+{ "ok": true }
+```
+
+Returns the same `404` shape as `PATCH` when the id is missing or not owned by the user.
+
+---
+
 ### `GET /api/seizures/risk`
 
 Returns a rule-based daily risk indicator computed from existing biomarkers.

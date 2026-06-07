@@ -129,7 +129,7 @@ api/src/
 │   ├── activities.py    Aktivitäts-Queries + RPE
 │   ├── health.py        daily/sleep/hrv/readiness/training-status/energy Queries
 │   ├── ml.py            ML-Predictions lesen/schreiben, ml-status
-│   ├── seizures.py      Anfallsereignisse (Epilepsie-Modus, V15)
+│   ├── seizures.py      Anfallsereignisse CRUD + Risiko (Epilepsie-Modus, V15) — save/get/update/delete
 │   └── glucose.py       Glukose-Readings (Libre-User, V9)
 ├── routes/
 │   ├── auth.py          /login, /register, /auth/*, /logout (consent, 12-Zeichen-PW)
@@ -282,6 +282,8 @@ GET  /api/sync-status             Sync-Service-Status (letzter erfolgreicher Syn
 GET  /api/evidence                Evidence-Catalog aller Metriken (level, time_horizon, …)
 GET  /api/seizures                Anfallsereignisse (nur Epilepsie-Modus)
 POST /api/seizures                Neues Anfallsereignis speichern
+PATCH /api/seizures/{id}          Anfallsereignis bearbeiten (Ownership: id AND user_id, 404 sonst)
+DELETE /api/seizures/{id}         Anfallsereignis löschen (Ownership: id AND user_id, 404 sonst)
 GET  /api/seizures/risk           Aktueller regelbasierter Anfallsrisiko-Indikator
 GET  /api/glucose?days=7          Glukose-Messwerte (nur Libre-User)
 GET  /api/glucose/stats           Glukose-Statistiken (mean, CV, time-in-range)
@@ -414,7 +416,7 @@ Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-
 
 ### ARCH-L5: `routes/api.py` technisch-flat statt feature-split
 
-`api/src/routes/api.py` enthält alle JSON-Endpunkte in einer Datei (~340 Zeilen). Eine Feature-basierte Aufteilung (z.B. `api_health.py`, `api_ml.py`, `api_seizures.py`, `api_glucose.py`) wäre sauberer, aber: Solo-Projekt, alle Endpunkte teilen dieselben `require_user`- und `limiter`-Abhängigkeiten, die Domain-Grenzen sind durch Kommentarblöcke bereits klar erkennbar. Split einführen wenn die Datei 400 Zeilen überschreitet oder ein zweiter Entwickler onboarded wird.
+`api/src/routes/api.py` enthält alle JSON-Endpunkte in einer Datei (~375 Zeilen). Eine Feature-basierte Aufteilung (z.B. `api_health.py`, `api_ml.py`, `api_seizures.py`, `api_glucose.py`) wäre sauberer, aber: Solo-Projekt, alle Endpunkte teilen dieselben `require_user`- und `limiter`-Abhängigkeiten, die Domain-Grenzen sind durch Kommentarblöcke bereits klar erkennbar. Split einführen wenn die Datei 400 Zeilen überschreitet oder ein zweiter Entwickler onboarded wird.
 
 ### OBS-L1: Uptime-Monitoring via Uptime Kuma ✅
 
