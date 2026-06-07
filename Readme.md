@@ -94,9 +94,8 @@ that are **never stored**. No cloud. No subscription. No data broker in the midd
 
 ## 🚀 Quickstart
 
-> [!TIP]
-> No reverse proxy yet? Use `make up-standalone` — it ships a bundled Traefik with automatic HTTPS,
-> so you can go from clone to dashboard without any extra infrastructure.
+> 💡 **No reverse proxy yet?** Use `make up-standalone` — it ships a bundled Traefik with automatic
+> HTTPS, so you can go from clone to dashboard without any extra infrastructure.
 
 ```bash
 cp env/.env.example env/.env              # HOST_IP, ACME_EMAIL (standalone only)
