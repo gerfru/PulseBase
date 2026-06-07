@@ -13,6 +13,7 @@ import {
 import { loadEvidence, buildMlTabs } from './dashboard-hero.js';
 import { load, loadReadiness, loadMlInsights, loadEnergyMetrics, loadTrainingLoad } from './dashboard-loaders.js';
 import { showToast, loadMlStatus, loadSyncStatus } from './dashboard-status.js';
+import { initOnboardingHint } from './onboarding.js';
 
 function shiftPeriod(delta) {
     incrementOffset(delta);
@@ -87,3 +88,4 @@ loadMlInsights()
 loadEnergyMetrics().catch(() => {});
 loadSyncStatus();
 loadMlStatus();
+initOnboardingHint();

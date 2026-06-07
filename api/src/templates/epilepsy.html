@@ -104,7 +104,7 @@
 
     <!-- Anfall loggen -->
     <div class="card">
-        <h2>Anfall erfassen</h2>
+        <h2 id="log-card-title">Anfall erfassen</h2>
         <div class="flex flex-col gap-4 mt-2">
             <div class="flex flex-col gap-1.5">
                 <label for="occurred-at" class="text-sm font-medium text-slate-700 dark:text-slate-200">Datum &amp; Uhrzeit</label>
@@ -143,13 +143,22 @@
                           class="px-3.5 py-2 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors resize-none"></textarea>
             </div>
 
-            <div class="flex items-center justify-between">
-                <span id="log-msg" class="text-xs text-emerald-500" style="display:none">Gespeichert ✓</span>
-                <span></span>
-                <button id="log-submit"
-                        class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors">
-                    Speichern
-                </button>
+            <div class="flex flex-col gap-2">
+                <span id="log-error" role="alert" class="text-xs text-red-500" style="display:none"></span>
+                <div class="flex items-center justify-between">
+                    <span id="log-msg" role="status" aria-live="polite" class="text-xs text-emerald-500" style="display:none">Gespeichert ✓</span>
+                    <span></span>
+                    <div class="flex items-center gap-2">
+                        <button id="log-cancel" type="button" style="display:none"
+                                class="px-4 py-2 rounded-lg bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+                            Abbrechen
+                        </button>
+                        <button id="log-submit"
+                                class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors">
+                            Speichern
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -161,6 +170,25 @@
             <p class="text-sm text-slate-400">Lade…</p>
         </div>
     </div>
+
+    <!-- Lösch-Bestätigung -->
+    <dialog id="seizure-delete-confirm"
+            class="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl p-6 max-w-sm w-full backdrop:bg-black/50">
+        <h3 class="font-bold text-lg mb-2">Eintrag löschen?</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+            Dieser Anfalls-Eintrag wird unwiderruflich gelöscht und fließt nicht mehr in den Risiko-Indikator ein.
+        </p>
+        <div class="flex justify-end gap-2">
+            <button id="seizure-delete-cancel" type="button"
+                    class="px-4 py-2 rounded-lg bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+                Abbrechen
+            </button>
+            <button id="seizure-delete-ok" type="button"
+                    class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white text-sm font-semibold transition-colors">
+                Löschen
+            </button>
+        </div>
+    </dialog>
 
 </div>
 {% endblock %}
