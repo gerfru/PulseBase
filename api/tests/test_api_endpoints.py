@@ -357,6 +357,63 @@ async def test_seizure_risk_high_level(client):
     assert r.json()["level"] == "high"
 
 
+# ── ML Feedback ───────────────────────────────────────────────────────────────
+
+
+async def test_ml_feedback_valid_returns_ok(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.save_ml_feedback", AsyncMock(return_value=None)) as save,
+    ):
+        r = await client.post(
+            "/api/ml-feedback",
+            json={"model": "readiness_rf", "helpful": True},
+        )
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+    save.assert_awaited_once_with(TEST_USER["id"], "readiness_rf", True)
+
+
+async def test_ml_feedback_anomaly_model_ok(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.save_ml_feedback", AsyncMock(return_value=None)),
+    ):
+        r = await client.post(
+            "/api/ml-feedback",
+            json={"model": "anomaly_hr", "helpful": False},
+        )
+    assert r.status_code == 200
+
+
+async def test_ml_feedback_invalid_model_returns_422(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.post(
+            "/api/ml-feedback",
+            json={"model": "bogus", "helpful": True},
+        )
+    assert r.status_code == 422
+
+
+async def test_ml_feedback_missing_helpful_returns_422(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.post("/api/ml-feedback", json={"model": "readiness_rf"})
+    assert r.status_code == 422
+
+
+async def test_ml_feedback_get_returns_map(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.api.get_ml_feedback",
+            AsyncMock(return_value={"readiness_rf": True}),
+        ),
+    ):
+        r = await client.get("/api/ml-feedback")
+    assert r.status_code == 200
+    assert r.json() == {"readiness_rf": True}
+
+
 # ── Glucose ───────────────────────────────────────────────────────────────────
 
 
