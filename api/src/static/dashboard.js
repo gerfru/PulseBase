@@ -10,7 +10,7 @@ import {
     TABS,
     CHART_HASHES,
 } from './dashboard-nav.js';
-import { loadEvidence, buildMlTabs } from './dashboard-hero.js';
+import { loadEvidence, buildMlTabs, loadMlFeedback, submitMlFeedback } from './dashboard-hero.js';
 import { load, loadReadiness, loadMlInsights, loadEnergyMetrics, loadTrainingLoad } from './dashboard-loaders.js';
 import { showToast, loadMlStatus, loadSyncStatus } from './dashboard-status.js';
 import { initOnboardingHint } from './onboarding.js';
@@ -64,6 +64,15 @@ document.getElementById('activities-container').addEventListener('click', (e) =>
     const tr = e.target.closest('tr[data-id]');
     if (tr) location.href = `/activity/${tr.dataset.id}`;
 });
+// ML-Feedback (👍/👎): Delegation auf body, da die Tiles in zwei Containern liegen
+// (#bento-hero Readiness, #ml-erholung-content Anomalie). CSP-konform, kein Inline-Handler.
+document.body.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-fb-model]');
+    if (!btn) return;
+    submitMlFeedback(btn.dataset.fbModel, btn.dataset.fbVal === '1')
+        .then(() => showToast('Danke für dein Feedback', 'success'))
+        .catch(() => showToast('Feedback konnte nicht gespeichert werden', 'error'));
+});
 
 updateNavBar();
 const _hash = location.hash.slice(1);
@@ -84,6 +93,7 @@ loadTrainingLoad().catch(() => {});
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));
 loadMlInsights()
     .then(() => buildMlTabs())
+    .then(() => loadMlFeedback())
     .catch(() => {});
 loadEnergyMetrics().catch(() => {});
 loadSyncStatus();

@@ -278,6 +278,8 @@ GET  /api/energy                  Energie-Scores: physical / autonomic / cogniti
 GET  /api/ml-insights             Alle ML-Predictions: Anomalie, Korrelation, RF, Muster, …
 GET  /api/ml-history?days=30      ML-Predictions-Verlauf
 GET  /api/ml-status               ML-Service-Status (letzte Inferenz, Training, Modell-Metadaten)
+GET  /api/ml-feedback             Heutiges 👍/👎-Feedback je Modell ({model: helpful})
+POST /api/ml-feedback             ML-Prognose als treffend markieren (Upsert pro Tag/Modell, V25)
 GET  /api/sync-status             Sync-Service-Status (letzter erfolgreicher Sync)
 GET  /api/evidence                Evidence-Catalog aller Metriken (level, time_horizon, …)
 GET  /api/seizures                Anfallsereignisse (nur Epilepsie-Modus)
