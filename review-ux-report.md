@@ -39,7 +39,7 @@ Umsetzung erfolgt in 4 Pull Requests (siehe Plan-Datei `bitte-erstelle-einen-pla
 | **PR1** | Accessibility (A-1…A-7) | ✅ **Umgesetzt** (Branch `a11y/pr1-accessibility`, 2026-06-06) |
 | **PR2** | KI-Transparenz (B-1…B-5, E-2) | ✅ **Umgesetzt** (Branch `ai/pr2-ki-transparenz`, 2026-06-06) |
 | **PR3** | Anfälle editierbar + Fehler inline + Onboarding (C-1, C-3, D-1, E-1, F-1) | ✅ **Umgesetzt** (Branch `ux/pr3-feedback-kontrolle`, 2026-06-07) |
-| **PR4** | ML-Feedback (C-2, Migration V25) | ⬜ offen (optional/nachgelagert) |
+| **PR4** | ML-Feedback (C-2/D3-1, Migration V25) + Lows [A-6], [D4-2] | ✅ **Umgesetzt** (Branch `ux/pr4-ml-feedback`, 2026-06-07) |
 
 ### ✅ PR1 — Accessibility (erledigt 2026-06-06)
 
@@ -90,9 +90,19 @@ Behebt die verbleibenden High-/Medium-Befunde zu Feedback & Kontrolle, Fehlerbeh
 
 ## Nächste Schritte
 
-- **PR4** — Item-Level-ML-Feedback (👍/👎 auf Anomalie-/Readiness-Tiles) + Migration V25. *(C-2 ↔ [D3-1])* — optional/nachgelagert.
+✅ Alle Befunde der Befundliste sind umgesetzt. Verbleibend nur dokumentierte Ausnahmen.
 
-> Verbleibend nur noch Low-Befunde aus der Befundliste: [D1-2] generative Variabilität (in PR2 bereits adressiert), [A-6] Fokus-Ring-Kontrast (zu verifizieren), [D4-2] expliziter manueller Fallback bei ML-Ausfall.
+### ✅ PR4 — ML-Feedback + Rest-Lows (erledigt 2026-06-07)
+
+Behebt den letzten High-Befund [D3-1] sowie die zwei verbleibenden Lows. Verifiziert: pytest 421/421 · Vitest 157/157 · E2E 38/38 · ruff/biome/mypy sauber.
+
+- **C-2 / [D3-1]** Item-Level-ML-Feedback — binäres, pro Tag/Modell umschaltbares 👍/👎 auf Readiness- und Anomalie-Tile (HAX G9/G15). Server stempelt `prediction_date = CURRENT_DATE` (ml_predictions hat keinen Auto-PK); `UNIQUE (user_id, model, prediction_date)` macht das Feedback per `ON CONFLICT` idempotent/umschaltbar. Migration V25 (`ml_feedback`-Tabelle + Grants: api schreibt, ml-service read-only fürs spätere Kalibrierungssignal), `db/ml_feedback.py`, `GET/POST /api/ml-feedback`, CSP-konforme Event-Delegation in dashboard.js. *(dashboard-hero.js, dashboard.js, api.py, db/ml_feedback.py, V25)*
+- **[A-6]** Fokus-Ring-Kontrast — `focus:ring-emerald-500/20` (20 % Deckkraft, von der globalen `:focus-visible`-Regel via `focus:outline-none` ausgehebelt) → `focus:ring-emerald-400` (volle Deckkraft, ≥3:1 auf dunklem Slate) in allen 9 Auth-/Form-Templates. *(behebt [A-6] Low)*
+- **[D4-2]** ML-Fallback-Hinweis — die drei „zu wenig Daten"-Leerzustände in metrics-ml.js (hr-zscore, battery-pattern, correlations) verweisen jetzt auf die verfügbare Rohdaten-/Chart-Ansicht. *(behebt [D4-2] Low)*
+
+**Zusätzlich (Test-Infrastruktur):** Die neuen E2E-Tests authentifizieren per injiziertem, signiertem Session-Cookie (`make_session_cookie`) statt über das `/login`-Formular — rate-limit-sicheres Muster (die Suite teilt ein 10/min-Login-Budget; UI-Logins hier ließen sonst andere Tests flaken). Beweist den realen DB-Upsert + Per-User-Scoping unter der echten `garmin_app`-Rolle.
+
+> [D1-2] generative Variabilität wurde bereits in PR2 (E-2) adressiert.
 
 ---
 

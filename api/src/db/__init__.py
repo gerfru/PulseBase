@@ -61,6 +61,10 @@ from .seizures import (
     save_seizure,
     update_seizure,
 )
+from .ml_feedback import (
+    get_ml_feedback,
+    save_ml_feedback,
+)
 
 __all__ = [
     "Settings",
@@ -115,4 +119,6 @@ __all__ = [
     "get_seizures",
     "save_seizure",
     "update_seizure",
+    "get_ml_feedback",
+    "save_ml_feedback",
 ]

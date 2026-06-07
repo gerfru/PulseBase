@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from src.evidence_catalog import EVIDENCE
+from src.db.ml_feedback import FEEDBACK_MODELS
 
 from src.db import (
     delete_seizure,
@@ -17,6 +18,7 @@ from src.db import (
     get_hrv_trend,
     get_latest_hrv,
     get_latest_training_status,
+    get_ml_feedback,
     get_ml_history,
     get_ml_insights,
     get_ml_status,
@@ -30,6 +32,7 @@ from src.db import (
     get_activity_hrmax,
     get_user_sex,
     get_weekly_stats,
+    save_ml_feedback,
     save_seizure,
     set_activity_rpe,
     update_epilepsy_mode,
@@ -344,6 +347,34 @@ async def api_get_seizures(
 async def api_seizure_risk(request: Request) -> dict:
     user = await _deps.require_user(request)
     return await get_seizure_risk(user["id"])
+
+
+# ── ML Feedback ───────────────────────────────────────────────────────────────
+
+
+class MLFeedbackBody(BaseModel):
+    model: str
+    helpful: bool
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, v: str) -> str:
+        if v not in FEEDBACK_MODELS:
+            raise ValueError(f"model must be one of {FEEDBACK_MODELS}")
+        return v
+
+
+@router.post("/api/ml-feedback")
+async def api_ml_feedback(request: Request, body: MLFeedbackBody) -> dict:
+    user = await _deps.require_user(request)
+    await save_ml_feedback(user["id"], body.model, body.helpful)
+    return {"ok": True}
+
+
+@router.get("/api/ml-feedback")
+async def api_get_ml_feedback(request: Request) -> dict:
+    user = await _deps.require_user(request)
+    return await get_ml_feedback(user["id"])
 
 
 # ── Glucose ───────────────────────────────────────────────────────────────────
