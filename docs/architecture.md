@@ -24,7 +24,7 @@ FastAPI  (Auth + Dashboard HTML + JSON API)
 TimescaleDB  (PostgreSQL 16 + TimescaleDB extension)
   ▲
   │
-Sync-Service  (APScheduler, daily Garmin Connect pull)
+Sync-Service  (APScheduler, Garmin Connect pull every 2h)
   │
   ▼
 Garmin Connect API  (external)
@@ -53,7 +53,7 @@ FastAPI  ...
 | `pulsebase-db` | `timescale/timescaledb:2.x-pg16` (SHA-pinned) | Time-series database |
 | `pulsebase-flyway` | `flyway/flyway:11` (SHA-pinned) | Runs DB migrations on startup, then exits |
 | `pulsebase-api` | `./api` (FastAPI) | Web app: auth, HTML pages, JSON API |
-| `pulsebase-sync` | `./sync-service` (Python) | Daily Garmin data pull |
+| `pulsebase-sync` | `./sync-service` (Python) | Garmin data pull every 2h (Libre every 5 min) |
 | `pulsebase-ml` | `./ml-service` (Python) | ML inference daily + training weekly |
 
 HTTPS is handled externally:
@@ -196,8 +196,8 @@ Docker Compose `stop_grace_period` values allow time for in-flight jobs:
 | Service | `stop_grace_period` | Reason |
 |---------|--------------------|-|
 | api | 45s | uvicorn `--timeout-graceful-shutdown 30` + buffer |
-| sync-service | 90s | long-running Garmin sync jobs |
-| ml-service | 60s | ML inference/training |
+| sync-service | 120s | long-running Garmin sync jobs |
+| ml-service | 120s | ML inference/training |
 
 ---
 
@@ -207,8 +207,8 @@ Docker Compose `stop_grace_period` values allow time for in-flight jobs:
 |---------|---------------------|-------|
 | api | `/ready` (HTTP 200 → DB ping + Flyway check) | Dockerfile + Compose both use `/ready` |
 | api | `/health` (HTTP 200 → `{"status":"ok"}`) | Liveness only — no DB call |
-| sync-service | `/tmp/sync_alive` mtime < 2 min | Written at startup, updated by scheduler |
-| ml-service | `/tmp/ml_alive` + `/app/models` dir | Written at startup |
+| sync-service | `/health` on `:8080` (HTTP server) | Compose healthcheck `urllib.request.urlopen('http://localhost:8080/health')`; `/tmp/sync_alive` sentinel still touched as internal heartbeat |
+| ml-service | `/health` on `:8080` (HTTP server) | Compose healthcheck `urllib.request.urlopen('http://localhost:8080/health')`; `/tmp/ml_alive` sentinel still touched as internal heartbeat |
 
 ---
 

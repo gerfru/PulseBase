@@ -63,7 +63,7 @@ make up           # alles auf einmal
 ## Datenbank
 
 ```bash
-make migrate      # Flyway-Migrationen ausführen (V1–V22)
+make migrate      # Flyway-Migrationen ausführen (V1–V25)
 make db           # psql-Shell öffnen
 make db SQL="SELECT ..." # SQL direkt ausführen
 ```
@@ -307,7 +307,7 @@ env_overrides = {
 
 ---
 
-## Tajllwind CSS neu bauen
+## Tailwind CSS neu bauen
 
 Nach Änderungen an HTML-Templates oder `api/src/static/input.css`:
 
@@ -318,17 +318,71 @@ make tailwind-build
 
 ---
 
-## Nützliche Make-Befehle
+## Befehlsübersicht (kanonisch)
 
-```bash
-make logs-dashboard   # API-Logs live
-make logs-sync        # Sync-Service-Logs live
-make logs-analytics   # ML-Service-Logs live
-make logs-all         # Alle Logs zusammen
-make status           # Container-Status
-make trigger-sync     # Garmin-Sync sofort anfordern (kein Rebuild, läuft binnen 1 Minute)
-make sync             # Sync-Service neu bauen + starten (löst Backfill-Sync aus)
-make gen-secrets      # SESSION_SECRET + FERNET_KEY generieren
-make secure-env       # chmod 600 auf alle env/-Dateien
-make reset            # ⚠ Volumes löschen + DB komplett neu aufsetzen (löscht alle User!)
-```
+Vollständige Referenz aller `make`-Targets — die README verlinkt hierher.
+
+### Betrieb
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `make up` | Images bauen + alle Services starten (braucht Reverse Proxy auf dem `proxy`-Netz, z. B. homelab-gateway) |
+| `make up-standalone` | Wie `make up`, aber mit eingebautem Traefik (kein externer Proxy nötig) |
+| `make down` | Services stoppen |
+| `make clean` | Services stoppen + Volumes + verwaiste Container entfernen |
+| `make reset` | ⚠ Volumes löschen + DB komplett neu aufsetzen (**löscht alle User!**) |
+| `make status` | Container-Status |
+
+### Code-Änderungen übernehmen
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `make dashboard` | API (Dashboard) neu bauen + starten — nach Änderungen in `api/src/` |
+| `make analytics` | ML-/Analytics-Service neu bauen + starten — nach Änderungen in `ml-service/src/` |
+| `make sync` | Sync-Service **neu bauen + starten** — nach Änderungen in `sync-service/src/` |
+| `make tailwind-build` | Tailwind CSS neu bauen — nach Template-/`input.css`-Änderungen (Output committen!) |
+
+### Sync & Daten
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `make trigger-sync` | Garmin-Sync **sofort anfordern** (kein Rebuild — der laufende sync-service verarbeitet es binnen 1 Minute) |
+| `make backfill-energy` | Energie-Scores rückwirkend neu berechnen |
+| `make backfill-battery` | `body_battery_custom` mit aktuellem Modell neu berechnen (löscht alte Predictions zuerst) |
+
+> **`make sync` vs. `make trigger-sync`:** `make sync` baut den Container neu (für Code-Änderungen, löst dabei einen Backfill-Sync aus). Für „jetzt einmal Daten holen" ohne Rebuild ist **`make trigger-sync`** das richtige Target.
+
+### Datenbank-Befehle
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `make migrate` | Flyway-Migrationen ausführen (V1–V25) |
+| `make db` | psql-Shell öffnen |
+| `make db SQL="SELECT ..."` | SQL direkt ausführen |
+
+### Setup & Secrets
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `make setup` | Schritt-für-Schritt-Einrichtungsanleitung anzeigen |
+| `make gen-secrets` | SESSION_SECRET (→ `.env.api`), FERNET_KEY + DB-Rollen-Passwörter (→ `.env.app`) generieren |
+| `make secure-env` | `chmod 600` auf alle `env/`-Dateien (inkl. `.env.app`) |
+| `make add-host` | `pulsebase.local` in `/etc/hosts` eintragen (lokaler Betrieb) |
+
+### Logs
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `make logs-dashboard` | API-Logs live |
+| `make logs-sync` | Sync-Service-Logs live |
+| `make logs-analytics` | ML-Service-Logs live |
+| `make logs-all` | Alle Logs zusammen |
+
+### Tests
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `make test` | Unit-Tests aller 3 Services (kein Docker nötig) |
+| `make test-coverage` | Coverage-Report aller 3 Services (Terminal + HTML) |
+| `make test-js` / `make test-js-coverage` | JS-Unit-Tests (Vitest) |
+| `make test-e2e` | Playwright-E2E gegen Test-Stack auf Port 8001 (baut + startet + stoppt automatisch) |

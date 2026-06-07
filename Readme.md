@@ -1,102 +1,168 @@
-# PulseBase
+<div align="center">
+
+# 🫀 PulseBase
 
 **Your fitness data. Your server. Your rules.**
 
-PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, privacy-first, no cloud required.
+A privacy-first, self-hosted dashboard that turns your Garmin &amp; Libre data
+into ML-grade health insights — running entirely on your own machine.
 
-## Features
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![TimescaleDB](https://img.shields.io/badge/TimescaleDB-PostgreSQL%2016-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?style=flat-square&logo=scikitlearn&logoColor=white)
+![Self-hosted](https://img.shields.io/badge/Self--hosted-Privacy--first-10B981?style=flat-square)
 
-- Automatic daily sync from Garmin Connect (activities, sleep, HRV, body battery, stress)
-- Continuous glucose monitoring via LibreLinkUp (Libre 3, every 5 min) — optional
-- Slate/Emerald dark instrument panel dashboard — tabbed layout (Training / Verlauf / Erholung), dark + light mode
-- Unified Tagesstatus hero card: animated partial arc gauge (Readiness, Oura-style) with HRV/Schlaf/Puls contributor rows, Energie-Triptychon (Physisch / Autonom / Kognitiv), vitals strip
-- Time navigation (← →) for all charts — browse any historical period without switching time range
-- ML insights: anomaly detection (resting HR + SpO2 + stress Z-score), sleep→HRV Pearson correlation, Random Forest readiness prediction, Body Battery K-Means pattern, ACWR, Training Monotony, Running Economy, Sleep Consistency, SpO2 trend, and more — each with dedicated detail pages
-- Metrics overview (`/metrics`) — all health metrics as tiles with color-coded Evidence Badges (Meta-Analysis / Replicated / Model)
-- EN 62366-inspired metric disclosure: every metric shows intended use, limitations, time horizon, and actionable recommendation — methodology in searchable `/help` page with 20 articles
-- Activity detail page with GPS map (Leaflet.js), HR/pace/elevation/cadence charts
-- Training status tracking (PRODUCTIVE, MAINTAINING, RECOVERY, …)
-- Weekly training volume overview (run km / ride km stacked bar)
-- Epilepsy seizure diary with rule-based risk indicator (6 biomarker heuristics, optional feature) — entries are editable and deletable with inline validation
-- Central settings page — Garmin + LibreLinkUp connection management in one place
-- Self-service registration — no admin needed
-- Garmin and LibreLinkUp passwords are **never stored** — token-only
+[Quickstart](#-quickstart) · [Features](#-whats-inside) · [Docs](#-documentation) · [Security](#-security-at-a-glance)
 
-## Documentation
+</div>
 
-Two levels — pick what you need:
+<!--
+📸 Drop a hero screenshot here once you have one — this is the single biggest
+   visual upgrade. Recommended right below the header, e.g.:
+<p align="center">
+  <img src="docs/screenshot-dashboard.png" width="820" alt="PulseBase dashboard">
+</p>
+-->
 
-**Non-technical:**
-- [ELI5 — Das System erklärt wie für ein Kind](docs/eli5.md) — Was PulseBase tut, wie ML funktioniert, was Passwörter nie gespeichert werden, was Trend-Pfeile bedeuten
+---
 
-**Technical:**
-- [ML Deep Dive](docs/ml-deep-dive.md) — Algorithmen, Formeln, Thresholds, Trainings-Pipeline
-- [Architecture](docs/architecture.md) — Services, Datenpfade, Netzwerk-Setup
-- [Database](docs/database.md) — Schema, Hypertables, Spaltennamen, Queries
-- [API Reference](docs/api.md) — Alle Endpunkte mit Request/Response-Format
-- [Design Decisions](docs/design-decisions.md) — Warum kein Grafana, kein ORM, kein JWT, Caddy vs Traefik, ...
-- [Setup Guide](docs/setup.md) — Vollständige Installationsanleitung
-- [External Services](docs/external-services.md) — Let's Encrypt, Sentry, Uptime Kuma Setup
+> *Your Garmin data lives in someone else's cloud.*
+> *Your sleep, your heart rate, your recovery — measured by a watch on **your** wrist,
+> then rented back to you behind a login you don't control.*
 
-## Quickstart
+**PulseBase takes it back.**
+
+One `make up`, and every heartbeat syncs to a dashboard on **your** server — with the kind
+of ML insights Garmin never surfaces, optional continuous glucose alongside it, and passwords
+that are **never stored**. No cloud. No subscription. No data broker in the middle.
+
+> 🔒 **Self-hosted by design.** PulseBase runs entirely on hardware you control. Your health
+> data never leaves your server, and Garmin/LibreLinkUp passwords are wiped from memory the
+> moment a token is obtained.
+
+---
+
+## ✨ Why PulseBase
+
+- 🔒 **Privacy by architecture, not by promise** — runs entirely on your machine. Garmin and
+  LibreLinkUp passwords are wiped from memory the moment a token is obtained; only a
+  Fernet-encrypted token is ever persisted.
+- 🧠 **Insights, not just charts** — anomaly detection, sleep→HRV correlation, a Random Forest
+  readiness model, body-battery clustering and more turn raw samples into "what does this *mean*?"
+- 🩺 **Honest about its own limits** — every metric ships an EN 62366-inspired disclosure:
+  intended use, limitations, time horizon, evidence level. No black-box scores.
+- 🧬 **More than Garmin shows you** — energy triptych (physical / autonomic / cognitive),
+  ACWR, training monotony, running economy, SpO₂ trends, and an optional epilepsy seizure diary
+  with a rule-based risk indicator.
+- 🐳 **One command to run it** — Docker Compose, self-service registration, multi-user. No admin.
+
+---
+
+## 📦 What's inside
+
+### Data sync
+
+- Automatic Garmin Connect sync (activities, sleep, HRV, body battery, stress)
+- Optional continuous glucose via LibreLinkUp (Libre 3, every 5 min)
+
+### The dashboard
+
+- Slate/Emerald instrument-panel UI — tabbed (Training / Verlauf / Erholung), dark + light mode
+- Unified *Tagesstatus* hero: Oura-style readiness arc with HRV/sleep/pulse contributors,
+  energy triptych (Physisch / Autonom / Kognitiv), vitals strip
+- Time navigation (← →) across all charts — browse any historical period
+- Activity detail pages with GPS map (Leaflet), HR/pace/elevation/cadence charts
+
+### The intelligence
+
+- ML insights with dedicated detail pages: anomaly detection (resting HR + SpO₂ + stress
+  Z-score), sleep→HRV Pearson correlation, Random Forest readiness, body-battery K-Means
+  patterns, ACWR, training monotony, running economy, sleep consistency, SpO₂ trend, and more
+- 👍 / 👎 item-level feedback on every ML insight
+- Metrics overview (`/metrics`) — all 21 metrics as tiles with colour-coded evidence badges
+  (Meta-Analysis / Replicated / Model), each linked to a searchable `/help` methodology page
+
+### Built for real use
+
+- Central settings page (Garmin + LibreLinkUp in one place), self-service registration
+- DSGVO/GDPR data export + account deletion, accessibility statement (BFSG)
+- Optional epilepsy seizure diary with rule-based risk indicator (6 biomarker heuristics)
+
+---
+
+## 🚀 Quickstart
+
+> 💡 **No reverse proxy yet?** Use `make up-standalone` — it ships a bundled Traefik with automatic
+> HTTPS, so you can go from clone to dashboard without any extra infrastructure.
 
 ```bash
-cp env/.env.example env/.env              # fill in HOST_IP, ACME_EMAIL (standalone only)
-cp env/.env.app.example env/.env.app      # fill in DB_APP_USER, DB_APP_PASSWORD, FERNET_KEY (make gen-secrets)
-cp env/.env.api.example env/.env.api      # fill in SESSION_SECRET (make gen-secrets, min. 32 chars) + APP_BASE_URL
+cp env/.env.example env/.env              # HOST_IP, ACME_EMAIL (standalone only)
+cp env/.env.app.example env/.env.app      # DB roles + FERNET_KEY  → make gen-secrets
+cp env/.env.api.example env/.env.api      # SESSION_SECRET (≥32 chars) + APP_BASE_URL
 cp env/.env.sync.example env/.env.sync
 cp env/.env.ml.example env/.env.ml
-make up                     # build + start all services (requires a reverse proxy on the proxy network)
+
+make up                 # build + start everything (needs a reverse proxy on the proxy network)
 # → https://your-domain.com/register
 # → https://your-domain.com/garmin/link
-make sync                   # trigger first sync immediately
+make trigger-sync       # pull your Garmin data now (no rebuild — runs within a minute)
 # → https://your-domain.com/dashboard
 ```
 
-**Standalone (with bundled Traefik, self-signed cert):**
-```bash
-make up-standalone          # starts with bundled Traefik (configure ACME in traefik/traefik.yml)
-```
+**Running a homelab?** Start [homelab-gateway](https://github.com/gerfru/homelab-gateway) first,
+then `make up`.
 
-**Homelab with [homelab-gateway](https://github.com/gerfru/homelab-gateway):** use `make up` after starting homelab-gateway.
+→ Full walkthrough: **[docs/setup.md](docs/setup.md)**
 
-Full walkthrough: [docs/setup.md](docs/setup.md)
+---
 
-## Commands
+## 📚 Documentation
 
-| Command | Description |
-|---------|-------------|
-| `make up` | Build images and start all services (requires homelab-gateway) |
-| `make up-standalone` | Start with Traefik (standalone, no homelab-gateway needed) |
-| `make down` | Stop services |
-| `make reset` | Wipe everything + fresh DB (deletes all users!) |
-| `make sync` | Trigger Garmin sync immediately |
-| `make dashboard` | Rebuild + restart API (dashboard service) |
-| `make analytics` | Rebuild + restart ML/analytics service |
-| `make migrate` | Run DB migrations |
-| `make logs-dashboard` | Live API logs |
-| `make logs-analytics` | Live analytics-service logs |
-| `make logs-sync` | Live sync-service logs |
-| `make status` | Container status |
-| `make db` | Open psql shell |
-| `make gen-secrets` | Generate SESSION_SECRET (→ `env/.env.api`) and FERNET_KEY (→ `env/.env.app`) |
-| `make secure-env` | Set `chmod 600` on all env files |
-| `make test` | Run all unit tests (api + sync + ml) |
-| `make test-e2e` | Run Playwright E2E tests (builds image first, starts test stack) |
-| `make test-coverage` | Coverage report for all 3 services |
+Pick your depth:
 
-## Security
+| | |
+|---|---|
+| 🧒 **[ELI5](docs/eli5.md)** | The whole system explained like you're five |
+| 🚀 **[Setup Guide](docs/setup.md)** | Complete installation walkthrough |
+| ⚙️ **[Configuration](docs/configuration.md)** | Every env var, per service |
+| 🛠️ **[Developer Guide](docs/development.md)** | Local dev, tests, CI/CD — and the full `make` command reference |
+| 🏛️ **[Architecture](docs/architecture.md)** | Services, data paths, network setup |
+| 🗄️ **[Database](docs/database.md)** | Schema, hypertables, real column names |
+| 🔌 **[API Reference](docs/api.md)** | Every endpoint with request/response format |
+| 🤖 **[ML Deep Dive](docs/ml-deep-dive.md)** | Algorithms, formulas, thresholds, training pipeline |
+| ⚡ **[Energy Metrics](docs/energy-metrics.md)** | The physical / autonomic / cognitive scores in detail |
+| 🔐 **[Security](docs/security.md)** | Threat model, auth layers, crypto, headers |
+| 🏗️ **[Production Hardening](docs/production-hardening.md)** | Going live: secrets, backups, monitoring |
+| 🌐 **[External Services](docs/external-services.md)** | Let's Encrypt, Sentry, Uptime Kuma setup |
+| 🧭 **[Design Decisions](docs/design-decisions.md)** | Why no Grafana, no ORM, no JWT, Caddy vs Traefik |
+| 📋 **[ADRs](docs/adr/)** | Architecture Decision Records |
 
-- HTTPS via Caddy (homelab-gateway with ACME) or Traefik standalone (configure `certificatesResolvers` in `traefik/traefik.yml`)
-- Rate limiting on login (10/min), register (5/min), reset (3/h), Garmin/Libre link (5/h)
-- Account lockout after 5 failed login attempts (15-minute automatic lockout + email notification)
-- Email verification required after registration (signed token, 24h TTL, resend endpoint)
-- CSRF protection on all state-changing forms (login, register, garmin/link, account/delete, password reset)
-- Input validation via Pydantic on all API endpoints
-- Passwords stored as bcrypt hashes (direct, no passlib), timing-safe dummy hash for non-existent users
-- Session via signed cookie (httpOnly, secure, sameSite=Lax)
-- Garmin password wiped from memory immediately after token retrieval — only Fernet-encrypted token stored
-- Database not exposed on host network; app uses least-privilege DB user
-- Security headers: HSTS, X-Frame-Options, CSP, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
-- SAST: bandit + semgrep (p/python + p/owasp-top-ten) in pre-commit and CI
-- SCA: pip-audit via frozen uv.lock in CI; Trivy image scan (CRITICAL+HIGH → exit 1)
+---
+
+## 🔐 Security at a glance
+
+Self-hosting your health data only helps if the app itself is hard to break into. PulseBase
+ships with rate-limited auth + account lockout, email verification, CSRF protection, bcrypt
+password hashing, signed httpOnly session cookies, Fernet-encrypted Garmin/Libre tokens,
+least-privilege per-service DB roles, a strict nonce-based CSP, and SAST/SCA/container scanning
+in CI (bandit · semgrep · pip-audit · Trivy).
+
+→ Full threat model and controls: **[docs/security.md](docs/security.md)**
+
+---
+
+## 🧱 Stack
+
+FastAPI · TimescaleDB (PostgreSQL 16) · Docker Compose · Chart.js · scikit-learn · Tailwind CSS
+
+Three services — `api` (dashboard), `sync-service` (Garmin/Libre ingest), `ml-service`
+(analytics) — behind a reverse proxy. No Grafana, no ORM, no JWT, no framework on the frontend.
+See **[Design Decisions](docs/design-decisions.md)** for the why.
+
+---
+
+<div align="center">
+<sub>Built for people who'd rather own their health data than rent it back.</sub>
+</div>

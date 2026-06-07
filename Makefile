@@ -80,19 +80,18 @@ db: network
 	fi
 
 gen-secrets:
-	@echo "Folgende Werte in env/.env.api eintragen:"
-	@echo ""
+	@echo "In env/.env.api eintragen:"
 	@echo "SESSION_SECRET=$$(openssl rand -hex 32)"
+	@echo ""
+	@echo "In env/.env.app eintragen (shared — wird von api + sync gelesen):"
 	@echo "FERNET_KEY=$$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
 	@echo ""
-	@echo "FERNET_KEY auch in env/.env.sync eintragen (gleicher Wert)."
-	@echo ""
-	@echo "Per-Service-DB-Rollen (V24) — in env/.env.app eintragen:"
+	@echo "Per-Service-DB-Rollen (V24) — ebenfalls in env/.env.app:"
 	@echo "DB_SYNC_PASSWORD=$$(openssl rand -hex 24)"
 	@echo "DB_ML_PASSWORD=$$(openssl rand -hex 24)"
 
 secure-env:
-	chmod 600 env/.env env/.env.api env/.env.sync env/.env.ml
+	chmod 600 env/.env env/.env.app env/.env.api env/.env.sync env/.env.ml
 
 setup:
 	@echo "=== Erstmalige Einrichtung ==="
