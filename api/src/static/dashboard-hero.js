@@ -9,7 +9,55 @@ export const _heroData = {
     energy: null,
     ml: null,
     hrvTrend: null,
+    mlFeedback: {},
 };
+
+// ── ML-Feedback (👍/👎) — UX-Review [D3-1] ──────────────────────────────────────
+// Binäres, pro Tag/Modell umschaltbares Feedback auf ML-Tiles. Buttons stehen als
+// Geschwister neben den verlinkten Tiles (kein <button> in <a>); CSP-konform per
+// Event-Delegation in dashboard.js verdrahtet. Rendert den aktiven Zustand aus
+// _heroData.mlFeedback, damit Re-Renders der Tiles ihn nicht verlieren.
+
+function feedbackButtons(model) {
+    const fb = _heroData.mlFeedback || {};
+    const helpful = Object.hasOwn(fb, model) ? fb[model] : null;
+    const up = helpful === true;
+    const down = helpful === false;
+    return `<div class="ml-feedback" role="group" aria-label="War diese Einschätzung treffend?">
+        <span class="ml-feedback-q">Treffend?</span>
+        <button type="button" class="ml-feedback-btn${up ? ' active' : ''}" data-fb-model="${esc(model)}" data-fb-val="1" aria-label="Einschätzung war treffend" aria-pressed="${up}">👍</button>
+        <button type="button" class="ml-feedback-btn${down ? ' active' : ''}" data-fb-model="${esc(model)}" data-fb-val="0" aria-label="Einschätzung war nicht treffend" aria-pressed="${down}">👎</button>
+    </div>`;
+}
+
+export function applyFeedbackState(map) {
+    _heroData.mlFeedback = map || {};
+    document.querySelectorAll('[data-fb-model]').forEach((btn) => {
+        const m = btn.dataset.fbModel;
+        const isUp = btn.dataset.fbVal === '1';
+        const has = Object.hasOwn(_heroData.mlFeedback, m);
+        const on = has && _heroData.mlFeedback[m] === isUp;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+}
+
+export async function loadMlFeedback() {
+    try {
+        const map = await fetch('/api/ml-feedback').then((r) => r.json());
+        applyFeedbackState(map);
+    } catch (_) {}
+}
+
+export async function submitMlFeedback(model, helpful) {
+    const res = await fetch('/api/ml-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, helpful }),
+    });
+    if (!res.ok) throw new Error('feedback failed');
+    applyFeedbackState({ ...(_heroData.mlFeedback || {}), [model]: helpful });
+}
 
 export let _evidence = {};
 
@@ -284,6 +332,7 @@ export function buildHeroCard() {
                 </div>
                 <div class="hero-capacity-grid">${capacityTilesOnly()}</div>
                 ${mlTile}
+                ${rfScore != null ? feedbackButtons('readiness_rf') : ''}
                 ${rfScore != null ? '<p class="disclosure-disclaimer" style="margin-top:6px">Schätzung auf Basis deiner Daten — kein medizinischer Befund.</p>' : ''}
             </div>
         </div>`;
@@ -367,6 +416,7 @@ export function buildMlTabs() {
                 );
             }
             html += '</div>';
+            if (anomaly) html += feedbackButtons('anomaly_hr');
             erholungEl.innerHTML = html;
         }
     }

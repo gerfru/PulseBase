@@ -152,6 +152,24 @@ async def delete_test_user():
         await conn.close()
 
 
+def make_session_cookie(user_id: int, secret: str) -> str:
+    """Mint a valid Starlette SessionMiddleware cookie for a user.
+
+    Replicates Starlette's cookie format (base64(json) signed with an
+    itsdangerous.TimestampSigner) so E2E tests can authenticate WITHOUT the
+    rate-limited /login form — the state-of-the-art pattern for rate-limit-safe
+    auth in browser tests (inject the session/cookie, skip the UI login).
+    See main.py: SessionMiddleware(secret_key=SESSION_SECRET, ...).
+    """
+    import base64
+    import json
+
+    from itsdangerous import TimestampSigner
+
+    data = base64.b64encode(json.dumps({"user_id": user_id}).encode())
+    return TimestampSigner(secret).sign(data).decode()
+
+
 async def _make_db_conn() -> asyncpg.Connection:
     env = _read_env_file()
     return await asyncpg.connect(
@@ -384,6 +402,62 @@ async def idor_seizure_pair():
             "userA": {"id": uid_a, "email": email_a, "password": pw_a},
             "userB": {"id": uid_b, "email": email_b, "password": pw_b},
             "seizure_id": seizure_id,
+        }
+    finally:
+        await conn.execute(
+            "DELETE FROM users WHERE email = ANY($1::text[])", [email_a, email_b]
+        )
+        await conn.close()
+
+
+@pytest.fixture
+async def ml_feedback_pair():
+    """Two verified users for ML-feedback E2E tests.
+
+    Exercises the real ml_feedback table (V25) under the garmin_app role: the
+    ON CONFLICT upsert (toggle 👍→👎) and the per-user scoping of
+    GET /api/ml-feedback — neither provable with a mocked pool. Teardown removes
+    both users (cascade-deletes their feedback rows).
+    """
+    pw_a = "MlFbOwner!2026Pass"  # pragma: allowlist secret
+    pw_b = "MlFbOther!2026Pass"  # pragma: allowlist secret
+    email_a = f"mlfb-a-{_run_id}@e2e.local"
+    email_b = f"mlfb-b-{_run_id}@e2e.local"
+    hash_a = bcrypt.hashpw(pw_a.encode(), bcrypt.gensalt()).decode()
+    hash_b = bcrypt.hashpw(pw_b.encode(), bcrypt.gensalt()).decode()
+    conn = await _make_db_conn()
+    try:
+        uid_a = await conn.fetchval(
+            """
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active)
+            VALUES ($1, $2, $3, NOW(), TRUE)
+            ON CONFLICT (email) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    email_verified_at = NOW(), is_active = TRUE
+            RETURNING id
+            """,
+            "MlFb A",
+            email_a,
+            hash_a,
+        )
+        uid_b = await conn.fetchval(
+            """
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active)
+            VALUES ($1, $2, $3, NOW(), TRUE)
+            ON CONFLICT (email) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    email_verified_at = NOW(), is_active = TRUE
+            RETURNING id
+            """,
+            "MlFb B",
+            email_b,
+            hash_b,
+        )
+        await _insert_consents(conn, uid_a)
+        await _insert_consents(conn, uid_b)
+        yield {
+            "userA": {"id": uid_a, "email": email_a, "password": pw_a},
+            "userB": {"id": uid_b, "email": email_b, "password": pw_b},
         }
     finally:
         await conn.execute(
