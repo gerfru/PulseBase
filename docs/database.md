@@ -210,6 +210,10 @@ Manual seizure diary entries. Added in V15.
 
 Index: `(user_id, occurred_at DESC)`
 
+Entries are editable and deletable from the diary UI via `PATCH`/`DELETE
+/api/seizures/{id}`; both DB helpers (`update_seizure`, `delete_seizure`) filter on
+`id AND user_id` so a user can only mutate their own rows.
+
 ---
 
 ### `user_consents`

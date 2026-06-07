@@ -27,7 +27,7 @@ async function pollMlStatus() {
             _mlPollTimer = setTimeout(pollMlStatus, 8000);
         } else {
             const age = s.last_ml_at ? fmtSyncAge(s.last_ml_at) : null;
-            setMlStatus(age ? `🤖 ML · ${age}` : '', !!age);
+            setMlStatus(age ? `🤖 Zuletzt analysiert ${age}` : '', !!age);
             if (_mlPollTimer) {
                 showToast('ML Einblicke aktualisiert');
                 loadMlInsights();
@@ -49,7 +49,7 @@ export async function loadMlStatus() {
             setMlStatus('🤖 ML läuft…', true);
             _mlPollTimer = setTimeout(pollMlStatus, 8000);
         } else if (s.last_ml_at) {
-            setMlStatus(`🤖 ML · ${fmtSyncAge(s.last_ml_at)}`, true);
+            setMlStatus(`🤖 Zuletzt analysiert ${fmtSyncAge(s.last_ml_at)}`, true);
         }
     } catch {
         /* ignorieren */

@@ -327,6 +327,71 @@ async def epilepsy_test_user():
         await conn.close()
 
 
+@pytest.fixture
+async def idor_seizure_pair():
+    """Two verified users where user A owns a seizure row.
+
+    Used for the cross-user (IDOR) ownership test on PATCH/DELETE
+    /api/seizures/{id}: user B must not be able to read, modify, or delete
+    user A's entry. Seeds directly into the test DB so the row has a real,
+    A-owned id. Teardown removes both users (cascade-deletes the seizure).
+    """
+    pw_a = "IdorOwner!2026Pass"  # pragma: allowlist secret
+    pw_b = "IdorAttacker!2026Pass"  # pragma: allowlist secret
+    email_a = f"idor-owner-{_run_id}@e2e.local"
+    email_b = f"idor-attacker-{_run_id}@e2e.local"
+    hash_a = bcrypt.hashpw(pw_a.encode(), bcrypt.gensalt()).decode()
+    hash_b = bcrypt.hashpw(pw_b.encode(), bcrypt.gensalt()).decode()
+    conn = await _make_db_conn()
+    try:
+        uid_a = await conn.fetchval(
+            """
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active, epilepsy_mode)
+            VALUES ($1, $2, $3, NOW(), TRUE, TRUE)
+            ON CONFLICT (email) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    email_verified_at = NOW(), is_active = TRUE, epilepsy_mode = TRUE
+            RETURNING id
+            """,
+            "IDOR Owner",
+            email_a,
+            hash_a,
+        )
+        uid_b = await conn.fetchval(
+            """
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active)
+            VALUES ($1, $2, $3, NOW(), TRUE)
+            ON CONFLICT (email) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    email_verified_at = NOW(), is_active = TRUE
+            RETURNING id
+            """,
+            "IDOR Attacker",
+            email_b,
+            hash_b,
+        )
+        await _insert_consents(conn, uid_a)
+        await _insert_consents(conn, uid_b)
+        seizure_id = await conn.fetchval(
+            """
+            INSERT INTO seizure_events (user_id, occurred_at, type, notes)
+            VALUES ($1, NOW(), 'focal', 'ORIGINAL')
+            RETURNING id
+            """,
+            uid_a,
+        )
+        yield {
+            "userA": {"id": uid_a, "email": email_a, "password": pw_a},
+            "userB": {"id": uid_b, "email": email_b, "password": pw_b},
+            "seizure_id": seizure_id,
+        }
+    finally:
+        await conn.execute(
+            "DELETE FROM users WHERE email = ANY($1::text[])", [email_a, email_b]
+        )
+        await conn.close()
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Capture a screenshot when an E2E test fails."""

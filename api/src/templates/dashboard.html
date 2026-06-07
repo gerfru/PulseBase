@@ -60,6 +60,19 @@
     </div>
     {% endif %}
 
+    <!-- ── Onboarding-/Datenlatenz-Hinweis (einmalig, dismissbar) ── -->
+    <div id="onboarding-hint" class="px-4 sm:px-6 pt-5" style="display:none">
+        <div role="status" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-200 text-sm">
+            <span class="shrink-0">⏳</span>
+            <span class="flex-1">
+                Deine Daten füllen sich nach und nach: erste Trends nach ~7 Tagen,
+                die ML-Prognose nach ~30 Tagen Daten. Solange einzelne Kacheln noch leer bleiben, ist das normal.
+            </span>
+            <button id="onboarding-hint-close" type="button" aria-label="Hinweis schließen"
+                    class="shrink-0 text-sky-300/70 hover:text-sky-200 transition-colors">✕</button>
+        </div>
+    </div>
+
     <!-- ── Hero Card (immer sichtbar) ───────────────────────────── -->
     <div class="px-4 sm:px-6 pt-5">
         <div class="hero-card-wrap">
