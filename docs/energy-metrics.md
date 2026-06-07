@@ -117,7 +117,8 @@ deviation = (current_mean − baseline_mean) / baseline_std
 
 BALANCED:    deviation ≥ −0.5
 UNBALANCED:  −1.5 ≤ deviation < −0.5
-LOW:         deviation < −1.5
+LOW:         −2.0 ≤ deviation < −1.5
+POOR:        deviation < −2.0
 ```
 
 **Inputs:** `hrv_daily.hrv_last_night` (mindestens 21 Tage History empfohlen) ✅
@@ -139,14 +140,14 @@ TRIMP_Edwards = duration_min × HRr × (HRr × 4 + 1)
 
 **Banister TRIMP** (geschlechtsspezifisch, präziser bei Ausdauersport):
 ```
-TRIMP_Banister = duration_min × HRr × k × e^(b × HRr)
+TRIMP_Banister = duration_min × HRr × e^(b × HRr)
 
-k (Skalierung): 0.64 (männlich), 0.86 (weiblich)
 b (Steigung):   1.92 (männlich), 1.67 (weiblich)
 ```
 Kalibriert an Blutlaktat-Kurven. `users.sex` aus V12 vorhanden ✅.
 
-**Implementiert in:** `ml-service/src/models/trimp.py`, `training_effect.py`
+**Implementiert in:** Edwards TRIMP in `ml-service/src/models/trimp.py`;
+Banister TRIMP in `ml-service/src/models/training_effect.py` (und `api/src/training_load.py`)
 
 ### 4.2 CTL / ATL / TSB (Banister Fitness-Fatigue, 1991)
 
@@ -202,6 +203,10 @@ noch vorhanden? Mechanismus: Superkompensation — nach Belastung folgt Erholung
 ```
 score = clip(72 + TSB × 1.5, 0, 100)
 ```
+
+**Hinweis:** TSB stammt aus dem ATL/CTL-Modell, das hier mit **Edwards TRIMP**
+(`compute_trimp`, quadratische Zonengewichtung) gespeist wird — *nicht* mit Banister TRIMP.
+Banister TRIMP kommt nur im Aerobic-Effect-Modell (`training_effect.py`) zum Einsatz.
 
 **Ankerpunkte (aus Code energy_metrics.py):**
 
@@ -377,10 +382,10 @@ Kurzdokumentation der restlichen Modelle:
 |--------|-----------|----------|
 | **ACWR** | ATL/CTL-Ratio; Zonen <0.8/0.8–1.3/1.3–1.5/>1.5 | 50 Tage |
 | **Training Monotony** | Foster (1998): mean(TRIMP)/σ(TRIMP); Strain = Σ×Monotony | 7 Tage |
-| **Sleep Consistency** | Phillips: Zirkuläre σ auf Einschlaf-/Aufwachzeit; score=100−σ_wake×15−σ_sleep×10 | 14 Tage |
-| **SpO2 Trend** | Lineare Regression auf SpO2-History; Apnoe-Flag wenn min_spo2 < 90% | 7 Tage |
+| **Sleep Consistency** | Phillips: σ (Standardabweichung ohne Mitternachts-Wraparound) auf Einschlaf-/Aufwachzeit; score=100−σ_wake×15−σ_sleep×10 | 14 Tage |
+| **SpO2 Trend** | Lineare Regression auf SpO2-History; Apnoe-Flag wenn min_spo2 < 90% in ≥2 Nächten | 7 Tage |
 | **Stress Score** | HRV σ-Score invertiert + Garmin avg_stress (60/40 blend) | 90 Tage |
-| **Running Economy** | Z-Score auf Bodenkon­takt­zeit, vertikale Oszillation, vertikales Verhältnis | 60 Tage |
+| **Running Economy** | Z-Score auf Bodenkon­takt­zeit, vertikale Oszillation, vertikales Verhältnis | kein festes Zeitfenster; jüngste Aktivitäten, Top 5 verwendet |
 | **HRV Recovery** | TRIMP-Peak-Detection (>1.5×mean); ΔHRV/Tag in 7-Tage-Fenster post-Peak | 60 Tage |
 | **Anomalie-Erkennung** | Z-Score: z=(x−μ)/σ; threshold 2.0σ; min. 7 Punkte; 31 Tage History | 31 Tage |
 | **Pearson-Korrelation** | 3 Paare: Schlaf→HRV, Schlaf→RHR, Body-Battery→RHR; min. 10 Paare; r≥0.7 stark | 90 Tage |

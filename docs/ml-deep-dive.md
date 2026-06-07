@@ -1,7 +1,7 @@
 # ML Deep Dive — Technische Dokumentation
 
 Vollständige technische Spezifikation aller ML-Modelle in PulseBase.
-Implementierung: `ml-service/src/models/`, Scheduling + Orchestrierung: `ml-service/src/main.py`, Inferenz-Runner: `inference_anomaly.py` + `inference_models.py`.
+Implementierung: `ml-service/src/models/`, Scheduling + Orchestrierung: `ml-service/src/main.py`, Inferenz-Runner: `inference_anomaly.py` + `inference_models.py` + `inference_energy.py` (acwr, training_monotony, energy_*).
 
 Für eine verständliche Erklärung ohne Mathekenntnisse: [eli5.md](eli5.md).
 
@@ -73,10 +73,11 @@ Sonderfall: Wenn `σ < 1.0` → `z = 0.0` (keine relevante Varianz, Division ver
 
 ```python
 _THRESHOLD = 2.0
-is_anomaly = z > _THRESHOLD
+is_anomaly = abs(z) > _THRESHOLD
 ```
 
-Bei Normalverteilung markiert 2.0σ ca. 2.5 % aller Tage als auffällig (einseitig).
+Zweiseitig: sowohl ungewöhnlich hohe als auch ungewöhnlich niedrige Werte werden markiert.
+Bei Normalverteilung markiert |2.0σ| ca. 5 % aller Tage als auffällig (beidseitig je ~2.5 %).
 Das entspricht dem klassischen statistischen Ausreißer-Kriterium und reduziert False Positives.
 Nicht zur klinischen Diagnose geeignet.
 
@@ -291,41 +292,38 @@ Pro Tag werden aus den `body_battery_intraday`-Readings 5 Features berechnet:
 | `morning_avg` | Mittelwert der Readings 06:00–09:00 Uhr |
 | `evening_avg` | Mittelwert der Readings 20:00–23:00 Uhr |
 | `daily_range` | `max(value) − min(value)` des gesamten Tages |
-| `auc` | Trapezregel über alle Readings, normiert auf Anzahl Intervalle |
+| `auc` | Mittelwert aller Tages-Readings (`np.mean(vals)`) |
 | `n_dips` | Anzahl Abfälle > 10 Punkte zwischen aufeinanderfolgenden Readings |
 
 ```python
-# AUC (trapezförmige Approximation):
-auc = sum(
-    (vals[i] + vals[i+1]) / 2 * (times[i+1] - times[i]).total_seconds() / 3600
-    for i in range(len(vals) - 1)
-) / max(1, total_hours)
+# AUC (mittleres Tagesniveau):
+auc = float(np.mean(vals))
 
 # n_dips:
-n_dips = sum(1 for i in range(1, len(vals)) if vals[i-1] - vals[i] > 10)
+n_dips = int(np.sum(np.diff(vals) < -10))
 ```
 
 ### Clustering
 
 ```python
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)  # 5 Features, n_samples = 90 Tage
-
+# Geclustert wird auf den ROHEN 5 Features (kein StandardScaler).
 kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-kmeans.fit(X_scaled)
+kmeans.fit(X)  # 5 Features, n_samples = bis zu 90 Tage (min. 14)
 ```
 
-Trainiert auf 90-Tage-History (`get_body_battery_history`).
-Persistenz: `battery_kmeans_{user_id}.joblib` + `battery_scaler_{user_id}.joblib`.
+Trainiert auf bis zu 90 Tagen History (`get_body_battery_history`), Minimum 14 Tage
+mit jeweils ≥ 6 Intraday-Readings (`_MIN_DAYS = 14`, `_MIN_POINTS_PER_DAY = 6`).
+Persistenz: eine Datei `battery_pattern_{user_id}.joblib` mit `{kmeans, labels}`.
 
 **Cluster-Label-Zuweisung:**
-Nach dem Training wird jedem Cluster anhand des Centroid-Profils ein Label zugewiesen:
-- Hoher `morning_avg` + geringer `n_dips` → `stabil_hoch`
-- Mittleres Profil → `erholung`
-- Hoher `n_dips` + niedriger `evening_avg` → `erschoepft`
+Nach dem Training werden die Cluster zunächst nach `auc` (mittleres Tagesniveau) absteigend
+gerankt. Das Label ergibt sich aus AUC-Rang und dem Delta `evening_avg − morning_avg`:
+- Rang 0 (höchste AUC) mit unterdurchschnittlicher `daily_range` → `stabil_hoch`
+- Größtes positives Delta (sonst noch kein `stabil_hoch` vergeben) → `stabil_hoch`
+- Positives Delta (steigende Kurve) → `erholung`
+- Sonst → `erschoepft`
 
 ---
 
@@ -403,9 +401,9 @@ ON CONFLICT (date, user_id, model) DO UPDATE
 | `acwr` | Ratio (float) | `atl_7d`, `ctl_42d`, `level` (`green`/`amber`/`red`) |
 | `training_monotony` | Monotony (float) | `strain`, `trimp_mean`, `trimp_std`, `trimp_7d` |
 | `sleep_consistency` | Score 0–100 | `sigma_wake`, `sigma_sleep`, `n_nights` |
-| `spo2_trend` | mean_spo2 (float) | `slope`, `trend` (`falling`/`stable`/`rising`), `apnea_flag` |
+| `spo2_trend` | mean_spo2 (float) | `slope`, `trend` (`falling`/`stable`/`rising`), `apnea_flag` (true wenn `min_spo2 < 90` an ≥ 2 Nächten), `apnea_nights` |
 | `stress_score_custom` | Score 0–100 | `deviation`, `baseline_mean`, `baseline_std` |
-| `hrv_recovery` | recovery_speed (float) | `days_since_peak_load`, `hrv_delta` |
+| `hrv_recovery` | recovery_speed (float) | `n_events`, `hrv_baseline`, `trimp_threshold` |
 | `running_economy` | Score 0–100 | `gct_score`, `vo_score`, `vr_score`, `n_runs` |
 | `energy_physical` | Score 0–100 | `tsb`, `ctl`, `atl` |
 | `energy_autonomic` | Score 0–100 | `deviation_sigma`, `hrv_last_night`, `baseline_mean` |
@@ -553,10 +551,10 @@ effect = atan(TRIMP_heute / (CTL × 0.5)) × (10/π)
 | `acwr` | 42 Tage (CTL) | — |
 | `training_monotony` | 7 Tage | 2 Trainingstage |
 | `sleep_consistency` | 14 Tage | 5 Schlafnächte |
-| `spo2_trend` | 7 Tage | 3 SpO2-Werte |
+| `spo2_trend` | 7 Tage | 1 SpO2-Wert (Apnoe-Flag erst bei ≥ 2 Nächten < 90 %) |
 | `stress_score_custom` | 90 Tage HRV-Baseline | 7 HRV-Werte |
-| `hrv_recovery` | 30 Tage | 1 Belastungstag + 3 Folgenächte HRV |
-| `running_economy` | 30 Tage | 3 Lauf-Aktivitäten mit activity_records |
+| `hrv_recovery` | 60 Tage | 14 gültige HRV-Werte (+ mind. 1 Erholungsevent) |
+| `running_economy` | letzte Aktivitäten (kein Tagesfenster) | 1 Lauf mit Biomechanik-Daten (Top 5 verwendet) |
 | `energy_physical/autonomic/cognitive` | 90 Tage | — (Fallbacks greifen) |
 
 ---
@@ -565,7 +563,7 @@ effect = atan(TRIMP_heute / (CTL × 0.5)) × (10/π)
 
 | Library | Version | Verwendung |
 |---------|---------|------------|
-| `scikit-learn` | ≥1.4 | RandomForestRegressor, KMeans, StandardScaler |
+| `scikit-learn` | ≥1.4 | RandomForestRegressor, KMeans |
 | `scipy` | ≥1.12 | `pearsonr()` |
 | `numpy` | ≥1.26 | Array-Operationen |
 | `joblib` | (via sklearn) | Modell-Serialisierung |

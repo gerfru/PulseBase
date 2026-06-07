@@ -37,8 +37,16 @@ Edit `env/.env.app` (Shared App-Credentials für api + sync-service + ml-service
 ```bash
 DB_APP_USER=garmin_app
 DB_APP_PASSWORD=<strong password>
+DB_SYNC_USER=pulse_sync
+DB_SYNC_PASSWORD=<strong password>   # from make gen-secrets
+DB_ML_USER=pulse_ml
+DB_ML_PASSWORD=<strong password>     # from make gen-secrets
 FERNET_KEY=<from make gen-secrets>
 ```
+
+> Each app service uses its own least-privilege DB role (V24): api → `DB_APP_*`,
+> sync-service → `DB_SYNC_*`, ml-service → `DB_ML_*`. All six values live in `env/.env.app`
+> because they feed both the Flyway role-creation placeholders and the service containers.
 
 Edit `env/.env.sync`:
 
@@ -65,6 +73,7 @@ make gen-secrets
 Copy the output values:
 - `SESSION_SECRET` → `env/.env.api` (min. 32 characters, required)
 - `FERNET_KEY` → `env/.env.app` (used by all 3 app services for token encryption)
+- `DB_SYNC_PASSWORD`, `DB_ML_PASSWORD` → `env/.env.app` (per-service DB role passwords, V24)
 
 ---
 
@@ -120,7 +129,7 @@ If the link expires (24h TTL) or never arrived, use `/auth/resend-verify` to req
 
 ---
 
-## 7. Link Garmin
+## 6. Link Garmin
 
 Go to `https://your-domain.com/garmin/link` (or click the link on the dashboard).
 
@@ -129,7 +138,7 @@ session token and then deleted from memory — it is never stored anywhere.
 
 ---
 
-## 8. First sync
+## 7. First sync
 
 After linking Garmin, a sync starts automatically within 1 minute (the link sets
 `sync_requested = true`, the sync-service polls for it every minute). Watch progress:
