@@ -100,10 +100,10 @@ passlib ist mit `bcrypt>=4.0` inkompatibel — es würde ohne Fehler einen schw�
 
 ```python
 # Sicherheitsrelevante Parameter:
-bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12))
+bcrypt.hashpw(password.encode(), bcrypt.gensalt())  # gensalt() ohne Argument → Default 12 Rounds
 ```
 
-- `rounds=12` bedeutet 2¹² = 4096 Hash-Iterationen — ~300ms pro Versuch, macht Brute Force unpraktikabel
+- Der Default von `bcrypt.gensalt()` ist `rounds=12`, also 2¹² = 4096 Hash-Iterationen — ~300ms pro Versuch, macht Brute Force unpraktikabel
 - Timing-sicherer Vergleich: `bcrypt.checkpw()` ist constant-time (keine timing-basierten Enumeration-Angriffe)
 
 **Warum DUMMY_HASH?**
@@ -152,16 +152,20 @@ Erfolgreicher Login → failed_login_attempts = 0
 **Design-Prinzip: Non-leaking**
 `POST /auth/reset-request` antwortet immer mit HTTP 200 und gleicher Message, unabhängig ob die E-Mail-Adresse existiert. Würde der Server differenzieren, könnten Angreifer den Endpunkt zur E-Mail-Enumeration nutzen.
 
-**Token-Design (itsdangerous):**
+**Token-Design (DB-backed, `api/src/auth_tokens.py`):**
 ```python
-# Salt trennt Reset-Token von Verify-Token — kein Token-Reuse möglich
-signer = URLSafeTimedSerializer(SESSION_SECRET, salt="password-reset")
-token = signer.dumps(user_id)  # HMAC-signiert mit SESSION_SECRET
+# Reset-Token ist NICHT stateless — Zufallswert wird gehasht in der DB abgelegt
+raw = secrets.token_urlsafe(32)
+token_hash = hashlib.sha256(raw.encode()).hexdigest()
+expires_at = datetime.now(timezone.utc) + timedelta(seconds=3600)  # _RESET_MAX_AGE = 1h
+await save_reset_token(user_id, token_hash, expires_at)
+# Validierung per DB-Lookup auf den SHA-256-Hash, nicht per HMAC-Signatur
 ```
 
-- Signiert mit `SESSION_SECRET` — Fälschung ohne Key nicht möglich
-- 1h TTL — kurzes Fenster reduziert Risiko bei abgefangener E-Mail
-- **Token-Invalidierung nach Verwendung** (W2-Fix): Nach erfolgreichem Reset wird das neue Passwort gesetzt und ein Zeitstempel in der DB gespeichert. Replay-Angriffe mit demselben Token schlagen fehl.
+- Nur der SHA-256-**Hash** liegt in der DB — ein DB-Leak gibt keine nutzbaren Tokens preis
+- 1h TTL (`_RESET_MAX_AGE`) — kurzes Fenster reduziert Risiko bei abgefangener E-Mail
+- **Token-Invalidierung nach Verwendung:** Nach erfolgreichem Reset wird der DB-Eintrag entwertet — Replay-Angriffe mit demselben Token schlagen fehl.
+- **Nur** E-Mail-Verify- und Account-Delete-Token nutzen stateless `itsdangerous.URLSafeTimedSerializer` (HMAC-signiert mit `SESSION_SECRET`, getrennt per Salt) — der Reset-Token nicht.
 
 ### 3.5 Garmin/LibreLink Credential-Handling
 
@@ -197,8 +201,10 @@ Request
   │       → 401 / Redirect /login wenn nicht
   │
   ▼ Schicht 2: require_user() Dependency (deps.py)
-  │   └── Lädt User aus DB, prüft is_active + email_verified_at
-  │       → 401 wenn User deaktiviert oder unverifiziert
+  │   └── Prüft session["user_id"] und lädt den User aus der DB
+  │       → NeedsLogin (Redirect /login) wenn Session fehlt oder User nicht existiert
+  │       (Die E-Mail-Verifikation wird beim LOGIN erzwungen, nicht pro Request —
+  │        siehe auth_helpers._handle_unverified_email)
   │
   ▼ Schicht 3: Data Access Layer (db/*.py)
       └── Jede Query bindet user_id: WHERE user_id = $1
@@ -302,7 +308,7 @@ PulseBase implementiert das **Double-Submit-Cookie-Pattern** (kein `SameSite=Str
 
 ```python
 # Generierung (GET-Endpoint):
-csrf_token = secrets.token_hex(32)  # Kryptographisch stark
+csrf_token = secrets.token_urlsafe(32)  # Kryptographisch stark
 request.session["csrf_token"] = csrf_token
 # Token im HTML-Formular als <input type="hidden">
 
@@ -366,7 +372,9 @@ Zusätzlich zur Schema-Validierung sind folgende Endpunkte rate-limitiert (slowa
 |---|---|---|---|
 | `SESSION_SECRET` | Cookie-Signierung (HMAC), min. 32 Zeichen | API | Rotieren erzwingt alle User auszuloggen |
 | `FERNET_KEY` | Token-Verschlüsselung at rest | API + Sync | Rotation erfordert Re-Encrypt aller Tokens |
-| `DB_APP_PASSWORD` | DB-Verbindung (Least Privilege User) | API + Sync + ML | Standard DB-Rotation |
+| `DB_APP_PASSWORD` | DB-Verbindung (breite Rolle: Auth, Account-Löschung) | nur API | Standard DB-Rotation |
+| `DB_SYNC_PASSWORD` | DB-Verbindung (Least-Privilege-Rolle, V24) | nur Sync | Standard DB-Rotation |
+| `DB_ML_PASSWORD` | DB-Verbindung (read-only Health + write ml_predictions, V24) | nur ML | Standard DB-Rotation |
 | `DB_PASSWORD` | DB-Admin (nur für Migrations) | Flyway | Selten |
 | `RESEND_API_KEY` | E-Mail-Versand | API | Bei Verdacht |
 
@@ -376,7 +384,8 @@ Jeder Service bekommt nur die Secrets die er braucht (Principle of Least Privile
 
 ```
 env/.env       → nur db + flyway (DB_USER/PASSWORD Admin-Creds, HOST_IP)
-env/.env.app   → api + sync + ml (DB_APP_USER/PASSWORD, FERNET_KEY)
+env/.env.app   → api + sync + ml (FERNET_KEY + Per-Service-DB-Rollen V24:
+                 DB_APP_* nur api, DB_SYNC_* nur sync, DB_ML_* nur ml — Least Privilege)
 env/.env.api   → nur api (SESSION_SECRET, RESEND_API_KEY, APP_BASE_URL, ...)
 env/.env.sync  → nur sync-service (SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, ...)
 env/.env.ml    → nur ml-service (ML_INFER_HOUR — ml-service greift nie auf Tokens zu, kein FERNET_KEY nötig)

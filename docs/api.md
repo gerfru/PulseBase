@@ -50,6 +50,8 @@ Renders the registration form.
 
 ### `POST /register`
 
+Rate-limited to 5 requests/minute per IP.
+
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
 | `name` | string | yes | 1–100 characters |
@@ -149,7 +151,9 @@ Redirects to `/dashboard`.
 
 ### `POST /logout`
 
-Clears the session. Redirects to `/login`.
+Requires a valid `csrf_token` form field. Returns HTTP 403 (re-renders the login form
+with an error) if the token is missing or does not match the session.
+On success: clears the session and redirects to `/login`.
 
 ### `GET /garmin/link`
 
@@ -223,23 +227,19 @@ removes the token file. Redirects to `/libre/link`.
 
 ### `GET /ml/anomaly`
 
-Renders the anomaly detection detail page. Shows z-score history (30 days),
-stat tiles, and an explanation of z-score interpretation.
+Permanent redirect (HTTP 301) to `/metrics/hr-zscore`.
 
 ### `GET /ml/readiness`
 
-Renders the readiness prediction detail page. Shows predicted score,
-30-day history chart, feature importance bar chart, and model metadata.
+Permanent redirect (HTTP 301) to `/metrics/readiness-rf`.
 
 ### `GET /ml/correlations`
 
-Renders the correlations detail page. Shows all three Pearson correlations
-(sleep→HRV, sleep→resting HR, body battery→resting HR) with bar visualization.
+Permanent redirect (HTTP 301) to `/metrics/correlations`.
 
 ### `GET /ml/battery`
 
-Renders the body battery pattern detail page. Shows today's cluster assignment
-with feature breakdown table.
+Permanent redirect (HTTP 301) to `/metrics/battery-pattern`.
 
 ### `POST /account/delete`
 
@@ -252,11 +252,27 @@ Re-authentication required before deletion (DSGVO Art. 17 / ASVS V2.4.1):
 | `email` | string | yes — must match the account's email |
 | `password` | string | yes — current account password |
 
-On success: deletes the account and all associated data (activities, sleep, HRV, glucose,
-seizure events, daily summaries, ML predictions, Garmin tokens on disk) atomically in a
-single DB transaction. Session is cleared. Redirects to `/login?deleted=1`.
+A valid `csrf_token` form field is also required (HTTP 400 on mismatch).
+
+This is the **first step of a two-step deletion**. On success it does *not* delete
+immediately: it marks the account as pending-deletion, sends a confirmation email
+containing a signed link (`/account/delete/confirm/{token}`), and renders the
+`account_delete_pending.html` page. If the email cannot be sent, the confirmation URL
+is written to the log instead. The actual deletion happens at the confirm endpoint below.
 
 On failure (wrong email or password): re-renders settings page with error (HTTP 400).
+
+### `GET /account/delete/confirm/{token}`
+
+Rate-limited to 10 requests/hour per IP.
+
+Completes the deletion. Token is HMAC-signed (24h TTL). On a valid token, deletes the
+account and all associated data (activities, sleep, HRV, glucose, seizure events, daily
+summaries, ML predictions, Garmin tokens), clears the session, and redirects to
+`/login?deleted=1`.
+
+Returns HTTP 400 (renders `account_delete_pending.html` with an error) if the token is
+invalid or expired. Redirects to `/login` if the user no longer exists.
 
 ### `GET /account/export`
 
@@ -504,7 +520,7 @@ Returns weekly training volume aggregates.
 
 | Parameter | Default | Range | Notes |
 |-----------|---------|-------|-------|
-| `weeks` | `12` | 1–52 | How many weeks back |
+| `weeks` | `12` | 1–56 | How many weeks back |
 | `end_date` | `today` | ISO date | Last day of the window (for time navigation) |
 
 **Response** — array ordered by week ascending:
@@ -633,9 +649,9 @@ Returns aggregated glucose statistics. Only available when `libre_linked = true`
 
 **Query parameters:**
 
-| Parameter | Default | Notes                    |
-|-----------|---------|--------------------------|
-| `days`    | `14`    | How many days to include |
+| Parameter | Default | Range | Notes                    |
+|-----------|---------|-------|--------------------------|
+| `days`    | `14`    | 1–90  | How many days to include |
 
 **Response:**
 
@@ -778,14 +794,26 @@ Returns `{}` if ML inference has not run yet.
 
 ---
 
+### `GET /api/training-load`
+
+Returns the computed training-load summary (Banister TRIMP / CTL / TSB) for the user.
+
+**Query parameters:**
+
+| Parameter | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| `lookback_days` | `TRIMP_LOOKBACK_DAYS` (env) | 1–365 | How many days back to aggregate; falls back to the configured default when omitted |
+
+---
+
 ### `PATCH /api/profile`
 
-Saves the user's date of birth, biological sex, and optional epilepsy mode flag. Used for Banister TRIMP computation in the ML service. Session-protected.
+Saves the user's date of birth, biological sex, and optional epilepsy / SpO₂ mode flags. Used for Banister TRIMP computation in the ML service. Session-protected.
 
 **Request body (JSON):**
 
 ```json
-{ "date_of_birth": "1990-05-15", "sex": "m", "epilepsy_mode": true }
+{ "date_of_birth": "1990-05-15", "sex": "m", "epilepsy_mode": true, "spo2_enabled": true }
 ```
 
 | Field | Type | Constraint |
@@ -793,6 +821,7 @@ Saves the user's date of birth, biological sex, and optional epilepsy mode flag.
 | `date_of_birth` | `date \| null` | ISO 8601, must be in the past |
 | `sex` | `string \| null` | `"m"`, `"f"`, or `"diverse"` |
 | `epilepsy_mode` | `boolean \| null` | Enables seizure diary; omit to leave unchanged |
+| `spo2_enabled` | `boolean \| null` | Enables SpO₂ tracking; omit to leave unchanged |
 
 **Response on success:**
 
@@ -873,7 +902,72 @@ Returns the ML inference state for the authenticated user.
 
 ---
 
+### `GET /api/ml-feedback`
+
+Returns today's 👍/👎 feedback per model for the authenticated user.
+
+**Response** — object mapping model key → boolean (`helpful`):
+
+```json
+{ "readiness_rf": true, "anomaly_hr": false }
+```
+
+---
+
+### `POST /api/ml-feedback`
+
+Marks an ML prediction as helpful or not (upsert per day + model; stored in `ml_feedback`,
+V25). Session-protected.
+
+**Request body (JSON):**
+
+```json
+{ "model": "readiness_rf", "helpful": true }
+```
+
+| Field | Type | Constraint |
+|-------|------|------------|
+| `model` | string | must be one of the supported feedback models (`FEEDBACK_MODELS`) |
+| `helpful` | boolean | `true` = 👍, `false` = 👎 |
+
+**Response on success:**
+
+```json
+{ "ok": true }
+```
+
+**Error responses:**
+- `422` — `model` not in the supported set
+
+---
+
+### `GET /api/evidence`
+
+Returns the evidence catalog for all metrics (the contents of
+`api/src/data/evidence_catalog.json`). Session-protected.
+
+**Response** — object keyed by metric, each entry carrying the evidence level,
+time horizon and EN 62366 fields:
+
+```json
+{
+  "hrv": { "level": "...", "time_horizon": "...", "...": "..." }
+}
+```
+
+---
+
 ## Protected Pages (additional)
+
+### `GET /metrics`
+
+Renders the metrics overview page (`metrics_overview.html`) — all metrics as tiles with
+their evidence badges. Session required.
+
+### `GET /help`
+
+Renders the help & methodology page (`help.html`, client-side searchable, deep-linkable
+via `/help#<metric-key>`). Session required.
 
 ### `GET /metrics/{name}`
 
@@ -882,9 +976,12 @@ not in the allowed set.
 
 **Valid `name` values:**
 
-`steps`, `sleep`, `hrv`, `body-battery`, `physical`, `autonomic`, `cognitive`,
-`hr-zscore`, `readiness-rf`, `hrv-status`, `hrv-status-custom`, `training-status`,
-`readiness`, `sleep-score-custom`, `intensity-minutes`, `training-effect`
+`steps`, `sleep`, `hrv`, `body-battery`, `body-battery-custom`, `physical`,
+`autonomic`, `cognitive`, `hr-zscore`, `readiness-rf`, `hrv-status`,
+`hrv-status-custom`, `training-status`, `readiness`, `sleep-score-custom`,
+`stress-score-custom`, `intensity-minutes`, `training-effect`, `training-monotony`,
+`spo2-trend`, `sleep-consistency`, `running-economy`, `hrv-recovery`, `recovery`,
+`battery-pattern`, `correlations`
 
 **Response:** HTML page (`metrics.html` template). Data is loaded client-side via
 `/api/activities`, `/api/daily`, `/api/sleep`, `/api/hrv/trend`, and `/api/energy`.
@@ -1134,8 +1231,30 @@ over the 30 days prior to today, excluding today (to avoid comparing today again
 
 ---
 
-## Health
+## Health & Metrics
 
 ### `GET /health`
 
-Returns `{"status": "ok"}`. Not session-protected. Used by Docker healthcheck.
+Returns `{"status": "ok"}`. Not session-protected. Used by Docker healthcheck (liveness).
+
+### `GET /ready`
+
+Readiness probe. Checks the DB connection and that at least one Flyway migration has
+succeeded. Not session-protected. Returns `{"status": "ready"}` on success, or HTTP 503
+with `{"status": "no_migrations"}` / `{"status": "unavailable"}` when the DB is not yet
+ready.
+
+### `GET /api/metrics`
+
+Returns runtime saturation metrics collected via `psutil` (active/error request counters,
+uptime, RSS memory, CPU percent). **Session-protected** (requires a valid session).
+
+```json
+{
+  "active_requests": 1,
+  "error_requests_total": 0,
+  "uptime_seconds": 4213,
+  "memory_mb": 84.2,
+  "cpu_percent": 0.3
+}
+```

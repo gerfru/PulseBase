@@ -156,8 +156,10 @@ Datenschutzerklärung, nicht vorausgewählt).
 
 ### 3.1 Password-Reset-Flow ✅
 
-Implementiert via stateless `itsdangerous.URLSafeTimedSerializer` (kein DB-Schema-Change,
-1-Stunde TTL, HMAC-signiert mit `SESSION_SECRET`). E-Mail-Versand via Resend (3.000 Mails/Mo kostenlos).
+Implementiert **DB-backed** (`api/src/auth_tokens.py`): `secrets.token_urlsafe(32)` → SHA-256-Hash
+→ via `save_reset_token` in der DB abgelegt, Validierung per DB-Lookup. 1-Stunde TTL (`_RESET_MAX_AGE = 3600`).
+(Nur E-Mail-Verify und Account-Delete nutzen stateless `itsdangerous.URLSafeTimedSerializer`, HMAC-signiert
+mit `SESSION_SECRET`.) E-Mail-Versand via Resend (3.000 Mails/Mo kostenlos).
 
 ```
 GET  /auth/reset-request  → Formular anzeigen
@@ -181,7 +183,7 @@ Umsetzung via native Docker Compose `env_file`-Listen — kein extra Tooling, ke
 | File | Service | Enthält |
 |------|---------|---------|
 | `env/.env` | db, flyway | DB_USER/PASSWORD (Admin), HOST_IP |
-| `env/.env.app` | api, sync, ml | DB_APP_USER/PASSWORD (Least Privilege), FERNET_KEY |
+| `env/.env.app` | api, sync, ml | FERNET_KEY + Per-Service-DB-Rollen (V24): `DB_APP_*` (nur api), `DB_SYNC_*` (nur sync), `DB_ML_*` (nur ml) |
 | `env/.env.api` | api | SESSION_SECRET (min. 32 Zeichen), HTTPS_ONLY, TRIMP_*, RESEND_*, APP_BASE_URL, TRUSTED_PROXY_CIDRS, SENTRY_DSN, LOG_LEVEL |
 | `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN, LOG_LEVEL |
 | `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, SENTRY_DSN, LOG_LEVEL |
@@ -201,7 +203,8 @@ User werden per Backfill sofort verifiziert.
 
 Ablauf: Register → Token-Mail → `/auth/verify/{token}` → `email_verified_at` setzen.
 Login sperrt nicht-verifizierte Accounts (klare Fehlermeldung + Resend-Link `/auth/resend-verify`).
-Gleiches Token-System wie Password-Reset (anderer Salt → kein Token-Reuse), 24h TTL.
+Verify-Token nutzt stateless `itsdangerous.URLSafeTimedSerializer` (Salt `email-verify`, 24h TTL) —
+anders als der DB-backed Password-Reset-Token (siehe 3.1).
 Resend-Endpoint non-leaking (immer 200), Rate Limit 3/h.
 
 ### 3.4 Account-Lockout ✅
@@ -241,7 +244,7 @@ structlog.get_logger().warning("auth.login.fail", email=email, ip=ip)
 **Implementiert:** Tokens werden Fernet-verschlüsselt als `BYTEA` in der DB gespeichert (`user_tokens`-Tabelle, V20-Migration). Kein Docker-Volume mehr nötig.
 
 **Architektur:**
-- `FERNET_KEY` in `env/.env.api` und `env/.env.sync` (gleicher Wert, 32-byte URL-safe base64)
+- `FERNET_KEY` in `env/.env.app` (shared — von api via `api/src/db/pool.py` und von sync via `sync-service/src/config.py` gelesen; ml-service hat keinen FERNET_KEY) (32-byte URL-safe base64)
 - Generieren: `make gen-secrets`
 - Startup-Validation: API und Sync-Service crashen beim Start wenn `FERNET_KEY` fehlt oder leer ist (Pydantic `ValidationError` — kein Plaintext-Fallback mehr). ValueError wenn Key-Format ungültig.
 - `ON DELETE CASCADE` — Token wird beim Konto-Löschen automatisch mitgelöscht
@@ -366,8 +369,8 @@ Version aus den Datenbankdateien und startet nicht, wenn die neue Image-Version 
 
 Ablauf für ein TimescaleDB-Minor-Upgrade (z.B. 2.26.4 → 2.27.x):
 ```bash
-# 1. Backup machen (Pflicht!)
-make backup   # oder manuell: docker exec pulsebase-db pg_dump -U garmin garmin | gzip > backup.sql.gz
+# 1. Backup machen (Pflicht!) — es gibt KEIN `make backup`-Target, manuell:
+docker exec pulsebase-db pg_dump -U garmin garmin | gzip > backup.sql.gz
 
 # 2. Image in docker-compose.yml auf neue Version + Digest updaten
 

@@ -2,7 +2,7 @@
 
 Alle Umgebungsvariablen aller drei Services. Jede Variable wird beim App-Start validiert (Pydantic `BaseSettings`) — die App crasht sofort wenn eine Pflicht-Variable fehlt.
 
-Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.api.example`, `env/.env.sync.example`.
+Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.app.example`, `env/.env.api.example`, `env/.env.sync.example`, `env/.env.ml.example`.
 
 ---
 
@@ -11,12 +11,13 @@ Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.api.example
 | Datei | Geladen von | Enthält |
 |-------|-------------|---------|
 | `env/.env` | db, flyway | Admin-DB-Credentials, HOST_IP |
-| `env/.env.app` | api, sync-service, ml-service | App-DB-Credentials, FERNET_KEY |
-| `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, SENTRY_DSN, TRIMP_* |
-| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SENTRY_DSN |
-| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR, SENTRY_DSN |
+| `env/.env.app` | api, sync-service, ml-service | Per-Service-DB-Credentials (`DB_APP_*`, `DB_SYNC_*`, `DB_ML_*`), FERNET_KEY, SENTRY_DSN |
+| `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, TRIMP_* |
+| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS |
+| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR |
 
-> **Warum diese Trennung?** Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nur für Flyway-Migrationen nötig. App-Services bekommen ausschließlich `DB_APP_USER`/`DB_APP_PASSWORD` mit eingeschränkten Rechten (SELECT/INSERT/UPDATE/DELETE). Damit sind Admin-Creds nie im Prozess-Environment von api/sync/ml sichtbar (H-11).
+> **Warum diese Trennung?** Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nur für Flyway-Migrationen nötig. App-Services bekommen je eine eigene Least-Privilege-Rolle (V24): api liest `DB_APP_*` (breit), sync-service liest `DB_SYNC_*`, ml-service liest `DB_ML_*` — alle mit eng-granulierten Rechten. Damit sind Admin-Creds nie im Prozess-Environment von api/sync/ml sichtbar (H-11).
+> `SENTRY_DSN` steht zentral in `env/.env.app` und wird von allen drei Services gelesen.
 
 ---
 
@@ -43,12 +44,18 @@ Wird **nur** von `db` und `flyway` geladen. App-Services (api/sync/ml) sehen die
 
 Enthält die minimalen Credentials für App-Services. Kein Admin-Zugriff — nur Least-Privilege-User.
 
-### Datenbank — App-User
+### Datenbank — Per-Service-Rollen (Least Privilege, V24)
 
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `DB_APP_USER` | string | ✓ | — | App-User (SELECT/INSERT/UPDATE/DELETE only, kein DDL) |
-| `DB_APP_PASSWORD` | string | ✓ | — | Passwort des App-Users |
+Jeder App-Service bekommt eine eigene DB-Rolle. Alle sechs Werte stehen in `env/.env.app`, weil sie sowohl die Flyway-Platzhalter (Rollen-Anlage) als auch die Container speisen.
+
+| Variable | Typ | Pflicht | Default | Gelesen von | Beschreibung |
+|----------|-----|---------|---------|-------------|--------------|
+| `DB_APP_USER` | string | ✓ | — | api | App-User (breit: SELECT/INSERT/UPDATE/DELETE, Auth, Account-Löschung) |
+| `DB_APP_PASSWORD` | string | ✓ | — | api | Passwort des App-Users |
+| `DB_SYNC_USER` | string | ✓ | — | sync-service | Least-Privilege-Rolle für den Sync-Service |
+| `DB_SYNC_PASSWORD` | string | ✓ | — | sync-service | Passwort der Sync-Rolle |
+| `DB_ML_USER` | string | ✓ | — | ml-service | Read-only Health + write `ml_predictions` |
+| `DB_ML_PASSWORD` | string | ✓ | — | ml-service | Passwort der ML-Rolle |
 
 ### Verschlüsselung
 
@@ -62,6 +69,12 @@ make gen-secrets
 # oder:
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
+
+### Error Tracking (shared)
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `SENTRY_DSN` | string | — | `""` | DSN von [sentry.io](https://sentry.io). Leer = Sentry deaktiviert. Zentral hier gesetzt und von api, sync-service und ml-service gelesen. |
 
 ---
 
@@ -97,7 +110,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 |----------|-----|---------|---------|--------------|
 | `RESEND_API_KEY` | string | — | `""` | API-Key von [resend.com](https://resend.com). Leer = kein Mail-Versand, Reset-Link erscheint nur im Log. |
 | `RESEND_FROM_EMAIL` | string | — | `onboarding@resend.dev` | Absender-Adresse. Eigene Domain nach Verifizierung in Resend eintragen. |
-| `APP_BASE_URL` | string | — | `https://your-domain.com` | Basis-URL für Links in Reset-Mails. Muss öffentlich erreichbar sein. |
+| `APP_BASE_URL` | string | — | `""` (Pydantic-Default leer) | Basis-URL für Links in Reset-Mails. Muss öffentlich erreichbar sein. Die Beispieldatei `env/.env.api.example` setzt `https://your-domain.com` als Platzhalter. |
 
 ### Proxy & Rate Limiting
 
@@ -105,17 +118,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 |----------|-----|---------|---------|--------------|
 | `TRUSTED_PROXY_CIDRS` | list[str] | — | `["127.0.0.1/32"]` | CIDR-Bereiche der vertrauenswürdigen Proxies für `X-Forwarded-For`-Auswertung. Docker-Netz: `["172.23.0.0/16","127.0.0.1/32"]`. Falsche Konfiguration bricht IP-basiertes Rate Limiting. |
 
-### Logging
-
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `LOG_LEVEL` | string | — | `INFO` | Logging-Level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Gilt für Root-Logger und structlog. |
-
-### Error Tracking
-
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `SENTRY_DSN` | string | — | `""` | DSN von [sentry.io](https://sentry.io). Leer = Sentry deaktiviert. Format: `https://xxx@sentry.io/...` |
+*(SENTRY_DSN kommt aus `env/.env.app` — zentral für alle drei Services)*
 
 ---
 
@@ -123,7 +126,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 
 ### Datenbankverbindung
 
-Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_USER`, `DB_APP_PASSWORD` kommen aus `env/.env.app`.
+Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_SYNC_USER`, `DB_SYNC_PASSWORD` kommen aus `env/.env.app` (eigene Least-Privilege-Rolle, V24).
 
 ### Sync-Timing
 
@@ -133,19 +136,13 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_US
 | `SYNC_LOOKBACK_DAYS` | int | — | `30` | Wie viele Tage beim initialen Backfill (erster Sync nach Account-Verknüpfung) geholt werden |
 | `SYNC_DAILY_DAYS` | int | — | `2` | Wie viele Tage pro Interval-Run nachgeladen werden |
 
-*(FERNET_KEY kommt aus `env/.env.app` — identischer Wert für alle App-Services)*
+*(FERNET_KEY und SENTRY_DSN kommen aus `env/.env.app` — gemeinsam für alle App-Services)*
 
-### Logging (Sync)
-
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `LOG_LEVEL` | string | — | `INFO` | Logging-Level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Gilt für Root-Logger und structlog. |
-
-### Error Tracking (Sync)
+### Token-Speicherort
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
-| `SENTRY_DSN` | string | — | `""` | DSN von [sentry.io](https://sentry.io). Leer = Sentry deaktiviert. Fehler im Sync-Scheduler landen in Sentry wenn gesetzt. |
+| `TOKEN_BASE_DIR` | path | — | `/app/tokens` | Basisverzeichnis für die (Fernet-verschlüsselten) Garmin-Login-Tokens pro User |
 
 ---
 
@@ -153,9 +150,9 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_US
 
 ### Datenbankverbindung
 
-`DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_USER`, `DB_APP_PASSWORD` kommen aus `env/.env.app`.
+`DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_ML_USER`, `DB_ML_PASSWORD` kommen aus `env/.env.app` (eigene Least-Privilege-Rolle, V24).
 
-> Hinweis: ml-service nutzt nur den App-User, nicht den Admin-User (kein `DB_USER` / `DB_PASSWORD` nötig).
+> Hinweis: ml-service nutzt nur seine eigene ML-Rolle (read-only Health + write `ml_predictions`), nicht den Admin-User (kein `DB_USER` / `DB_PASSWORD` nötig).
 
 ### ML-Scheduler
 
@@ -170,17 +167,7 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_US
 |----------|-----|---------|---------|--------------|
 | `MODEL_DIR` | path | — | `/app/models` | Verzeichnis für gespeicherte scikit-learn-Modelle (joblib-Format) |
 
-### Logging (ML)
-
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `LOG_LEVEL` | string | — | `INFO` | Logging-Level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Gilt für Root-Logger und structlog. |
-
-### Error Tracking (ML)
-
-| Variable | Typ | Pflicht | Default | Beschreibung |
-|----------|-----|---------|---------|--------------|
-| `SENTRY_DSN` | string | — | `""` | DSN von [sentry.io](https://sentry.io). Leer = Sentry deaktiviert. Fehler im ML-Training und Inferenz landen in Sentry wenn gesetzt. |
+*(SENTRY_DSN kommt aus `env/.env.app` — zentral für alle drei Services)*
 
 ---
 
@@ -193,7 +180,12 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_US
 | `HOST_IP` | ✓ | — | — | — | — |
 | `DB_APP_USER` | — | ✓ | — | — | — |
 | `DB_APP_PASSWORD` | — | ✓ | — | — | — |
+| `DB_SYNC_USER` | — | ✓ | — | — | — |
+| `DB_SYNC_PASSWORD` | — | ✓ | — | — | — |
+| `DB_ML_USER` | — | ✓ | — | — | — |
+| `DB_ML_PASSWORD` | — | ✓ | — | — | — |
 | `FERNET_KEY` | — | ✓ | — | — | — |
+| `SENTRY_DSN` | — | optional `""` | — | — | — |
 | `DB_HOST` | — | — | default `db` | default `db` | default `db` |
 | `DB_PORT` | — | — | default `5432` | default `5432` | default `5432` |
 | `DB_NAME` | — | — | default `garmin` | default `garmin` | default `garmin` |
@@ -203,13 +195,12 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_APP_US
 | `TRIMP_FORECAST_DAYS` | — | — | default `7` | — | — |
 | `RESEND_API_KEY` | — | — | optional `""` | — | — |
 | `RESEND_FROM_EMAIL` | — | — | default | — | — |
-| `APP_BASE_URL` | — | — | default | — | — |
-| `SENTRY_DSN` | — | — | optional `""` | optional `""` | optional `""` |
-| `LOG_LEVEL` | — | — | default `INFO` | default `INFO` | default `INFO` |
+| `APP_BASE_URL` | — | — | default `""` (Beispiel: URL) | — | — |
 | `TRUSTED_PROXY_CIDRS` | — | — | default | — | — |
 | `SYNC_INTERVAL_HOURS` | — | — | — | default `2` | — |
 | `SYNC_LOOKBACK_DAYS` | — | — | — | default `30` | — |
 | `SYNC_DAILY_DAYS` | — | — | — | default `2` | — |
+| `TOKEN_BASE_DIR` | — | — | — | default `/app/tokens` | — |
 | `ML_INFER_HOUR` | — | — | — | — | default `7` |
 | `ML_TRAIN_WEEKDAY` | — | — | — | — | default `6` |
 | `MODEL_DIR` | — | — | — | — | default `/app/models` |
