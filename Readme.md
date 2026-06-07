@@ -17,7 +17,7 @@ PulseBase syncs your Garmin data to a self-hosted dashboard — multi-user, priv
 - Activity detail page with GPS map (Leaflet.js), HR/pace/elevation/cadence charts
 - Training status tracking (PRODUCTIVE, MAINTAINING, RECOVERY, …)
 - Weekly training volume overview (run km / ride km stacked bar)
-- Epilepsy seizure diary with rule-based risk indicator (6 biomarker heuristics, optional feature)
+- Epilepsy seizure diary with rule-based risk indicator (6 biomarker heuristics, optional feature) — entries are editable and deletable with inline validation
 - Central settings page — Garmin + LibreLinkUp connection management in one place
 - Self-service registration — no admin needed
 - Garmin and LibreLinkUp passwords are **never stored** — token-only

@@ -157,7 +157,7 @@ make test-js           # einmalig
 make test-js-coverage  # mit Coverage-Report (api/coverage/index.html)
 ```
 
-Vitest testet vier Utility-Dateien: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js` (Threshold: ≥70% Lines, ≥70% Functions). `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme).
+Vitest testet sechs Dateien aus `coverage.include`: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js`, `epilepsy.js`, `onboarding.js` (Threshold: ≥70% Lines, ≥70% Functions; `epilepsy.js` und `onboarding.js` sind auf 100% Lines/Branches/Functions). `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme).
 
 ### E2E-Tests (Playwright)
 
@@ -191,7 +191,7 @@ cd api && .venv/bin/pytest tests/test_auth.py::test_login_success_redirects -v
 | Service | Aktuell | Minimum (CI) | Ziel |
 |---------|---------|--------------|------|
 | api (Python) | ~99% | 70% | 100% |
-| api (JS) | ~100% Lines / ~100% Functions (4 Dateien) | 70% Lines / 70% Functions | — |
+| api (JS) | ~100% Lines / ~100% Functions (6 Dateien) | 70% Lines / 70% Functions | — |
 | sync-service | ~97%+ | 70% | 70%+ |
 | ml-service | ~80%+ | 80% | 80%+ |
 

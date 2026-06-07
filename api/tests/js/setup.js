@@ -21,3 +21,8 @@ Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: vi.fn().mockImplementation((q) => ({ matches: false, media: q })),
 });
+
+// jsdom does not implement Element.prototype.scrollIntoView
+if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = vi.fn();
+}

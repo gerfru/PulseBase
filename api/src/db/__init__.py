@@ -55,9 +55,11 @@ from .glucose import (
     get_glucose_stats,
 )
 from .seizures import (
+    delete_seizure,
     get_seizure_risk,
     get_seizures,
     save_seizure,
+    update_seizure,
 )
 
 __all__ = [
@@ -108,7 +110,9 @@ __all__ = [
     "get_ml_insights",
     "get_glucose_recent",
     "get_glucose_stats",
+    "delete_seizure",
     "get_seizure_risk",
     "get_seizures",
     "save_seizure",
+    "update_seizure",
 ]

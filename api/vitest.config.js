@@ -14,6 +14,7 @@ export default defineConfig({
                 'src/static/dashboard-nav.js',
                 'src/static/dashboard-status.js',
                 'src/static/epilepsy.js',
+                'src/static/onboarding.js',
             ],
             thresholds: {
                 lines: 70,

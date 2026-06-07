@@ -948,6 +948,54 @@ async def test_get_seizures_empty():
     assert result == []
 
 
+async def test_update_seizure_success():
+    from src.db.seizures import update_seizure
+
+    with patch(
+        "src.db.seizures.get_pool",
+        AsyncMock(return_value=_pool_mock(execute="UPDATE 1")),
+    ):
+        ok = await update_seizure(
+            1, 5, datetime(2024, 1, 15, 10, 30), 90, "focal", 3, "notes"
+        )
+    assert ok is True
+
+
+async def test_update_seizure_no_match_returns_false():
+    from src.db.seizures import update_seizure
+
+    with patch(
+        "src.db.seizures.get_pool",
+        AsyncMock(return_value=_pool_mock(execute="UPDATE 0")),
+    ):
+        ok = await update_seizure(
+            1, 999, datetime(2024, 1, 15), None, "unknown", None, None
+        )
+    assert ok is False
+
+
+async def test_delete_seizure_success():
+    from src.db.seizures import delete_seizure
+
+    with patch(
+        "src.db.seizures.get_pool",
+        AsyncMock(return_value=_pool_mock(execute="DELETE 1")),
+    ):
+        ok = await delete_seizure(1, 5)
+    assert ok is True
+
+
+async def test_delete_seizure_no_match_returns_false():
+    from src.db.seizures import delete_seizure
+
+    with patch(
+        "src.db.seizures.get_pool",
+        AsyncMock(return_value=_pool_mock(execute="DELETE 0")),
+    ):
+        ok = await delete_seizure(1, 999)
+    assert ok is False
+
+
 async def test_get_seizure_risk_ok_no_flags():
     from src.db.seizures import get_seizure_risk
 

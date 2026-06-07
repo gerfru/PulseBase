@@ -299,3 +299,70 @@ async def test_seizure_notes_at_limit_accepted(client):
             },
         )
     assert r.status_code == 200
+
+
+# ── PATCH/DELETE /api/seizures/{id} ───────────────────────────────────────────
+
+
+async def test_update_seizure_success(client):
+    """PATCH /api/seizures/{id} returns ok when a row was updated."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.update_seizure", AsyncMock(return_value=True)),
+    ):
+        r = await client.patch(
+            "/api/seizures/5",
+            json={
+                "occurred_at": "2026-01-01T10:00:00Z",
+                "type": "focal",
+                "severity": 3,
+            },
+        )
+    assert r.status_code == 200
+    assert r.json() == {"ok": True, "id": 5}
+
+
+async def test_update_seizure_not_found_returns_404(client):
+    """PATCH on a foreign/missing id returns 404 (ownership enforced in DB layer)."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.update_seizure", AsyncMock(return_value=False)),
+    ):
+        r = await client.patch(
+            "/api/seizures/999",
+            json={"occurred_at": "2026-01-01T10:00:00Z"},
+        )
+    assert r.status_code == 404
+    assert r.json()["error"]["code"] == "NOT_FOUND"
+
+
+async def test_update_seizure_invalid_type_rejected(client):
+    """PATCH with an invalid type is rejected by SeizureBody validation (422)."""
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.patch(
+            "/api/seizures/5",
+            json={"occurred_at": "2026-01-01T10:00:00Z", "type": "bogus"},
+        )
+    assert r.status_code == 422
+
+
+async def test_delete_seizure_success(client):
+    """DELETE /api/seizures/{id} returns ok when a row was deleted."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.delete_seizure", AsyncMock(return_value=True)),
+    ):
+        r = await client.delete("/api/seizures/5")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
+
+
+async def test_delete_seizure_not_found_returns_404(client):
+    """DELETE on a foreign/missing id returns 404."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api.delete_seizure", AsyncMock(return_value=False)),
+    ):
+        r = await client.delete("/api/seizures/999")
+    assert r.status_code == 404
+    assert r.json()["error"]["code"] == "NOT_FOUND"

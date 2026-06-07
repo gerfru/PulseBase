@@ -38,7 +38,7 @@ Umsetzung erfolgt in 4 Pull Requests (siehe Plan-Datei `bitte-erstelle-einen-pla
 |----|--------|--------|
 | **PR1** | Accessibility (A-1…A-7) | ✅ **Umgesetzt** (Branch `a11y/pr1-accessibility`, 2026-06-06) |
 | **PR2** | KI-Transparenz (B-1…B-5, E-2) | ✅ **Umgesetzt** (Branch `ai/pr2-ki-transparenz`, 2026-06-06) |
-| **PR3** | Anfälle editierbar + Fehler inline + Onboarding (C-1, C-3, D-1, E-1, F-1) | ⬜ offen |
+| **PR3** | Anfälle editierbar + Fehler inline + Onboarding (C-1, C-3, D-1, E-1, F-1) | ✅ **Umgesetzt** (Branch `ux/pr3-feedback-kontrolle`, 2026-06-07) |
 | **PR4** | ML-Feedback (C-2, Migration V25) | ⬜ offen (optional/nachgelagert) |
 
 ### ✅ PR1 — Accessibility (erledigt 2026-06-06)
@@ -76,10 +76,23 @@ Behebt die zwei systematischen KI-UX-Lücken aus dem Gesamtbild: **keine Unsiche
 
 ---
 
+### ✅ PR3 — Feedback, Kontrolle & Onboarding (erledigt 2026-06-07)
+
+Behebt die verbleibenden High-/Medium-Befunde zu Feedback & Kontrolle, Fehlerbehandlung und Erwartungsmanagement. Keine DB-Migration nötig — `seizure_events` (V15) existiert, es fehlten nur UPDATE/DELETE. Verifiziert: pytest 416/416 · Vitest 151/151 · JS-Coverage `epilepsy.js`/`onboarding.js` 100% · mypy + Biome sauber.
+
+- **C-1** Anfälle editierbar/löschbar — `update_seizure`/`delete_seizure` (DB, Ownership-Filter `id AND user_id` gegen IDOR) + `PATCH`/`DELETE /api/seizures/{id}` (404 bei fremder/fehlender ID). Frontend: Bearbeiten/Löschen-Buttons pro Eintrag (Event-Delegation, CSP-konform), Edit-Modus mit Formular-Vorausfüllung, Löschen mit nativem `<dialog>`-Bestätigung. *(behebt [D3-2] High — seizures.py, api.py, epilepsy.js/.html)*
+- **C-3** Libre-Unlink-Bestätigung — natives `<dialog>` (Muster wie `#formula-dialog`) vor dem destruktiven Trennen. *(behebt [D3-3] Medium — settings.html, settings.js)*
+- **D-1** Inline-Fehler statt `alert()` im Anfallsformular — `#log-error` mit `role="alert"`, Formularinhalt bleibt bei Fehler erhalten (Retry). *(behebt [D4-1] Medium — epilepsy.js/.html)*
+- **E-1** Onboarding-/Datenlatenz-Hinweis — dismissbares Banner („Erste Trends nach ~7 Tagen, ML-Prognose nach ~30 Tagen Daten") mit localStorage-Persistenz. *(behebt [D1-1] High — onboarding.js, dashboard.html/.js)*
+- **F-1** „Zuletzt analysiert"-Indikator — Label im Header von „🤖 ML · vor 3h" → „🤖 Zuletzt analysiert vor 3h". *(behebt [D5-1] Medium — dashboard-status.js)*
+
+---
+
 ## Nächste Schritte
 
-- **PR3** — Anfälle editierbar/löschbar (PATCH/DELETE `/api/seizures/{id}` + DB-Funktionen), Libre-Unlink-Bestätigungsdialog, Inline-Fehler statt `alert()` im Anfallsformular, Onboarding-/Datenlatenz-Hinweis, „zuletzt analysiert"-Indikator. *(C-1, C-3, D-1, E-1, F-1 ↔ [D3-2], [D3-3], [D4-1], [D1-1], [D5-1])* — braucht Backend-Änderungen.
 - **PR4** — Item-Level-ML-Feedback (👍/👎 auf Anomalie-/Readiness-Tiles) + Migration V25. *(C-2 ↔ [D3-1])* — optional/nachgelagert.
+
+> Verbleibend nur noch Low-Befunde aus der Befundliste: [D1-2] generative Variabilität (in PR2 bereits adressiert), [A-6] Fokus-Ring-Kontrast (zu verifizieren), [D4-2] expliziter manueller Fallback bei ML-Ausfall.
 
 ---
 
