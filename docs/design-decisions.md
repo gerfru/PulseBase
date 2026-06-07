@@ -8,8 +8,8 @@ Key architectural choices and the reasoning behind them.
 
 **Removed in Phase 4.**
 
-Grafana requires a separate login and an admin to manually create user accounts. For a
-2-person home network setup that's not acceptable UX. Replaced by a custom `/dashboard`
+Grafana requires a separate login and an admin to manually provision accounts — a non-starter
+for a self-service, multi-user app where users register themselves. Replaced by a custom `/dashboard`
 in FastAPI that serves HTML and loads data via `fetch()` + Chart.js. No build step, no
 framework, no extra service.
 
@@ -18,8 +18,9 @@ framework, no extra service.
 ## No Authelia
 
 Initially considered for SSO. Dropped because it adds operational complexity (another
-service, config files, LDAP or file-based users) that isn't justified for 2 users on a
-home network. FastAPI handles auth directly with bcrypt + signed session cookies.
+service, config files, LDAP or file-based users) that isn't justified for a single
+self-hosted app with self-service registration. FastAPI handles auth directly with
+bcrypt + signed session cookies, email verification, and account lockout.
 
 ---
 

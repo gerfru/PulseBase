@@ -26,13 +26,16 @@ production database — always add a new migration file.
 | `V13__running_economy.sql` | Adds running dynamics columns to `activities` (ground contact time, vertical oscillation, stride length, vertical ratio, running power) |
 | `V14__fix_stride_length_precision.sql` | Widens `avg_stride_length` to `NUMERIC(6,1)` — Garmin returns cm, not meters |
 | `V15__epilepsy.sql` | Adds `epilepsy_mode BOOLEAN` to `users`; creates `seizure_events` table |
-| `V16__spo2.sql` | Adds `spo2_enabled BOOLEAN` to `users` |
+| `V16__spo2_settings.sql` | Adds `spo2_enabled BOOLEAN` to `users` |
 | `V17__account_lockout.sql` | Adds `failed_login_attempts SMALLINT`, `locked_until TIMESTAMPTZ` to `users` |
 | `V18__email_verification.sql` | Adds `email_verified_at TIMESTAMPTZ` to `users`; backfills existing users |
 | `V19__user_consents.sql` | Creates `user_consents` audit table for DSGVO Art. 5(2) accountability |
 | `V20__user_tokens.sql` | Creates `user_tokens` table for Fernet-encrypted Garmin/LibreLink session tokens |
 | `V21__consent_ip_hash.sql` | Replaces `ip_address INET` (PII) with `ip_address_hash TEXT` (SHA-256 prefix) in `user_consents` |
 | `V22__password_reset_token.sql` | Adds `password_reset_token_hash TEXT`, `password_reset_expires_at TIMESTAMPTZ` to `users` |
+| `V23__pending_deletion.sql` | Adds `pending_deletion_at TIMESTAMPTZ` to `users` (two-step account deletion with e-mail confirmation) |
+| `V24__per_service_roles.sql` | Creates per-service least-privilege DB roles `pulse_sync` (ingest) and `pulse_ml` (read-only inference + `ml_predictions` write); column-level grants (ADR-0001) |
+| `V25__ml_feedback.sql` | Creates `ml_feedback` table for 👍/👎 item-level feedback on ML predictions |
 
 ---
 
@@ -61,6 +64,7 @@ production database — always add a new migration file.
 | `email_verified_at` | `TIMESTAMPTZ` | Set on first email verification; NULL = unverified (V18) |
 | `password_reset_token_hash` | `TEXT` | bcrypt hash of active reset token; NULL when no reset pending (V22) |
 | `password_reset_expires_at` | `TIMESTAMPTZ` | Expiry of active reset token; token cleared after use (V22) |
+| `pending_deletion_at` | `TIMESTAMPTZ` | Set when account deletion is requested; cleared/executed via signed confirmation link (V23) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
 
 ---
@@ -89,7 +93,7 @@ production database — always add a new migration file.
 | `user_rpe` | `SMALLINT CHECK (1–10)` | User-entered RPE via Foster method (V11) |
 | `avg_ground_contact_time` | `INTEGER` | Ground contact time in ms, running only (V13) |
 | `avg_vertical_oscillation` | `NUMERIC(4,1)` | Vertical oscillation in cm, running only (V13) |
-| `avg_stride_length` | `NUMERIC(6,1)` | Stride length in cm, running only (V13/V14) |
+| `avg_stride_length` | `NUMERIC(6,1)` | Stride length in cm, running only — added in V13 as `NUMERIC(4,2)`, widened to `NUMERIC(6,1)` in V14 |
 | `avg_vertical_ratio` | `NUMERIC(4,1)` | Vertical ratio %, running only (V13) |
 | `avg_running_power` | `INTEGER` | Running power in W, requires sensor (V13) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
@@ -163,7 +167,7 @@ Primary key: `(date, user_id, model)` — one row per user per day per model, up
 |--------|------|-------|
 | `date` | `DATE NOT NULL` | Inference date |
 | `user_id` | `INTEGER → users(id)` | |
-| `model` | `TEXT NOT NULL` | `anomaly_hr` / `readiness_rf` / `correlation_sleep_hrv` |
+| `model` | `TEXT NOT NULL` | Free TEXT model key. ~15+ values written by ml-service, e.g. `anomaly_hr`, `anomaly_sleep`, `anomaly_spo2`, `anomaly_steps`, `anomaly_stress`, `readiness_rf`, `correlation_sleep_hrv`, `correlation_sleep_rhr`, `correlation_bb_rhr`, `acwr`, `training_monotony`, `spo2_trend`, `body_battery_custom`, `stress_score_custom`, `running_economy`, `sleep_consistency`, `hrv_recovery`, `battery_pattern`, `energy_physical`, `energy_autonomic`, `energy_cognitive` |
 | `value` | `FLOAT` | Primary output (z-score, predicted score, or Pearson r) |
 | `metadata` | `JSONB` | Additional fields (e.g. `is_anomaly`, `p_value`, `n_samples`) |
 | `created_at` | `TIMESTAMPTZ DEFAULT NOW()` | |
@@ -171,6 +175,23 @@ Primary key: `(date, user_id, model)` — one row per user per day per model, up
 Index: `(user_id, date DESC)`
 
 ---
+
+### `ml_feedback`
+
+Binary 👍/👎 feedback on ML predictions — one row per user per model per day. Added in V25.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `SERIAL PK` | |
+| `user_id` | `INTEGER → users(id) ON DELETE CASCADE` | |
+| `model` | `TEXT NOT NULL` | Model key matching `ml_predictions.model` |
+| `prediction_date` | `DATE NOT NULL` | Stamped server-side to `CURRENT_DATE` |
+| `helpful` | `BOOLEAN NOT NULL` | `true` = 👍, `false` = 👎 |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
+| `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
+
+UNIQUE on `(user_id, model, prediction_date)` — makes feedback idempotent/toggleable via `ON CONFLICT` upsert.
+Index: `(user_id, prediction_date DESC)`
 
 ---
 
@@ -293,7 +314,9 @@ Compression: after 30 days.
 
 ### `spo2_readings`
 
-Same structure as `body_battery_intraday`. Value = SpO2 percentage.
+Same column structure as `body_battery_intraday` (`time`, `user_id`, `value`); value = SpO2 percentage.
+
+No compression policy — this hypertable is not compressed (unlike `body_battery_intraday` and `stress_intraday`).
 
 ### `sleep_levels`
 
