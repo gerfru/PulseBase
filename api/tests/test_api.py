@@ -4,6 +4,40 @@ from unittest.mock import AsyncMock, patch
 from tests.conftest import TEST_USER
 
 
+# ── L1: api.py split — import smoke + route-registration ──────────────────────
+
+
+def test_api_aggregator_includes_all_feature_routers():
+    """ARCH-L5: api.py is now a thin aggregator over feature modules.
+    Verify every sub-module imports and all expected /api/* paths are wired."""
+    from src.routes import (
+        api,
+        api_glucose,
+        api_health,
+        api_ml,
+        api_seizures,
+    )
+
+    # Each feature module exposes a router
+    for mod in (api_health, api_ml, api_seizures, api_glucose):
+        assert mod.router.routes, f"{mod.__name__} registered no routes"
+
+    paths = {r.path for r in api.router.routes}
+    for expected in (
+        "/api/activities",
+        "/api/daily",
+        "/api/training-load",
+        "/api/evidence",
+        "/api/ml-insights",
+        "/api/ml-feedback",
+        "/api/seizures",
+        "/api/seizures/risk",
+        "/api/glucose",
+        "/api/glucose/stats",
+    ):
+        assert expected in paths, f"{expected} missing from aggregator router"
+
+
 # ── Public Routes ─────────────────────────────────────────────────────────────
 
 
@@ -73,7 +107,9 @@ async def test_csp_no_external_font_sources(client):
 async def test_api_get_has_private_cache_header(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.get_readiness", AsyncMock(return_value={"score": 75})),
+        patch(
+            "src.routes.api_health.get_readiness", AsyncMock(return_value={"score": 75})
+        ),
     ):
         r = await client.get("/api/readiness")
     assert r.headers.get("cache-control") == "private, no-cache"
@@ -206,7 +242,9 @@ async def test_register_short_password_returns_400(client):
 async def test_readiness_authenticated(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.get_readiness", AsyncMock(return_value={"score": 75})),
+        patch(
+            "src.routes.api_health.get_readiness", AsyncMock(return_value={"score": 75})
+        ),
     ):
         r = await client.get("/api/readiness")
     assert r.status_code == 200
@@ -215,7 +253,9 @@ async def test_readiness_authenticated(client):
 async def test_activities_authenticated(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.get_recent_activities", AsyncMock(return_value=[])),
+        patch(
+            "src.routes.api_health.get_recent_activities", AsyncMock(return_value=[])
+        ),
     ):
         r = await client.get("/api/activities")
     assert r.status_code == 200
@@ -224,7 +264,9 @@ async def test_activities_authenticated(client):
 async def test_activity_detail_not_found(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.get_activity_detail", AsyncMock(return_value=None)),
+        patch(
+            "src.routes.api_health.get_activity_detail", AsyncMock(return_value=None)
+        ),
     ):
         r = await client.get("/api/activities/999")
     assert r.status_code == 404
@@ -236,7 +278,9 @@ async def test_activity_detail_idor_returns_404(client):
     DB layer enforces AND user_id = $2; route returns 404 when result is None."""
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.get_activity_detail", AsyncMock(return_value=None)),
+        patch(
+            "src.routes.api_health.get_activity_detail", AsyncMock(return_value=None)
+        ),
     ):
         r = await client.get("/api/activities/9999")
     assert r.status_code == 404
@@ -245,7 +289,7 @@ async def test_activity_detail_idor_returns_404(client):
 async def test_ml_insights_authenticated(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.get_ml_insights", AsyncMock(return_value={})),
+        patch("src.routes.api_ml.get_ml_insights", AsyncMock(return_value={})),
     ):
         r = await client.get("/api/ml-insights")
     assert r.status_code == 200
@@ -260,7 +304,7 @@ async def test_ml_status_authenticated(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch(
-            "src.routes.api.get_ml_status",
+            "src.routes.api_ml.get_ml_status",
             AsyncMock(return_value={"pending": False, "last_ml_at": None}),
         ),
     ):
@@ -289,7 +333,7 @@ async def test_seizure_notes_at_limit_accepted(client):
     """POST /api/seizures with notes == 2000 chars must succeed."""
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.save_seizure", AsyncMock(return_value=1)),
+        patch("src.routes.api_seizures.save_seizure", AsyncMock(return_value=1)),
     ):
         r = await client.post(
             "/api/seizures",
@@ -308,7 +352,7 @@ async def test_update_seizure_success(client):
     """PATCH /api/seizures/{id} returns ok when a row was updated."""
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.update_seizure", AsyncMock(return_value=True)),
+        patch("src.routes.api_seizures.update_seizure", AsyncMock(return_value=True)),
     ):
         r = await client.patch(
             "/api/seizures/5",
@@ -326,7 +370,7 @@ async def test_update_seizure_not_found_returns_404(client):
     """PATCH on a foreign/missing id returns 404 (ownership enforced in DB layer)."""
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.update_seizure", AsyncMock(return_value=False)),
+        patch("src.routes.api_seizures.update_seizure", AsyncMock(return_value=False)),
     ):
         r = await client.patch(
             "/api/seizures/999",
@@ -350,7 +394,7 @@ async def test_delete_seizure_success(client):
     """DELETE /api/seizures/{id} returns ok when a row was deleted."""
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.delete_seizure", AsyncMock(return_value=True)),
+        patch("src.routes.api_seizures.delete_seizure", AsyncMock(return_value=True)),
     ):
         r = await client.delete("/api/seizures/5")
     assert r.status_code == 200
@@ -361,7 +405,7 @@ async def test_delete_seizure_not_found_returns_404(client):
     """DELETE on a foreign/missing id returns 404."""
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.delete_seizure", AsyncMock(return_value=False)),
+        patch("src.routes.api_seizures.delete_seizure", AsyncMock(return_value=False)),
     ):
         r = await client.delete("/api/seizures/999")
     assert r.status_code == 404
