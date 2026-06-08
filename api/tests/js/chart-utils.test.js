@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { fmtDate, fmtHours, makeGradient } from '../../src/static/chart-utils.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { buildChartDataTable, fmtDate, fmtHours, makeGradient } from '../../src/static/chart-utils.js';
 
 describe('fmtDate', () => {
     it('returns — for falsy values', () => {
@@ -54,6 +54,80 @@ describe('makeGradient', () => {
         const result = fn(mockCtx(true));
         expect(result).toBeTruthy();
         expect(typeof result).toBe('object');
+    });
+});
+
+describe('buildChartDataTable', () => {
+    let canvas;
+    beforeEach(() => {
+        document.body.innerHTML = '<canvas id="c1"></canvas>';
+        canvas = document.getElementById('c1');
+    });
+
+    it('creates an sr-only table after the canvas with one row per label', () => {
+        buildChartDataTable(canvas, ['Mo', 'Di', 'Mi'], [{ label: 'Puls', data: [60, 62, 58] }], 'Ruhepuls');
+        const table = document.getElementById('c1-table');
+        expect(table).toBeTruthy();
+        expect(table.tagName).toBe('TABLE');
+        expect(table.classList.contains('sr-only')).toBe(true);
+        // table sits directly after the canvas
+        expect(canvas.nextElementSibling).toBe(table);
+        // one tbody row per label
+        expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
+    });
+
+    it('links the canvas to the table via aria-describedby', () => {
+        buildChartDataTable(canvas, ['Mo'], [{ label: 'Puls', data: [60] }], 'Ruhepuls');
+        expect(canvas.getAttribute('aria-describedby')).toBe('c1-table');
+    });
+
+    it('renders a caption, column headers per dataset and row headers per label', () => {
+        buildChartDataTable(
+            canvas,
+            ['Mo', 'Di'],
+            [
+                { label: 'Puls', data: [60, 62] },
+                { label: 'HRV', data: [40, 45] },
+            ],
+            'Verlauf',
+        );
+        const table = document.getElementById('c1-table');
+        expect(table.querySelector('caption').textContent).toBe('Verlauf');
+        const colHeaders = [...table.querySelectorAll('thead th[scope="col"]')].map((th) => th.textContent);
+        expect(colHeaders).toEqual(['Puls', 'HRV']);
+        const rowHeaders = [...table.querySelectorAll('tbody th[scope="row"]')].map((th) => th.textContent);
+        expect(rowHeaders).toEqual(['Mo', 'Di']);
+    });
+
+    it('renders missing values as an em dash', () => {
+        buildChartDataTable(canvas, ['Mo', 'Di'], [{ label: 'Puls', data: [60, null] }], '');
+        const cells = [...document.querySelectorAll('#c1-table tbody td')].map((td) => td.textContent);
+        expect(cells).toEqual(['60', '—']);
+    });
+
+    it('falls back to a series name when the dataset has no label', () => {
+        buildChartDataTable(canvas, ['Mo'], [{ data: [60] }], '');
+        expect(document.querySelector('#c1-table thead th[scope="col"]').textContent).toBe('Serie 1');
+    });
+
+    it('is idempotent — re-render replaces the table instead of duplicating', () => {
+        buildChartDataTable(canvas, ['Mo', 'Di'], [{ label: 'Puls', data: [60, 62] }], '');
+        buildChartDataTable(canvas, ['Mo'], [{ label: 'Puls', data: [61] }], '');
+        expect(document.querySelectorAll('#c1-table').length).toBe(1);
+        expect(document.querySelectorAll('table').length).toBe(1);
+        expect(document.querySelectorAll('#c1-table tbody tr')).toHaveLength(1);
+    });
+
+    it('omits the caption element when no caption text is given', () => {
+        buildChartDataTable(canvas, ['Mo'], [{ label: 'Puls', data: [60] }], '');
+        expect(document.querySelector('#c1-table caption')).toBeNull();
+    });
+
+    it('is a no-op when the canvas is missing or has no id', () => {
+        expect(() => buildChartDataTable(null, ['Mo'], [{ data: [1] }], '')).not.toThrow();
+        const orphan = document.createElement('canvas');
+        buildChartDataTable(orphan, ['Mo'], [{ data: [1] }], '');
+        expect(orphan.getAttribute('aria-describedby')).toBeNull();
     });
 });
 

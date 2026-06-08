@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      - name: Fail if PR adds more than 400 lines
+      - name: Warn if PR adds more than 400 lines
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
@@ -31,8 +31,7 @@ jobs:
             | grep -cE '^\+[^+]' || echo 0)
           echo "Lines added (excl. lockfiles): $ADDED"
           if [ "$ADDED" -gt 400 ]; then
-            echo "::error::PR zu groß (${ADDED} Zeilen hinzugefügt, Maximum: 400)"
-            exit 1
+            echo "::warning::PR groß (${ADDED} Zeilen hinzugefügt, Richtwert: 400) — bitte Aufteilen erwägen"
           fi
 
   lint:

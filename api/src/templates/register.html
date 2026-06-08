@@ -2,8 +2,8 @@
 {% block title %}PulseBase — Registrieren{% endblock %}
 {% block content %}
 <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
-    <h1 class="text-2xl font-bold tracking-tight text-slate-100 mb-1">PulseBase</h1>
-    <p class="text-slate-400 text-sm mb-8">Neues Konto erstellen</p>
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-1">PulseBase</h1>
+    <p class="text-slate-600 dark:text-slate-400 text-sm mb-8">Neues Konto erstellen</p>
 
     <div class="w-full max-w-sm">
         <div class="card">
@@ -14,61 +14,61 @@
             <form method="post" action="/register" class="flex flex-col gap-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div>
-                    <label for="name" class="block text-sm font-medium text-slate-300 mb-1.5">Name</label>
+                    <label for="name" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Name</label>
                     <input type="text" id="name" name="name" required autofocus placeholder="z.B. Gerald" autocomplete="name"
-                           class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
                 </div>
                 <div>
-                    <label for="email" class="block text-sm font-medium text-slate-300 mb-1.5">E-Mail</label>
+                    <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">E-Mail</label>
                     <input type="email" id="email" name="email" required autocomplete="email"
-                           class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
                 </div>
                 <div>
-                    <label for="password" class="block text-sm font-medium text-slate-300 mb-1.5">Passwort</label>
+                    <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Passwort</label>
                     <input type="password" id="password" name="password" required minlength="12" autocomplete="new-password"
-                           class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
-                    <p class="mt-1.5 text-xs text-slate-500">Mindestens 12 Zeichen</p>
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
+                    <p class="mt-1.5 text-xs text-slate-600 dark:text-slate-400">Mindestens 12 Zeichen</p>
                 </div>
                 <div>
-                    <label for="password_confirm" class="block text-sm font-medium text-slate-300 mb-1.5">Passwort bestätigen</label>
+                    <label for="password_confirm" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Passwort bestätigen</label>
                     <input type="password" id="password_confirm" name="password_confirm" required minlength="12" autocomplete="new-password"
-                           class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
+                           class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
                 </div>
                 <div class="flex items-start gap-2">
                     <input type="checkbox" id="consent_health" name="consent_health" value="on" required
                            class="mt-0.5 accent-emerald-500">
-                    <label for="consent_health" class="text-sm text-slate-400">
+                    <label for="consent_health" class="text-sm text-slate-700 dark:text-slate-300">
                         Ich stimme der Verarbeitung meiner Gesundheitsdaten (Herzfrequenz, Schlaf, Stress,
                         ggf. Anfallsdaten, Glukosewerte) gemäß
-                        <a href="/privacy" class="text-emerald-400 hover:underline">Datenschutzerklärung</a>
-                        zu (DSGVO Art. 9). <span class="text-red-400">*</span>
+                        <a href="/privacy" class="text-emerald-700 dark:text-emerald-400 underline">Datenschutzerklärung</a>
+                        zu (DSGVO Art. 9). <span class="text-red-600 dark:text-red-400">*</span>
                     </label>
                 </div>
                 <div class="flex items-start gap-2">
                     <input type="checkbox" id="consent_terms" name="consent_terms" value="on" required
                            class="mt-0.5 accent-emerald-500">
-                    <label for="consent_terms" class="text-sm text-slate-400">
+                    <label for="consent_terms" class="text-sm text-slate-700 dark:text-slate-300">
                         Ich habe die
-                        <a href="/terms" class="text-emerald-400 hover:underline">Nutzungsbedingungen</a>
-                        gelesen und akzeptiere sie. <span class="text-red-400">*</span>
+                        <a href="/terms" class="text-emerald-700 dark:text-emerald-400 underline">Nutzungsbedingungen</a>
+                        gelesen und akzeptiere sie. <span class="text-red-600 dark:text-red-400">*</span>
                     </label>
                 </div>
                 <div class="flex items-start gap-2">
                     <input type="checkbox" id="consent_age" name="consent_age" value="on" required
                            class="mt-0.5 accent-emerald-500">
-                    <label for="consent_age" class="text-sm text-slate-400">
+                    <label for="consent_age" class="text-sm text-slate-700 dark:text-slate-300">
                         Ich bestätige, dass ich mindestens 16 Jahre alt bin (DSGVO Art. 8).
-                        <span class="text-red-400">*</span>
+                        <span class="text-red-600 dark:text-red-400">*</span>
                     </label>
                 </div>
                 <button type="submit"
-                        class="mt-1 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors">
+                        class="mt-1 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-sm font-semibold transition-colors">
                     Konto erstellen
                 </button>
             </form>
         </div>
-        <p class="mt-5 text-center text-sm text-slate-400">
-            Bereits ein Konto? <a href="/login" class="text-emerald-400 hover:underline">Anmelden</a>
+        <p class="mt-5 text-center text-sm text-slate-600 dark:text-slate-400">
+            Bereits ein Konto? <a href="/login" class="text-emerald-700 dark:text-emerald-400 underline">Anmelden</a>
         </p>
     </div>
 </div>

@@ -1,3 +1,5 @@
+import { buildChartDataTable } from './chart-utils.js';
+
 const SPORT_EMOJI = {
     running: '🏃',
     cycling: '🚴',
@@ -164,9 +166,11 @@ Chart.defaults.elements.point.hoverRadius = 4;
 
 function makeChart(id, type, labels, datasets, scales = {}, ariaLabel = '') {
     const canvas = document.getElementById(id);
-    // Accessibility: Textalternative fuer Screenreader (WCAG 1.1.1).
+    // Accessibility: Textalternative + Datentabelle fuer Screenreader (WCAG 1.1.1).
+    const label = ariaLabel || `Liniendiagramm mit ${labels.length} Messpunkten`;
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', ariaLabel || `Liniendiagramm mit ${labels.length} Messpunkten`);
+    canvas.setAttribute('aria-label', label);
+    buildChartDataTable(canvas, labels, datasets, label);
     return new Chart(canvas, {
         type,
         data: { labels, datasets },
@@ -320,15 +324,18 @@ async function load() {
     const gpsPoints = records.filter((r) => r.lat && r.lng).map((r) => [r.lat, r.lng]);
     if (gpsPoints.length > 1) {
         document.getElementById('map-card').style.display = '';
-        // Accessibility: Leaflet-Karte ist rein visuell — Textalternative der Route
-        // fuer Screenreader (WCAG 1.1.1).
+        // Accessibility (WCAG 1.1.1 / 2.1.1): Die Routen-Textzusammenfassung in
+        // #map-summary traegt den Inhalt fuer Screenreader. Auf dem #map-Div KEIN
+        // role="img" (das wuerde die interaktive Karte als statisches Bild
+        // maskieren und die Tastatur-Bedienung verstecken). Stattdessen ein
+        // aria-label als zugaenglicher Name; Leaflets keyboard-Handler (Default an)
+        // macht den Container fokussierbar (Pfeiltasten = verschieben, +/- = Zoom).
         const mapEl = document.getElementById('map');
         const routeSummary = `Streckenkarte: ${sportName} über ${fmtDist(a.distance_meters)}, Dauer ${fmtDuration(a.duration_seconds)}.`;
-        mapEl.setAttribute('role', 'img');
         mapEl.setAttribute('aria-label', routeSummary);
         const mapSummaryEl = document.getElementById('map-summary');
         if (mapSummaryEl) mapSummaryEl.textContent = routeSummary;
-        const map = L.map('map');
+        const map = L.map('map', { keyboard: true });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             maxZoom: 18,
