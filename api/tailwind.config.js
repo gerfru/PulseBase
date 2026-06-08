@@ -11,10 +11,7 @@ module.exports = {
   ],
   theme: {
     fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-    extend: {
-      colors: {
-        accent: '#10b981',
-      },
-    },
+    // accent lebt als CSS-Token --accent in static/style.css (Single Source of Truth);
+    // die Tailwind-accent-Utility wurde nie genutzt.
   },
 }
