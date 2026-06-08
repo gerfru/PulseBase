@@ -1,10 +1,12 @@
 import { vi } from 'vitest';
 
-// Chart.js is loaded as UMD global in browser — mock it for Node/jsdom tests
-const ChartMock = vi.fn().mockImplementation(() => ({
-    destroy: vi.fn(),
-    update: vi.fn(),
-}));
+// Chart.js is loaded as UMD global in browser — mock it for Node/jsdom tests.
+// Implementation must be a regular (constructable) function, not an arrow:
+// vitest 4's spy invokes `new Chart(...)` via the implementation, and arrows
+// are not constructors ("is not a constructor").
+const ChartMock = vi.fn(function () {
+    return { destroy: vi.fn(), update: vi.fn() };
+});
 ChartMock.defaults = {
     color: '',
     borderColor: '',
