@@ -69,7 +69,7 @@ that are **never stored**. No cloud. No subscription. No data broker in the midd
 
 ### The dashboard
 
-- Slate/Emerald instrument-panel UI — tabbed (Training / Verlauf / Erholung), dark + light mode
+- Slate/Emerald instrument-panel UI — tabbed (Training / Verlauf / Erholung), dark + light mode (WCAG 2.1 AA, axe-getestet in beiden Themes)
 - Unified *Tagesstatus* hero: Oura-style readiness arc with HRV/sleep/pulse contributors,
   energy triptych (Physisch / Autonom / Kognitiv), vitals strip
 - Time navigation (← →) across all charts — browse any historical period

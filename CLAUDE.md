@@ -232,7 +232,7 @@ Jobs in `.github/workflows/ci.yml`:
 | `typecheck` | mypy | api/ + sync-service/ + ml-service/ mit `--explicit-package-bases` |
 | `test` | pytest | api/tests/ + sync-service/tests/ + ml-service/tests/ |
 | `js-test` | Vitest | api/src/static/ JS Unit-Tests mit Coverage |
-| `e2e` | Playwright | E2E Smoke-Tests auf test-docker-compose Stack (api-test auf Port 8001) |
+| `e2e` | Playwright + axe-core | E2E Smoke-Tests + Accessibility-Gate (light/dark, `test_a11y.py`) auf test-docker-compose Stack (api-test auf Port 8001) |
 | `trivy` | trivy | Docker-Image-Scan für api + sync + ml, CRITICAL+HIGH (`ignore-unfixed: true`) |
 
 ## Pre-commit Hooks
