@@ -18,6 +18,7 @@ Fokus-INDIKATOR-Kontrast (WCAG 1.4.11), den axe nicht zuverlässig misst, wird
 separat in ``test_focus_ring_contrast_login_field`` gemessen.
 """
 
+import os
 import re
 
 import pytest
@@ -28,6 +29,12 @@ from tests.e2e.conftest import BASE_URL, make_session_cookie
 
 BLOCKING_IMPACTS = {"critical", "serious"}
 SCHEMES = ["light", "dark"]
+
+# Garmin-datenabhängige Detailseiten (wie in test_smoke.py).
+requires_data = pytest.mark.skipif(
+    os.getenv("CI_HAS_DATA") != "true",
+    reason="requires seeded Garmin data (set CI_HAS_DATA=true, e.g. make test-e2e-seeded)",
+)
 
 _axe = Axe()
 
@@ -47,11 +54,8 @@ async def _auth_ctx(pw, user_id: int, secret: str):
     return browser, ctx
 
 
-async def _scan(page, path: str, scheme: str) -> None:
-    """axe gegen path im gegebenen Schema; Fail bei critical/serious."""
-    await page.emulate_media(color_scheme=scheme)
-    await page.goto(path)
-    await page.wait_for_load_state("networkidle")
+async def _assert_axe(page, scheme: str) -> None:
+    """axe gegen die aktuell geladene Seite; Fail bei critical/serious."""
     results = await _axe.run(page)
     blocking = [
         v
@@ -68,6 +72,14 @@ async def _scan(page, path: str, scheme: str) -> None:
             f"{len(blocking)} blockierende A11y-Violation(s) auf {page.url} ({scheme}):\n"
             + "\n".join(lines)
         )
+
+
+async def _scan(page, path: str, scheme: str) -> None:
+    """axe gegen path im gegebenen Schema; Fail bei critical/serious."""
+    await page.emulate_media(color_scheme=scheme)
+    await page.goto(path)
+    await page.wait_for_load_state("networkidle")
+    await _assert_axe(page, scheme)
 
 
 # ── axe-Scans: öffentliche Seiten (kein Auth) ─────────────────────────────────
@@ -114,6 +126,39 @@ async def test_a11y_epilepsy_page(epilepsy_test_user, session_secret, scheme):
             await _scan(await ctx.new_page(), "/epilepsy", scheme)
         finally:
             await browser.close()
+
+
+# ── Detailseiten: Metrik-Detail (datenfrei) + Aktivitäts-Detail (@requires_data) ──
+# Metrik-Detail rendert auch ohne Daten (Evidence/Empfehlung/leerer Chart) → normales
+# Gate. Aktivitäts-Detail braucht eine geseedete Aktivität → @requires_data; Auth über
+# das Formular (TEST_EMAIL muss ein Konto MIT Daten sein, z. B. via make test-e2e-seeded).
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+async def test_a11y_metric_detail(registered_test_user, session_secret, scheme):
+    async with async_playwright() as pw:
+        browser, ctx = await _auth_ctx(pw, registered_test_user["id"], session_secret)
+        try:
+            page = await ctx.new_page()
+            await page.emulate_media(color_scheme=scheme)
+            await page.goto("/metrics")
+            await page.wait_for_load_state("networkidle")
+            await page.locator("a[href^='/metrics/']").first.click()
+            await page.wait_for_load_state("networkidle")
+            await _assert_axe(page, scheme)
+        finally:
+            await browser.close()
+
+
+@requires_data
+@pytest.mark.parametrize("scheme", SCHEMES)
+async def test_a11y_activity_detail(authenticated_page, scheme):
+    await authenticated_page.emulate_media(color_scheme=scheme)
+    await authenticated_page.goto("/dashboard")
+    await authenticated_page.wait_for_load_state("networkidle")
+    await authenticated_page.locator("a[href^='/activity/']").first.click()
+    await authenticated_page.wait_for_load_state("networkidle")
+    await _assert_axe(authenticated_page, scheme)
 
 
 # ── Fokus-Indikator-Kontrast (WCAG 1.4.11) ────────────────────────────────────
