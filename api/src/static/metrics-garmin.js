@@ -251,7 +251,7 @@ export const GARMIN_METRICS = {
                         {
                             label: 'Wochenø',
                             data: data.map((d) => d.hrv_weekly_avg),
-                            borderColor: '#86efac',
+                            borderColor: C.green,
                             backgroundColor: 'transparent',
                             tension: 0.3,
                             borderDash: [4, 4],

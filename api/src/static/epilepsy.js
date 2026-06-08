@@ -65,12 +65,20 @@ export async function loadRisk() {
 
 export function renderRiskFlags(container, flags) {
     container.innerHTML = '';
+    // Vollstaendige Klassenstrings (kein ${}-Interpolieren) — sonst purgt der
+    // Tailwind-Content-Scanner sie aus tailwind.min.css und die Flags rendern unstyled.
+    const FLAG_STYLE = {
+        ok: { row: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-400' },
+        amber: { row: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400' },
+        red: { row: 'bg-red-500/10 border-red-500/20', text: 'text-red-400' },
+        slate: { row: 'bg-slate-500/10 border-slate-500/20', text: 'text-slate-400' },
+    };
     for (const f of flags) {
-        const fc = { ok: 'emerald', amber: 'amber', red: 'red' }[f.color] || 'slate';
+        const s = FLAG_STYLE[f.color] || FLAG_STYLE.slate;
         const row = document.createElement('div');
-        row.className = `flex items-center gap-2 px-3 py-2 rounded-lg bg-${fc}-500/10 border border-${fc}-500/20`;
+        row.className = `flex items-center gap-2 px-3 py-2 rounded-lg border ${s.row}`;
         const span1 = document.createElement('span');
-        span1.className = `text-xs font-medium text-${fc}-400`;
+        span1.className = `text-xs font-medium ${s.text}`;
         span1.textContent = f.label;
         const span2 = document.createElement('span');
         span2.className = 'text-xs text-slate-600 dark:text-slate-400';

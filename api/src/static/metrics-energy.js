@@ -332,7 +332,7 @@ export const ENERGY_METRICS = {
                         {
                             label: 'Garmin Wert',
                             data: data.daily.map((d) => d.body_battery_high),
-                            borderColor: '#94a3b8',
+                            borderColor: C.muted,
                             backgroundColor: 'transparent',
                             tension: 0.3,
                             borderDash: [4, 4],
@@ -430,7 +430,7 @@ export const ENERGY_METRICS = {
                         {
                             label: 'Garmin avg_stress',
                             data: hist.map((d) => dailyByDate[d.date] ?? null),
-                            borderColor: '#94a3b8',
+                            borderColor: C.muted,
                             backgroundColor: 'transparent',
                             tension: 0.3,
                             borderDash: [4, 4],
