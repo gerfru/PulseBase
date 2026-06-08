@@ -8,9 +8,9 @@
 {% block content %}
 
     <div class="card mx-4 mt-4 flex flex-col gap-2">
-        <a class="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors no-underline w-fit" href="/dashboard">← Dashboard</a>
+        <a class="inline-flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors no-underline w-fit" href="/dashboard">← Dashboard</a>
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 m-0" id="act-title">—</h1>
-        <div class="text-sm text-slate-500 dark:text-slate-400" id="act-meta">—</div>
+        <div class="text-sm text-slate-600 dark:text-slate-400" id="act-meta">—</div>
     </div>
 
     <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 px-4 py-4" id="stat-grid"></div>
@@ -74,7 +74,10 @@
         <div class="card" id="map-card" style="display:none">
             <h2>GPS-Track</h2>
             <p id="map-summary" class="sr-only"></p>
-            <div id="map" class="relative h-[300px] sm:h-[400px] rounded-xl overflow-hidden mb-4"></div>
+            <div id="map" class="relative h-[300px] sm:h-[400px] rounded-xl overflow-hidden mb-2"></div>
+            <p class="text-xs text-slate-600 dark:text-slate-400">
+                Karte mit <kbd>Tab</kbd> fokussieren, dann mit den <kbd>Pfeiltasten</kbd> verschieben und mit <kbd>+</kbd> / <kbd>−</kbd> zoomen.
+            </p>
         </div>
 
         <!-- Charts -->
@@ -101,5 +104,5 @@
 
 {% endblock %}
 {% block scripts %}
-<script nonce="{{ nonce }}" src="/static/activity.js"></script>
+<script type="module" nonce="{{ nonce }}" src="/static/activity.js"></script>
 {% endblock %}

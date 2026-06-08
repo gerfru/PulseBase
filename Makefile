@@ -1,4 +1,4 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-coverage test-js test-js-coverage secure-env
+.PHONY: network up up-standalone down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env --env-file env/.env.app
 
@@ -127,7 +127,7 @@ setup-user:
 
 tailwind-build:
 	@echo "=== Tailwind CLI Build ==="
-	@OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+	@OS=$$(uname -s | tr '[:upper:]' '[:lower:]' | sed 's/darwin/macos/'); \
 	ARCH=$$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/'); \
 	curl -fsSL "https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.19/tailwindcss-$$OS-$$ARCH" \
 	  -o /tmp/tailwindcss-cli && chmod +x /tmp/tailwindcss-cli && \
@@ -152,7 +152,9 @@ test-env-down: ## Test-Stack stoppen
 	docker compose -f docker-compose.test.yml down 2>/dev/null || true
 	docker rm -f pulsebase-db-test pulsebase-flyway-test pulsebase-api-test 2>/dev/null || true
 
-test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren — vollständiger pg_dump (nur bei Bedarf)
+test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren — Test-Stack muss laufen (make test-env-up)
+	@docker ps --format '{{.Names}}' | grep -qx pulsebase-db-test || { \
+	  echo "FEHLER: Test-DB 'pulsebase-db-test' läuft nicht — zuerst 'make test-build && make test-env-up' (oder nutze 'make test-e2e-seeded')"; exit 1; }
 	docker exec pulsebase-db pg_dump \
 	  -U $$(grep ^DB_USER env/.env | cut -d= -f2) garmin \
 	  | docker exec -i pulsebase-db-test psql \
@@ -171,6 +173,30 @@ test-e2e: ## Playwright E2E — alles automatisch, Stack wird auch bei Fehler ge
 	  api/.venv/bin/playwright install chromium --with-deps && \
 	  ( cd api && TEST_EMAIL=$(TEST_EMAIL) TEST_PASSWORD=$(TEST_PASSWORD) .venv/bin/pytest tests/e2e/ -v ); \
 	  EXIT=$$?; $(MAKE) test-env-down; exit $$EXIT
+
+test-e2e-seeded: ## Wie test-e2e, aber mit echten Garmin-Daten (Prod→Test) + CI_HAS_DATA=true (inkl. @requires_data)
+	# Hinweis: @requires_data-Tests brauchen einen User MIT Daten — ggf.
+	#   make test-e2e-seeded TEST_EMAIL=<dein-Konto> TEST_PASSWORD=<...>
+	# Der Default-Test-User (e2e@pulsebase.test) hat keine Aktivitäten.
+	$(MAKE) test-build
+	$(MAKE) test-env-up
+	$(MAKE) test-seed
+	$(MAKE) test-user && \
+	  api/.venv/bin/playwright install chromium --with-deps && \
+	  ( cd api && CI_HAS_DATA=true TEST_EMAIL=$(TEST_EMAIL) TEST_PASSWORD=$(TEST_PASSWORD) .venv/bin/pytest tests/e2e/ -v ); \
+	  EXIT=$$?; $(MAKE) test-env-down; exit $$EXIT
+
+test-all: ## Voll-Lauf (ohne Seed): Unit + E2E + JS-Coverage + Coverage — ein Kommando
+	$(MAKE) test
+	$(MAKE) test-e2e
+	$(MAKE) test-js-coverage
+	$(MAKE) test-coverage
+
+test-all-seeded: ## Voll-Lauf MIT Garmin-Daten: Unit + seeded-E2E + JS-Coverage + Coverage
+	$(MAKE) test
+	$(MAKE) test-e2e-seeded
+	$(MAKE) test-js-coverage
+	$(MAKE) test-coverage
 
 test-coverage: ## Coverage-Report aller 3 Services (Terminal + HTML unter */htmlcov/index.html)
 	@echo "── api ─────────────────────────────────────────────────────────"

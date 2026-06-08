@@ -525,7 +525,7 @@ function renderArticle(art) {
                 : ''
         }
         <div class="help-article-footer">
-            <a href="/metrics/${esc(art.metricName)}" class="text-sm" style="color:var(--accent)">→ Zur Metrik</a>
+            <a href="/metrics/${esc(art.metricName)}" class="text-sm" style="color:var(--accent-text)">→ Zur Metrik</a>
             <span class="disclosure-disclaimer" style="flex:1;border:none;padding:0;margin:0">Kein Ersatz für ärztliche Beratung · Keine medizinische Diagnose</span>
         </div>
     </article>`;

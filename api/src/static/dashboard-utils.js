@@ -1,3 +1,5 @@
+import { buildChartDataTable } from './chart-utils.js';
+
 export function scoreLabel(score, thresholds = [75, 45]) {
     if (score == null) return '';
     if (score >= thresholds[0]) return 'Gut';
@@ -119,8 +121,10 @@ export function makeChart(id, type, labels, datasets, extra = {}) {
     // ariaSummary uebersteuert; sonst wird aus Typ, Serien-Labels und letztem
     // Wert automatisch eine sinnvolle Beschreibung erzeugt.
     if (canvas) {
+        const summary = extra.ariaSummary || chartAriaLabel(type, datasets);
         canvas.setAttribute('role', 'img');
-        canvas.setAttribute('aria-label', extra.ariaSummary || chartAriaLabel(type, datasets));
+        canvas.setAttribute('aria-label', summary);
+        buildChartDataTable(canvas, labels, datasets, summary);
     }
 }
 

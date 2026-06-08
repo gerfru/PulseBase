@@ -12,7 +12,7 @@
             <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Einstellungen</h1>
         </div>
         <a href="/help"
-           class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-500 dark:text-slate-400 text-sm font-bold hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+           class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/[0.06] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-400 text-sm font-bold hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
            aria-label="Hilfe" title="Hilfe &amp; Methodologie">?</a>
     </div>
 
@@ -22,10 +22,10 @@
         <div class="flex items-center justify-between gap-4">
             <div>
                 <div class="text-sm font-medium text-slate-700 dark:text-slate-200">Dunkelmodus</div>
-                <div class="text-xs text-slate-400 mt-0.5">Folgt der Systemeinstellung, wenn nicht manuell gesetzt</div>
+                <div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Folgt der Systemeinstellung, wenn nicht manuell gesetzt</div>
             </div>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                <input type="checkbox" id="theme-toggle" class="sr-only peer">
+                <input type="checkbox" id="theme-toggle" class="sr-only peer" aria-label="Dunkelmodus">
                 <div class="w-11 h-6 rounded-full transition-colors
                             bg-slate-300 dark:bg-slate-600
                             peer-checked:bg-emerald-500
@@ -44,11 +44,11 @@
         <!-- Account-Infos (nur lesend) -->
         <div class="flex flex-col gap-0 mb-5">
             <div class="flex items-center justify-between py-2.5 border-b border-black/[0.06] dark:border-white/[0.06]">
-                <span class="text-sm text-slate-500 dark:text-slate-400">Name</span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">Name</span>
                 <span class="text-sm text-slate-900 dark:text-slate-100 font-medium">{{ user.name }}</span>
             </div>
             <div class="flex items-center justify-between py-2.5">
-                <span class="text-sm text-slate-500 dark:text-slate-400">E-Mail</span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">E-Mail</span>
                 <span class="text-sm text-slate-900 dark:text-slate-100">{{ user.email }}</span>
             </div>
         </div>
@@ -65,7 +65,7 @@
             <div class="flex flex-col gap-1.5">
                 <label for="sex" class="text-sm font-medium text-slate-700 dark:text-slate-200">
                     Biologisches Geschlecht
-                    <span class="text-xs text-slate-400 font-normal ml-1">(für TRIMP-Berechnung)</span>
+                    <span class="text-xs text-slate-600 dark:text-slate-400 font-normal ml-1">(für TRIMP-Berechnung)</span>
                 </label>
                 <select id="sex"
                         class="px-3.5 py-2 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
@@ -79,7 +79,7 @@
                 <span id="profile-msg" class="text-xs text-emerald-500" style="display:none">Gespeichert ✓</span>
                 <span></span>
                 <button id="profile-save"
-                        class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-colors">
+                        class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs font-semibold transition-colors">
                     Speichern
                 </button>
             </div>
@@ -94,13 +94,13 @@
         <div class="flex items-center justify-between gap-4 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
             <div>
                 <div class="text-sm font-medium text-slate-700 dark:text-slate-200">Anfallstagebuch</div>
-                <div class="text-xs text-slate-400 mt-0.5">
+                <div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                     Aktiviert das Anfallstagebuch und den täglichen Risiko-Indikator.
                     Kein Ersatz für neurologische Betreuung.
                 </div>
             </div>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                <input type="checkbox" id="epilepsy-toggle" class="sr-only peer"
+                <input type="checkbox" id="epilepsy-toggle" class="sr-only peer" aria-label="Epilepsie-Modus"
                        {% if user.epilepsy_mode %}checked{% endif %}>
                 <div class="w-11 h-6 rounded-full transition-colors
                             bg-slate-300 dark:bg-slate-600
@@ -122,13 +122,13 @@
         <div class="flex items-center justify-between gap-4 pt-4">
             <div>
                 <div class="text-sm font-medium text-slate-700 dark:text-slate-200">SpO₂-Trend anzeigen</div>
-                <div class="text-xs text-slate-400 mt-0.5">
+                <div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                     Zeigt SpO₂-Trend und Apnoe-Flag wenn Garmin-Daten vorhanden.
                     Nur relevant für Geräte mit Pulsoximeter.
                 </div>
             </div>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                <input type="checkbox" id="spo2-toggle" class="sr-only peer"
+                <input type="checkbox" id="spo2-toggle" class="sr-only peer" aria-label="SpO2-Anzeige"
                        {% if user.spo2_enabled %}checked{% endif %}>
                 <div class="w-11 h-6 rounded-full transition-colors
                             bg-slate-300 dark:bg-slate-600
@@ -147,12 +147,12 @@
 
         <!-- Garmin Connect -->
         <div class="pb-5 border-b border-black/[0.06] dark:border-white/[0.06]">
-            <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Garmin Connect</div>
+            <div class="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-3">Garmin Connect</div>
             {% if user.garmin_linked %}
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <div class="text-sm font-semibold text-emerald-500">Verbunden</div>
-                    <div class="text-xs text-slate-400 mt-0.5">{{ user.garmin_email }}</div>
+                    <div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{{ user.garmin_email }}</div>
                 </div>
                 <form method="post" action="/garmin/unlink">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -162,14 +162,14 @@
                     </button>
                 </form>
             </div>
-            <p class="mt-2.5 text-xs text-slate-400 leading-relaxed">
+            <p class="mt-2.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Aktivitäten, Tagesübersichten und Schlafdaten werden täglich synchronisiert.
             </p>
             {% else %}
             <div class="flex items-center justify-between gap-4">
-                <span class="text-sm text-slate-400">Nicht verbunden</span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">Nicht verbunden</span>
                 <a href="/garmin/link"
-                   class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-colors">
+                   class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs font-semibold transition-colors">
                     Verbinden
                 </a>
             </div>
@@ -178,12 +178,12 @@
 
         <!-- LibreLinkUp -->
         <div class="pt-5">
-            <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">LibreLinkUp (Glukose)</div>
+            <div class="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-3">LibreLinkUp (Glukose)</div>
             {% if user.libre_linked %}
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <div class="text-sm font-semibold text-emerald-500">Verbunden</div>
-                    <div class="text-xs text-slate-400 mt-0.5">{{ user.libre_email }}</div>
+                    <div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{{ user.libre_email }}</div>
                 </div>
                 <form method="post" action="/libre/unlink" id="libre-unlink-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -193,14 +193,14 @@
                     </button>
                 </form>
             </div>
-            <p class="mt-2.5 text-xs text-slate-400 leading-relaxed">
+            <p class="mt-2.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Glukosewerte werden alle 5 Minuten abgerufen. Beim Trennen werden alle Messwerte gelöscht.
             </p>
             {% else %}
             <div class="flex items-center justify-between gap-4">
-                <span class="text-sm text-slate-400">Nicht verbunden</span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">Nicht verbunden</span>
                 <a href="/libre/link"
-                   class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-colors">
+                   class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs font-semibold transition-colors">
                     Verbinden
                 </a>
             </div>
@@ -211,7 +211,7 @@
     <!-- ── Daten exportieren ─────────────────────────────────────────── -->
     <div class="card">
         <h2>Daten exportieren</h2>
-        <p class="text-sm text-slate-400 mb-4">
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Lade alle deine Daten als JSON herunter (DSGVO Art. 20).
             Enthält Aktivitäten, Schlaf, HRV, Tagesübersichten, ggf. Anfallsdaten und Glukosewerte.
         </p>
@@ -225,17 +225,17 @@
     <div class="mt-2">
         <div class="flex items-center gap-3 mb-3 px-1">
             <div class="h-px flex-1 bg-red-500/25"></div>
-            <span class="text-xs font-bold text-red-400 uppercase tracking-widest">Gefahrenbereich</span>
+            <span class="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-widest">Gefahrenbereich</span>
             <div class="h-px flex-1 bg-red-500/25"></div>
         </div>
         <div class="rounded-2xl border border-red-500/40 bg-red-500/[0.06] p-6">
-            <p class="text-sm font-semibold text-red-300 mb-1">Konto löschen</p>
-            <p class="text-sm text-slate-400 mb-5 leading-relaxed">
+            <p class="text-sm font-semibold text-red-700 dark:text-red-300 mb-1">Konto löschen</p>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-5 leading-relaxed">
                 Löscht dein Konto und alle Daten unwiderruflich (DSGVO Art. 17).
                 Bestätige mit E-Mail und Passwort.
             </p>
             {% if delete_error %}
-            <div role="alert" class="mb-4 px-4 py-2 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">
+            <div role="alert" class="mb-4 px-4 py-2 rounded-xl bg-red-500/15 border border-red-500/25 text-red-700 dark:text-red-300 text-sm">
                 {{ delete_error }}
             </div>
             {% endif %}
@@ -257,7 +257,7 @@
     <dialog id="libre-confirm"
             class="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl p-6 max-w-sm w-full backdrop:bg-black/50">
         <h3 class="font-bold text-lg mb-2">LibreLinkUp trennen?</h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-5">
             Alle Glukosewerte werden unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
         </p>
         <div class="flex justify-end gap-2">
