@@ -172,13 +172,20 @@ describe('buildChartDataTable — Edge-Cases (Coverage)', () => {
 });
 
 describe('chart-utils module init (theme defaults)', () => {
-    it('reports isDark=true when prefers-color-scheme is dark', async () => {
+    it('reports isDark=true when the dark theme class is set', async () => {
         vi.resetModules();
-        const orig = window.matchMedia;
-        window.matchMedia = vi.fn().mockReturnValue({ matches: true });
+        document.documentElement.classList.add('dark');
         const mod = await import('../../src/static/chart-utils.js');
         expect(mod.isDark).toBe(true);
-        window.matchMedia = orig;
+        document.documentElement.classList.remove('dark');
+        vi.resetModules();
+    });
+
+    it('reports isDark=false when the dark theme class is absent', async () => {
+        vi.resetModules();
+        document.documentElement.classList.remove('dark');
+        const mod = await import('../../src/static/chart-utils.js');
+        expect(mod.isDark).toBe(false);
         vi.resetModules();
     });
 });

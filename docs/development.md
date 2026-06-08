@@ -157,7 +157,7 @@ make test-js           # einmalig
 make test-js-coverage  # mit Coverage-Report (api/coverage/index.html)
 ```
 
-Vitest testet sechs Dateien aus `coverage.include`: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js`, `epilepsy.js`, `onboarding.js` (Threshold: ≥70% Lines, ≥70% Functions; `epilepsy.js` und `onboarding.js` sind auf 100% Lines/Branches/Functions). `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme).
+Vitest testet sechs Dateien aus `coverage.include`: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js`, `epilepsy.js`, `onboarding.js` (Schwellen: ≥95% Statements/Branches/Lines, ≥90% Functions; `chart-utils.js`, `dashboard-nav.js`, `dashboard-utils.js`, `epilepsy.js`, `onboarding.js` sind auf 100%). Verbleibende Lücken sind bewusst defensive Guards (`if(el)`/`?.`/`.catch(()=>{})`) — kein 100%-Ziel. `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme). `colors.js` ist nicht in `coverage.include`, hat aber einen eigenen WCAG-Kontrast-Guard (`tests/js/colors.test.js`): jede Chart-Datenfarbe muss in hellem und dunklem Theme ≥ 3:1 erfüllen.
 
 ### E2E-Tests (Playwright)
 
@@ -173,6 +173,15 @@ E2E-Credentials (lokal):
 ```
 TEST_EMAIL    = e2e@pulsebase.test
 TEST_PASSWORD = E2eLocalTest1!
+```
+
+Die E2E-Suite enthält ein **axe-core-Accessibility-Gate** (`tests/e2e/test_a11y.py`, `axe-playwright-python`): es scannt die kritischen Seiten in **hellem und dunklem** Theme und blockiert bei Violations der Stufen `critical`/`serious`; zusätzlich wird der Fokus-Indikator-Kontrast (WCAG 1.4.11) gemessen. Auth läuft per injiziertem Session-Cookie (rate-limit-sicher). Datenlastige Detailseiten (`/activity/{id}`) sind mit `@requires_data` markiert und brauchen geseedete Garmin-Daten.
+
+Voll-Läufe als ein Kommando:
+```bash
+make test-all          # Unit + E2E + JS-/py-Coverage (ohne Seed)
+make test-all-seeded   # zusätzlich Prod→Test-Seed + CI_HAS_DATA=true (inkl. @requires_data)
+make test-e2e-seeded   # nur die E2E mit echten Daten
 ```
 
 Wichtig: `authenticated_page` ist session-scoped — alle Tests teilen eine Browser-Page mit Auth-Cookie (1 Login pro Run). Jeder Test muss explizit zur Ziel-URL navigieren. Tests die einen komplett unauthentifizierten Context brauchen, müssen wie `test_account_export_unauthenticated_redirects_to_login` einen isolierten Browser öffnen (eigener `async with async_playwright()` Block).
@@ -191,11 +200,11 @@ cd api && .venv/bin/pytest tests/test_auth.py::test_login_success_redirects -v
 | Service | Aktuell | Minimum (CI) | Ziel |
 |---------|---------|--------------|------|
 | api (Python) | ~99% | 70% | 100% |
-| api (JS) | ~100% Lines / ~100% Functions (6 Dateien) | 70% Lines / 70% Functions | — |
+| api (JS) | 100% Lines / ~96% Branches / ~94% Functions (6 Dateien) | 95% Stmts/Branches/Lines, 90% Functions | — |
 | sync-service | ~97%+ | 70% | 70%+ |
 | ml-service | ~80%+ | 80% | 80%+ |
 
-Die JS-Schwelle gilt für die vier gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: CI-Gate auf 70% angehoben (W13 R3, M-79). ml-service: CI-Gate auf 80% angehoben (W10 R2, M-61).
+Die JS-Schwelle (95% Statements/Branches/Lines, 90% Functions) gilt für die sechs gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: CI-Gate auf 70% angehoben (W13 R3, M-79). ml-service: CI-Gate auf 80% angehoben (W10 R2, M-61).
 
 ---
 
@@ -233,8 +242,8 @@ Alle Jobs laufen bei jedem PR. Pipeline schlägt bei jedem roten Job fehl. Globa
 | `security` | gitleaks + pip-audit + bandit + semgrep | Secrets, bekannte Vulns, SAST, cross-file Taint |
 | `typecheck` | mypy | alle 3 Services mit `--explicit-package-bases` |
 | `test` | pytest + pytest-cov | Unit-Tests aller 3 Services mit Coverage-Schwellen |
-| `js-test` | Vitest | JS Unit-Tests mit Coverage (70% Lines / 70% Functions) |
-| `e2e` | Playwright | Smoke-Tests gegen docker-compose.test.yml (Port 8001) |
+| `js-test` | Vitest | JS Unit-Tests mit Coverage (95% Stmts/Branches/Lines, 90% Functions) |
+| `e2e` | Playwright + axe-core | Smoke-Tests + Accessibility-Gate (light/dark) gegen docker-compose.test.yml (Port 8001) |
 | `trivy` | trivy | Docker-Image-Scan (CRITICAL + HIGH → exit 1) |
 
 ### CI schlägt fehl — häufige Ursachen
@@ -385,4 +394,6 @@ Vollständige Referenz aller `make`-Targets — die README verlinkt hierher.
 | `make test` | Unit-Tests aller 3 Services (kein Docker nötig) |
 | `make test-coverage` | Coverage-Report aller 3 Services (Terminal + HTML) |
 | `make test-js` / `make test-js-coverage` | JS-Unit-Tests (Vitest) |
-| `make test-e2e` | Playwright-E2E gegen Test-Stack auf Port 8001 (baut + startet + stoppt automatisch) |
+| `make test-e2e` | Playwright-E2E (inkl. axe-Accessibility-Gate) gegen Test-Stack auf Port 8001 (baut + startet + stoppt automatisch) |
+| `make test-e2e-seeded` | wie `test-e2e`, aber mit Prod→Test-Seed + `CI_HAS_DATA=true` (inkl. `@requires_data`) |
+| `make test-all` / `make test-all-seeded` | Voll-Lauf als ein Kommando (Unit + E2E + JS-/py-Coverage), optional mit Daten-Seed |

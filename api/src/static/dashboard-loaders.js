@@ -1,4 +1,4 @@
-import { fmtDate, isDark } from './chart-utils.js';
+import { fmtDate } from './chart-utils.js';
 import { _heroData, buildHeroCard } from './dashboard-hero.js';
 import { buildWeeklyReview } from './dashboard-weekly.js';
 import { makeChart, showEmpty, hideEmpty, sportLabel, fmtDuration, fmtDist, secToH } from './dashboard-utils.js';
@@ -306,7 +306,7 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
                 {
                     label: 'Wach',
                     data: sleepSorted.map((s) => secToH(s.awake_seconds)),
-                    backgroundColor: isDark ? '#334155' : '#e2e8f0',
+                    backgroundColor: C.sleepAwake,
                     stack: 'sleep',
                     borderRadius: 2,
                 },

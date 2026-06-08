@@ -1,4 +1,4 @@
-import { buildChartDataTable } from './chart-utils.js';
+import { buildChartDataTable, isDark } from './chart-utils.js';
 
 const SPORT_EMOJI = {
     running: '🏃',
@@ -158,11 +158,7 @@ function renderRpe(activityId, initialRpe, avgHr, durationSeconds) {
     });
 }
 
-const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
-Chart.defaults.borderColor = isDark ? 'rgba(51,65,85,.6)' : 'rgba(226,232,240,.8)';
-Chart.defaults.interaction = { mode: 'index', intersect: false };
-Chart.defaults.elements.point.hoverRadius = 4;
+// Chart.defaults werden zentral in chart-utils.js gesetzt (beim Import oben).
 
 function makeChart(id, type, labels, datasets, scales = {}, ariaLabel = '') {
     const canvas = document.getElementById(id);
