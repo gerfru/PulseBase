@@ -98,6 +98,16 @@ jobs:
           pip install semgrep==1.164.0
           semgrep scan --error --config p/python --config p/owasp-top-ten \
             api/src/ sync-service/src/ ml-service/src/
+      - name: SBOM (CycloneDX via syft)
+        # Version-pinned binary (kein un-verifizierter Action-SHA). Evidence für
+        # ISO 27001 / EU Cyber Resilience Act. Bei echtem Release zusätzlich ans
+        # Release-Asset anhängen (Release-Please/semantic-release).
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+            | sh -s -- -b /usr/local/bin v1.18.1
+          syft version
+          syft scan dir:. -o cyclonedx-json=pulsebase-sbom.cdx.json
+          echo "SBOM-Komponenten: $(jq '.components | length' pulsebase-sbom.cdx.json)"
 
   typecheck:
     name: Type Check
@@ -264,6 +274,61 @@ jobs:
         if: always()
         run: docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.test.yml down
 
+  deploy-public-smoke:
+    name: Public Deployment Smoke
+    needs: [lint, typecheck, test]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Prepare env files
+        run: |
+          cp env/.env.example env/.env
+          cp env/.env.app.example env/.env.app
+          cp env/.env.api.example env/.env.api
+          cp env/.env.public.example env/.env.public
+          sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -hex 32)|" env/.env.api
+          sed -i "s|^FERNET_KEY=.*|FERNET_KEY=$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" env/.env.app
+          sed -i "s|^HTTPS_ONLY=.*|HTTPS_ONLY=false|" env/.env.api
+
+      - name: Validate public overlay (api decoupled from proxy network)
+        run: |
+          json=$(docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.yml -f docker-compose.public.yml config --format json)
+          echo "$json" | jq -e '.services.api.networks | keys == ["internal"]' >/dev/null \
+            || { echo "::error::public overlay: api must attach to 'internal' only (no proxy)"; exit 1; }
+          echo "$json" | jq -e '.services.caddy' >/dev/null \
+            || { echo "::error::public overlay: caddy service missing"; exit 1; }
+          echo "✓ api attaches to internal only; caddy present"
+
+      - name: Bring up public stack (HTTP-only Caddy, no ACME)
+        run: |
+          # flyway is a one-shot migration container (exits 0) — not in the wait set;
+          # api pulls it via `depends_on: service_completed_successfully`.
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.public.ci.yml \
+            up -d --build --wait db api caddy
+
+      - name: Smoke — reach app through Caddy
+        run: |
+          curl -fsS http://localhost:8080/health | tee /dev/stderr | grep -q '"status"'
+          curl -fsS http://localhost:8080/ready  | tee /dev/stderr | grep -q '"status"'
+          echo "✓ Caddy → api routing works (health + ready 200)"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.public.ci.yml logs --tail=80
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.public.ci.yml down -v
+
   test:
     name: Tests
     needs: typecheck
@@ -276,21 +341,21 @@ jobs:
           enable-cache: true
       - name: pytest api
         working-directory: api
-        run: uv sync --frozen --extra dev && uv run pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=75
+        run: uv sync --frozen --extra dev && uv run pytest -v --ignore=tests/e2e --cov=src --cov-fail-under=80
         env:
           FERNET_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
       - name: pytest sync-service
         working-directory: sync-service
-        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=75
+        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=80
       - name: pytest ml-service
         working-directory: ml-service
-        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=75
+        run: uv sync --frozen --extra dev && uv run pytest -v --cov=src --cov-fail-under=80
 
   ci-ok:
     name: CI OK (All Green Gate)
     runs-on: ubuntu-latest
     if: always()
-    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, e2e, trivy]
+    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, e2e, deploy-public-smoke, trivy]
     steps:
       - name: All checks passed
         run: |

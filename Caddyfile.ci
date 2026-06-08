@@ -1,0 +1,9 @@
+# CI-only Caddy config: HTTP-only, no ACME (no public DNS/certs in CI).
+# Proves the Caddy→api reverse-proxy wiring of the public overlay end-to-end.
+{
+	auto_https off
+}
+
+:80 {
+	reverse_proxy api:8000
+}

@@ -11,6 +11,9 @@ repos:
       - id: end-of-file-fixer
       - id: check-json
       - id: check-yaml
+        # Docker-Compose-Overlays nutzen Merge-Tags (!override/!reset), die der
+        # strenge YAML-Loader nicht kennt — nur diese Dateien ausnehmen.
+        exclude: ^docker-compose\.public(\.ci)?\.yml$
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
