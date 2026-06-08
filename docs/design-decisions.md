@@ -134,6 +134,31 @@ No CDN, no runtime script, no build step in Docker.
 - `tailwind.config.js` sets `darkMode: 'class'`; all templates use `dark:` variants
 - Toggle switch in Settings page writes to `localStorage` and toggles the class live
 
+**Motion & Reduced Motion:**
+- Motion is tokenized in `:root` like spacing/type: `--dur-fast|base|slow`, `--ease-out`,
+  `--ease-spring` (single source of truth for timings/easing)
+- A global `@media (prefers-reduced-motion: reduce)` guard neutralizes all animations and
+  transitions (WCAG 2.3.3) — the one deliberate `!important` exception (accessibility override)
+- The hero readiness ring (`dashboard-hero.js`) animates draw-in + score count-up with cubic
+  ease-out. Because it is driven by JS `setAttribute` (not a CSS animation), the CSS guard does
+  **not** cover it — an explicit `window.matchMedia('(prefers-reduced-motion: reduce)')` check
+  sets the end state instantly instead of animating
+- Dashboard cards fade up with a staggered `card-in` entrance (`nth-child` delays); reduced-motion
+  is handled automatically by the global guard
+
+**Loading states — Skeleton Screens:**
+- Hero card (`#bento-hero`) and the activities table render skeleton placeholders instead of a
+  `Lade…` text — they **mirror the final layout** by reusing the same layout classes
+  (`.hero-grid`, `.hero-signals-row`, …) so there is **no layout shift** when real content arrives
+- The skeleton is replaced automatically: `buildHeroCard()` / `renderActivitiesTable()` overwrite
+  the container `innerHTML`, so no JS wiring of the placeholders is needed
+- **300 ms rule (CSS-only, no JS timer):** the `.skeleton` wrapper stays `opacity: 0` and fades in
+  via `animation-delay: 300ms`. If data arrives sooner, the placeholder is replaced before it ever
+  shows — no flash for fast loads (NN/g / LogRocket guidance)
+- Placeholders carry `aria-hidden="true"` (decorative); reduced-motion turns off the pulse
+- Chart cards are intentionally excluded: `.chart-wrap` already reserves a fixed height
+  (240/280 px), so there is no shift to fix
+
 **Sport type display:**
 `subActivityType.typeKey` is read before `activityType.typeKey` so activities like
 Krafttraining, Yoga, Indoor Cycling get their specific label instead of "Other".
