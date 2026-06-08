@@ -16,7 +16,7 @@ services:
       - internal
 
   caddy:
-    image: caddy:2.10-alpine
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
     container_name: pulsebase-caddy
     restart: unless-stopped
     depends_on:
@@ -51,7 +51,7 @@ services:
         max-file: "3"
 
   vector:
-    image: timberio/vector:0.41.1-alpine
+    image: timberio/vector:0.41.1-alpine@sha256:501e5403e19238c9073c116fb3cbb750a9201d0271b09dae88f044534803c670
     container_name: pulsebase-vector
     restart: unless-stopped
     env_file:
