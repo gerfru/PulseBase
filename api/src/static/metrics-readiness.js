@@ -324,7 +324,7 @@ export const READINESS_METRICS = {
                             {
                                 label: 'Wochenø',
                                 data: data.hrv.map((d) => d.hrv_weekly_avg ?? null),
-                                borderColor: '#86efac',
+                                borderColor: C.green,
                                 backgroundColor: 'transparent',
                                 tension: 0.3,
                                 borderDash: [4, 4],
