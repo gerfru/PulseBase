@@ -1,4 +1,6 @@
-export const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+// Aktives Theme (von theme-init.js gesetzt) statt reiner System-Präferenz —
+// so stimmen Achsen/Grid-Farben mit der manuellen Theme-Wahl (Toggle) überein.
+export const isDark = document.documentElement.classList.contains('dark');
 
 Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
 Chart.defaults.borderColor = isDark ? 'rgba(51,65,85,.6)' : 'rgba(226,232,240,.8)';

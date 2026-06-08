@@ -266,9 +266,9 @@ Behebt den letzten High-Befund [D3-1] sowie die zwei verbleibenden Lows. Verifiz
 
 - **[zu verifizieren] BFSG-Geltungsbereich**: Heute (2026-06-06) ist das BFSG seit ~11 Monaten in Kraft (Stichtag 28.06.2025). Ob PulseBase als privater Dienst konkret unter den BFSG-Anwendungsbereich fällt, ist eine juristische Frage außerhalb dieses Reviews. Unabhängig davon hält sich die App per veröffentlichter Erklärung ([accessibility.html:25-28](api/src/templates/accessibility.html#L25-L28)) selbst an WCAG 2.1 AA — die Befunde A-1…A-6 stehen dieser Selbstverpflichtung entgegen.
 - **[Annahme]** Charts/Karten-Befunde (A-1, A-2) basieren auf der Selbstaussage in `accessibility.html` plus Code-Struktur, nicht auf einem Screenreader-Live-Test.
-- **[zu verifizieren]** `{{ error }}` in [login.html:25](api/src/templates/login.html#L25) gibt eine Backend-Variable direkt aus — ob dort je ungefilterte interne Meldungen landen, ist nur im Backend prüfbar (Security-, nicht UX-Befund).
+- **[geprüft 2026-06-08 — kein Leak]** `{{ error }}` in den Auth-Routen: alle `error`-Werte sind hardcodierte, nutzersichere Strings; die `except`-Handler (`ValidationError`, `UniqueViolationError`) mappen auf feste Meldungen, interne Details gehen nur in `logger.warning`. Nirgends roher Exception-Text (`str(e)`/`.args`/Traceback) in einer Template-Antwort.
 - **Dimension 5 (Langzeit & Adaptation)** ist aus der UI-Schicht nur teilweise beurteilbar — History-Persistenz/Lernverhalten liegt überwiegend im ml-service, nicht in den Templates. `[Schlussfolgerung]` auf Basis der sichtbaren UI-Muster.
-- **Charts/Visualisierungen** wurden inhaltlich nicht auf Farbkontrast/Datendichte geprüft (kein gerendertes Bild vorgelegt).
+- **[geprüft 2026-06-08]** Chart-interne Datenfarben: die Palette (`colors.js`) ist jetzt theme-aware — jede Datenlinie erfüllt ≥ 3:1 gegen den Karten-Hintergrund in **beiden** Themes (WCAG 1.4.11), per Unit-Test (`tests/js/colors.test.js`) abgesichert. Datendichte ist über `maxTicksLimit` begrenzt. (Screenreader-Pfad ohnehin über die sr-only-Datentabellen abgedeckt.)
 
 ---
 *Erstellt mit KI-Unterstützung (Claude Code + dev-best-practices Plugin).
