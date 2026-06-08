@@ -297,7 +297,7 @@ async def reset_test_user():
         await _insert_consents(conn, user_id)
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=3600)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=900)
         await conn.execute(
             "UPDATE users SET password_reset_token_hash=$1, password_reset_expires_at=$2 WHERE id=$3",
             token_hash,

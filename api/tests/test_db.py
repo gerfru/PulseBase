@@ -1094,6 +1094,34 @@ def test_settings_db_url_format():
     assert url.endswith("@db:5432/garmin")
 
 
+def test_settings_db_pool_defaults_match_previous_hardcoded_values():
+    """L6: pool sizing is now env-configurable; defaults must equal the old 1/5."""
+    from src.db.pool import Settings
+
+    s = Settings(  # type: ignore[call-arg]  # pragma: allowlist secret
+        db_app_user="app",
+        db_app_password="pass",  # pragma: allowlist secret
+        session_secret="a" * 32,  # pragma: allowlist secret
+    )
+    assert s.db_pool_min == 1
+    assert s.db_pool_max == 5
+
+
+def test_settings_db_pool_overridable_via_env(monkeypatch):
+    """L6: DB_POOL_MIN/DB_POOL_MAX env vars override the defaults."""
+    from src.db.pool import Settings
+
+    monkeypatch.setenv("DB_POOL_MIN", "2")
+    monkeypatch.setenv("DB_POOL_MAX", "20")
+    s = Settings(  # type: ignore[call-arg]  # pragma: allowlist secret
+        db_app_user="app",
+        db_app_password="pass",  # pragma: allowlist secret
+        session_secret="a" * 32,  # pragma: allowlist secret
+    )
+    assert s.db_pool_min == 2
+    assert s.db_pool_max == 20
+
+
 async def test_increment_failed_login_returns_new_count():
     from src.db.users import increment_failed_login
 
@@ -1239,7 +1267,7 @@ async def test_delete_user_removes_token_dir_when_exists():
 async def test_export_user_data_raises_when_user_not_found():
     from unittest.mock import MagicMock
 
-    from src.db.users import export_user_data
+    from src.db.user_export import export_user_data
 
     conn = AsyncMock()
     conn.fetchrow = AsyncMock(return_value=None)
@@ -1249,7 +1277,7 @@ async def test_export_user_data_raises_when_user_not_found():
     pool = MagicMock()
     pool.acquire = MagicMock(return_value=acquire_ctx)
 
-    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+    with patch("src.db.user_export.get_pool", AsyncMock(return_value=pool)):
         with pytest.raises(RuntimeError, match="not found"):
             await export_user_data(99)
 
@@ -1258,7 +1286,7 @@ async def test_export_user_data_returns_dict():
     from datetime import datetime, timezone
     from unittest.mock import MagicMock
 
-    from src.db.users import export_user_data
+    from src.db.user_export import export_user_data
 
     user_row = {
         "id": 1,
@@ -1284,7 +1312,7 @@ async def test_export_user_data_returns_dict():
     pool = MagicMock()
     pool.acquire = MagicMock(return_value=acquire_ctx)
 
-    with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
+    with patch("src.db.user_export.get_pool", AsyncMock(return_value=pool)):
         result = await export_user_data(1)
 
     assert result["schema_version"] == "1.0"

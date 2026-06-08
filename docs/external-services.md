@@ -5,45 +5,40 @@ Zwei davon (Sentry, UptimeRobot) sind kostenlos im Standardumfang.
 
 ---
 
-## 1. Let's Encrypt / ACME — TLS-Zertifikate
+## 1. Let's Encrypt / ACME — TLS-Zertifikate (Public SaaS)
 
-**Was:** Automatische, kostenlose TLS-Zertifikate via Let's Encrypt. Nur relevant
-für den **standalone-Modus** (`make up-standalone`) mit Traefik. Beim Betrieb mit
-homelab-gateway übernimmt Caddy die TLS-Terminierung.
+**Was:** Automatische, kostenlose TLS-Zertifikate via Let's Encrypt. Relevant für den
+**Public-SaaS-Modus** (`make up-public`) mit gebündeltem **Caddy**. Im Heim-Betrieb
+(`make up`) übernimmt das Caddy des homelab-gateway die TLS-Terminierung.
 
 **Voraussetzungen:**
-- Domain zeigt per A-Record auf die öffentliche IP des Servers
-- Port 80 und 443 sind auf dem Server erreichbar (Router-Portweiterleitung)
+- Domain zeigt per A-Record auf die öffentliche IP des Servers (vor dem ersten Start!)
+- Port 80 und 443 sind auf dem Server erreichbar (Firewall / Portweiterleitung)
 
-**Setup:**
+**Setup (Kurzform — vollständiger Runbook: [deployment-public.md](deployment-public.md)):**
 
-1. `ACME_EMAIL` in `env/.env` eintragen:
-   ```
-   ACME_EMAIL=deine@email.com
-   ```
-   Let's Encrypt schickt Ablauf-Benachrichtigungen an diese Adresse (90 Tage TTL,
-   automatische Erneuerung durch Traefik ab 30 Tage vor Ablauf).
-
-2. Berechtigungen der `acme.json`-Datei sicherstellen (einmalig nach `git clone`):
+1. `env/.env.public` anlegen und `PUBLIC_DOMAIN` + `ACME_EMAIL` setzen:
    ```bash
-   chmod 600 traefik/acme/acme.json
+   cp env/.env.public.example env/.env.public
+   # PUBLIC_DOMAIN=app.example.com
+   # ACME_EMAIL=deine@email.com
    ```
-   Traefik verweigert den Start wenn die Datei zu offen ist.
+   Caddy holt das Zertifikat beim ersten Request automatisch (HTTP-01) und erneuert es
+   selbstständig. Die Zertifikate liegen im persistenten Volume `caddy-data` (niemals
+   mit `down -v` löschen → Let's-Encrypt-Rate-Limit).
 
-3. Standalone-Stack starten:
+2. Starten:
    ```bash
-   make up-standalone
+   make up-public
    ```
-   Beim ersten Start holt Traefik das Zertifikat automatisch (HTTP-01 Challenge
-   auf Port 80). Danach ist `https://your-domain.com` mit gültigem Zertifikat
-   erreichbar.
+   Tipp: zuerst mit der ACME-Staging-CA testen (Zeile in `Caddyfile.public` einkommentieren),
+   um das Prod-Rate-Limit (5 gleiche Zertifikate/Woche) nicht zu treffen.
 
 **Troubleshooting:**
 ```bash
-make logs-standalone     # Traefik-Logs — zeigt ACME-Fehler sofort
+make logs-public     # Caddy-Logs — zeigt ACME-Fehler sofort
 ```
-Häufige Fehler: Domain zeigt noch auf falsche IP, Port 80 nicht erreichbar,
-`acme.json` hat falsche Permissions (braucht exakt `600`).
+Häufige Fehler: Domain zeigt noch auf falsche IP, Port 80/443 nicht erreichbar.
 
 ---
 
@@ -88,50 +83,22 @@ Request-Details. Ohne Sentry merkst du Fehler erst wenn User sich melden.
 
 ---
 
-## 3. Uptime Kuma — Uptime-Monitoring (self-hosted)
+## 3. Uptime-Monitoring
 
-**Was:** Uptime Kuma überwacht deine App-Endpunkte intern im Docker-Netz und
-benachrichtigt bei Ausfall. Im Gegensatz zu UptimeRobot braucht es keinen
-Internetzugriff auf den Server — ideal für Homelab und self-hosted Setups.
+PulseBase bündelt **kein** eigenes Uptime-Monitoring. Je nach Modus:
 
-**Kosten:** Kostenlos, self-hosted.
+**Heim (`make up`):** Uptime Kuma läuft **zentral im homelab-gateway** (eigenes Repo),
+erreichbar über `status.home.lab` bzw. die Tailscale-IP. Dort einen Monitor anlegen:
+- Monitor Type: `HTTP(s)`
+- URL: `http://pulsebase-api:8000/health` (interner Docker-Hostname im `proxy`-Netz)
+- Heartbeat Interval: `60` s
+- Optional zweiter Monitor auf `http://pulsebase-api:8000/ready` (erkennt DB/Migrations-Probleme)
 
-**Setup:**
-
-Uptime Kuma läuft bereits als Compose-Service (`make up` startet es automatisch).
-Das Dashboard ist über die Tailscale-IP des Mac mini erreichbar (konfigurierbar in `env/.env`).
-
-1. Tailscale-IP ermitteln (einmalig auf dem Mac mini):
-   ```bash
-   tailscale ip -4   # → z.B. 100.64.0.1
-   ```
-
-2. `TAILSCALE_IP` in `env/.env` eintragen:
-   ```
-   TAILSCALE_IP=100.64.0.1
-   ```
-
-3. Nach `make up`: Dashboard öffnen auf einem beliebigen Gerät im Tailscale-Netz:
-   `http://100.64.0.1:3001`
-
-4. Beim ersten Start Admin-Account anlegen (nur einmalig).
-
-5. **Add New Monitor:**
-   - Monitor Type: `HTTP(s)`
-   - Friendly Name: `PulseBase API`
-   - URL: `http://api:8000/health`
-     *(interner Docker-Hostname — kein Internetzugriff nötig)*
-   - Heartbeat Interval: `60` Sekunden
-
-6. Optional — zweiter Monitor für DB-Readiness:
-   - Friendly Name: `PulseBase Ready`
-   - URL: `http://api:8000/ready`
-   - Erkennt auch DB-Verbindungsprobleme und fehlgeschlagene Migrations
-
-7. Notification konfigurieren:
-   - Settings → Notifications → Add Notification
-   - Unterstützt E-Mail, Telegram, Discord, Slack, ntfy und viele mehr
-   - Den Notification-Channel beim Monitor unter "Notifications" zuweisen
+**Public SaaS (`make up-public`):** externes **UptimeRobot** (kostenlos) gegen die
+öffentlichen Endpunkte:
+- `https://<domain>/health` (primärer Uptime-Monitor)
+- `https://<domain>/ready` (App + DB + Migrations)
+- Notification → E-Mail/Telegram
 
 **Was `/health` vs. `/ready` unterscheidet:**
 - `/health` → App läuft (kein DB-Call) — primärer Uptime-Monitor
@@ -141,9 +108,12 @@ Das Dashboard ist über die Tailscale-IP des Mac mini erreichbar (konfigurierbar
 
 ## Checkliste vor Public Release
 
-- [ ] `HOST_IP` in `env/.env` auf echte Domain gesetzt
-- [ ] `ACME_EMAIL` in `env/.env` eingetragen
-- [ ] `chmod 600 traefik/acme/acme.json` ausgeführt (einmalig nach `git clone`)
-- [ ] `SENTRY_DSN` in `env/.env.api` eingetragen
-- [ ] `make up` gestartet, Uptime Kuma unter `http://localhost:3001` konfiguriert
-- [ ] `make up-standalone` gestartet, `https://your-domain.com` im Browser geprüft
+- [ ] `env/.env.public` angelegt: `PUBLIC_DOMAIN` + `ACME_EMAIL` gesetzt
+- [ ] DNS-A-Record auf VPS-IP, Ports 80/443 offen (vor dem ersten Start)
+- [ ] `env/.env.api`: `HTTPS_ONLY=true`, `APP_BASE_URL`, `TRUSTED_PROXY_CIDRS`
+- [ ] `SENTRY_DSN` in `env/.env.app` eingetragen + Alert-Rules konfiguriert (OBS-L3)
+- [ ] `BETTERSTACK_SOURCE_TOKEN` (Logs) gesetzt, UptimeRobot-Monitore auf `/health` + `/ready`
+- [ ] `make up-public` gestartet, `https://<domain>` mit gültigem Let's-Encrypt-Cert geprüft
+- [ ] Backup-Cron + `make restore-test` eingerichtet
+
+Vollständiger Runbook: [deployment-public.md](deployment-public.md).

@@ -8,7 +8,7 @@ from src.db import get_reset_token_user_id, save_reset_token
 from src.deps import settings
 
 _RESET_SALT = "password-reset"
-_RESET_MAX_AGE = 3600
+_RESET_MAX_AGE = 900  # 15 min (OWASP: short-lived one-time reset token)
 _VERIFY_SALT = "email-verify"
 _VERIFY_MAX_AGE = 86400  # 24 hours
 _DELETION_SALT = "account-delete"

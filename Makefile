@@ -1,6 +1,9 @@
-.PHONY: network up up-standalone down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
+.PHONY: network up up-public down-public logs-public config-public restore-test down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env --env-file env/.env.app
+# Public SaaS deployment (bundled Caddy + Let's Encrypt). The overlay decouples
+# api from the home gateway's external `proxy` network. See docs/deployment-public.md.
+DC_PUBLIC := docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.yml -f docker-compose.public.yml
 
 # E2E Test-Credentials (lokal, kein echter Account)
 TEST_EMAIL  ?= e2e@pulsebase.test
@@ -12,8 +15,19 @@ network:
 up: network
 	$(DC) up -d --build
 
-up-standalone: network
-	$(DC) --profile standalone up -d --build
+# ── Public SaaS instance (bundled Caddy + Let's Encrypt on PUBLIC_DOMAIN) ──────
+up-public: ## Öffentliche Instanz starten (eigenes Caddy + Let's Encrypt)
+	@test -f env/.env.public || { echo "FEHLER: env/.env.public fehlt — cp env/.env.public.example env/.env.public und ausfüllen"; exit 1; }
+	$(DC_PUBLIC) up -d --build
+
+down-public:
+	$(DC_PUBLIC) down
+
+logs-public:
+	$(DC_PUBLIC) logs -f caddy
+
+config-public: ## Gemergte Public-Config rendern (Sanity-Check: api ohne proxy-Netz)
+	$(DC_PUBLIC) config
 
 down:
 	$(DC) down
@@ -92,6 +106,21 @@ gen-secrets:
 
 secure-env:
 	chmod 600 env/.env env/.env.app env/.env.api env/.env.sync env/.env.ml
+	@test -f env/.env.public && chmod 600 env/.env.public || true
+
+# ── Public-Instanz: Backup-Restore-Test (Regel "test backups") ────────────────
+# Restored den neuesten pg_dump in eine Wegwerf-DB und prüft die User-Zahl.
+# Voraussetzung: tägliches Host-Cron-pg_dump nach /srv/backups (s. docs/deployment-public.md).
+restore-test:
+	@latest=$$(ls -t /srv/backups/garmin-*.dump 2>/dev/null | head -1); \
+	test -n "$$latest" || { echo "FEHLER: kein Backup unter /srv/backups/garmin-*.dump"; exit 1; }; \
+	echo "Restore-Test mit $$latest"; \
+	docker exec pulsebase-db dropdb -U garmin --if-exists restore_check; \
+	docker exec pulsebase-db createdb -U garmin restore_check; \
+	docker exec -i pulsebase-db pg_restore -U garmin -d restore_check < "$$latest"; \
+	docker exec pulsebase-db psql -U garmin -d restore_check -c "SELECT count(*) AS users FROM users;"; \
+	docker exec pulsebase-db dropdb -U garmin restore_check; \
+	echo "→ Restore-Test OK"
 
 setup:
 	@echo "=== Erstmalige Einrichtung ==="
@@ -109,8 +138,8 @@ setup:
 	@echo "  make migrate"
 	@echo ""
 	@echo "Schritt 4 — Starten:"
-	@echo "  make up              (mit eigenem Reverse Proxy / homelab-gateway)"
-	@echo "  make up-standalone   (mit eingebautem Traefik)"
+	@echo "  make up         (Heim: hinter homelab-gateway / Caddy-Tailscale)"
+	@echo "  make up-public  (öffentliche Instanz: eigenes Caddy + Let's Encrypt — siehe docs/deployment-public.md)"
 	@echo ""
 	@echo "Schritt 5 — Registrieren und Garmin verknüpfen:"
 	@echo "  https://<deine-domain>/register"

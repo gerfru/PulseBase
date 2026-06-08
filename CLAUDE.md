@@ -89,7 +89,7 @@ Ausfuehrlichere Regeln: `app-rules.md`, `github-rules.md`, `architecture-rules.m
 ## Stack
 
 FastAPI · TimescaleDB (PostgreSQL 16) · Docker Compose · Chart.js · scikit-learn
-Zugriff: `https://<APP_BASE_URL>` — eigener Reverse Proxy (homelab-gateway) oder `make up-standalone` mit Traefik
+Zugriff: `https://<APP_BASE_URL>` — Heim über homelab-gateway (Caddy/Tailscale) oder öffentlich via `make up-public` (gebündeltes Caddy + Let's Encrypt)
 
 ## Entwicklungs-Workflow
 
@@ -330,13 +330,12 @@ GET /accessibility           Barrierefreiheitserklärung (BFSG)
 
 ## Env-Files (unter `env/`)
 
-**`env/.env`** — DB-Admin + Traefik (nur Flyway-Migrationen und DB-Service; NICHT in App-Containern):
+**`env/.env`** — DB-Admin (nur Flyway-Migrationen und DB-Service; NICHT in App-Containern):
 ```
 DB_USER=garmin
 DB_PASSWORD=
 HOST_IP=your-domain.com
-TAILSCALE_IP=100.x.x.x      # tailscale ip -4 — für Monitoring-UIs (Uptime Kuma :3001, Loki :3100)
-ACME_EMAIL=your@email.com   # nur standalone-Modus mit Traefik
+TAILSCALE_IP=100.x.x.x      # tailscale ip -4 — Zugriff auf zentrale Gateway-Monitoring-UIs (Uptime Kuma, Loki)
 ```
 
 **`env/.env.app`** — shared, alle 3 App-Services (api + sync-service + ml-service):
@@ -385,16 +384,21 @@ Routes importieren direkt aus `api/src/db/`. Eine dedizierte `api/src/services/`
 Begründung: Ein Service-Layer lohnt sich wenn Business-Logik von mehreren Routen geteilt wird oder mehrere Entwickler parallel arbeiten. Beides trifft hier nicht zu — die Logik ist route-spezifisch und das Team ist ein Entwickler. Das ist unabhängig davon ob die App öffentlich zugänglich ist oder nicht.
 Trigger für Einführung: >3 Entwickler oder Business-Logik die über mehrere Routen hinweg geteilt wird.
 
-### ARCH-M3: Traefik standalone — ACME konfiguriert ✅
+### ARCH-M3: Zwei Deployment-Pfade — homelab-gateway (Heim) + Caddy-Public (SaaS)
 
-`traefik/traefik.yml` enthält `certificatesResolvers.letsencrypt` (HTTP-01). Zertifikate werden automatisch geholt und erneuert.
-Einmalig vor erstem Start: `ACME_EMAIL` in `env/.env` setzen + `chmod 600 traefik/acme/acme.json`.
-Gilt nur für `make up-standalone`. Bei Betrieb mit homelab-gateway übernimmt Caddy die TLS-Terminierung.
+Zwei klar getrennte Betriebsarten:
+- **Heim (`make up`):** App hängt am externen `proxy`-Netz; das separate Repo **homelab-gateway** stellt Caddy (TLS-Terminierung, nur über Tailscale-IP erreichbar) sowie zentrales Loki/Promtail/Uptime-Kuma bereit. PulseBase bündelt selbst keinen Proxy und kein Monitoring.
+- **Public SaaS (`make up-public`):** self-contained über das Overlay `docker-compose.public.yml` + gebündeltes **Caddy** mit automatischem Let's Encrypt auf einer öffentlichen Domain (Ports 80/443 auf `0.0.0.0`). Env: `env/.env.public` (`PUBLIC_DOMAIN`, `ACME_EMAIL`). Monitoring hier über externe SaaS-Dienste (Sentry + Better Stack/Axiom + UptimeRobot), nicht über das homelab-gateway.
 
-### CICD-M3: Branch Protection nicht erzwingbar (privates Repo, Gratis-Plan)
+Hinweis: Es gibt **kein** `traefik/`-Verzeichnis (das frühere Traefik-Standalone war nie implementiert; durch Caddy ersetzt).
 
-Direktpushes auf `main` sind technisch möglich; GitHub erzwingt Status Checks nicht für private Repos ohne Pro-Plan.
-Begründung: Solo-Projekt, Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-commit-to-branch`) sind die primäre Schutzebene. Upgrade auf Pro-Plan würde Branch Protection ermöglichen.
+### CICD-M3: Branch Protection via Ruleset aktiv
+
+Auf `main` ist ein **Ruleset aktiv** (pull_request + required_status_checks + non_fast_forward, leere Bypass-Liste). Die frühere Annahme „nicht erzwingbar auf Private-Free-Plan" ist überholt.
+Die Required-Status-Checks umfassten zunächst nur 3 Jobs; jetzt ist zusätzlich der `ci-ok`-Gate (`CI OK (All Green Gate)`, alle 9 Jobs in `needs`) Required Check, sodass mypy/trivy/e2e/js-Fehler den Merge blockieren.
+Zusätzliche Schutzebene bleibt: Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-commit-to-branch`).
+
+**GitHub-native Secret Scanning + Push Protection: blocked-by-plan.** API meldet „Secret scanning is not available for this repository" (Private-Repo ohne GitHub Advanced Security). Defense-in-Depth-Layer 1 (Pre-commit-gitleaks) + Layer 2 (gitleaks-action in CI) decken Secret-Scanning ab; der GitHub-native Layer 3 ist erst mit GHAS / Public-Repo verfügbar. Dependabot-Vulnerability-Alerts sind aktiv (HTTP 204).
 
 ### CICD-M4: Kein automatisierter Deployment-Step (CD-Pipeline fehlt)
 
@@ -416,20 +420,19 @@ Trigger für Refactoring: Dateien >400Z oder ein zweiter Entwickler der isoliert
 Alle Endpunkte laufen unter `/api/*` ohne Versionsprefix.
 Begründung: Keine externen Consumer. Eine Versionierung würde alle Routen, JS-Fetch-Aufrufe und Tests brechen. Einführen erst wenn externe API-Stabilität verlangt wird.
 
-### ARCH-L5: `routes/api.py` technisch-flat statt feature-split
+### ARCH-L5: `routes/api.py` feature-split ✅ (erledigt)
 
-`api/src/routes/api.py` enthält alle JSON-Endpunkte in einer Datei (~375 Zeilen). Eine Feature-basierte Aufteilung (z.B. `api_health.py`, `api_ml.py`, `api_seizures.py`, `api_glucose.py`) wäre sauberer, aber: Solo-Projekt, alle Endpunkte teilen dieselben `require_user`- und `limiter`-Abhängigkeiten, die Domain-Grenzen sind durch Kommentarblöcke bereits klar erkennbar. Split einführen wenn die Datei 400 Zeilen überschreitet oder ein zweiter Entwickler onboarded wird.
+Die Datei hatte den 400-Zeilen-Trigger erreicht und wurde aufgeteilt: `routes/api.py` ist jetzt ein dünner Aggregator, der `api_health.py` / `api_ml.py` / `api_seizures.py` / `api_glucose.py` per `include_router` einbindet (in `main.py` weiterhin als ein `router` registriert). Analog wurde der DSGVO-Export aus `db/users.py` nach `db/user_export.py` extrahiert (Re-Export über `db/__init__.py`).
 
-### OBS-L1: Uptime-Monitoring via Uptime Kuma ✅
+### OBS-L1: Uptime-Monitoring
 
-Uptime Kuma läuft als Compose-Service (`make up` startet es automatisch).
-Dashboard: `http://localhost:3001` — einmalig Admin-Account anlegen + Monitor auf `http://api:8000/health` konfigurieren.
-Details: [docs/external-services.md](docs/external-services.md#3-uptime-kuma--uptime-monitoring-self-hosted)
+**Heim:** Uptime Kuma läuft **zentral im homelab-gateway** (nicht in PulseBase). `make up` startet es NICHT. Dort einen Monitor auf `http://pulsebase-api:8000/health` konfigurieren.
+**Public SaaS:** externes **UptimeRobot** auf `https://<domain>/health` und `/ready`.
 
 ### Monitoring & Alert-Setup (L-79)
 
-Log-Aggregation läuft via Loki + Promtail (`make up` startet beides automatisch).
-Logs abfragen: `curl "http://localhost:3100/loki/api/v1/query_range?query={container=\"pulsebase-api\"}&limit=50"`
+**Log-Aggregation läuft NICHT in PulseBase.** Die 3 App-Container tragen das Label `monitoring=true`; im Heimbetrieb werden ihre stdout-JSON-Logs vom **Promtail des homelab-gateway** automatisch gescrapt und in dessen zentralem **Loki** (`{project="pulsebase"}`) aggregiert. `make up` startet weder Loki noch Promtail.
+**Public SaaS:** stdout-Logs via Vector-Sidecar (`docker-compose.public.yml`) an **Better Stack/Axiom** shippen.
 
 **Sentry Alert-Rules (einmalig im Sentry-Dashboard konfigurieren):**
 

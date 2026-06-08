@@ -41,7 +41,7 @@ PulseBase ist eine öffentlich zugängliche Self-Hosted-App mit echten Nutzern. 
 [Internet]
      │
      ▼ 443/tcp (einziger eingehender Vektor)
-[Caddy / Traefik]
+[Caddy]  ←── homelab-gateway (Heim) oder gebündelt via make up-public (SaaS)
      │
      ▼ HTTP intern
 [FastAPI]   ←── [Garmin Connect API] (ausgehend, OAuth-ähnlich mit Token)
@@ -230,11 +230,11 @@ Beide Parameter müssen passen. Wenn `$2` (eingeloggte User-ID) nicht zum Datens
 
 ### 5.1 TLS und HSTS
 
-**TLS:** Caddy oder Traefik terminiert TLS mit ACME/Let's Encrypt (Pflicht für öffentliches Deployment). HSTS ist aktiviert (`max-age=31536000; includeSubDomains`) — Browser erzwingen HTTPS nach dem ersten Aufruf.
+**TLS:** **Caddy** terminiert TLS mit ACME/Let's Encrypt (Pflicht für öffentliches Deployment). HSTS ist aktiviert (`max-age=31536000; includeSubDomains`) — Browser erzwingen HTTPS nach dem ersten Aufruf.
 
 **Deployment-Optionen:**
-- **homelab-gateway (Caddy):** ACME via HTTP-01 oder DNS-01 in `homelab-gateway`-Konfiguration — empfohlen.
-- **Standalone (Traefik):** `certificatesResolvers` mit ACME in `traefik/traefik.yml` konfigurieren. Self-signed TLS ist für öffentliches Deployment nicht akzeptabel.
+- **Heim — homelab-gateway (Caddy):** ACME via HTTP-01/DNS-01 im `homelab-gateway`; nur über Tailscale erreichbar.
+- **Public SaaS — `make up-public`:** gebündeltes Caddy holt automatisch ein Let's-Encrypt-Cert für `PUBLIC_DOMAIN` (`Caddyfile.public`). Self-signed TLS ist für öffentliches Deployment nicht akzeptabel.
 
 ### 5.2 Security Headers
 
@@ -728,7 +728,7 @@ DELETE FROM user_tokens WHERE user_id = <id>;
 ```
 
 **Bei Verdacht auf Daten-Breach:**
-1. App offline nehmen: `traefik.enable=false` setzen → `make dashboard`
+1. App offline nehmen: `make down-public` (oder `caddy`-Service stoppen)
 2. Logs sichern: `docker logs pulsebase-api > incident_$(date +%Y%m%d).log`
 3. Audit-Log durchsuchen: Welche User-IDs, welche Endpunkte, welche IPs?
 4. DSGVO-Meldepflicht prüfen: Bei Art. 9-Daten (Gesundheitsdaten) → Meldung an Datenschutzbehörde innerhalb 72h

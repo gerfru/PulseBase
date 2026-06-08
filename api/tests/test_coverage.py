@@ -263,7 +263,9 @@ async def test_libre_unlink_removes_existing_token_dir(client):
 async def test_profile_update_valid_sex(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.update_user_profile", AsyncMock(return_value=None)),
+        patch(
+            "src.routes.api_health.update_user_profile", AsyncMock(return_value=None)
+        ),
     ):
         r = await client.patch("/api/profile", json={"sex": "m"})
     assert r.status_code == 200
@@ -273,7 +275,9 @@ async def test_profile_update_valid_sex(client):
 async def test_profile_update_valid_dob(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.update_user_profile", AsyncMock(return_value=None)),
+        patch(
+            "src.routes.api_health.update_user_profile", AsyncMock(return_value=None)
+        ),
     ):
         r = await client.patch("/api/profile", json={"date_of_birth": "1990-06-15"})
     assert r.status_code == 200
@@ -282,7 +286,9 @@ async def test_profile_update_valid_dob(client):
 async def test_profile_update_spo2_enabled(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.update_spo2_enabled", AsyncMock(return_value=None)),
+        patch(
+            "src.routes.api_health.update_spo2_enabled", AsyncMock(return_value=None)
+        ),
     ):
         r = await client.patch("/api/profile", json={"spo2_enabled": True})
     assert r.status_code == 200
@@ -294,7 +300,7 @@ async def test_profile_update_spo2_enabled(client):
 async def test_seizure_valid_severity(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api.save_seizure", AsyncMock(return_value=1)),
+        patch("src.routes.api_seizures.save_seizure", AsyncMock(return_value=1)),
     ):
         r = await client.post(
             "/api/seizures",
@@ -939,13 +945,18 @@ def test_get_real_ip_ignores_forwarded_from_untrusted_client():
 
 
 async def test_api_metrics_authenticated_returns_signals(client):
+    # Prime the module-level Process (lifespan does this in prod) so cpu_percent
+    # reflects a real saturation reading rather than the always-0.0 first call.
+    import src.main as main_mod
+
+    main_mod._proc.cpu_percent(interval=None)
     with patch("src.main.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get("/api/metrics")
     assert r.status_code == 200
     body = r.json()
     assert "active_requests" in body
-    assert "memory_mb" in body
-    assert "cpu_percent" in body
+    assert body["memory_mb"] > 0
+    assert isinstance(body["cpu_percent"], float)
 
 
 async def test_request_id_middleware_increments_error_on_exception():

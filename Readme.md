@@ -94,17 +94,21 @@ that are **never stored**. No cloud. No subscription. No data broker in the midd
 
 ## 🚀 Quickstart
 
-> 💡 **No reverse proxy yet?** Use `make up-standalone` — it ships a bundled Traefik with automatic
-> HTTPS, so you can go from clone to dashboard without any extra infrastructure.
+Two deployment modes:
+
+| Mode | Command | Reverse proxy / TLS | Reachable |
+|------|---------|---------------------|-----------|
+| **Home** (default) | `make up` | [homelab-gateway](https://github.com/gerfru/homelab-gateway) (Caddy, Tailscale) | Tailnet only |
+| **Public SaaS** | `make up-public` | bundled Caddy + Let's Encrypt | public internet |
 
 ```bash
-cp env/.env.example env/.env              # HOST_IP, ACME_EMAIL (standalone only)
+cp env/.env.example env/.env              # HOST_IP / DB admin
 cp env/.env.app.example env/.env.app      # DB roles + FERNET_KEY  → make gen-secrets
 cp env/.env.api.example env/.env.api      # SESSION_SECRET (≥32 chars) + APP_BASE_URL
 cp env/.env.sync.example env/.env.sync
 cp env/.env.ml.example env/.env.ml
 
-make up                 # build + start everything (needs a reverse proxy on the proxy network)
+make up                 # home: build + start behind homelab-gateway (proxy network)
 # → https://your-domain.com/register
 # → https://your-domain.com/garmin/link
 make trigger-sync       # pull your Garmin data now (no rebuild — runs within a minute)
@@ -113,6 +117,10 @@ make trigger-sync       # pull your Garmin data now (no rebuild — runs within 
 
 **Running a homelab?** Start [homelab-gateway](https://github.com/gerfru/homelab-gateway) first,
 then `make up`.
+
+**Going public (self-hosted SaaS)?** Bundled Caddy gets you automatic HTTPS on a public
+domain — `cp env/.env.public.example env/.env.public`, set `PUBLIC_DOMAIN` + `ACME_EMAIL`,
+then `make up-public`. Full runbook: **[docs/deployment-public.md](docs/deployment-public.md)**.
 
 → Full walkthrough: **[docs/setup.md](docs/setup.md)**
 
@@ -136,7 +144,7 @@ Pick your depth:
 | 🔐 **[Security](docs/security.md)** | Threat model, auth layers, crypto, headers |
 | 🏗️ **[Production Hardening](docs/production-hardening.md)** | Going live: secrets, backups, monitoring |
 | 🌐 **[External Services](docs/external-services.md)** | Let's Encrypt, Sentry, Uptime Kuma setup |
-| 🧭 **[Design Decisions](docs/design-decisions.md)** | Why no Grafana, no ORM, no JWT, Caddy vs Traefik |
+| 🧭 **[Design Decisions](docs/design-decisions.md)** | Why no Grafana, no ORM, no JWT, Caddy everywhere |
 | 📋 **[ADRs](docs/adr/)** | Architecture Decision Records |
 
 ---

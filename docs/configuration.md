@@ -36,7 +36,7 @@ Wird **nur** von `db` und `flyway` geladen. App-Services (api/sync/ml) sehen die
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
-| `HOST_IP` | string | — | `your-domain.com` | Hostname/Domain (wird in `docker-compose.yml` als Traefik-Rule verwendet) |
+| `HOST_IP` | string | — | `your-domain.com` | Hostname/Domain des Servers (Heim-Routing). Öffentliche Domain für `make up-public` steht in `env/.env.public` als `PUBLIC_DOMAIN`. |
 
 ---
 
@@ -94,6 +94,8 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 | `DB_HOST` | string | — | `db` | PostgreSQL-Hostname (Docker-Service-Name) |
 | `DB_PORT` | int | — | `5432` | PostgreSQL-Port |
 | `DB_NAME` | string | — | `garmin` | Datenbankname |
+| `DB_POOL_MIN` | int | — | `1` | asyncpg-Pool `min_size`. Defaults entsprechen den bisherigen Hardcodes. |
+| `DB_POOL_MAX` | int | — | `5` | asyncpg-Pool `max_size`. Hochsetzen bei mehreren uvicorn-Workern. |
 
 *(DB_APP_USER, DB_APP_PASSWORD kommen aus `env/.env.app`)*
 
@@ -168,6 +170,23 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_SYNC_U
 | `MODEL_DIR` | path | — | `/app/models` | Verzeichnis für gespeicherte scikit-learn-Modelle (joblib-Format) |
 
 *(SENTRY_DSN kommt aus `env/.env.app` — zentral für alle drei Services)*
+
+---
+
+## `env/.env.public` — Public SaaS (nur `make up-public`)
+
+Nur für die öffentliche Instanz (gebündeltes Caddy + Vector). Nicht im Heim-Betrieb nötig.
+Vollständiger Runbook: [deployment-public.md](deployment-public.md).
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `PUBLIC_DOMAIN` | string | ✓ (public) | — | Öffentliche Domain für Caddy/Let's Encrypt. A-Record muss vor dem Start stehen. |
+| `ACME_EMAIL` | string | ✓ (public) | — | Kontakt-Mail für Let's Encrypt. |
+| `BETTERSTACK_SOURCE_TOKEN` | string | — | `""` | Source-Token für Log-Shipping via Vector an Better Stack (alternativ Axiom). |
+
+> Zusätzlich für die öffentliche Instanz in `env/.env.api`: `HTTPS_ONLY=true`,
+> `APP_BASE_URL=https://<domain>`, `TRUSTED_PROXY_CIDRS=["172.30.0.0/16","127.0.0.1/32"]`
+> (gepinntes `internal`-Subnetz des Overlays).
 
 ---
 

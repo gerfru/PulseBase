@@ -1,0 +1,38 @@
+# Vector log shipper for the public SaaS instance. Tails the PulseBase containers
+# via the Docker socket and forwards their structlog JSON to Better Stack (or swap
+# the sink for Axiom). Local `json-file` logging + `make logs-*` stay intact.
+
+[sources.pulsebase_docker]
+type = "docker_logs"
+# Only PulseBase containers (compose project label), not every container on the host.
+include_labels = ["com.docker.compose.project=pulsebase"]
+
+[transforms.parse]
+type = "remap"
+inputs = ["pulsebase_docker"]
+# structlog already emits JSON on stdout; parse it so fields are queryable.
+source = '''
+. = parse_json(.message) ?? { "message": .message }
+.container = .container_name
+'''
+
+# ── Sink: Better Stack (Logtail) ──────────────────────────────────────────────
+# Set BETTERSTACK_SOURCE_TOKEN in env/.env.public.
+[sinks.betterstack]
+type = "http"
+inputs = ["parse"]
+uri = "https://in.logs.betterstack.com"
+method = "post"
+encoding.codec = "json"
+compression = "gzip"
+
+[sinks.betterstack.request.headers]
+Authorization = "Bearer ${BETTERSTACK_SOURCE_TOKEN}"
+
+# ── Alternative: Axiom ────────────────────────────────────────────────────────
+# Replace the betterstack sink above with:
+# [sinks.axiom]
+# type = "axiom"
+# inputs = ["parse"]
+# token = "${AXIOM_TOKEN}"
+# dataset = "${AXIOM_DATASET}"

@@ -1,9 +1,9 @@
 from .pool import Settings, get_pool
+from .user_export import export_user_data
 from .users import (
     create_user,
     delete_user,
     set_pending_deletion,
-    export_user_data,
     get_user_by_email,
     get_user_by_id,
     get_user_sex,
