@@ -37,7 +37,13 @@ repos:
     rev: v1.5.0
     hooks:
       - id: detect-secrets
-        args: [--baseline, .secrets.baseline]
+        # Lockfiles enthalten nur Paket-Integrity-Hashes (keine Secrets) — ausschließen,
+        # sonst flaggt detect-secrets bei jedem Dep-Bump die neuen Base64-Hashes.
+        args:
+          - --baseline
+          - .secrets.baseline
+          - --exclude-files
+          - (^|/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|uv\.lock)$
 
   - repo: local
     hooks:
