@@ -25,7 +25,7 @@ from src.deps import (
     require_user,
     settings,
 )
-from src.logging_config import configure_logging, configure_sentry
+from src.logging_config import _release, configure_logging, configure_sentry
 from src.routes import account, api as api_routes
 from src.routes import auth, garmin, libre, pages
 
@@ -153,7 +153,7 @@ async def lifespan(app: FastAPI):  # pragma: no cover
     logger.info("db.pool_closed")
 
 
-app = FastAPI(title="PulseBase API", lifespan=lifespan)
+app = FastAPI(title="PulseBase API", version=_release(), lifespan=lifespan)
 app.mount(
     "/static",
     StaticFiles(directory=str(Path(__file__).parent / "static")),

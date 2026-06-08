@@ -1,3 +1,4 @@
+import importlib.metadata
 import logging
 import os
 import sys
@@ -5,6 +6,28 @@ from typing import Any
 
 import sentry_sdk
 import structlog
+
+
+def _release() -> str:
+    """App version for Sentry release tracking. Single source = pyproject version.
+    Resolution: APP_VERSION env override → installed dist metadata (Docker, pip
+    install .) → pyproject.toml on disk (dev/uv run from source) → 'unknown'."""
+    env = os.environ.get("APP_VERSION")
+    if env:
+        return env
+    for dist in ("pulsebase-api", "pulsebase-sync", "pulsebase-ml"):
+        try:
+            return importlib.metadata.version(dist)
+        except importlib.metadata.PackageNotFoundError:
+            continue
+    try:
+        import tomllib
+        from pathlib import Path
+
+        pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        return str(tomllib.loads(pyproject.read_text())["project"]["version"])
+    except Exception:
+        return "unknown"
 
 
 def _sentry_error_processor(logger: Any, method: str, event_dict: Any) -> Any:
@@ -72,7 +95,7 @@ def configure_sentry(settings: Any, integrations: list[Any] | None = None) -> No
         send_default_pii=False,
         traces_sample_rate=0.1,
         environment=os.environ.get("APP_ENV", "production"),
-        release=os.environ.get("APP_VERSION", "unknown"),
+        release=_release(),
         integrations=integrations or [],
     )
     _log.info("sentry.initialized")

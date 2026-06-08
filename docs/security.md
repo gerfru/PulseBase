@@ -4,7 +4,7 @@ Dieses Dokument erklärt **warum** PulseBase welche Sicherheitsmaßnahmen trifft
 
 **Verwandte Dokumente:**
 - [`production-hardening.md`](production-hardening.md) — Deployment-Checkliste und konkrete Befehle
-- [`app-eval-report.md`](app-eval-report.md) — Offene und geschlossene Findings (ASVS-Audit)
+- [`review-open-items.md`](review-open-items.md) — offene Punkte aus den Reviews (App/UX/Style)
 - [`architecture.md`](architecture.md) — Systemaufbau und Datenflüsse
 
 ---
@@ -736,7 +736,7 @@ DELETE FROM user_tokens WHERE user_id = <id>;
 ### 14.3 Post-Incident
 
 - Root Cause Analysis dokumentieren
-- Finding in `app-eval-report.md` ergänzen
+- Falls offen: Finding in `review-open-items.md` ergänzen
 - Wenn anwendbar: neuen Test schreiben der den Angriffspfad abdeckt
 - Security-Kontrollen anpassen
 
