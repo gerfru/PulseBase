@@ -71,6 +71,9 @@ _active_requests: int = 0
 _error_requests: int = 0
 _metrics_lock = asyncio.Lock()
 _start_time: float = time.monotonic()
+# Module-level Process so cpu_percent() keeps state between scrapes. A fresh
+# psutil.Process() per request would always report 0.0 on its first call.
+_proc = psutil.Process()
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -131,6 +134,8 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):  # pragma: no cover
     pool = await get_pool()
     logger.info("db.pool_initialized")
+    # Prime cpu_percent() so the first /api/metrics scrape reports a real value.
+    _proc.cpu_percent(interval=None)
     try:
         from cryptography.fernet import Fernet
 
@@ -187,13 +192,12 @@ async def app_metrics(request: Request) -> dict[str, float | int]:
     async with _metrics_lock:
         active = _active_requests
         errors = _error_requests
-    proc = psutil.Process()
     return {
         "active_requests": active,
         "error_requests_total": errors,
         "uptime_seconds": round(time.monotonic() - _start_time),
-        "memory_mb": round(proc.memory_info().rss / 1024 / 1024, 1),
-        "cpu_percent": proc.cpu_percent(interval=None),
+        "memory_mb": round(_proc.memory_info().rss / 1024 / 1024, 1),
+        "cpu_percent": _proc.cpu_percent(interval=None),
     }
 
 
