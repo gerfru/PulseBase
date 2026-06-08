@@ -38,6 +38,10 @@
   --card-shadow:  0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.2);
   --tile-bg:      #1e293b;
   --tile-border:  rgba(255, 255, 255, 0.07);
+  /* Motion — theme-unabhängig */
+  --dur-fast: 120ms; --dur-base: 180ms; --dur-slow: 360ms;
+  --ease-out:    cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
 }
 
 /* ── Design Tokens — Light override ───────────────────────────────────── */
@@ -751,4 +755,27 @@ html:not(.dark) .recommendation-block { background: rgba(16,185,129,.07); }
   opacity: 1;
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* ── Karten-Entrance — gestaffelt, dezent ───────────────────────────────────── */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.hero-card-wrap > .card,
+.tab-panel > .card { animation: card-in var(--dur-base) var(--ease-out) backwards; }
+.tab-panel > .card:nth-child(1) { animation-delay: 0ms;   }
+.tab-panel > .card:nth-child(2) { animation-delay: 40ms;  }
+.tab-panel > .card:nth-child(3) { animation-delay: 80ms;  }
+.tab-panel > .card:nth-child(4) { animation-delay: 120ms; }
+
+/* ── Reduced Motion (WCAG 2.3.3) — neutralisiert alle Animationen/Transitions ──
+   Globaler A11y-Override; einziger bewusster !important-Ausnahmefall.            */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
