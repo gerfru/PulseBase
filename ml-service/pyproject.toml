@@ -42,4 +42,4 @@ exclude_lines = [
     "@(abc\\.)?abstractmethod",
     "^\\s*\\.\\.\\.\\s*$",
 ]
-fail_under = 75
+fail_under = 80
