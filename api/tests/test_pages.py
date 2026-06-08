@@ -32,6 +32,20 @@ async def test_authenticated_page_returns_200(client, path):
     assert r.status_code == 200
 
 
+async def test_dashboard_renders_skeleton_placeholders(client):
+    """Hero + Aktivitäten zeigen Skeleton-Markup statt 'Lade…' (kein Layout-Shift)."""
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/dashboard")
+    assert r.status_code == 200
+    body = r.text
+    assert 'class="skeleton"' in body  # Skeleton-Wrapper vorhanden
+    assert "skel-circle" in body  # Hero-Ring-Platzhalter
+    assert "skel-tile" in body  # Signal-/Kapazitäts-Tiles
+    # Hero-Container zeigt nicht mehr den alten 'Lade…'-Platzhalter
+    hero = body.split('id="bento-hero"', 1)[1][:600]
+    assert "Lade…" not in hero
+
+
 # ── ML detail pages ───────────────────────────────────────────────────────────
 
 
