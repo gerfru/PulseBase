@@ -31,9 +31,9 @@
             <ul class="list-disc ml-5 mt-1 space-y-1">
                 <li>Semantisches HTML mit korrekter Überschriftenhierarchie</li>
                 <li>ARIA-Landmark <code>&lt;main&gt;</code> und „Zum Inhalt springen"-Link auf jeder Seite</li>
-                <li>Kontrastverhältnisse erfüllen WCAG 2.1 AA für Textelemente</li>
-                <li>Formularfelder mit verknüpften <code>&lt;label&gt;</code>-Elementen</li>
-                <li>Sichtbarer Fokus-Indikator für alle interaktiven Elemente</li>
+                <li>Farbkontraste erfüllen WCAG 2.1 AA (Text und Bedienelemente) in hellem <em>und</em> dunklem Modus — automatisiert mit axe-core geprüft</li>
+                <li>Formularfelder mit verknüpften <code>&lt;label&gt;</code>-Elementen bzw. <code>aria-label</code></li>
+                <li>Sichtbarer Fokus-Indikator mit mindestens 3:1 Kontrast (WCAG 1.4.11) für alle interaktiven Elemente</li>
                 <li>Status- und Fehlermeldungen werden Screenreadern via <code>role="alert"</code> / <code>aria-live</code> angekündigt</li>
                 <li>Dashboard-Tab-Navigation folgt dem WAI-ARIA-Tabs-Muster (inkl. Pfeiltasten-Bedienung)</li>
                 <li>Diagramme (Chart.js) tragen eine zusammenfassende Textalternative (<code>aria-label</code>) sowie eine versteckte Datentabelle mit jedem einzelnen Messpunkt (verknüpft über <code>aria-describedby</code>)</li>
