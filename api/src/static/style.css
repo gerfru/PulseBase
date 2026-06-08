@@ -769,6 +769,23 @@ html:not(.dark) .recommendation-block { background: rgba(16,185,129,.07); }
 .tab-panel > .card:nth-child(3) { animation-delay: 80ms;  }
 .tab-panel > .card:nth-child(4) { animation-delay: 120ms; }
 
+/* ── Skeleton-Screens — perceived performance, 300-ms-Regel ─────────────────────
+   Wrapper bleibt 300 ms unsichtbar; kommt der echte Inhalt vorher, wird das Markup
+   ersetzt, bevor es je erscheint (kein Flash). NN/g / LogRocket.                  */
+.skeleton { opacity: 0; animation: skel-reveal 1ms linear 300ms forwards; }
+@keyframes skel-reveal { to { opacity: 1; } }
+
+.skel-box {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  animation: skel-pulse 1.2s ease-in-out infinite;
+}
+@keyframes skel-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+.skel-circle { width: 160px; height: 160px; border-radius: 50%; }
+.skel-line   { height: 12px; }   /* Breite inline via style="width:…" */
+.skel-tile   { height: 64px; }
+
 /* ── Reduced Motion (WCAG 2.3.3) — neutralisiert alle Animationen/Transitions ──
    Globaler A11y-Override; einziger bewusster !important-Ausnahmefall.            */
 @media (prefers-reduced-motion: reduce) {

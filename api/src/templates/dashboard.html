@@ -76,7 +76,29 @@
     <!-- ── Hero Card (immer sichtbar) ───────────────────────────── -->
     <div class="px-4 sm:px-6 pt-5">
         <div class="hero-card-wrap">
-            <div class="card" id="bento-hero"><p class="empty">Lade…</p></div>
+            <div class="card" id="bento-hero">
+                <div class="skeleton" aria-hidden="true">
+                    <div class="hero-grid">
+                        <div class="hero-ring-panel">
+                            <div class="skel-box skel-circle"></div>
+                            <div class="skel-box skel-line" style="width:60%;margin-top:12px"></div>
+                        </div>
+                        <div class="hero-right-panel">
+                            <div class="skel-box skel-line" style="width:40%"></div>
+                            <div class="hero-signals-row">
+                                <div class="skel-box skel-tile"></div>
+                                <div class="skel-box skel-tile"></div>
+                                <div class="skel-box skel-tile"></div>
+                            </div>
+                            <div class="skel-box skel-line" style="width:45%;margin-top:8px"></div>
+                            <div class="hero-capacity-grid">
+                                <div class="skel-box skel-tile"></div>
+                                <div class="skel-box skel-tile"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -122,7 +144,15 @@
 
         <div class="card col-span-full">
             <h2>Letzte Aktivitäten</h2>
-            <div id="activities-container"><p class="empty">Lade…</p></div>
+            <div id="activities-container">
+                <div class="skeleton" aria-hidden="true">
+                    <div class="skel-box skel-line" style="width:100%;height:20px;margin-bottom:10px"></div>
+                    <div class="skel-box skel-line" style="width:100%;height:20px;margin-bottom:10px"></div>
+                    <div class="skel-box skel-line" style="width:100%;height:20px;margin-bottom:10px"></div>
+                    <div class="skel-box skel-line" style="width:100%;height:20px;margin-bottom:10px"></div>
+                    <div class="skel-box skel-line" style="width:100%;height:20px"></div>
+                </div>
+            </div>
         </div>
 
     </div>
