@@ -232,3 +232,46 @@ describe('pollSyncStatus (via loadSyncStatus timer)', () => {
         vi.clearAllTimers();
     });
 });
+
+describe('ML/Sync polling (Coverage)', () => {
+    it('pollMlStatus updates status and refreshes when ML finishes', async () => {
+        vi.useFakeTimers({ now: new Date('2024-01-15T12:00:00Z') });
+        global.fetch = vi
+            .fn()
+            .mockResolvedValueOnce({ json: () => Promise.resolve({ pending: true }) })
+            .mockResolvedValueOnce({
+                json: () => Promise.resolve({ pending: false, last_ml_at: '2024-01-15T11:59:00Z' }),
+            });
+        await loadMlStatus();
+        await vi.advanceTimersByTimeAsync(8000);
+        expect(document.getElementById('ml-status').textContent).toContain('Zuletzt analysiert');
+        expect(document.getElementById('toast').textContent).toContain('ML Einblicke aktualisiert');
+        vi.clearAllTimers();
+    });
+
+    it('pollMlStatus hides status when ML finishes without a timestamp', async () => {
+        vi.useFakeTimers();
+        global.fetch = vi
+            .fn()
+            .mockResolvedValueOnce({ json: () => Promise.resolve({ pending: true }) })
+            .mockResolvedValueOnce({ json: () => Promise.resolve({ pending: false }) });
+        await loadMlStatus();
+        await vi.advanceTimersByTimeAsync(8000);
+        expect(document.getElementById('ml-status').style.display).toBe('none');
+        vi.clearAllTimers();
+    });
+
+    it('pollSyncStatus shows toast and reloads when sync finishes', async () => {
+        vi.useFakeTimers({ now: new Date('2024-01-15T12:00:00Z') });
+        global.fetch = vi
+            .fn()
+            .mockResolvedValueOnce({
+                json: () => Promise.resolve({ pending: true, last_sync_at: '2024-01-15T11:55:00Z' }),
+            })
+            .mockResolvedValueOnce({ json: () => Promise.resolve({ pending: false }) });
+        await loadSyncStatus();
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(document.getElementById('toast').textContent).toContain('Sync abgeschlossen');
+        vi.clearAllTimers();
+    });
+});
