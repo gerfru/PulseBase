@@ -134,32 +134,28 @@ async def test_register_email_failed_redirects_to_verify_failed(client):
 
 
 async def test_register_sends_verify_email_when_api_key_set(client):
-    with patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})):
-        with patch("src.routes.auth.save_consent", AsyncMock()):
-            with patch("src.auth_tokens.settings") as mock_auth_settings:
-                mock_auth_settings.session_secret = (
-                    "test-secret-key-for-testing-only!"  # pragma: allowlist secret
-                )
-                with patch("src.mail.settings") as mock_mail_settings:
-                    mock_mail_settings.resend_api_key = (
-                        "re_test"  # pragma: allowlist secret
-                    )
-                    mock_mail_settings.resend_from_email = "noreply@example.com"
-                    mock_mail_settings.app_base_url = "https://example.com"
-                    with patch("src.mail.resend_client") as mock_resend:
-                        mock_resend.Emails.send = MagicMock()
-                        r = await client.post(
-                            "/register",
-                            data={
-                                "name": "New User",
-                                "email": "new@example.com",
-                                "password": "newpassword1x",  # pragma: allowlist secret
-                                "password_confirm": "newpassword1x",  # pragma: allowlist secret
-                                "consent_health": "on",
-                                "consent_terms": "on",
-                                "consent_age": "on",
-                            },
-                        )
+    with (
+        patch("src.routes.auth.create_user", AsyncMock(return_value={"id": 42})),
+        patch("src.routes.auth.save_consent", AsyncMock()),
+        patch("src.mail.settings") as mock_mail_settings,
+        patch("src.mail.resend_client") as mock_resend,
+    ):
+        mock_mail_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+        mock_mail_settings.resend_from_email = "noreply@example.com"
+        mock_mail_settings.app_base_url = "https://example.com"
+        mock_resend.Emails.send = MagicMock()
+        r = await client.post(
+            "/register",
+            data={
+                "name": "New User",
+                "email": "new@example.com",
+                "password": "newpassword1x",  # pragma: allowlist secret
+                "password_confirm": "newpassword1x",  # pragma: allowlist secret
+                "consent_health": "on",
+                "consent_terms": "on",
+                "consent_age": "on",
+            },
+        )
     assert r.status_code == 303
     mock_resend.Emails.send.assert_called_once()
 
@@ -608,18 +604,25 @@ async def test_login_unverified_user_returns_400(client):
 
 
 async def test_verify_valid_token_sets_verified_and_redirects(client):
-    from src.routes.auth import _make_verify_token
-
-    token = _make_verify_token(TEST_USER["id"])
-    with patch("src.routes.auth.set_email_verified", AsyncMock()) as mock_verify:
-        r = await client.get(f"/auth/verify/{token}")
+    with (
+        patch(
+            "src.routes.auth._verify_email_token",
+            AsyncMock(return_value=TEST_USER["id"]),
+        ),
+        patch("src.routes.auth.set_email_verified", AsyncMock()) as mock_verify,
+        patch("src.routes.auth.clear_verify_token", AsyncMock()) as mock_clear,
+    ):
+        r = await client.get("/auth/verify/valid-token")
     assert r.status_code == 303
     assert r.headers["location"] == "/login?verified=1"
     mock_verify.assert_awaited_once_with(TEST_USER["id"])
+    # WS3: token is single-use — cleared after consumption
+    mock_clear.assert_awaited_once_with(TEST_USER["id"])
 
 
 async def test_verify_invalid_token_returns_400(client):
-    r = await client.get("/auth/verify/not-a-valid-token")
+    with patch("src.routes.auth._verify_email_token", AsyncMock(return_value=None)):
+        r = await client.get("/auth/verify/not-a-valid-token")
     assert r.status_code == 400
 
 
@@ -651,24 +654,19 @@ async def test_resend_verify_send_failure_shows_warning(client):
 
 async def test_verify_email_sends_when_api_key_set(client):
     unverified_user = {**TEST_USER, "email_verified_at": None}
-    with patch(
-        "src.routes.auth.get_user_by_email", AsyncMock(return_value=unverified_user)
+    with (
+        patch(
+            "src.routes.auth.get_user_by_email",
+            AsyncMock(return_value=unverified_user),
+        ),
+        patch("src.mail.settings") as mock_mail_settings,
+        patch("src.mail.resend_client") as mock_resend,
     ):
-        with patch("src.auth_tokens.settings") as mock_auth_settings:
-            mock_auth_settings.session_secret = (
-                "test-secret-key-for-testing-only!"  # pragma: allowlist secret
-            )
-            with patch("src.mail.settings") as mock_mail_settings:
-                mock_mail_settings.resend_api_key = (
-                    "re_test"  # pragma: allowlist secret
-                )
-                mock_mail_settings.resend_from_email = "noreply@example.com"
-                mock_mail_settings.app_base_url = "https://example.com"
-                with patch("src.mail.resend_client") as mock_resend:
-                    mock_resend.Emails.send = MagicMock()
-                    r = await client.post(
-                        "/auth/resend-verify", data={"email": TEST_USER["email"]}
-                    )
+        mock_mail_settings.resend_api_key = "re_test"  # pragma: allowlist secret
+        mock_mail_settings.resend_from_email = "noreply@example.com"
+        mock_mail_settings.app_base_url = "https://example.com"
+        mock_resend.Emails.send = MagicMock()
+        r = await client.post("/auth/resend-verify", data={"email": TEST_USER["email"]})
     assert r.status_code == 200
     mock_resend.Emails.send.assert_called_once()
     call_kwargs = mock_resend.Emails.send.call_args[0][0]

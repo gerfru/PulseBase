@@ -32,4 +32,4 @@ Kein Bug-Bounty-Programm; Meldungen werden zeitnah beantwortet.
 
 Für alle anderen Security-Entscheidungen und den aktuellen Sicherheitsstatus:
 → [`docs/security.md`](../docs/security.md)
-→ [`docs/app-eval-report.md`](../docs/app-eval-report.md)
+→ [`docs/review-open-items.md`](../docs/review-open-items.md)

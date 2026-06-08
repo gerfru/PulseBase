@@ -266,7 +266,22 @@ async def unverified_test_user():
             pw_hash,
         )
         await _insert_consents(conn, user_id)
-        yield {"id": user_id, "email": email, "password": password}
+        # DB-backed single-use verify token (V26) — store the hash, hand out the raw token.
+        raw_verify_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_verify_token.encode()).hexdigest()
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=86400)
+        await conn.execute(
+            "UPDATE users SET email_verify_token_hash=$1, email_verify_expires_at=$2 WHERE id=$3",
+            token_hash,
+            expires_at,
+            user_id,
+        )
+        yield {
+            "id": user_id,
+            "email": email,
+            "password": password,
+            "verify_token": raw_verify_token,
+        }
     finally:
         await conn.execute("DELETE FROM users WHERE email = $1", email)
         await conn.close()

@@ -7,19 +7,22 @@ export default defineConfig({
         include: ['tests/js/**/*.test.js'],
         coverage: {
             provider: 'v8',
-            // Gate scope = modules with genuine Vitest unit coverage. These 6 hold
-            // a strict 95/90 bar (regressions fail CI). The other ~19 static modules
-            // are DOM-heavy loaders covered behaviorally by Playwright E2E, NOT by
-            // this gate — deliberately kept honest: adding superficially-tested
-            // modules (colors/dashboard-hero/metrics-ml/settings sit at 0–54%) would
-            // force lowering the bar, which we don't do. Expanding unit coverage to
-            // those modules is tracked separately (review finding M2 "Vollständig").
+            // Gate scope = ES modules with genuine Vitest unit coverage at a strict
+            // 95/90 bar (regressions fail CI). metrics-ml.js (the ML metric-card
+            // render logic) was added in Wave 15 with full render-path tests.
+            // NOT gateable by design: colors.js / help.js / metrics-overview.js /
+            // activity.js are global <script> files (no ES exports) loaded as globals,
+            // so v8 can't instrument them — colors.js IS tested (WCAG contrast) via
+            // file-read+eval but yields 0 instrumented coverage. The remaining
+            // DOM/fetch loader modules are covered behaviorally by Playwright E2E.
+            // We never lower the bar to gate a superficially-tested module.
             include: [
                 'src/static/chart-utils.js',
                 'src/static/dashboard-utils.js',
                 'src/static/dashboard-nav.js',
                 'src/static/dashboard-status.js',
                 'src/static/epilepsy.js',
+                'src/static/metrics-ml.js',
                 'src/static/onboarding.js',
             ],
             // Angehoben von 70 nach gezielter Test-Erweiterung. Knapp unter dem

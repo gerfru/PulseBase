@@ -61,7 +61,7 @@ async def delete_account(
         return _settings_error(request, user, "Passwort falsch.")
 
     await set_pending_deletion(user["id"])
-    token = _make_deletion_token(user["id"])
+    token = await _make_deletion_token(user["id"])
     sent = await send_deletion_confirm_email(user["email"], token)
     if not sent:
         logger.warning(
@@ -82,7 +82,7 @@ async def delete_account(
 @router.get("/account/delete/confirm/{token}")
 @limiter.limit("10/hour")
 async def confirm_delete_account(request: Request, token: str) -> Response:
-    user_id = _verify_deletion_token(token)
+    user_id = await _verify_deletion_token(token)
     if not user_id:
         return _deps.templates.TemplateResponse(
             request,

@@ -304,6 +304,62 @@ async def clear_reset_token(user_id: int) -> None:
     )
 
 
+# ── Single-use e-mail-verification tokens (V26, mirrors reset-token pattern) ───
+
+
+async def save_verify_token(
+    user_id: int, token_hash: str, expires_at: datetime
+) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET email_verify_token_hash = $2, email_verify_expires_at = $3 WHERE id = $1",
+        user_id,
+        token_hash,
+        expires_at,
+    )
+
+
+async def get_verify_token_user_id(token_hash: str) -> int | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT id FROM users WHERE email_verify_token_hash = $1 AND email_verify_expires_at > NOW()",
+        token_hash,
+    )
+    return int(row["id"]) if row else None
+
+
+async def clear_verify_token(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET email_verify_token_hash = NULL, email_verify_expires_at = NULL WHERE id = $1",
+        user_id,
+    )
+
+
+# ── Single-use account-deletion tokens (V26) ──────────────────────────────────
+
+
+async def save_deletion_token(
+    user_id: int, token_hash: str, expires_at: datetime
+) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET account_deletion_token_hash = $2, account_deletion_expires_at = $3 WHERE id = $1",
+        user_id,
+        token_hash,
+        expires_at,
+    )
+
+
+async def get_deletion_token_user_id(token_hash: str) -> int | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT id FROM users WHERE account_deletion_token_hash = $1 AND account_deletion_expires_at > NOW()",
+        token_hash,
+    )
+    return int(row["id"]) if row else None
+
+
 async def save_consent(
     user_id: int,
     consent_type: str,
