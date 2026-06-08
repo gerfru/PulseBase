@@ -550,3 +550,35 @@ describe('list delegation and delete dialog', () => {
         dlg.showModal = savedShowModal;
     });
 });
+
+describe('Edit/Delete-Steuerung (Coverage)', () => {
+    it('cancelEditMode setzt Formular und Labels auf Erfassen zurück', () => {
+        cancelEditMode();
+        expect(document.getElementById('log-card-title').textContent).toBe('Anfall erfassen');
+        expect(document.getElementById('log-submit').textContent).toBe('Speichern');
+        expect(document.getElementById('log-cancel').style.display).toBe('none');
+        expect(_getEditingId()).toBeNull();
+    });
+
+    it('Löschen-Dialog: Abbrechen schließt ohne Löschung', async () => {
+        mockFetch([{ id: 5, occurred_at: '2024-01-15T10:00:00Z', type: 'focal' }]);
+        await loadEvents();
+        document.querySelector('[data-del-id]').click();
+        const dlg = document.getElementById('seizure-delete-confirm');
+        expect(dlg.showModal).toHaveBeenCalled();
+        document.getElementById('seizure-delete-cancel').click();
+        expect(dlg.close).toHaveBeenCalled();
+    });
+
+    it('Löschen-Dialog: Bestätigen löscht den vorgemerkten Eintrag', async () => {
+        mockFetch([{ id: 9, occurred_at: '2024-01-15T10:00:00Z', type: 'focal' }]);
+        await loadEvents();
+        document.querySelector('[data-del-id]').click();
+        const delFetch = vi.fn().mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue([]) });
+        vi.stubGlobal('fetch', delFetch);
+        document.getElementById('seizure-delete-ok').click();
+        await vi.waitFor(() =>
+            expect(delFetch).toHaveBeenCalledWith('/api/seizures/9', { method: 'DELETE' }),
+        );
+    });
+});

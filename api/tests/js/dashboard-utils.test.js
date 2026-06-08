@@ -308,3 +308,54 @@ describe('openFormulaDialog', () => {
         expect(document.getElementById('formula-dialog-body').innerHTML).toBe(sanitizedOutput);
     });
 });
+
+describe('makeChart / chartAriaLabel (Coverage)', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '<canvas id="cc"></canvas>';
+    });
+
+    it('does not throw when the canvas id does not exist', () => {
+        expect(() => makeChart('missing', 'line', ['A'], [{ data: [1] }])).not.toThrow();
+    });
+
+    it('labels a bar chart and appends the latest value for a single series', () => {
+        makeChart('cc', 'bar', ['A', 'B'], [{ label: 'Schritte', data: [100, 250] }]);
+        const label = document.getElementById('cc').getAttribute('aria-label');
+        expect(label).toContain('Balkendiagramm');
+        expect(label).toContain('Aktueller Wert 250');
+        expect(label).toContain('2 Datenpunkte');
+    });
+
+    it('falls back to "Diagramm" for unknown chart types', () => {
+        makeChart('cc', 'doughnut', ['A'], [{ label: 'X', data: [1] }]);
+        expect(document.getElementById('cc').getAttribute('aria-label')).toContain('Diagramm');
+    });
+
+    it('lists series names without value summary for multiple datasets', () => {
+        makeChart('cc', 'line', ['A'], [
+            { label: 'Eins', data: [1] },
+            { label: 'Zwei', data: [2] },
+        ]);
+        const label = document.getElementById('cc').getAttribute('aria-label');
+        expect(label).toContain('Eins, Zwei');
+        expect(label).not.toContain('Aktueller Wert');
+    });
+
+    it('uses only the type word when a single series has no label and no values', () => {
+        makeChart('cc', 'line', ['A'], [{ data: [] }]);
+        expect(document.getElementById('cc').getAttribute('aria-label')).toBe('Liniendiagramm');
+    });
+
+    it('omits the value summary when the labelled single series has no values', () => {
+        makeChart('cc', 'line', ['A'], [{ label: 'Leer', data: [] }]);
+        expect(document.getElementById('cc').getAttribute('aria-label')).toBe('Liniendiagramm: Leer');
+    });
+});
+
+describe('chartAriaLabel — dataset ohne data (Coverage)', () => {
+    it('handles a single dataset without a data array', () => {
+        document.body.innerHTML = '<canvas id="cc"></canvas>';
+        makeChart('cc', 'line', ['A'], [{ label: 'X' }]);
+        expect(document.getElementById('cc').getAttribute('aria-label')).toBe('Liniendiagramm: X');
+    });
+});
