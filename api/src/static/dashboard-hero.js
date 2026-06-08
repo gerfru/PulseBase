@@ -92,15 +92,15 @@ export function openEvidenceDialog(key) {
     const refs = (e.refs || []).map((r) => `<li class="ml-3 list-disc">${esc(r)}</li>`).join('');
     const body = `
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-            <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${e.level === 'meta' ? 'bg-green-700/50 text-green-300' : e.level === 'replicated' ? 'bg-amber-700/50 text-amber-300' : 'bg-sky-700/50 text-sky-300'}">${levelLabel}</span>
+            <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${e.level === 'meta' ? 'bg-green-100 text-green-800 dark:bg-green-700/50 dark:text-green-300' : e.level === 'replicated' ? 'bg-amber-100 text-amber-800 dark:bg-amber-700/50 dark:text-amber-300' : 'bg-sky-100 text-sky-800 dark:bg-sky-700/50 dark:text-sky-300'}">${levelLabel}</span>
             ${typeBadge}
         </div>
         ${horizon}
         ${intendedUse}
         ${notFor}
         <p class="mb-3" style="margin-top:8px">${esc(e.summary)}</p>
-        ${refs ? `<ul class="mb-3 text-xs text-slate-400 space-y-0.5">${refs}</ul>` : ''}
-        ${e.limitations ? `<p class="text-xs text-slate-500 border-t border-slate-700 pt-2"><strong class="text-slate-400">Einschränkungen:</strong> ${esc(e.limitations)}</p>` : ''}
+        ${refs ? `<ul class="mb-3 text-xs text-slate-600 dark:text-slate-400 space-y-0.5">${refs}</ul>` : ''}
+        ${e.limitations ? `<p class="text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-2"><strong class="text-slate-700 dark:text-slate-300">Einschränkungen:</strong> ${esc(e.limitations)}</p>` : ''}
         <p class="disclosure-disclaimer">Kein Ersatz für ärztliche Beratung · Keine medizinische Diagnose · Personalisierte Kalibrierung</p>`;
     openFormulaDialog(e.name || key, body, '#');
 }
