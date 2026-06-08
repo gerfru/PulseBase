@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { buildChartDataTable, fmtDate, fmtHours, makeGradient } from '../../src/static/chart-utils.js';
 
 describe('fmtDate', () => {
@@ -149,5 +149,36 @@ describe('fmtHours', () => {
         expect(fmtHours(3661)).toBe('1h 1m');
         expect(fmtHours(7200)).toBe('2h 0m');
         expect(fmtHours(7384)).toBe('2h 3m');
+    });
+});
+
+describe('buildChartDataTable — Edge-Cases (Coverage)', () => {
+    let canvas;
+    beforeEach(() => {
+        document.body.innerHTML = '<canvas id="c1"></canvas>';
+        canvas = document.getElementById('c1');
+    });
+
+    it('renders an empty row header when a label is null', () => {
+        buildChartDataTable(canvas, [null, 'Di'], [{ label: 'P', data: [1, 2] }], '');
+        const rowHeads = [...document.querySelectorAll('#c1-table tbody th')].map((t) => t.textContent);
+        expect(rowHeads).toEqual(['', 'Di']);
+    });
+
+    it('treats a dataset without a data array as em dashes', () => {
+        buildChartDataTable(canvas, ['Mo'], [{ label: 'P' }], '');
+        expect(document.querySelector('#c1-table tbody td').textContent).toBe('—');
+    });
+});
+
+describe('chart-utils module init (theme defaults)', () => {
+    it('reports isDark=true when prefers-color-scheme is dark', async () => {
+        vi.resetModules();
+        const orig = window.matchMedia;
+        window.matchMedia = vi.fn().mockReturnValue({ matches: true });
+        const mod = await import('../../src/static/chart-utils.js');
+        expect(mod.isDark).toBe(true);
+        window.matchMedia = orig;
+        vi.resetModules();
     });
 });

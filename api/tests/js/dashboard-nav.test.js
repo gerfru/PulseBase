@@ -166,3 +166,21 @@ describe('CHART_HASHES', () => {
         expect(CHART_HASHES.training).toEqual(['training', 'training-load-chart']);
     });
 });
+
+describe('updateNavBar (Coverage)', () => {
+    it('does not throw when nav elements are absent', () => {
+        document.body.innerHTML = '';
+        expect(() => updateNavBar()).not.toThrow();
+    });
+
+    it('disables forward at offset 0 and enables it after navigating back', () => {
+        document.body.innerHTML = '<span id="nav-range"></span><button id="nav-forward"></button>';
+        resetOffset();
+        updateNavBar();
+        expect(document.getElementById('nav-forward').disabled).toBe(true);
+        incrementOffset(1);
+        updateNavBar();
+        expect(document.getElementById('nav-forward').disabled).toBe(false);
+        expect(document.getElementById('nav-range').textContent).toContain('–');
+    });
+});
