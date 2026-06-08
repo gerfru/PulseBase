@@ -77,8 +77,23 @@ def _bypass_csrf():
 
 @pytest.fixture
 async def client():
-    with patch("src.main.get_pool", AsyncMock(return_value=AsyncMock())):
+    # Mock the pool at both reference points: src.main (readiness check) and
+    # src.db.users (used by token persistence in register/verify/delete flows).
+    # Route tests still mock individual DB functions; this is a no-op fallback so
+    # unmocked DB touches (e.g. _make_verify_token) don't hit a real socket.
+    with (
+        patch("src.main.get_pool", AsyncMock(return_value=AsyncMock())),
+        patch("src.db.users.get_pool", AsyncMock(return_value=_pool_mock())),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
             yield ac
+
+
+def _pool_mock() -> AsyncMock:
+    pool = AsyncMock()
+    pool.execute = AsyncMock(return_value="UPDATE 1")
+    pool.fetchrow = AsyncMock(return_value=None)
+    pool.fetch = AsyncMock(return_value=[])
+    return pool

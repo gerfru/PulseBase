@@ -23,6 +23,7 @@ from src.auth_tokens import (
 from src.mail import send_reset_email, send_verify_email
 from src.db import (
     clear_reset_token,
+    clear_verify_token,
     create_user,
     get_user_by_email,
     save_consent,
@@ -169,7 +170,7 @@ async def register(
     await save_consent(user["id"], "terms", True, ip_hash)
     await save_consent(user["id"], "age_16plus", True, ip_hash)
     logger.info("auth.register.success", user_id=user["id"], ip_hash=_ip_hash(request))
-    token = _make_verify_token(user["id"])
+    token = await _make_verify_token(user["id"])
     sent = await send_verify_email(email, token)
     return RedirectResponse(
         "/login?verify=sent" if sent else "/login?verify=failed", status_code=303
@@ -215,7 +216,7 @@ async def resend_verify(
     user = await get_user_by_email(email)
     sent = False
     if user and not user["email_verified_at"]:
-        token = _make_verify_token(user["id"])
+        token = await _make_verify_token(user["id"])
         sent = await send_verify_email(email, token)
     if user and not user["email_verified_at"] and not sent:
         ctx = {
@@ -230,7 +231,7 @@ async def resend_verify(
 
 @router.get("/auth/verify/{token}")
 async def verify_email(request: Request, token: str) -> Response:
-    user_id = _verify_email_token(token)
+    user_id = await _verify_email_token(token)
     if not user_id:
         return templates.TemplateResponse(
             request,
@@ -239,6 +240,7 @@ async def verify_email(request: Request, token: str) -> Response:
             status_code=400,
         )
     await set_email_verified(user_id)
+    await clear_verify_token(user_id)  # single-use: invalidate after consumption
     return RedirectResponse("/login?verified=1", status_code=303)
 
 

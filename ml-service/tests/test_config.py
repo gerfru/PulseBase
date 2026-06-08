@@ -172,3 +172,16 @@ def test_configure_sentry_no_pii_when_dsn_set():
         configure_sentry(settings)
     mock_init.assert_called_once()
     assert mock_init.call_args.kwargs["send_default_pii"] is False
+
+
+def test_configure_sentry_release_is_package_version_not_unknown():
+    """WS1: Sentry release derives from the installed package, not 'unknown'."""
+    from logging_config import configure_sentry
+
+    settings = MagicMock()
+    settings.sentry_dsn = "https://x@sentry.io/1"
+    with patch("sentry_sdk.init") as mock_init:
+        configure_sentry(settings)
+    release = mock_init.call_args.kwargs["release"]
+    assert release != "unknown"
+    assert release[0].isdigit()

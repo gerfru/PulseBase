@@ -826,6 +826,27 @@ def test_configure_sentry_no_pii_when_dsn_set():
         assert mock_init.call_args.kwargs["send_default_pii"] is False
 
 
+def test_configure_sentry_release_is_package_version_not_unknown():
+    """WS1: Sentry release must derive from the installed package, not 'unknown'."""
+    with patch("sentry_sdk.init") as mock_init:
+        settings = MagicMock()
+        settings.sentry_dsn = "https://x@sentry.io/1"
+        from src.logging_config import configure_sentry
+
+        configure_sentry(settings)
+        release = mock_init.call_args.kwargs["release"]
+        assert release != "unknown"
+        assert release[0].isdigit()  # semver-ish, e.g. "1.0.0"
+
+
+def test_app_exposes_version():
+    """WS1: FastAPI app version is set (OpenAPI), derived from the package."""
+    import src.main as main_mod
+
+    assert main_mod.app.version != "unknown"
+    assert main_mod.app.version[0].isdigit()
+
+
 # ── _sentry_error_processor (ERROR events → Sentry) ───────────────────────────
 
 
@@ -847,20 +868,45 @@ def test_sentry_processor_captures_exc_info_tuple():
         cap.assert_called_once_with(exc)
 
 
-# ── auth_tokens: deletion-token helpers ───────────────────────────────────────
+# ── auth_tokens: DB-backed single-use verify + deletion tokens (WS3) ───────────
 
 
-def test_deletion_token_roundtrip():
+def _token_store_patches(prefix: str):
+    """In-memory stand-in for the users-row token columns (token_hash -> user_id)."""
+    store: dict = {}
+
+    async def _save(user_id, token_hash, expires_at):
+        store[token_hash] = user_id
+
+    async def _get(token_hash):
+        return store.get(token_hash)
+
+    return store, (
+        patch(f"src.auth_tokens.save_{prefix}_token", _save),
+        patch(f"src.auth_tokens.get_{prefix}_token_user_id", _get),
+    )
+
+
+async def test_deletion_token_roundtrip_and_invalid():
     from src.auth_tokens import _make_deletion_token, _verify_deletion_token
 
-    token = _make_deletion_token(42)
-    assert _verify_deletion_token(token) == 42
+    _, (p_save, p_get) = _token_store_patches("deletion")
+    with p_save, p_get:
+        token = await _make_deletion_token(42)
+        assert await _verify_deletion_token(token) == 42
+        assert await _verify_deletion_token("not-a-valid-token") is None
 
 
-def test_verify_deletion_token_invalid_returns_none():
-    from src.auth_tokens import _verify_deletion_token
+async def test_verify_token_roundtrip_and_single_use():
+    """WS3: e-mail-verify token is DB-backed; once cleared it can't be replayed."""
+    from src.auth_tokens import _make_verify_token, _verify_email_token
 
-    assert _verify_deletion_token("not-a-valid-token") is None
+    store, (p_save, p_get) = _token_store_patches("verify")
+    with p_save, p_get:
+        token = await _make_verify_token(7)
+        assert await _verify_email_token(token) == 7
+        store.clear()  # route calls clear_verify_token after consumption
+        assert await _verify_email_token(token) is None
 
 
 # ── db/users: validation guards + set_pending_deletion ────────────────────────

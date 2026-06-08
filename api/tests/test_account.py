@@ -73,7 +73,10 @@ async def test_delete_account_success_sends_email_and_shows_pending_page(client)
             "src.routes.account.send_deletion_confirm_email",
             AsyncMock(return_value=True),
         ) as mock_email,
-        patch("src.routes.account._make_deletion_token", return_value="test-token"),
+        patch(
+            "src.routes.account._make_deletion_token",
+            AsyncMock(return_value="test-token"),
+        ),
     ):
         r = await client.post(
             "/account/delete",
@@ -89,7 +92,7 @@ async def test_confirm_delete_account_valid_token_deletes_and_redirects(client):
     with (
         patch(
             "src.routes.account._verify_deletion_token",
-            return_value=TEST_USER["id"],
+            AsyncMock(return_value=TEST_USER["id"]),
         ),
         patch("src.routes.account.get_user_by_id", AsyncMock(return_value=TEST_USER)),
         patch("src.routes.account.delete_user", AsyncMock()) as mock_delete,
@@ -101,7 +104,9 @@ async def test_confirm_delete_account_valid_token_deletes_and_redirects(client):
 
 
 async def test_confirm_delete_account_invalid_token_returns_400(client):
-    with patch("src.routes.account._verify_deletion_token", return_value=None):
+    with patch(
+        "src.routes.account._verify_deletion_token", AsyncMock(return_value=None)
+    ):
         r = await client.get("/account/delete/confirm/bad-token")
     assert r.status_code == 400
 
@@ -119,7 +124,10 @@ async def test_delete_account_email_not_sent_still_shows_pending(client):
             "src.routes.account.send_deletion_confirm_email",
             AsyncMock(return_value=False),
         ),
-        patch("src.routes.account._make_deletion_token", return_value="test-token"),
+        patch(
+            "src.routes.account._make_deletion_token",
+            AsyncMock(return_value="test-token"),
+        ),
     ):
         r = await client.post(
             "/account/delete",
@@ -131,7 +139,7 @@ async def test_delete_account_email_not_sent_still_shows_pending(client):
 async def test_confirm_delete_account_user_not_found_redirects_to_login(client):
     """Valid token but the user no longer exists → redirect to /login (not 500)."""
     with (
-        patch("src.routes.account._verify_deletion_token", return_value=999),
+        patch("src.routes.account._verify_deletion_token", AsyncMock(return_value=999)),
         patch("src.routes.account.get_user_by_id", AsyncMock(return_value=None)),
     ):
         r = await client.get("/account/delete/confirm/valid-token")

@@ -2,7 +2,6 @@
 register, email-verify, and password-reset.
 """
 
-from itsdangerous import URLSafeTimedSerializer
 from playwright.async_api import async_playwright
 
 from tests.e2e.conftest import BASE_URL
@@ -56,13 +55,9 @@ async def test_register_duplicate_email_shows_error(registered_test_user):
 # ── E-Mail-Verify ─────────────────────────────────────────────────────────────
 
 
-async def test_email_verify_valid_token_redirects_to_login(
-    page, unverified_test_user, session_secret
-):
-    token = URLSafeTimedSerializer(session_secret).dumps(
-        unverified_test_user["id"], salt="email-verify"
-    )
-    await page.goto(f"/auth/verify/{token}")
+async def test_email_verify_valid_token_redirects_to_login(page, unverified_test_user):
+    # V26: verify token is DB-backed single-use; the fixture pre-injected its hash.
+    await page.goto(f"/auth/verify/{unverified_test_user['verify_token']}")
     await page.wait_for_url("**/login**", timeout=10000)
     assert "verified=1" in page.url
 
