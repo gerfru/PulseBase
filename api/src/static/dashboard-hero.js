@@ -349,18 +349,27 @@ export function buildHeroCard() {
     if (score != null) {
         const progress = document.getElementById('hero-ring-progress');
         const scoreEl = document.getElementById('hero-ring-score');
-        requestAnimationFrame(() => {
-            if (progress || scoreEl) {
-                const t0 = performance.now();
-                (function tick(now) {
-                    const p = Math.min((now - t0) / 600, 1);
-                    const f = Math.round(p * fill);
-                    if (progress) progress.setAttribute('stroke-dasharray', `${f} 327`);
-                    if (scoreEl) scoreEl.textContent = String(Math.round(p * score));
-                    if (p < 1) requestAnimationFrame(tick);
-                })(performance.now());
-            }
-        });
+        // CSS-reduced-motion-Guard greift hier nicht (JS-getriebenes setAttribute) →
+        // Endzustand sofort setzen statt zu animieren.
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion) {
+            if (progress) progress.setAttribute('stroke-dasharray', `${fill} 327`);
+            if (scoreEl) scoreEl.textContent = String(score);
+        } else {
+            requestAnimationFrame(() => {
+                if (progress || scoreEl) {
+                    const t0 = performance.now();
+                    (function tick(now) {
+                        const p = Math.min((now - t0) / 600, 1);
+                        const eased = 1 - (1 - p) ** 3; // cubic ease-out (optisch wie --ease-out)
+                        const f = Math.round(eased * fill);
+                        if (progress) progress.setAttribute('stroke-dasharray', `${f} 327`);
+                        if (scoreEl) scoreEl.textContent = String(Math.round(eased * score));
+                        if (p < 1) requestAnimationFrame(tick);
+                    })(performance.now());
+                }
+            });
+        }
     } else {
         const scoreEl = document.getElementById('hero-ring-score');
         if (scoreEl) scoreEl.textContent = '—';
