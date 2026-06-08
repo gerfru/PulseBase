@@ -7,7 +7,7 @@
 > kein `traefik/`-Verzeichnis. Tatsächlich: Loki/Promtail/Uptime-Kuma laufen **zentral im
 > homelab-gateway** (PulseBase-Container tragen `monitoring=true`), und der öffentliche
 > Reverse Proxy ist **Caddy** (`make up-public`), nicht Traefik. Aktueller Stand:
-> [review-app-report.md](../review-app-report.md), [deployment-public.md](deployment-public.md)
+> [review-open-items.md](review-open-items.md), [deployment-public.md](deployment-public.md)
 > und der korrigierte CLAUDE.md-Block (ARCH-M3 / OBS-L1 / CICD-M3).
 
 **Stack:** FastAPI · TimescaleDB (PostgreSQL 16) · Python 3.14 · Docker Compose
