@@ -16,9 +16,15 @@ export default defineConfig({
                 'src/static/epilepsy.js',
                 'src/static/onboarding.js',
             ],
+            // Angehoben von 70 nach gezielter Test-Erweiterung. Knapp unter dem
+            // erreichten Niveau (statements 99.76 / branches 96.5 / functions 93.75 /
+            // lines 100), damit Regressionen auffallen; die verbleibenden Lücken sind
+            // bewusst defensive Guards (if(el)/?./.catch) — kein 100%-Ziel (CLAUDE.md).
             thresholds: {
-                lines: 70,
-                functions: 70,
+                statements: 95,
+                branches: 95,
+                functions: 90,
+                lines: 95,
             },
         },
     },
