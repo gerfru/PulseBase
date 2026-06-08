@@ -264,6 +264,46 @@ async def test_create_user_raises_on_null_row():
             await create_user("Bob", "b@c.com", "hash")  # pragma: allowlist secret
 
 
+# ── WS3: single-use verify + deletion token DB helpers (V26) ──────────────────
+
+
+async def test_verify_token_db_save_get_clear():
+    from src.db.users import (
+        clear_verify_token,
+        get_verify_token_user_id,
+        save_verify_token,
+    )
+    from datetime import datetime, timezone
+
+    with patch(
+        "src.db.users.get_pool",
+        AsyncMock(return_value=_pool_mock(fetchrow={"id": 7})),
+    ):
+        await save_verify_token(7, "hash", datetime.now(timezone.utc))
+        assert await get_verify_token_user_id("hash") == 7
+        await clear_verify_token(7)
+    with patch(
+        "src.db.users.get_pool", AsyncMock(return_value=_pool_mock(fetchrow=None))
+    ):
+        assert await get_verify_token_user_id("expired-or-unknown") is None
+
+
+async def test_deletion_token_db_save_get():
+    from src.db.users import get_deletion_token_user_id, save_deletion_token
+    from datetime import datetime, timezone
+
+    with patch(
+        "src.db.users.get_pool",
+        AsyncMock(return_value=_pool_mock(fetchrow={"id": 9})),
+    ):
+        await save_deletion_token(9, "hash", datetime.now(timezone.utc))
+        assert await get_deletion_token_user_id("hash") == 9
+    with patch(
+        "src.db.users.get_pool", AsyncMock(return_value=_pool_mock(fetchrow=None))
+    ):
+        assert await get_deletion_token_user_id("unknown") is None
+
+
 async def test_update_user_profile():
     from src.db.users import update_user_profile
 
