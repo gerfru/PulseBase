@@ -127,7 +127,7 @@ setup-user:
 
 tailwind-build:
 	@echo "=== Tailwind CLI Build ==="
-	@OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+	@OS=$$(uname -s | tr '[:upper:]' '[:lower:]' | sed 's/darwin/macos/'); \
 	ARCH=$$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/'); \
 	curl -fsSL "https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.19/tailwindcss-$$OS-$$ARCH" \
 	  -o /tmp/tailwindcss-cli && chmod +x /tmp/tailwindcss-cli && \

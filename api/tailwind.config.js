@@ -3,10 +3,11 @@ module.exports = {
   darkMode: 'class',
   content: [
     './src/templates/**/*.html',
-    './src/static/dashboard.js',
-    './src/static/activity.js',
-    './src/static/metrics.js',
-    './src/static/ml_insights.js',
+    // Alle Frontend-JS scannen — viele Dateien (epilepsy.js, help.js,
+    // dashboard-hero.js, metrics-ml.js …) rendern Tailwind-Klassen dynamisch.
+    // Eine selektive Liste ließ JS-only-Klassen (z. B. text-violet-700)
+    // unkompiliert und damit wirkungslos.
+    './src/static/**/*.js',
   ],
   theme: {
     fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },

@@ -42,7 +42,7 @@ export function renderSeverityChips() {
         container.appendChild(btn);
     }
     const label = document.createElement('span');
-    label.className = 'text-xs text-slate-400 self-center ml-1';
+    label.className = 'text-xs text-slate-600 dark:text-slate-400 self-center ml-1';
     label.textContent = selectedSeverity ? SEVERITY_LABELS[selectedSeverity] : 'Keine Angabe';
     container.appendChild(label);
 }
@@ -73,7 +73,7 @@ export function renderRiskFlags(container, flags) {
         span1.className = `text-xs font-medium text-${fc}-400`;
         span1.textContent = f.label;
         const span2 = document.createElement('span');
-        span2.className = 'text-xs text-slate-400';
+        span2.className = 'text-xs text-slate-600 dark:text-slate-400';
         span2.textContent = f.detail;
         row.appendChild(span1);
         row.appendChild(span2);
@@ -105,7 +105,7 @@ export async function loadEvents() {
     const el = document.getElementById('event-list');
     _eventsById.clear();
     if (!events.length) {
-        el.innerHTML = '<p class="text-sm text-slate-400">Noch keine Einträge.</p>';
+        el.innerHTML = '<p class="text-sm text-slate-600 dark:text-slate-400">Noch keine Einträge.</p>';
         return;
     }
     el.innerHTML = events
@@ -116,17 +116,17 @@ export async function loadEvents() {
             return `<div class="flex flex-col gap-1 px-4 py-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06]">
             <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-slate-700 dark:text-slate-200">${formatDate(e.occurred_at)}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">${TYPE_LABELS[e.type] || esc(e.type)}</span>
-                ${dur ? `<span class="text-xs text-slate-400">${dur}</span>` : ''}
+                <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-400">${TYPE_LABELS[e.type] || esc(e.type)}</span>
+                ${dur ? `<span class="text-xs text-slate-600 dark:text-slate-400">${dur}</span>` : ''}
                 <span class="ml-auto flex items-center gap-1">
                     <button type="button" data-edit-id="${e.id}" aria-label="Eintrag bearbeiten"
-                            class="px-2 py-0.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">Bearbeiten</button>
+                            class="px-2 py-0.5 rounded-lg text-xs text-slate-600 dark:text-slate-400 hover:text-violet-700 dark:text-violet-400 hover:bg-violet-500/10 transition-colors">Bearbeiten</button>
                     <button type="button" data-del-id="${e.id}" aria-label="Eintrag löschen"
-                            class="px-2 py-0.5 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">Löschen</button>
+                            class="px-2 py-0.5 rounded-lg text-xs text-slate-600 dark:text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">Löschen</button>
                 </span>
             </div>
-            ${sev ? `<div class="text-sm tracking-widest text-violet-400" title="Schwere ${e.severity}/5">${sev}</div>` : ''}
-            ${e.notes ? `<div class="text-xs text-slate-400 mt-0.5">${esc(e.notes)}</div>` : ''}
+            ${sev ? `<div class="text-sm tracking-widest text-violet-700 dark:text-violet-400" title="Schwere ${e.severity}/5">${sev}</div>` : ''}
+            ${e.notes ? `<div class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">${esc(e.notes)}</div>` : ''}
         </div>`;
         })
         .join('');

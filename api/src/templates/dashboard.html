@@ -9,7 +9,7 @@
     <header class="flex items-center justify-between px-4 py-3 mb-4 flex-wrap gap-3">
         <div class="flex items-baseline gap-3">
             <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</h1>
-            <span class="text-sm text-slate-500 dark:text-slate-400">{{ user.name }}</span>
+            <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.name }}</span>
         </div>
         <div class="flex items-center gap-3 flex-wrap">
             <div class="flex gap-1" role="group" aria-label="Zeitraum wählen">
@@ -43,9 +43,9 @@
 
     {% if not user.garmin_linked %}
     <div class="px-4 mb-4">
-        <div class="px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/25 text-yellow-200 text-sm">
+        <div class="px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/25 text-yellow-800 dark:text-yellow-200 text-sm">
             Garmin Account noch nicht verknüpft —
-            <a href="/garmin/link" class="font-semibold text-yellow-300 hover:underline">jetzt verbinden →</a>
+            <a href="/garmin/link" class="font-semibold text-yellow-800 dark:text-yellow-300 underline">jetzt verbinden →</a>
         </div>
     </div>
     {% endif %}
@@ -54,7 +54,7 @@
         <a href="/epilepsy"
            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl
                   bg-violet-500/10 border border-violet-500/20
-                  text-violet-300 text-sm hover:bg-violet-500/15 transition-colors">
+                  text-violet-800 dark:text-violet-300 text-sm hover:bg-violet-500/15 transition-colors">
             Anfallstagebuch
         </a>
     </div>
@@ -62,14 +62,14 @@
 
     <!-- ── Onboarding-/Datenlatenz-Hinweis (einmalig, dismissbar) ── -->
     <div id="onboarding-hint" class="px-4 sm:px-6 pt-5" style="display:none">
-        <div role="status" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-200 text-sm">
+        <div role="status" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-800 dark:text-sky-200 text-sm">
             <span class="shrink-0">⏳</span>
             <span class="flex-1">
                 Deine Daten füllen sich nach und nach: erste Trends nach ~7 Tagen,
                 die ML-Prognose nach ~30 Tagen Daten. Solange einzelne Kacheln noch leer bleiben, ist das normal.
             </span>
             <button id="onboarding-hint-close" type="button" aria-label="Hinweis schließen"
-                    class="shrink-0 text-sky-300/70 hover:text-sky-200 transition-colors">✕</button>
+                    class="shrink-0 text-sky-700 dark:text-sky-300/70 hover:text-sky-900 dark:hover:text-sky-200 transition-colors">✕</button>
         </div>
     </div>
 
@@ -104,7 +104,7 @@
         </div>
 
         <div class="card col-span-full">
-            <h2>Training Load <span class="text-sm font-normal text-slate-400 ml-1">Ermüdung · Fitness · Form</span></h2>
+            <h2>Training Load <span class="text-sm font-normal text-slate-600 dark:text-slate-400 ml-1">Ermüdung · Fitness · Form</span></h2>
             <div class="flex gap-6 mb-3 text-sm">
                 <span>Ermüdung&nbsp;<strong id="tl-atl">—</strong></span>
                 <span>Fitness&nbsp;<strong id="tl-ctl">—</strong></span>
@@ -197,7 +197,7 @@
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 
-    <p class="text-xs text-slate-500 dark:text-slate-600 text-center mt-4 pb-2">
+    <p class="text-xs text-slate-600 dark:text-slate-400 text-center mt-4 pb-2">
         Diese App dient nur zu Informationszwecken und ersetzt keine medizinische Beratung.
     </p>
 

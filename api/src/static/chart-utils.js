@@ -32,3 +32,56 @@ export function fmtHours(seconds) {
         m = Math.floor((seconds % 3600) / 60);
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
+
+// Accessibility: versteckte Datentabelle je Diagramm (WCAG 1.1.1).
+// Das aria-label des Canvas fasst nur zusammen — diese sr-only-<table> macht
+// jeden Einzel-Messpunkt fuer Screenreader zugaenglich. Canvas verweist via
+// aria-describedby auf die Tabelle. Idempotent: ersetzt bei Re-Render.
+// createElement statt innerHTML (kein XSS mit dynamischen Werten).
+export function buildChartDataTable(canvas, labels, datasets, captionText = '') {
+    if (!canvas?.id) return;
+    const tableId = `${canvas.id}-table`;
+    document.getElementById(tableId)?.remove();
+
+    const table = document.createElement('table');
+    table.id = tableId;
+    table.className = 'sr-only';
+
+    if (captionText) {
+        const caption = document.createElement('caption');
+        caption.textContent = captionText;
+        table.appendChild(caption);
+    }
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.appendChild(document.createElement('th')); // Eck-Zelle (X-Achse)
+    datasets.forEach((d, i) => {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = d.label || `Serie ${i + 1}`;
+        headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    labels.forEach((label, rowIdx) => {
+        const tr = document.createElement('tr');
+        const rowHead = document.createElement('th');
+        rowHead.scope = 'row';
+        rowHead.textContent = label != null ? String(label) : '';
+        tr.appendChild(rowHead);
+        datasets.forEach((d) => {
+            const td = document.createElement('td');
+            const v = (d.data || [])[rowIdx];
+            td.textContent = v != null ? String(v) : '—';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    canvas.insertAdjacentElement('afterend', table);
+    canvas.setAttribute('aria-describedby', tableId);
+}

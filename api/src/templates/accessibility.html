@@ -36,8 +36,8 @@
                 <li>Sichtbarer Fokus-Indikator für alle interaktiven Elemente</li>
                 <li>Status- und Fehlermeldungen werden Screenreadern via <code>role="alert"</code> / <code>aria-live</code> angekündigt</li>
                 <li>Dashboard-Tab-Navigation folgt dem WAI-ARIA-Tabs-Muster (inkl. Pfeiltasten-Bedienung)</li>
-                <li>Diagramme (Chart.js) tragen eine zusammenfassende Textalternative (<code>aria-label</code>)</li>
-                <li>GPS-Karte (Leaflet.js) bietet eine textuelle Routen-Zusammenfassung für Screenreader</li>
+                <li>Diagramme (Chart.js) tragen eine zusammenfassende Textalternative (<code>aria-label</code>) sowie eine versteckte Datentabelle mit jedem einzelnen Messpunkt (verknüpft über <code>aria-describedby</code>)</li>
+                <li>GPS-Karte (Leaflet.js) bietet eine textuelle Routen-Zusammenfassung für Screenreader und ist per Tastatur bedienbar (Fokus mit <kbd>Tab</kbd>, Verschieben mit Pfeiltasten, Zoom mit <kbd>+</kbd> / <kbd>−</kbd>)</li>
                 <li>Icon-Schaltflächen mit beschreibendem <code>aria-label</code></li>
                 <li>Bestätigungs-Dialoge nutzen das native <code>&lt;dialog&gt;</code>-Element (Tastaturfokus-Fang, Schließen mit <kbd>Esc</kbd>); destruktive Aktionen (Konto-/Glukose-Löschung) erfordern eine ausdrückliche Bestätigung</li>
                 <li>Footer-Links zu Datenschutz, Nutzungsbedingungen, Impressum</li>
@@ -47,8 +47,7 @@
         <section>
             <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">3. Nicht barrierefreie Inhalte</h2>
             <ul class="list-disc ml-5 space-y-1">
-                <li>Diagramme bieten eine zusammenfassende Textalternative, aber keine vollständige Datentabelle mit jedem einzelnen Messpunkt</li>
-                <li>Die GPS-Karte ist über die Routen-Textzusammenfassung zugänglich, aber nicht vollständig per Tastatur zoom- und verschiebbar</li>
+                <li>Die GPS-Karte vermittelt die Route als Textzusammenfassung (Sportart, Distanz, Dauer); einzelne Wegpunkte entlang der Strecke werden Screenreadern nicht separat vorgelesen</li>
             </ul>
             <p class="mt-2">
                 Diese Einschränkungen werden in künftigen Versionen schrittweise behoben.
@@ -74,17 +73,17 @@
             </p>
             <p class="mt-2">
                 <strong>Österreich:</strong> Bundesministerium für Digitalisierung und Wirtschaftsstandort (BMDW),
-                Barrierefreiheitsstelle, <a href="https://www.digitales.oesterreich.gv.at" class="text-emerald-400 hover:underline" target="_blank" rel="noopener">digitales.oesterreich.gv.at</a>
+                Barrierefreiheitsstelle, <a href="https://www.digitales.oesterreich.gv.at" class="text-emerald-700 dark:text-emerald-400 underline" target="_blank" rel="noopener">digitales.oesterreich.gv.at</a>
             </p>
             <p class="mt-1">
                 <strong>Deutschland:</strong> Überwachungsstelle des Bundes für Barrierefreiheit von
-                Informationstechnik (BFIT-Bund), <a href="https://www.bfit-bund.de" class="text-emerald-400 hover:underline" target="_blank" rel="noopener">bfit-bund.de</a>
+                Informationstechnik (BFIT-Bund), <a href="https://www.bfit-bund.de" class="text-emerald-700 dark:text-emerald-400 underline" target="_blank" rel="noopener">bfit-bund.de</a>
             </p>
         </section>
 
         <section>
             <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">6. Erstellungsdatum</h2>
-            <p>Diese Erklärung wurde am 22. Mai 2026 erstellt und am 7. Juni 2026 aktualisiert.</p>
+            <p>Diese Erklärung wurde am 22. Mai 2026 erstellt und am 8. Juni 2026 aktualisiert.</p>
         </section>
 
     </div>
