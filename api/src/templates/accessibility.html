@@ -37,6 +37,7 @@
                 <li>Status- und Fehlermeldungen werden Screenreadern via <code>role="alert"</code> / <code>aria-live</code> angekündigt</li>
                 <li>Dashboard-Tab-Navigation folgt dem WAI-ARIA-Tabs-Muster (inkl. Pfeiltasten-Bedienung)</li>
                 <li>Diagramme (Chart.js) tragen eine zusammenfassende Textalternative (<code>aria-label</code>) sowie eine versteckte Datentabelle mit jedem einzelnen Messpunkt (verknüpft über <code>aria-describedby</code>)</li>
+                <li>Diagramm-Datenfarben erfüllen in hellem <em>und</em> dunklem Modus mindestens 3:1 Kontrast gegen den Hintergrund (WCAG 1.4.11) — per Unit-Test abgesichert</li>
                 <li>GPS-Karte (Leaflet.js) bietet eine textuelle Routen-Zusammenfassung für Screenreader und ist per Tastatur bedienbar (Fokus mit <kbd>Tab</kbd>, Verschieben mit Pfeiltasten, Zoom mit <kbd>+</kbd> / <kbd>−</kbd>)</li>
                 <li>Icon-Schaltflächen mit beschreibendem <code>aria-label</code></li>
                 <li>Bestätigungs-Dialoge nutzen das native <code>&lt;dialog&gt;</code>-Element (Tastaturfokus-Fang, Schließen mit <kbd>Esc</kbd>); destruktive Aktionen (Konto-/Glukose-Löschung) erfordern eine ausdrückliche Bestätigung</li>
@@ -48,6 +49,7 @@
             <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">3. Nicht barrierefreie Inhalte</h2>
             <ul class="list-disc ml-5 space-y-1">
                 <li>Die GPS-Karte vermittelt die Route als Textzusammenfassung (Sportart, Distanz, Dauer); einzelne Wegpunkte entlang der Strecke werden Screenreadern nicht separat vorgelesen</li>
+                <li>Ein Wechsel zwischen hellem und dunklem Modus färbt bereits gezeichnete Diagramme erst beim nächsten Laden der Seite passend um (Navigation oder Neuladen)</li>
             </ul>
             <p class="mt-2">
                 Diese Einschränkungen werden in künftigen Versionen schrittweise behoben.
