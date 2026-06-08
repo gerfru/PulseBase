@@ -1,1 +1,4 @@
 htmlcov/
+
+# Playwright E2E Failure-Screenshots (Artefakte, nur bei Test-Fehlern erzeugt)
+test-results/
