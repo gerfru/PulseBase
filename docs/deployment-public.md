@@ -84,12 +84,36 @@ Täglicher Host-Cron auf dem VPS (`crontab -e`):
 ## Monitoring (externe SaaS-Dienste)
 
 - **Sentry** (Errors): `SENTRY_DSN` real setzen (api in `.env.api`, sync+ml in `.env.app`).
-  Alert-Rules: neuer Issue sofort; Error-Rate >1% / 10min; p95 >2s (Pflicht vor Launch, OBS-L3).
+  Issues sind automatisch mit `release=<pyproject-Version>` getaggt (z.B. `1.0.0`) →
+  Regressionen lassen sich einer Version zuordnen. Alert-Rules siehe Runbook unten.
 - **Logs**: Vector-Sidecar shippt die stdout-JSON-Logs an Better Stack
   (`BETTERSTACK_SOURCE_TOKEN` in `env/.env.public`). Alternativ Axiom — Sink in
   `vector.public.toml` tauschen.
 - **Uptime**: UptimeRobot-Monitore auf `https://app.example.com/health` **und** `/ready`
   (erkennt DB-down). Alert → E-Mail/Telegram.
+
+### Sentry-Alert-Runbook (OBS-L3 — Pflicht vor Public-Launch)
+
+Im Sentry-Projekt unter **Alerts → Create Alert Rule** drei Regeln anlegen (die drei
+goldenen Signale, die Sentry abdecken kann):
+
+| # | Typ | Bedingung | Zeitfenster | Aktion |
+|---|---|---|---|---|
+| 1 | Metric Alert (Error Rate) | `failure_rate()` der Transaktionen **> 1%** | 10 min | E-Mail/Slack |
+| 2 | Metric Alert (Latenz) | `p95(transaction.duration)` **> 2000 ms** | 10 min | E-Mail |
+| 3 | Issue Alert (neuer Fehler) | „A new issue is created" | sofort | E-Mail |
+
+Schritt-für-Schritt für Regel 1/2: Alerts → Create Alert → **Metric Alert** → Dataset
+*Transactions* → Function `failure_rate()` bzw. `p95(transaction.duration)` →
+Threshold wie oben → Environment `production` → Owner/Notification setzen.
+Regel 3: **Issue Alert** → „When a new issue is created" → Notify.
+
+**Ehrliche Grenze:** Die vierte Schwelle aus den Regeln (CPU/Mem **> 80%**, Saturation)
+hat **keinen automatischen Sentry-Pfad** — Sentry kennt keine Host-Metriken. Die Werte
+sind via `GET /api/metrics` (psutil: `memory_mb`, `cpu_percent`) abrufbar, aber ein
+Auto-Alert darauf braucht Prometheus/Grafana oder einen Better-Stack-Log-Monitor (deckt
+sich mit OBS-L3 in CLAUDE.md). Als pragmatische Brücke: UptimeRobot-Keyword-Monitor auf
+`/api/metrics` oder ein Better-Stack-Alert auf eine geloggte Sättigungswarnung.
 
 ## Verifikation (Go-Live-Check)
 

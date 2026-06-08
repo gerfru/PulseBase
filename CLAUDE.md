@@ -196,7 +196,7 @@ ml-service/src/
     ├── running_economy.py GCT / Vertikal-Oszillation / Vertical Ratio → Score
     └── hrv_recovery.py    HRV-Erholungstrajektorie nach Belastung (ΔHRV/Tag)
 
-db/migrations/        Flyway: V1–V20 (V15 Epilepsie, V19 Consents, V20 user_tokens)
+db/migrations/        Flyway: V1–V26 (V15 Epilepsie, V19 Consents, V20 user_tokens, V22 reset-token, V26 single-use verify/deletion-token)
 ```
 
 Die `__init__.py`-Dateien in den sync-service-Sub-Paketen sind Pflicht — ohne sie erkennt mypy die
@@ -450,12 +450,12 @@ Kein OpenTelemetry-SDK, kein Tracing-Backend (Tempo, Jaeger, etc.).
 Begründung: OpenTelemetry macht Sinn wenn Requests über mehrere unabhängige Systeme laufen und man verstehen will wo Zeit verloren geht. Hier laufen alle 3 Services auf demselben Server im selben Docker-Netz — Netzwerklatenzen zwischen Services sind vernachlässigbar. Für Request-Korrelation ist `request_id` (Header + structlog context) ausreichend. Loki + Sentry decken Logs und Errors ab. Kein Observability-Problem das OTel lösen würde und das jetzt existiert.
 Trigger für Einführung: Multi-Server-Setup, externe API-Latenz wird zum Problem, oder ein Tracing-Backend ist bereits vorhanden.
 
-### OBS-L3: Alert-Schwellen für Latenz/Ressourcen — Sentry-Konfiguration PFLICHT (Public Release)
+### OBS-L3: Alert-Schwellen für Latenz/Ressourcen — Runbook vorhanden, Dashboard-Konfig manuell (Public Release)
 
 Saturation-Signal (`memory_mb`, `cpu_percent`) ist in `/api/metrics` via psutil verfügbar (Wave 14).
-Sentry Error-Rate-Alerts sind manuell zu konfigurieren (siehe Monitoring & Alert-Setup-Block oben) — **Pflicht vor Public-Release-Launch**.
-Latenz (p95 >2s) und Ressourcen (CPU/Memory >80%) haben keine automatisierten Alert-Rules in Loki oder einem Alert-Manager.
-Begründung: Kein Prometheus im Stack. Loki Alert-Rules erfordern Grafana oder AlertManager als Receiver. Sentry (Error Rate) + `/api/metrics` + structlog-Logs decken alle vier goldenen Signale ab.
+**Runbook vorhanden:** [docs/deployment-public.md](docs/deployment-public.md#sentry-alert-runbook-obs-l3--pflicht-vor-public-launch) beschreibt die drei Sentry-Alert-Rules präzise (Error-Rate >1%/10min, p95 >2s, neuer Issue). Das Anlegen im Sentry-Dashboard bleibt ein einmaliger manueller Schritt — **vor Public-Release-Launch**. Sentry-Issues tragen seit Wave 15 `release=<pyproject-Version>` (single source via `importlib.metadata`/pyproject).
+Ressourcen (CPU/Memory >80%) haben **keinen** automatischen Sentry-Pfad (Sentry kennt keine Host-Metriken) — exponiert via `/api/metrics`, Auto-Alert erst mit Prometheus/Grafana oder Better-Stack-Log-Monitor.
+Begründung: Kein Prometheus im Stack. Sentry (Error Rate + p95) + `/api/metrics` + structlog-Logs decken die goldenen Signale ab; nur Saturation-Auto-Alert fehlt.
 Trigger für Erweiterung: On-Call-Rotation, SLA-Anforderungen, oder Prometheus/Grafana wird in den Stack aufgenommen.
 
 ### TEST-L1: Mock-Qualität für `require_user` in Route-Tests
