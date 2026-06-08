@@ -30,15 +30,17 @@ Sync-Service  (APScheduler, Garmin Connect pull every 2h)
 Garmin Connect API  (external)
 ```
 
-### Standalone (make up-standalone)
+### Public SaaS (make up-public)
 
-Traefik replaces Caddy for local use without homelab-gateway (e.g. Windows/WSL, no Tailscale).
+A bundled **Caddy** terminates TLS via Let's Encrypt for a public instance without
+homelab-gateway. The overlay `docker-compose.public.yml` decouples `api` from the
+external `proxy` network. See [deployment-public.md](deployment-public.md).
 
 ```
-Browser
+Internet
   │
   ▼
-Traefik v3  (HTTPS, self-signed cert, HTTP → HTTPS redirect)
+Caddy 2  (HTTPS via Let's Encrypt, HTTP → HTTPS redirect, :80/:443)
   │
   ▼
 FastAPI  ...
@@ -56,9 +58,9 @@ FastAPI  ...
 | `pulsebase-sync` | `./sync-service` (Python) | Garmin data pull every 2h (Libre every 5 min) |
 | `pulsebase-ml` | `./ml-service` (Python) | ML inference daily + training weekly |
 
-HTTPS is handled externally:
-- **homelab-gateway** (default): Caddy on the shared `proxy` Docker network
-- **Standalone**: Traefik (`make up-standalone`) included in PulseBase compose
+HTTPS:
+- **homelab-gateway** (default, `make up`): Caddy on the shared `proxy` Docker network (Tailscale-only)
+- **Public SaaS** (`make up-public`): bundled Caddy + Let's Encrypt via `docker-compose.public.yml`
 
 ---
 

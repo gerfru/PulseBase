@@ -1,0 +1,85 @@
+# Public SaaS overlay — self-contained public instance with bundled Caddy (TLS via
+# Let's Encrypt) and a Vector log-shipper. Use ONLY with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.public.yml up -d
+# (or `make up-public`). NEVER `make up` on the public VPS — that requires the
+# home gateway's external `proxy` network, which does not exist here.
+#
+# This overlay decouples `api` from `proxy` (overrides its networks to internal
+# only) and reaches it via the bundled Caddy. See docs/deployment-public.md.
+
+services:
+  api:
+    # !override REPLACES the base networks list (drops `proxy`). Without the tag,
+    # Compose merges service networks and api would stay attached to the external
+    # `proxy` network — which does not exist on the public VPS.
+    networks: !override
+      - internal
+
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: pulsebase-caddy
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"        # ACME HTTP-01 challenge + HTTP→HTTPS redirect
+      - "443:443"
+      - "443:443/udp"  # HTTP/3 (QUIC)
+    env_file:
+      - env/.env.public
+    volumes:
+      - ./Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data      # issued certs + ACME account keys — MUST persist
+      - caddy-config:/config
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.50'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  vector:
+    image: timberio/vector:0.41.1-alpine
+    container_name: pulsebase-vector
+    restart: unless-stopped
+    env_file:
+      - env/.env.public      # BETTERSTACK_SOURCE_TOKEN (or AXIOM_TOKEN/AXIOM_DATASET)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./vector.public.toml:/etc/vector/vector.toml:ro
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.25'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  # Pin the subnet so TRUSTED_PROXY_CIDRS in env/.env.api can be set
+  # deterministically to the network Caddy sits on (X-Forwarded-For trust).
+  internal:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16

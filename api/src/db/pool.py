@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     fernet_key: str
     trusted_proxy_cidrs: list[str] = ["127.0.0.1/32"]
     sentry_dsn: str = ""  # SENTRY_DSN — empty = disabled
+    db_pool_min: int = 1  # DB_POOL_MIN — asyncpg pool min_size
+    db_pool_max: int = 5  # DB_POOL_MAX — asyncpg pool max_size
 
     @field_validator("fernet_key")
     @classmethod
@@ -50,5 +52,9 @@ _pool: asyncpg.Pool | None = None
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(settings.db_url, min_size=1, max_size=5)
+        _pool = await asyncpg.create_pool(
+            settings.db_url,
+            min_size=settings.db_pool_min,
+            max_size=settings.db_pool_max,
+        )
     return _pool

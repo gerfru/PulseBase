@@ -7,7 +7,13 @@ export default defineConfig({
         include: ['tests/js/**/*.test.js'],
         coverage: {
             provider: 'v8',
-            // Utility files with unit tests. DOM-heavy loader/metrics files are covered by Playwright E2E.
+            // Gate scope = modules with genuine Vitest unit coverage. These 6 hold
+            // a strict 95/90 bar (regressions fail CI). The other ~19 static modules
+            // are DOM-heavy loaders covered behaviorally by Playwright E2E, NOT by
+            // this gate — deliberately kept honest: adding superficially-tested
+            // modules (colors/dashboard-hero/metrics-ml/settings sit at 0–54%) would
+            // force lowering the bar, which we don't do. Expanding unit coverage to
+            // those modules is tracked separately (review finding M2 "Vollständig").
             include: [
                 'src/static/chart-utils.js',
                 'src/static/dashboard-utils.js',

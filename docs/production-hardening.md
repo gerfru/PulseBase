@@ -81,7 +81,8 @@ docker inspect --format='{{index .RepoDigests 0}}' timescale/timescaledb:2.17.2-
 # docker-compose.yml
 image: timescale/timescaledb:2.17.2-pg16@sha256:<digest>
 image: flyway/flyway:11.8.2@sha256:<digest>
-image: traefik:v3.3.4@sha256:<digest>
+# Public-Overlay (docker-compose.public.yml):
+image: caddy:2.10-alpine@sha256:<digest>
 ```
 
 **renovate.json** (Projekt-Root):
@@ -266,7 +267,7 @@ Cloudflare (Free) ←── DNS, DDoS-Schutz, WAF-Basis, Origin-IP verstecken
     ↓
 Hetzner VPS CX21 (5 €/Mo, Nürnberg oder Helsinki = EU-Hosting)
     ↓
-Traefik v3 ←── TLS-Terminierung, HTTPS-Redirect, Let's Encrypt automatisch
+Caddy 2 (make up-public) ←── TLS-Terminierung, HTTPS-Redirect, Let's Encrypt automatisch
     ↓
 FastAPI API ←── Container-intern auf Port 8000
     ↓
@@ -290,7 +291,7 @@ apt install fail2ban -y
 
 # UFW Firewall
 ufw allow 22/tcp    # SSH (besser: anderen Port wählen)
-ufw allow 80/tcp    # HTTP → Traefik → Redirect zu HTTPS
+ufw allow 80/tcp    # HTTP → Caddy → Redirect zu HTTPS (+ ACME HTTP-01)
 ufw allow 443/tcp   # HTTPS
 ufw --force enable
 
@@ -391,7 +392,7 @@ nie nur das Image tauschen.
 
 | Schritt | Aktion |
 |---------|--------|
-| **Isolieren** | Traefik-Label `traefik.enable=false` setzen → `make dashboard` |
+| **Isolieren** | `make down-public` (oder den `caddy`-Service stoppen) → App vom Netz nehmen |
 | **Sessions invalidieren** | `SESSION_SECRET` rotieren → `make dashboard` (alle Logins sofort ungültig) |
 | **Passwörter** | Alle User per Mail informieren, Reset-Links senden |
 | **Logs sichern** | `docker logs pulsebase-api > incident_$(date +%Y%m%d).log` bevor Container neu gestartet |

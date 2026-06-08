@@ -436,6 +436,32 @@ async def test_reset_token_cannot_be_reused_after_success(client):
     assert r.status_code in (400, 403)
 
 
+async def test_reset_token_ttl_is_15_minutes():
+    """M1: reset token must expire after 15 min (OWASP short-lived one-time token).
+
+    _make_reset_token persists expires_at via save_reset_token; assert the delta
+    is 900s, not the previous 3600s.
+    """
+    from datetime import datetime, timezone
+
+    from src.auth_tokens import _RESET_MAX_AGE, _make_reset_token
+
+    assert _RESET_MAX_AGE == 900
+
+    captured: dict[str, datetime] = {}
+
+    async def _capture(user_id, token_hash, expires_at):
+        captured["expires_at"] = expires_at
+
+    before = datetime.now(timezone.utc)
+    with patch("src.auth_tokens.save_reset_token", _capture):
+        await _make_reset_token(TEST_USER["id"])
+
+    delta = (captured["expires_at"] - before).total_seconds()
+    # ~900s in the future, allowing a few seconds of execution slack
+    assert 895 <= delta <= 905
+
+
 # ── Account lockout ───────────────────────────────────────────────────────────
 
 

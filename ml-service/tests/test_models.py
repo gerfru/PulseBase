@@ -32,7 +32,11 @@ from models.readiness import (
 from models.running_economy import compute_running_economy
 from models.sleep_metrics import compute_sleep_consistency
 from models.sleep_score import compute_custom_sleep_score
-from models.spo2_metrics import compute_spo2_trend
+from models.spo2_metrics import (
+    _classify_trend,
+    _linear_slope,
+    compute_spo2_trend,
+)
 from models.stress_metrics import compute_stress_score
 from models.training_effect import compute_banister_trimp, compute_training_effect_today
 from models.training_load import compute_acwr, compute_training_monotony
@@ -756,6 +760,36 @@ def test_spo2_falling_trend():
     result = compute_spo2_trend(rows)
     assert result["trend"] == "falling"
     assert result["slope"] < 0
+
+
+def test_spo2_rising_trend():
+    rows = [{"avg_spo2": 92 + i, "min_spo2": 95} for i in range(7)]
+    result = compute_spo2_trend(rows)
+    assert result["trend"] == "rising"
+    assert result["slope"] > 0
+
+
+# ── L2: extracted helpers ────────────────────────────────────────────────────
+
+
+def test_linear_slope_single_or_empty_is_zero():
+    assert _linear_slope([], 0.0) == 0.0
+    assert _linear_slope([95.0], 95.0) == 0.0
+
+
+def test_linear_slope_sign_matches_direction():
+    rising = [90.0, 91.0, 92.0, 93.0]
+    falling = [93.0, 92.0, 91.0, 90.0]
+    assert _linear_slope(rising, sum(rising) / len(rising)) > 0
+    assert _linear_slope(falling, sum(falling) / len(falling)) < 0
+
+
+def test_classify_trend_thresholds():
+    # |slope| <= 0.2 is stable; beyond that rising/falling
+    assert _classify_trend(0.0) == "stable"
+    assert _classify_trend(0.2) == "stable"
+    assert _classify_trend(0.21) == "rising"
+    assert _classify_trend(-0.21) == "falling"
 
 
 # ── Training Effect (Banister TRIMP) ─────────────────────────────────────────

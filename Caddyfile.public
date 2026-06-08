@@ -1,0 +1,26 @@
+# Public SaaS reverse proxy. Caddy auto-provisions + renews a Let's Encrypt cert
+# for {$PUBLIC_DOMAIN} and redirects HTTP→HTTPS automatically.
+#
+# Security headers (HSTS, CSP nonce, X-Frame-Options, …) are emitted by the app
+# (api/src/main.py SecurityHeadersMiddleware) — deliberately NOT duplicated here.
+
+{
+	email {$ACME_EMAIL}
+	# To test without hitting Let's Encrypt prod rate limits, uncomment:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$PUBLIC_DOMAIN} {
+	encode zstd gzip
+	header -Server
+
+	log {
+		output stdout
+		format json
+		level INFO
+	}
+
+	reverse_proxy api:8000 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
