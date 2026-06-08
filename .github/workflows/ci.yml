@@ -288,6 +288,8 @@ jobs:
           cp env/.env.example env/.env
           cp env/.env.app.example env/.env.app
           cp env/.env.api.example env/.env.api
+          cp env/.env.sync.example env/.env.sync
+          cp env/.env.ml.example env/.env.ml
           cp env/.env.public.example env/.env.public
           sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -hex 32)|" env/.env.api
           sed -i "s|^FERNET_KEY=.*|FERNET_KEY=$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" env/.env.app
@@ -297,11 +299,15 @@ jobs:
         run: |
           json=$(docker compose --env-file env/.env --env-file env/.env.app \
             -f docker-compose.yml -f docker-compose.public.yml config --format json)
-          echo "$json" | jq -e '.services.api.networks | keys == ["internal"]' >/dev/null \
-            || { echo "::error::public overlay: api must attach to 'internal' only (no proxy)"; exit 1; }
+          # Form-agnostic (networks may render as map or list): assert api's networks
+          # do NOT reference proxy, but DO reference internal.
+          echo "$json" | jq -e '(.services.api.networks | tostring | test("proxy")) | not' >/dev/null \
+            || { echo "::error::public overlay: api must NOT attach to the proxy network"; exit 1; }
+          echo "$json" | jq -e '.services.api.networks | tostring | test("internal")' >/dev/null \
+            || { echo "::error::public overlay: api must attach to the internal network"; exit 1; }
           echo "$json" | jq -e '.services.caddy' >/dev/null \
             || { echo "::error::public overlay: caddy service missing"; exit 1; }
-          echo "✓ api attaches to internal only; caddy present"
+          echo "✓ api on internal only (no proxy); caddy present"
 
       - name: Bring up public stack (HTTP-only Caddy, no ACME)
         run: |
