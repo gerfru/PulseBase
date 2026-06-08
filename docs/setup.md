@@ -7,8 +7,8 @@
 - A Garmin Connect account
 - [homelab-gateway](https://github.com/gerfru/homelab-gateway) running (optional, for homelab proxy setup)
 
-> **Standalone (no homelab-gateway):** Use `make up-standalone` — starts Traefik alongside
-> PulseBase. Suitable for Windows/WSL or any machine without homelab-gateway.
+> **Public SaaS (no homelab-gateway):** Use `make up-public` — bundles Caddy with
+> automatic Let's Encrypt on a public domain. Full runbook: [deployment-public.md](deployment-public.md).
 
 ---
 
@@ -24,7 +24,7 @@ cp env/.env.sync.example env/.env.sync
 cp env/.env.ml.example env/.env.ml
 ```
 
-Edit `env/.env` (DB-Admin + Traefik, nur für Flyway/DB-Service):
+Edit `env/.env` (DB-Admin, nur für Flyway/DB-Service):
 
 ```bash
 DB_USER=garmin
@@ -92,9 +92,9 @@ make status
 make logs
 ```
 
-> **Standalone (without homelab-gateway):** Use `make up-standalone` instead.
-> This starts Traefik for HTTPS. Open `https://your-domain.com` and accept the
-> self-signed certificate warning once.
+> **Public SaaS (without homelab-gateway):** Use `make up-public` instead. This
+> bundles Caddy with automatic Let's Encrypt — open `https://<your-public-domain>`.
+> Full runbook: [deployment-public.md](deployment-public.md).
 
 ---
 
@@ -102,7 +102,7 @@ make logs
 
 Open `https://your-domain.com/register` in a browser.
 
-Caddy (via homelab-gateway) or Traefik (standalone) must be configured with ACME/Let's Encrypt for a valid TLS certificate. See `docs/architecture.md` for setup details.
+Caddy (via homelab-gateway in home mode, or the bundled Caddy in `make up-public`) provides the valid TLS certificate via ACME/Let's Encrypt. See [docs/deployment-public.md](deployment-public.md) for the public setup.
 
 Create your account with name, email, and password (min. 12 characters).
 Check all three consent checkboxes (required):
@@ -163,7 +163,7 @@ No manual action needed after initial setup.
 | Command | What it does |
 |---------|-------------|
 | `make up` | Build images and start all services (requires homelab-gateway proxy network) |
-| `make up-standalone` | Build and start with Traefik (standalone, no homelab-gateway needed) |
+| `make up-public` | Build and start a public instance with bundled Caddy + Let's Encrypt |
 | `make down` | Stop all services |
 | `make reset` | Stop + wipe all data + re-run migrations (deletes all users!) |
 | `make migrate` | Run pending Flyway migrations |

@@ -8,7 +8,7 @@ Lokale Entwicklung, Tests, CI/CD und Debugging für PulseBase.
 
 | Tool | Version | Zweck |
 |------|---------|-------|
-| Docker + Compose | ≥ 27 | Services, DB, Traefik |
+| Docker + Compose | ≥ 27 | Services, DB, Caddy (public) |
 | Python | 3.12+ | API, Sync, ML (lokal) |
 | uv | aktuell | Python Package Manager |
 | Node.js | 22 LTS | JS-Tests (Vitest) |
@@ -336,7 +336,7 @@ Vollständige Referenz aller `make`-Targets — die README verlinkt hierher.
 | Befehl | Beschreibung |
 |--------|--------------|
 | `make up` | Images bauen + alle Services starten (braucht Reverse Proxy auf dem `proxy`-Netz, z. B. homelab-gateway) |
-| `make up-standalone` | Wie `make up`, aber mit eingebautem Traefik (kein externer Proxy nötig) |
+| `make up-public` | Öffentliche Instanz: gebündeltes Caddy + Let's Encrypt (kein homelab-gateway nötig) — siehe [deployment-public.md](deployment-public.md) |
 | `make down` | Services stoppen |
 | `make clean` | Services stoppen + Volumes + verwaiste Container entfernen |
 | `make reset` | ⚠ Volumes löschen + DB komplett neu aufsetzen (**löscht alle User!**) |

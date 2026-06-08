@@ -1,5 +1,15 @@
 # PulseBase — App Evaluation Report
 
+> **⚠️ Korrektur (2026-06-08):** Einige Einträge der Welle „W13 R5" beschreiben einen
+> _geplanten_, aber nie ins Repo übernommenen Zustand und sind damit **veraltet**:
+> **L-78** (Loki/Promtail als Compose-Services), **L-79** (Uptime Kuma als Compose-Service)
+> und **ARCH-M3** (Traefik-ACME) existieren so **nicht** — es gibt kein `monitoring/`- und
+> kein `traefik/`-Verzeichnis. Tatsächlich: Loki/Promtail/Uptime-Kuma laufen **zentral im
+> homelab-gateway** (PulseBase-Container tragen `monitoring=true`), und der öffentliche
+> Reverse Proxy ist **Caddy** (`make up-public`), nicht Traefik. Aktueller Stand:
+> [review-app-report.md](../review-app-report.md), [deployment-public.md](deployment-public.md)
+> und der korrigierte CLAUDE.md-Block (ARCH-M3 / OBS-L1 / CICD-M3).
+
 **Stack:** FastAPI · TimescaleDB (PostgreSQL 16) · Python 3.14 · Docker Compose
 **Regelquelle:** Dev-Best-Practices Plugin (essential/app/github/architecture-rules.md)
 **ASVS-Level:** L2 (Auth + sensible Gesundheitsdaten, DSGVO, Epilepsie-Modus)

@@ -94,19 +94,24 @@ Flyway runs automatically on container startup and exits. This means:
 
 ---
 
-## Caddy via homelab-gateway (not bundled Traefik)
+## Caddy everywhere (home gateway + bundled public)
 
-HTTPS termination is handled by a separate [`homelab-gateway`](https://github.com/gerfru/homelab-gateway)
-repo running Caddy on a shared `proxy` Docker network. PulseBase joins this network —
-no ports are exposed on the host.
+HTTPS uses **Caddy** in both deployment modes — chosen over Traefik for the simplest
+automatic Let's Encrypt setup (matches the dev-best-practices recommendation and the
+existing gateway).
 
-Benefits:
-- One Caddy instance handles all self-hosted services (PulseBase, Niles, Vikunja, ...)
-- `*.home.lab` subdomains resolve via CoreDNS + Tailscale Split DNS — no hosts file edits
-- Security headers (`HSTS`, `X-Frame-Options`, `CSP`, etc.) defined once in a Caddy snippet
+- **Home (default, `make up`):** TLS terminated by the separate
+  [`homelab-gateway`](https://github.com/gerfru/homelab-gateway) repo running Caddy on a
+  shared `proxy` Docker network. PulseBase joins it — no host ports exposed. One Caddy
+  serves all self-hosted services; `*.home.lab` resolves via CoreDNS + Tailscale Split DNS;
+  reachable only inside the Tailnet.
+- **Public SaaS (`make up-public`):** a **bundled Caddy** terminates TLS via Let's Encrypt
+  on a public domain (`docker-compose.public.yml`, ports 80/443). Used when running a
+  public instance without the home gateway.
 
-For standalone use without homelab-gateway (e.g. Windows/WSL): `make up-standalone`
-starts Traefik alongside PulseBase. This is the fallback, not the default.
+The earlier "Traefik standalone" fallback was never implemented and is replaced by the
+bundled-Caddy public path. Security headers (`HSTS`, `CSP`, …) are emitted by the app
+(`api/src/main.py`), so Caddy does not duplicate them.
 
 ---
 
