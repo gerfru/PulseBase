@@ -346,17 +346,23 @@ jobs:
 
       - name: Prepare env files
         run: |
-          cp env/.env.example env/.env
-          cp env/.env.app.example env/.env.app
+          for n in "" .app .api .sync .ml; do
+            cp "env/.env${n}.example" "env/.env${n}"
+          done
           grep -E '^DB_(USER|PASSWORD)=' env/.env >> "$GITHUB_ENV"
 
       - name: Build backup image
         run: docker build -t pulsebase-backup:ci backup/
 
-      - name: Bring up test DB + run migrations
+      - name: Bring up test DB
         run: |
           docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.test.yml up -d --wait db-test flyway-test
+            -f docker-compose.test.yml up -d --wait db-test
+
+      - name: Run migrations (blocks until complete)
+        run: |
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.test.yml run --rm flyway-test
 
       - name: Seed sentinel row
         run: |
