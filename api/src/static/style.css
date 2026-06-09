@@ -141,6 +141,10 @@ html:not(.dark) .tab-btn.active { color: #047857; border-bottom-color: #047857; 
 .sync-last   { font-size: var(--text-xs); color: var(--muted); }
 .sync-loading { opacity: .5; pointer-events: none; }
 
+/* Toggle via Klasse statt Inline-Style — funktioniert auch unter strengem
+   CSP (style-src 'self'), wo Inline-style="display:none" blockiert würde. */
+.is-hidden { display: none !important; }
+
 /* ── Dashboard Top Bar ─────────────────────────────────────────────────── */
 .dash-topbar {
   position: sticky; top: 0; z-index: 40;
@@ -448,7 +452,12 @@ html:not(.dark) .formula-row { background: rgba(0,0,0,.04); }
 .sources-list a  { color: var(--accent); text-decoration: none; }
 
 /* ── Hero Card (JS-generated) ────────────────────────────────────────────── */
-.hero-card-wrap { max-width: 960px; margin: 0 auto; }
+/* Einheitliche Content-Breite für das gesamte Dashboard (Header, Toolbar,
+   Hero, Tabs, Karten) — eine durchgehende Flucht, ruhiger fürs Auge.
+   Custom-CSS statt Tailwind-Utility → kein tailwind-build nötig. */
+.dash-shell { max-width: 1024px; }
+/* Hero + Toolbar füllen die Shell (keine eigene 960px-Deckelung mehr). */
+.hero-card-wrap { margin: 0 auto; }
 .hero-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--sp-4); }
 .hero-title  { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
 .hero-date   { font-size: var(--text-sm); color: var(--muted); }
