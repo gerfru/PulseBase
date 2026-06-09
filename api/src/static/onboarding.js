@@ -23,9 +23,9 @@ function setDismissed() {
 export function initOnboardingHint() {
     const hint = document.getElementById('onboarding-hint');
     if (!hint || isDismissed()) return;
-    hint.style.display = '';
+    hint.classList.remove('is-hidden');
     document.getElementById('onboarding-hint-close')?.addEventListener('click', () => {
-        hint.style.display = 'none';
+        hint.classList.add('is-hidden');
         setDismissed();
     });
 }

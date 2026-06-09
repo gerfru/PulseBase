@@ -141,6 +141,10 @@ html:not(.dark) .tab-btn.active { color: #047857; border-bottom-color: #047857; 
 .sync-last   { font-size: var(--text-xs); color: var(--muted); }
 .sync-loading { opacity: .5; pointer-events: none; }
 
+/* Toggle via Klasse statt Inline-Style — funktioniert auch unter strengem
+   CSP (style-src 'self'), wo Inline-style="display:none" blockiert würde. */
+.is-hidden { display: none !important; }
+
 /* ── Dashboard Top Bar ─────────────────────────────────────────────────── */
 .dash-topbar {
   position: sticky; top: 0; z-index: 40;
