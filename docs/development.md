@@ -26,10 +26,12 @@ cp env/.env.api.example env/.env.api
 cp env/.env.sync.example env/.env.sync
 cp env/.env.ml.example env/.env.ml
 
-# 2. Secrets generieren (SESSION_SECRET + FERNET_KEY)
+# 2. Secrets generieren (SESSION_SECRET, FERNET_KEY, DB-Passwörter)
 make gen-secrets
 # → SESSION_SECRET → env/.env.api (min. 32 Zeichen)
 # → FERNET_KEY    → env/.env.app (gilt für api, sync-service und ml-service)
+# → DB_APP/SYNC/ML_PASSWORD → env/.env.app
+# → druckt ausserdem den age-keygen-Hinweis für Backups (env/.env.backup)
 
 # 3. Dateiberechtigungen absichern
 make secure-env
@@ -69,6 +71,23 @@ make db SQL="SELECT ..." # SQL direkt ausführen
 ```
 
 Migrationen liegen unter `db/migrations/V*.sql`. Niemals manuell SQL auf Prod.
+
+---
+
+## Backups
+
+Der `backup`-Service ([`backup/`](../backup/)) läuft als Container im Stack und sichert die DB
+täglich verschlüsselt (`pg_dump -Fc` → age → Retention → optional rclone). Details:
+[security.md §9.6](security.md) · [deployment-public.md](deployment-public.md#backups-health-pii-pflicht).
+
+```bash
+make backup        # Backup sofort auslösen (One-Off; sonst täglich via Container-Loop)
+make restore-test  # neuesten Backup TimescaleDB-korrekt in Wegwerf-DB restoren + prüfen
+                   # (Key-Pfad aus AGE_IDENTITY in env/.env.backup)
+```
+
+Der CI-Job **`backup-smoke`** (Required) baut das Backup-Image und beweist die Kette
+`pg_dump → age → decrypt → pre/post_restore → pg_restore` gegen eine seed-Test-DB.
 
 ---
 

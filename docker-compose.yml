@@ -178,9 +178,46 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  backup:
+    build: ./backup
+    container_name: pulsebase-backup
+    restart: unless-stopped
+    labels:
+      - "monitoring=true"
+    # DB admin creds come from env/.env (pg_dump needs full read); backup config
+    # from env/.env.backup (optional — stack still starts if absent, the run just
+    # fails its preflight on a missing AGE_RECIPIENT).
+    env_file:
+      - path: env/.env.backup
+        required: false
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: garmin
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backups:/backups
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.25'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   timescale-data:
   ml-models:
+  backups:
 
 networks:
   internal:

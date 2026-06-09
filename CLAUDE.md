@@ -107,6 +107,8 @@ make logs-sync        # Sync-Service-Logs live
 make logs-all         # Alle Logs zusammen
 make migrate          # DB-Migrationen ausführen
 make db               # psql-Shell (liest DB_APP_USER aus env/.env.app)
+make backup           # Verschlüsseltes DB-Backup sofort (sonst täglich via backup-Container)
+make restore-test     # Neuesten Backup TSDB-korrekt restoren (Key aus env/.env.backup)
 ```
 
 ## Verzeichnisstruktur
@@ -376,6 +378,20 @@ SYNC_DAILY_DAYS=2
 ```
 ML_INFER_HOUR=7
 ```
+
+**`env/.env.backup`** — nur backup-Container (DB-Backups, V16 PR-B):
+```
+AGE_RECIPIENT=     # age Public-Key (age1…); Private-Key bleibt offsite
+BACKUP_HOUR=3      # täglicher Lauf (UTC)
+BACKUP_MINUTE=30
+BACKUP_RETENTION_DAYS=14
+RCLONE_REMOTE=     # optional, z.B. b2:pulsebase-backups (3-2-1)
+```
+Der `backup`-Service (`backup/`: postgres:16-alpine + age + rclone, non-root) verbindet sich
+übers interne Netz mit `db` (kein Docker-Socket) und sichert täglich verschlüsselt:
+`pg_dump -Fc` → age → Retention → optional rclone. Restore ist TimescaleDB-korrekt
+(`timescaledb_pre_restore()` → `pg_restore` **ohne `-j`** → `timescaledb_post_restore()`).
+CI-Gate `backup-smoke` (Required) beweist die Kette. DB-Creds aus `env/.env` (Admin).
 
 ## Bewusste Tech-Debt-Entscheidungen (dokumentiert, nicht akuter Handlungsbedarf)
 
