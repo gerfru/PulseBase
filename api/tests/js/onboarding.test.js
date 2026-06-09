@@ -4,10 +4,12 @@ const { initOnboardingHint } = await import('../../src/static/onboarding.js');
 
 function render() {
     document.body.innerHTML =
-        '<div id="onboarding-hint" style="display:none">' +
+        '<div id="onboarding-hint" class="is-hidden">' +
         '<button id="onboarding-hint-close"></button>' +
         '</div>';
 }
+
+const isHidden = () => document.getElementById('onboarding-hint').classList.contains('is-hidden');
 
 beforeEach(() => {
     localStorage.clear();
@@ -18,19 +20,19 @@ beforeEach(() => {
 describe('initOnboardingHint', () => {
     it('shows the hint when not previously dismissed', () => {
         initOnboardingHint();
-        expect(document.getElementById('onboarding-hint').style.display).toBe('');
+        expect(isHidden()).toBe(false);
     });
 
     it('keeps the hint hidden when already dismissed', () => {
         localStorage.setItem('pb-onboarding-dismissed', '1');
         initOnboardingHint();
-        expect(document.getElementById('onboarding-hint').style.display).toBe('none');
+        expect(isHidden()).toBe(true);
     });
 
     it('hides the hint and persists dismissal on close click', () => {
         initOnboardingHint();
         document.getElementById('onboarding-hint-close').click();
-        expect(document.getElementById('onboarding-hint').style.display).toBe('none');
+        expect(isHidden()).toBe(true);
         expect(localStorage.getItem('pb-onboarding-dismissed')).toBe('1');
     });
 
@@ -44,7 +46,7 @@ describe('initOnboardingHint', () => {
             throw new Error('blocked');
         });
         initOnboardingHint();
-        expect(document.getElementById('onboarding-hint').style.display).toBe('');
+        expect(isHidden()).toBe(false);
         spy.mockRestore();
     });
 
@@ -54,7 +56,7 @@ describe('initOnboardingHint', () => {
         });
         initOnboardingHint();
         expect(() => document.getElementById('onboarding-hint-close').click()).not.toThrow();
-        expect(document.getElementById('onboarding-hint').style.display).toBe('none');
+        expect(isHidden()).toBe(true);
         spy.mockRestore();
     });
 });
