@@ -73,7 +73,13 @@ make gen-secrets
 Copy the output values:
 - `SESSION_SECRET` → `env/.env.api` (min. 32 characters, required)
 - `FERNET_KEY` → `env/.env.app` (used by all 3 app services for token encryption)
-- `DB_SYNC_PASSWORD`, `DB_ML_PASSWORD` → `env/.env.app` (per-service DB role passwords, V24)
+- `DB_APP_PASSWORD`, `DB_SYNC_PASSWORD`, `DB_ML_PASSWORD` → `env/.env.app` (per-service DB role passwords, V24)
+
+**Optional — backups:** `make gen-secrets` also prints an `age-keygen` hint. To enable the
+encrypted backup container, generate an age keypair on a **trusted offsite machine**
+(`age-keygen -o pulsebase-backup.key`), put the `age1…` public key as `AGE_RECIPIENT` in
+`env/.env.backup` (`cp env/.env.backup.example env/.env.backup`), and keep the private key
+offsite. See [deployment-public.md](deployment-public.md#backups-health-pii-pflicht).
 
 ---
 
@@ -176,8 +182,10 @@ No manual action needed after initial setup.
 | `make logs-analytics` | Live logs from the ML analytics service |
 | `make status` | Show container status |
 | `make db` | Open a psql shell on the database |
-| `make gen-secrets` | Generate SESSION_SECRET (→ `env/.env.api`) and FERNET_KEY (→ `env/.env.app`) |
+| `make gen-secrets` | Generate SESSION_SECRET, FERNET_KEY, DB passwords + age-keygen hint |
 | `make secure-env` | Set `chmod 600` on all env files |
+| `make backup` | Run an encrypted DB backup now (one-off; otherwise daily via the backup container) |
+| `make restore-test` | Decrypt + TimescaleDB-correct restore of the latest backup into a throwaway DB (key path from `AGE_IDENTITY` in `env/.env.backup`) |
 
 ---
 

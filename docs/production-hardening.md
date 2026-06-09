@@ -304,36 +304,26 @@ ufw --force enable
 
 ### 5.1 Backup-Strategie
 
-**KISS:** Cron-Job auf dem Host (außerhalb Docker, überlebt Container-Neustart).
+**Container-Scheduler** (Service `backup` im Stack, [`backup/`](../backup/)) — kein Host-Cron,
+kein Docker-Socket. Der Container verbindet sich übers interne Netz mit `db` und führt täglich
+(`BACKUP_HOUR:BACKUP_MINUTE`, UTC) [`backup.sh`](../backup/backup.sh) aus:
+`pg_dump -Fc` → **age**-Verschlüsselung (streamed, kein Klartext-Dump auf Platte) → Retention
+(`BACKUP_RETENTION_DAYS`) → optional `rclone`-Offsite (`RCLONE_REMOTE`). Konfiguration in
+`env/.env.backup` (Beispiel: [`env/.env.backup.example`](../env/.env.backup.example)).
 
-```bash
-# /etc/cron.d/pulsebase-backup
-0 3 * * * root /opt/pulsebase/scripts/backup.sh >> /var/log/pulsebase-backup.log 2>&1
-```
+Das Skript ist die **Single Source** — diese Doku hält keine eigene Kopie mehr vor (früher
+divergierten deployment-public.md und production-hardening.md). Manuell auslösen: `make backup`.
 
-```bash
-#!/bin/bash
-# /opt/pulsebase/scripts/backup.sh
-set -euo pipefail
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/opt/pulsebase/backups"
-mkdir -p "$BACKUP_DIR"
+**Verschlüsselung:** age, asymmetrisch — nur der `AGE_RECIPIENT`-Public-Key liegt am Server,
+der private Key bleibt offsite (Passwortmanager) und wird nur fürs Restore gebraucht.
 
-# PostgreSQL-Dump
-docker exec pulsebase-db pg_dump -U garmin garmin | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
+**Offsite-Storage (optional):** z. B. Backblaze B2 via rclone — `RCLONE_REMOTE=b2:pulsebase-backups`.
 
-# Offsite-Upload (Backblaze B2, rclone konfigurieren: rclone config → b2)
-rclone copy "$BACKUP_DIR" b2:pulsebase-backups --include "*$DATE*"
-
-# Lokale Rotation (14 Tage)
-find "$BACKUP_DIR" -name "*.gz" -mtime +14 -delete
-
-echo "Backup $DATE fertig."
-```
-
-**Offsite-Storage:** Backblaze B2 — 10 GB kostenlos, danach ~0,006 $/GB/Mo.
-
-**Restore-Test:** Monatlich — Dump in Test-Container einspielen und API-Aufruf verifizieren.
+**Restore-Test (monatlich):** `make restore-test` (Key-Pfad aus `AGE_IDENTITY` in
+`env/.env.backup`) — entschlüsselt den neuesten Backup und restored ihn **TimescaleDB-korrekt**
+(`timescaledb_pre_restore()` → `pg_restore` **ohne `-j`** → `timescaledb_post_restore()`) in
+eine Wegwerf-DB; prüft die User-Zahl. (Paralleles `pg_restore -j` würde die TimescaleDB-Kataloge
+korrumpieren.)
 
 ### 5.2 Monitoring
 
@@ -370,8 +360,8 @@ Version aus den Datenbankdateien und startet nicht, wenn die neue Image-Version 
 
 Ablauf für ein TimescaleDB-Minor-Upgrade (z.B. 2.26.4 → 2.27.x):
 ```bash
-# 1. Backup machen (Pflicht!) — es gibt KEIN `make backup`-Target, manuell:
-docker exec pulsebase-db pg_dump -U garmin garmin | gzip > backup.sql.gz
+# 1. Backup machen (Pflicht!):
+make backup    # verschlüsseltes pg_dump -Fc via backup-Container (s. 5.1)
 
 # 2. Image in docker-compose.yml auf neue Version + Digest updaten
 

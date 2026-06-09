@@ -335,6 +335,74 @@ jobs:
           docker compose --env-file env/.env --env-file env/.env.app \
             -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.public.ci.yml down -v
 
+  backup-smoke:
+    name: Backup Smoke
+    needs: [lint, typecheck, test]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Prepare env files
+        run: |
+          for n in "" .app .api .sync .ml; do
+            cp "env/.env${n}.example" "env/.env${n}"
+          done
+          grep -E '^DB_(USER|PASSWORD)=' env/.env >> "$GITHUB_ENV"
+
+      - name: Build backup image
+        run: docker build -t pulsebase-backup:ci backup/
+
+      - name: Bring up test DB
+        run: |
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.test.yml up -d --wait db-test
+
+      - name: Run migrations (blocks until complete)
+        run: |
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.test.yml run --rm flyway-test
+
+      - name: Seed sentinel row
+        run: |
+          docker exec pulsebase-db-test psql -U "$DB_USER" -d garmin_test -c \
+            "INSERT INTO users (name, email) VALUES ('smoke', 'smoke@example.com');"
+
+      - name: Prepare backup dir + ephemeral age key
+        run: |
+          mkdir -p bk && chmod 777 bk
+          docker run --rm -v "$PWD/bk:/w" -w /w pulsebase-backup:ci age-keygen -o ci.key 2> keygen.err
+          echo "AGE_RECIPIENT=$(grep -o 'age1[a-z0-9]*' keygen.err | head -1)" >> "$GITHUB_ENV"
+
+      - name: Backup via image (pg_dump → age)
+        run: |
+          docker run --rm --network host -v "$PWD/bk:/backups" \
+            -e PGHOST=localhost -e PGPORT=5434 -e PGUSER="$DB_USER" -e PGPASSWORD="$DB_PASSWORD" \
+            -e PGDATABASE=garmin_test -e AGE_RECIPIENT="$AGE_RECIPIENT" \
+            pulsebase-backup:ci /scripts/backup.sh
+          ls -la bk/*.dump.age
+
+      - name: Restore via image (age → pre/post_restore → pg_restore) + assert
+        run: |
+          out=$(docker run --rm --network host -v "$PWD/bk:/backups" \
+            -e AGE_IDENTITY=/backups/ci.key \
+            -e PGHOST=localhost -e PGPORT=5434 -e PGUSER="$DB_USER" -e PGPASSWORD="$DB_PASSWORD" \
+            pulsebase-backup:ci /scripts/restore.sh latest restore_check)
+          echo "$out"
+          users=$(echo "$out" | tail -n1)
+          if [ "$users" -ge 1 ]; then
+            echo "✓ pg_dump → age → decrypt → pre/post_restore → pg_restore verified ($users user)"
+          else
+            echo "::error::restore assertion failed (users=$users)"; exit 1
+          fi
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f docker-compose.test.yml down -v
+
   test:
     name: Tests
     needs: typecheck
@@ -361,7 +429,7 @@ jobs:
     name: CI OK (All Green Gate)
     runs-on: ubuntu-latest
     if: always()
-    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, e2e, deploy-public-smoke, trivy]
+    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, e2e, deploy-public-smoke, backup-smoke, trivy]
     steps:
       - name: All checks passed
         run: |

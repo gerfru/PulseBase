@@ -1,4 +1,4 @@
-.PHONY: network up up-public down-public logs-public config-public restore-test down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
+.PHONY: network up up-public down-public logs-public config-public restore-test backup down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env --env-file env/.env.app
 # Public SaaS deployment (bundled Caddy + Let's Encrypt). The overlay decouples
@@ -101,25 +101,33 @@ gen-secrets:
 	@echo "FERNET_KEY=$$(python3 -c 'import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
 	@echo ""
 	@echo "Per-Service-DB-Rollen (V24) — ebenfalls in env/.env.app:"
+	@echo "DB_APP_PASSWORD=$$(openssl rand -hex 24)"
 	@echo "DB_SYNC_PASSWORD=$$(openssl rand -hex 24)"
 	@echo "DB_ML_PASSWORD=$$(openssl rand -hex 24)"
+	@echo ""
+	@echo "Backup-Verschlüsselung — age-Keypair auf einer VERTRAUENSWÜRDIGEN"
+	@echo "Offsite-Maschine erzeugen (NICHT auf dem Server):"
+	@echo "  age-keygen -o pulsebase-backup.key"
+	@echo "  → 'Public key: age1…' als AGE_RECIPIENT in env/.env.backup"
+	@echo "  → Datei pulsebase-backup.key NUR offsite/Passwortmanager (für Restore)"
 
 secure-env:
 	chmod 600 env/.env env/.env.app env/.env.api env/.env.sync env/.env.ml
 	@test -f env/.env.public && chmod 600 env/.env.public || true
+	@test -f env/.env.backup && chmod 600 env/.env.backup || true
 
-# ── Public-Instanz: Backup-Restore-Test (Regel "test backups") ────────────────
-# Restored den neuesten pg_dump in eine Wegwerf-DB und prüft die User-Zahl.
-# Voraussetzung: tägliches Host-Cron-pg_dump nach /srv/backups (s. docs/deployment-public.md).
+# ── Backup sofort ausführen (One-Off; sonst täglich via Backup-Container-Loop) ─
+backup:
+	$(DC) run --rm backup /scripts/backup.sh
+
+# ── Backup-Restore-Test (Regel "test backups") ───────────────────────────────
+# Entschlüsselt den neuesten Backup (age) + restored ihn TimescaleDB-korrekt
+# (pre/post_restore, kein -j) in eine Wegwerf-DB und prüft die User-Zahl.
+# Key-Pfad kommt aus env/.env.backup (AGE_IDENTITY=); überschreibbar via Variable.
 restore-test:
-	@latest=$$(ls -t /srv/backups/garmin-*.dump 2>/dev/null | head -1); \
-	test -n "$$latest" || { echo "FEHLER: kein Backup unter /srv/backups/garmin-*.dump"; exit 1; }; \
-	echo "Restore-Test mit $$latest"; \
-	docker exec pulsebase-db dropdb -U garmin --if-exists restore_check; \
-	docker exec pulsebase-db createdb -U garmin restore_check; \
-	docker exec -i pulsebase-db pg_restore -U garmin -d restore_check < "$$latest"; \
-	docker exec pulsebase-db psql -U garmin -d restore_check -c "SELECT count(*) AS users FROM users;"; \
-	docker exec pulsebase-db dropdb -U garmin restore_check; \
+	@key="$${AGE_IDENTITY:-$$(sed -n 's/^AGE_IDENTITY=//p' env/.env.backup 2>/dev/null)}"; \
+	test -n "$$key" || { echo "FEHLER: AGE_IDENTITY in env/.env.backup setzen (Pfad zum privaten age-Key)"; exit 1; }; \
+	$(DC) run --rm -v "$$key:/age.key:ro" -e AGE_IDENTITY=/age.key backup /scripts/restore.sh latest restore_check; \
 	echo "→ Restore-Test OK"
 
 setup:

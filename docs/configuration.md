@@ -2,7 +2,7 @@
 
 Alle Umgebungsvariablen aller drei Services. Jede Variable wird beim App-Start validiert (Pydantic `BaseSettings`) — die App crasht sofort wenn eine Pflicht-Variable fehlt.
 
-Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.app.example`, `env/.env.api.example`, `env/.env.sync.example`, `env/.env.ml.example`.
+Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.app.example`, `env/.env.api.example`, `env/.env.sync.example`, `env/.env.ml.example`, `env/.env.backup.example`.
 
 ---
 
@@ -15,6 +15,7 @@ Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.app.example
 | `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, TRIMP_* |
 | `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS |
 | `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR |
+| `env/.env.backup` | backup-Container | AGE_RECIPIENT, BACKUP_HOUR/MINUTE, BACKUP_RETENTION_DAYS, RCLONE_REMOTE (DB-Creds aus `env/.env`) |
 
 > **Warum diese Trennung?** Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nur für Flyway-Migrationen nötig. App-Services bekommen je eine eigene Least-Privilege-Rolle (V24): api liest `DB_APP_*` (breit), sync-service liest `DB_SYNC_*`, ml-service liest `DB_ML_*` — alle mit eng-granulierten Rechten. Damit sind Admin-Creds nie im Prozess-Environment von api/sync/ml sichtbar (H-11).
 > `SENTRY_DSN` steht zentral in `env/.env.app` und wird von allen drei Services gelesen.
@@ -187,6 +188,22 @@ Vollständiger Runbook: [deployment-public.md](deployment-public.md).
 > Zusätzlich für die öffentliche Instanz in `env/.env.api`: `HTTPS_ONLY=true`,
 > `APP_BASE_URL=https://<domain>`, `TRUSTED_PROXY_CIDRS=["172.30.0.0/16","127.0.0.1/32"]`
 > (gepinntes `internal`-Subnetz des Overlays).
+
+---
+
+## `env/.env.backup` — Backup-Container
+
+Konfiguriert den `backup`-Service (verschlüsselte tägliche DB-Backups). DB-Zugangsdaten kommen
+aus `env/.env` (Admin-Rolle) — hier nicht duplizieren. Runbook: [deployment-public.md](deployment-public.md#backups-health-pii-pflicht).
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `AGE_RECIPIENT` | string | ✓ | — | age **Public-Key** (`age1…`), verschlüsselt jedes Backup. Privater Key bleibt offsite. |
+| `BACKUP_HOUR` | int | — | `3` | Stunde (UTC) des täglichen Backups. |
+| `BACKUP_MINUTE` | int | — | `30` | Minute (UTC) des täglichen Backups. |
+| `BACKUP_RETENTION_DAYS` | int | — | `14` | Lokale Backups älter als N Tage werden gelöscht. |
+| `RCLONE_REMOTE` | string | — | `""` | Optionales rclone-Offsite-Ziel (3-2-1), z. B. `b2:pulsebase-backups`. Leer = aus. |
+| `AGE_IDENTITY` | string | — | — | Nur für `make restore-test`: Host-Pfad zum **privaten** age-Key (read-only gemountet). |
 
 ---
 
