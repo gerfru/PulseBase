@@ -22,8 +22,10 @@ Ausnahmen — keine offene Implementierungsarbeit.
 
 - [ ] **Sentry-Alert-Rules anlegen** — Error-Rate >1%/10min, p95 >2s, neuer Issue.
   Runbook fertig: [deployment-public.md → Sentry-Alert-Runbook](deployment-public.md#sentry-alert-runbook-obs-l3--pflicht-vor-public-launch). Einmaliger Dashboard-Klick. *(App-Review OBS-L3)*
-- [ ] **Backup scharfschalten** — täglicher `pg_dump`-Cron (Runbook in
-  [deployment-public.md](deployment-public.md#backups-health-pii-pflicht)) + monatlich `make restore-test`.
+- [ ] **Backup scharfschalten** — `env/.env.backup` anlegen (`AGE_RECIPIENT` aus offsite
+  `age-keygen`) + `make up`; der Backup-Container sichert dann täglich verschlüsselt
+  (Runbook in [deployment-public.md](deployment-public.md#backups-health-pii-pflicht)),
+  monatlich `make restore-test`. *(seit Wave 16 PR-B Container statt Host-Cron)*
 - [ ] **GitHub-native Secret-Scanning** aktivieren, sobald Public-Repo / GHAS verfügbar
   (aktuell blocked-by-plan; Layer 1+2 gitleaks decken ab). *(App-Review M3)*
 
