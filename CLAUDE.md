@@ -421,6 +421,7 @@ Zusätzliche Schutzebene bleibt: Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `
 
 CI endet nach Build+Test; Deployment erfolgt manuell via `make up`. Rollback via Docker-Tag (`docker compose pull && up -d` mit gepinntem Tag).
 Begründung: Single-Server-Deployment ohne Multi-Environment-Setup. Bei Bedarf: GitHub Actions → SSH → `docker compose pull && up -d` als CD-Step ergänzen (CICD-M4).
+Architektur + Vertagungs-Entscheidung + Trigger ausführlich in [`docs/adr/0002-cd-pipeline.md`](docs/adr/0002-cd-pipeline.md).
 
 ### QUAL-M2: Duplizierter GarminClient in api/ und sync-service/
 

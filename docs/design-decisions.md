@@ -115,6 +115,17 @@ bundled-Caddy public path. Security headers (`HSTS`, `CSP`, …) are emitted by 
 
 ---
 
+## CD: manual `make up` (pipeline deferred)
+
+Deployment is a manual `make up` (`docker compose up -d --build`) — no container registry,
+no auto-deploy job in CI. With a single server and a single developer, the setup cost of a
+CD pipeline (registry, SSH secret, rollback mechanics) outweighs the DORA benefit. The
+deferral, the sketched target architecture (ghcr.io → SSH pull → `/ready` health gate →
+rollback on the previous tag) and the trigger to build it are recorded in
+[ADR-0002](adr/0002-cd-pipeline.md) (supersedes the CICD-M4 keyword).
+
+---
+
 ## CSS: Tailwind CLI Build + custom style.css
 
 Templates use **Tailwind CSS** for layout, spacing, and color utilities. A companion

@@ -30,7 +30,8 @@ Ausnahmen — keine offene Implementierungsarbeit.
 ## 2 · Bewusst aufgeschoben (Trigger dokumentiert)
 
 - **CD-Pipeline** (CICD-M4) — Auto-Deploy via SSH. Für solo/Single-Server marginal;
-  einführen bei häufigem Deploy oder Multi-Environment.
+  einführen bei häufigem Deploy oder Multi-Environment. Architektur + Trigger:
+  [`docs/adr/0002-cd-pipeline.md`](adr/0002-cd-pipeline.md).
 - **JS-Coverage Phase 2** — DOM-/fetch-lastige Loader (`dashboard-loaders`, `activity`,
   restliche `metrics-*`) ins Vitest-Gate. Hoher Aufwand; metrics-ml ist bereits gegated.
   Hinweis: `colors.js`/`help.js`/`metrics-overview.js` sind globale `<script>`s ohne
