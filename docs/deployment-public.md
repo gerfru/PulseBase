@@ -68,18 +68,29 @@ falschem CIDR greift Rate-Limiting auf der Caddy-IP statt der echten Client-IP.
 
 ## Backups (Health-PII, Pflicht)
 
-Täglicher Host-Cron auf dem VPS (`crontab -e`):
+Backups laufen als **Container im Stack** (Service `backup`, [`backup/`](../backup/)) — kein
+Host-Cron, kein Docker-Socket: der Container verbindet sich übers interne Netz mit `db` und
+führt täglich [`scripts: backup.sh`](../backup/backup.sh) aus (`pg_dump -Fc` → **age**-Verschlüsselung
+→ Retention → optional rclone-Offsite). Single Source — diese Doku dupliziert das Skript nicht.
 
-```bash
-30 3 * * * docker exec pulsebase-db pg_dump -U garmin -Fc garmin \
-  > /srv/backups/garmin-$(date +\%F).dump 2>>/srv/backups/backup.log && \
-  find /srv/backups -name 'garmin-*.dump' -mtime +14 -delete && \
-  rclone copy /srv/backups remote:pulsebase-backups --max-age 24h
-```
+**Einrichtung:**
 
-- `-Fc` = komprimiert, parallel-restorefähig. Offsite-Bucket **verschlüsselt**, Keys restriktiv.
-- **Backups testen** (Regel „test backups"): monatlich `make restore-test` —
-  restored den neuesten Dump in eine Wegwerf-DB und prüft die User-Zahl.
+1. age-Keypair auf einer **vertrauenswürdigen Offsite-Maschine** erzeugen (nicht auf dem VPS):
+   `age-keygen -o pulsebase-backup.key`.
+2. `env/.env.backup` anlegen (`cp env/.env.backup.example env/.env.backup`), `AGE_RECIPIENT`
+   auf den `age1…`-Public-Key setzen, optional `RCLONE_REMOTE`/`BACKUP_HOUR`. `make secure-env`.
+3. Den **privaten** Key (`pulsebase-backup.key`) offsite/im Passwortmanager verwahren — nur
+   fürs Restore. Verschlüsselte Backups landen im Named Volume `backups`.
+
+- `-Fc` = komprimiert, selektiv restorefähig; erfasst alle TimescaleDB-Hypertables.
+- **age** (X25519/ChaCha20-Poly1305): nur der Public-Key liegt am Server → ein kompromittierter
+  Server kann eigene Backups **nicht entschlüsseln**. Privater Key bleibt offsite.
+- **Backups testen** (Regel „test backups"): monatlich `make restore-test` (liest den privaten
+  Key-Pfad aus `AGE_IDENTITY` in `env/.env.backup`) — entschlüsselt den neuesten Backup und
+  restored ihn **TimescaleDB-korrekt** (`timescaledb_pre_restore()` → `pg_restore` ohne `-j`
+  → `timescaledb_post_restore()`) in eine Wegwerf-DB und prüft die User-Zahl.
+- **Offsite (3-2-1):** `RCLONE_REMOTE` in `env/.env.backup` setzen; das rclone-Remote muss im
+  Image konfiguriert sein. Bucket-Keys restriktiv.
 
 ## Monitoring (externe SaaS-Dienste)
 

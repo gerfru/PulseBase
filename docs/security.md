@@ -397,8 +397,9 @@ siehe [`docs/api.md` → Error Format](api.md#error-format)). Sicherheitsrelevan
 | `DB_APP_PASSWORD` | DB-Verbindung (breite Rolle: Auth, Account-Löschung) | nur API | Standard DB-Rotation |
 | `DB_SYNC_PASSWORD` | DB-Verbindung (Least-Privilege-Rolle, V24) | nur Sync | Standard DB-Rotation |
 | `DB_ML_PASSWORD` | DB-Verbindung (read-only Health + write ml_predictions, V24) | nur ML | Standard DB-Rotation |
-| `DB_PASSWORD` | DB-Admin (nur für Migrations) | Flyway | Selten |
+| `DB_PASSWORD` | DB-Admin (Migrations + Backup-Dump) | Flyway + Backup | Selten |
 | `RESEND_API_KEY` | E-Mail-Versand | API | Bei Verdacht |
+| age-Keypair | Backup-Verschlüsselung (Public am Server, Private **offsite**) | Backup | Unkritisch (s. 9.6) |
 
 ### 9.2 Secret-Isolation per Service
 
@@ -411,9 +412,13 @@ env/.env.app   → api + sync + ml (FERNET_KEY + Per-Service-DB-Rollen V24:
 env/.env.api   → nur api (SESSION_SECRET, RESEND_API_KEY, APP_BASE_URL, ...)
 env/.env.sync  → nur sync-service (SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, ...)
 env/.env.ml    → nur ml-service (ML_INFER_HOUR — ml-service greift nie auf Tokens zu, kein FERNET_KEY nötig)
+env/.env.backup → nur backup-Container (AGE_RECIPIENT, BACKUP_*; DB-Creds aus env/.env)
 ```
 
-Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind damit nie im Prozess-Environment von api/sync/ml sichtbar — kein Leak via `/proc/<pid>/environ` (H-11, W9).
+Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nie im Prozess-Environment von api/sync/ml
+sichtbar — kein Leak via `/proc/<pid>/environ` (H-11, W9). **Ausnahme:** der `backup`-Container
+bekommt sie bewusst (pg_dump braucht Voll-Read). Least-Privilege-Härtung wäre eine dedizierte
+`pg_read_all_data`-Backup-Rolle (Migration V27) statt der Admin-Rolle — dokumentiert vertagt.
 
 Verifikation:
 ```bash
@@ -425,10 +430,12 @@ docker exec pulsebase-ml   env | grep SESSION_SECRET # → leer (korrekt)
 ### 9.3 Secret-Generierung
 
 ```bash
-make gen-secrets    # Generiert SESSION_SECRET und FERNET_KEY
+make gen-secrets    # SESSION_SECRET, FERNET_KEY, DB_APP/SYNC/ML_PASSWORD + age-keygen-Hinweis
 ```
 
-Beide werden mit `secrets.token_urlsafe(32)` bzw. `Fernet.generate_key()` erzeugt — kryptographisch starke Zufallszahlen aus dem OS-CSPRNG.
+Erzeugt mit `openssl rand` bzw. `Fernet.generate_key()` — kryptographisch starke Zufallszahlen
+aus dem OS-CSPRNG. Das age-Backup-Keypair wird **nicht** hier erzeugt (der private Key soll nicht
+am Server entstehen): `make gen-secrets` druckt nur den `age-keygen`-Hinweis für eine Offsite-Maschine.
 
 ### 9.4 Session-Secret-Rotation
 
@@ -463,6 +470,23 @@ for row in tokens:
 
 # 4. Alten Key aus env entfernen, nur neuen Key stehen lassen
 ```
+
+**Wichtig — zwei unabhängige Schlüssel nicht verwechseln:** `FERNET_KEY` (verschlüsselt
+`user_tokens`) und das age-Backup-Keypair haben **verschiedene** Rotations-Konsequenzen (s. 9.6).
+
+### 9.6 age-Backup-Key-Rotation
+
+Das age-Keypair verschlüsselt die DB-Backups (Service `backup`). Asymmetrisch: der
+**Public-Key** (`AGE_RECIPIENT` in `env/.env.backup`) liegt am Server und verschlüsselt nur;
+der **private** Key bleibt offsite (Passwortmanager) und wird ausschließlich fürs Restore
+gebraucht — ein kompromittierter Server kann seine eigenen Backups also **nicht** entschlüsseln.
+
+- **Rotation unkritisch:** neuen `AGE_RECIPIENT` eintragen → gilt ab dem nächsten Backup. Alte
+  Dumps brauchen weiterhin den alten privaten Key zum Restore → **beide privaten Keys
+  aufbewahren**, bis die Retention (`BACKUP_RETENTION_DAYS`) der alten Dumps abgelaufen ist.
+- **Kontrast zu `FERNET_KEY`:** dessen Rotation macht alle `user_tokens` unlesbar →
+  betroffene Nutzer müssen **Garmin/LibreLink neu verknüpfen** (re-link). age-Rotation hat
+  keine solche Nutzer-Auswirkung. Nur bei Verdacht auf Kompromittierung rotieren.
 
 ---
 
