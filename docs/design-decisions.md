@@ -152,7 +152,9 @@ No CDN, no runtime script, no build step in Docker.
 
 **Motion & Reduced Motion:**
 - Motion is tokenized in `:root` like spacing/type: `--dur-fast|base|slow`, `--ease-out`,
-  `--ease-spring` (single source of truth for timings/easing)
+  `--ease-spring` (single source of truth for timings/easing). Wave 16 PR-D consolidated the
+  ~18 scattered hardcoded `transition` timings onto `--dur-fast`/`--dur-base`; only the
+  deliberately-slow `.4s` effect-fill and the skeleton-pulse keep literal values.
 - A global `@media (prefers-reduced-motion: reduce)` guard neutralizes all animations and
   transitions (WCAG 2.3.3) — the one deliberate `!important` exception (accessibility override)
 - The hero readiness ring (`dashboard-hero.js`) animates draw-in + score count-up with cubic

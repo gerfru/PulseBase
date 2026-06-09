@@ -45,7 +45,7 @@ export const SLEEP_METRICS = {
                 summary:
                     'Schlafqualitätsscore letzte Nacht: Tiefschlaf (35%) + REM (25%) + Dauer (25%) + Wach-Penalty (15%).',
                 recommendation: (() => {
-                    if (sc == null) return null;
+                    // sc (= Math.round(d.score)) is guaranteed by the early-return guard above
                     if (sc >= 75) return `Schlafqualität ${sc} — ausgezeichnet. Körper hat sich gut erholt.`;
                     if (sc >= 50)
                         return `Schlafqualität ${sc} — okay. Tiefschlaf- oder REM-Anteil könnte verbessert werden.`;
@@ -146,7 +146,7 @@ export const SLEEP_METRICS = {
                 summary:
                     'Personalisierter HRV-Status (Custom): vergleicht 7-Tage-HRV-Mittel mit persönlicher Langzeit-Baseline.',
                 recommendation: (() => {
-                    const st = d?.status ?? null;
+                    const st = d.status; // guaranteed non-null by the early-return guard above
                     if (st === 'BALANCED') return 'HRV ausgeglichen — gute Erholung. Volles Training möglich.';
                     if (st === 'UNBALANCED') return 'HRV leicht gedämpft. Moderate Belastung empfohlen.';
                     if (st === 'LOW' || st === 'POOR')
@@ -275,8 +275,7 @@ export const SLEEP_METRICS = {
                 summary:
                     'Bewertet die Regelmäßigkeit deiner Schlafzeiten über 14 Nächte. Hoher Score = stabiler Schlafrhythmus.',
                 recommendation: (() => {
-                    const sc = d?.score ?? null;
-                    if (sc == null) return null;
+                    const sc = d.score; // guaranteed non-null by the early-return guard above
                     if (sc >= 80)
                         return `Sehr konsistenter Schlafrhythmus (${Math.round(sc)}). Circadiane Uhr gut eingestellt.`;
                     if (sc >= 60)

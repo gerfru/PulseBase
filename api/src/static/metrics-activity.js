@@ -48,7 +48,7 @@ export const ACTIVITY_METRICS = {
                 summary:
                     'Heutige Intensitätsminuten nach Karvonen-HRR-Methode — WHO-kompatibel gewichtet (intensiv × 2).',
                 recommendation: (() => {
-                    if (total == null) return null;
+                    // total is derived from d.moderate_minutes (guaranteed by the early-return guard)
                     if (total >= 30)
                         return `${total} WHO-Äquivalent-Minuten heute — guter Beitrag zum Wochenziel (150 min).`;
                     if (total > 0)
@@ -116,8 +116,7 @@ export const ACTIVITY_METRICS = {
                 summary:
                     'Trainingseffekt der letzten Einheit (0–5) basierend auf TRIMP relativ zur aktuellen CTL-Fitness.',
                 recommendation: (() => {
-                    const ef = d?.effect ?? null;
-                    if (ef == null) return null;
+                    const ef = d.effect; // guaranteed non-null by the early-return guard above
                     if (ef >= 4)
                         return `Training Effect ${ef.toFixed(1)} — sehr intensiv. Heute oder morgen Erholung einplanen.`;
                     if (ef >= 2.5)
@@ -180,8 +179,7 @@ export const ACTIVITY_METRICS = {
                 summary:
                     'Zeigt ob die Trainingsbelastung der letzten 7 Tage zu monoton (gleichförmig) war — Risiko für Übertraining.',
                 recommendation: (() => {
-                    const mono = d?.monotony ?? null;
-                    if (mono == null) return null;
+                    const mono = d.monotony; // guaranteed non-null by the early-return guard above
                     if (mono < 1.5) return `Monotonie ${mono.toFixed(2)} — gute Variation im Trainingsplan.`;
                     if (mono < 2.0)
                         return `Monotonie ${mono.toFixed(2)} — leicht erhöht. Mehr Variation zwischen harten und leichten Tagen einbauen.`;
@@ -271,8 +269,7 @@ export const ACTIVITY_METRICS = {
                 summary:
                     'Laufökonomie-Score aus Bodenkontaktzeit + vertikaler Oszillation — verglichen mit deiner eigenen Baseline.',
                 recommendation: (() => {
-                    const sc = d?.score ?? null;
-                    if (sc == null) return null;
+                    const sc = d.score; // guaranteed non-null by the early-return guard above
                     if (sc >= 75) return `Laufökonomie ${Math.round(sc)} — effizienter Laufstil. Technik beibehalten.`;
                     if (sc >= 50)
                         return `Laufökonomie ${Math.round(sc)} — durchschnittlich. Bodenkontaktzeit und vertikale Bewegung reduzieren.`;
