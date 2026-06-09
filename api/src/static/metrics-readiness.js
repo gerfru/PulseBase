@@ -242,8 +242,7 @@ export const READINESS_METRICS = {
                 summary:
                     'Misst die Erholungsgeschwindigkeit deiner HRV nach intensiven Trainingseinheiten (60-Tage-Verlauf).',
                 recommendation: (() => {
-                    const spd = d?.recovery_speed ?? null;
-                    if (spd == null) return null;
+                    const spd = d.recovery_speed; // guaranteed non-null by the early-return guard above
                     if (spd >= 2)
                         return 'Schnelle HRV-Erholung — gute Trainingsadaptation. Intensitätsblöcke gut vertragen.';
                     if (spd >= 0) return 'Normale HRV-Erholung. Training fortführen, Volumen moderat halten.';

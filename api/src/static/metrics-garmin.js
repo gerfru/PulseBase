@@ -421,8 +421,7 @@ export const GARMIN_METRICS = {
                 eli5: 'Nachts sollte dein SpO₂ stabil bei 95–100 % bleiben. Wenn es regelmäßig unter 90 % fällt oder über mehrere Tage sinkt, kann das auf Schlafapnoe oder eine Erkrankung hindeuten. Das System zeigt dir den Trend — ein Arzt macht die Diagnose.',
                 summary: 'Screening auf nächtliche SpO₂-Desaturationen. Werte unter 90% wiederholt: Arzt konsultieren.',
                 recommendation: (() => {
-                    const spo2 = latest?.avg_spo2 ?? null;
-                    if (spo2 == null) return null;
+                    const spo2 = d.mean_spo2; // guaranteed non-null by the early-return guard above
                     if (spo2 >= 95) return `SpO₂ ${spo2.toFixed(1)}% — normaler Bereich.`;
                     if (spo2 >= 90)
                         return `SpO₂ ${spo2.toFixed(1)}% — leicht erhöhte Aufmerksamkeit empfohlen. Trend beobachten.`;

@@ -176,7 +176,7 @@ make test-js           # einmalig
 make test-js-coverage  # mit Coverage-Report (api/coverage/index.html)
 ```
 
-Vitest testet sechs Dateien aus `coverage.include`: `chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js`, `epilepsy.js`, `onboarding.js` (Schwellen: ≥95% Statements/Branches/Lines, ≥90% Functions; `chart-utils.js`, `dashboard-nav.js`, `dashboard-utils.js`, `epilepsy.js`, `onboarding.js` sind auf 100%). Verbleibende Lücken sind bewusst defensive Guards (`if(el)`/`?.`/`.catch(()=>{})`) — kein 100%-Ziel. `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme). `colors.js` ist nicht in `coverage.include`, hat aber einen eigenen WCAG-Kontrast-Guard (`tests/js/colors.test.js`): jede Chart-Datenfarbe muss in hellem und dunklem Theme ≥ 3:1 erfüllen.
+Vitest testet zwölf Dateien aus `coverage.include`: die sechs Utility-Module (`chart-utils.js`, `dashboard-utils.js`, `dashboard-nav.js`, `dashboard-status.js`, `epilepsy.js`, `onboarding.js`) plus die sechs reinen Render-Module (`metrics-ml.js` und seit Wave 16 PR-D `metrics-energy/readiness/sleep/garmin/activity.js`) (Schwellen: ≥95% Statements/Branches/Lines, ≥90% Functions; erreicht: Statements 99.7 / Branches 95.07 / Functions 98.25 / Lines 100). Verbleibende Branch-Lücken sind Chart.js-Tick-Callbacks (von der gemockten Chart-Lib nie aufgerufen) — kein 100%-Ziel. `dashboard-hero.js` hat Unit-Tests für `heroRecommendation()`, ist aber bewusst aus `coverage.include` ausgeschlossen — DOM-schwere Funktionen (`buildHeroCard`, `buildMlTabs`) via Playwright E2E (TEST-L3, dokumentierte Ausnahme). `colors.js` ist nicht in `coverage.include`, hat aber einen eigenen WCAG-Kontrast-Guard (`tests/js/colors.test.js`): jede Chart-Datenfarbe muss in hellem und dunklem Theme ≥ 3:1 erfüllen.
 
 ### E2E-Tests (Playwright)
 
@@ -223,7 +223,7 @@ cd api && .venv/bin/pytest tests/test_auth.py::test_login_success_redirects -v
 | sync-service | ~97%+ | 70% | 70%+ |
 | ml-service | ~80%+ | 80% | 80%+ |
 
-Die JS-Schwelle (95% Statements/Branches/Lines, 90% Functions) gilt für die sechs gemessenen Utility-Dateien. `dashboard-hero.js` ist bewusst ausgeschlossen (TEST-L3). sync-service: CI-Gate auf 70% angehoben (W13 R3, M-79). ml-service: CI-Gate auf 80% angehoben (W10 R2, M-61).
+Die JS-Schwelle (95% Statements/Branches/Lines, 90% Functions) gilt für die zwölf gemessenen Module (6 Utility + 6 Render). `dashboard-hero.js` und die DOM-/fetch-lastigen Loader sind bewusst ausgeschlossen (TEST-L3). sync-service: CI-Gate auf 70% angehoben (W13 R3, M-79). ml-service: CI-Gate auf 80% angehoben (W10 R2, M-61).
 
 ---
 
