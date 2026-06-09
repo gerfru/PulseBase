@@ -7,7 +7,7 @@
 {% block content %}
 
     <header class="dash-topbar mb-4">
-        <div class="max-w-7xl mx-auto w-full py-3 flex items-center justify-between gap-3 px-4 sm:px-6">
+        <div class="dash-shell mx-auto w-full py-3 flex items-center justify-between gap-3 px-4 sm:px-6">
             <a href="/dashboard" class="flex items-baseline gap-2.5 no-underline">
                 <span class="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</span>
                 <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.name }}</span>
@@ -27,7 +27,7 @@
         </div>
     </header>
 
-    <div class="max-w-7xl mx-auto w-full">
+    <div class="dash-shell mx-auto w-full">
 
     {% if not user.garmin_linked %}
     <div class="px-4 mb-4">
@@ -38,7 +38,7 @@
     </div>
     {% endif %}
     <!-- ── Onboarding-/Datenlatenz-Hinweis (einmalig, dismissbar) ── -->
-    <div id="onboarding-hint" class="px-4 sm:px-6 pt-5" style="display:none">
+    <div id="onboarding-hint" class="px-4 sm:px-6 pt-5 is-hidden">
         <div role="status" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-800 dark:text-sky-200 text-sm">
             <span class="shrink-0">⏳</span>
             <span class="flex-1">
@@ -50,15 +50,15 @@
         </div>
     </div>
 
-    <!-- ── View-Toolbar: Zeitraum + Sync-Status ──────────────────── -->
+    <!-- ── View-Toolbar: Zeitraum + Sync-Status (auf Hero-Breite ausgerichtet) ── -->
     <div class="px-4 sm:px-6 pt-5">
-        <div class="view-toolbar">
+        <div class="hero-card-wrap view-toolbar">
             <div class="seg" role="group" aria-label="Zeitraum wählen">
-                <button class="time-btn active" data-days="7" aria-label="7 Tage" aria-pressed="true">7T</button>
-                <button class="time-btn" data-days="14" aria-label="14 Tage" aria-pressed="false">14T</button>
-                <button class="time-btn" data-days="30" aria-label="30 Tage" aria-pressed="false">30T</button>
-                <button class="time-btn" data-days="90" aria-label="90 Tage" aria-pressed="false">90T</button>
-                <button class="time-btn" data-days="365" aria-label="365 Tage" aria-pressed="false">365T</button>
+                <button class="time-btn active" data-days="7" aria-label="7 Tage" aria-pressed="true">1W</button>
+                <button class="time-btn" data-days="14" aria-label="14 Tage" aria-pressed="false">2W</button>
+                <button class="time-btn" data-days="30" aria-label="30 Tage" aria-pressed="false">1M</button>
+                <button class="time-btn" data-days="90" aria-label="90 Tage" aria-pressed="false">3M</button>
+                <button class="time-btn" data-days="365" aria-label="365 Tage" aria-pressed="false">1J</button>
             </div>
             <span class="sync-pill">
                 <span id="ml-status" class="sync-last" style="display:none"></span>
@@ -236,7 +236,7 @@
         </a>
     </dialog>
 
-    </div><!-- /max-w-7xl -->
+    </div><!-- /dash-shell -->
 
 {% endblock %}
 {% block scripts %}
