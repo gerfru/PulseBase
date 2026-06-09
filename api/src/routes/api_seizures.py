@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 import src.deps as _deps
+from src.deps import limiter
 from src.db import (
     delete_seizure,
     get_seizure_risk,
@@ -45,6 +46,7 @@ class SeizureBody(BaseModel):
 
 
 @router.post("/api/seizures")
+@limiter.limit("30/minute")
 async def api_log_seizure(request: Request, body: SeizureBody) -> dict:
     user = await _deps.require_user(request)
     id_ = await save_seizure(
@@ -59,6 +61,7 @@ async def api_log_seizure(request: Request, body: SeizureBody) -> dict:
 
 
 @router.patch("/api/seizures/{seizure_id}", response_model=None)
+@limiter.limit("30/minute")
 async def api_update_seizure(
     request: Request, seizure_id: int, body: SeizureBody
 ) -> dict | JSONResponse:
@@ -81,6 +84,7 @@ async def api_update_seizure(
 
 
 @router.delete("/api/seizures/{seizure_id}", response_model=None)
+@limiter.limit("30/minute")
 async def api_delete_seizure(request: Request, seizure_id: int) -> dict | JSONResponse:
     user = await _deps.require_user(request)
     deleted = await delete_seizure(user["id"], seizure_id)

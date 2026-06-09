@@ -589,6 +589,37 @@ async def test_login_success_resets_counter(client):
     mock_reset.assert_awaited_once_with(TEST_USER["id"])
 
 
+async def test_login_resets_counter_after_lockout_expiry(client):
+    """After the lockout window expires, a single wrong password resets the
+    counter (→ 1) instead of re-locking immediately at attempt 6 (ASVS 2.2.1)."""
+    from datetime import datetime, timedelta, timezone
+
+    expired = {
+        **_USER_WITH_HASH,
+        "failed_login_attempts": 5,
+        "locked_until": datetime.now(timezone.utc) - timedelta(minutes=1),
+    }
+    with (
+        patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=expired)),
+        patch("src.auth_helpers.reset_failed_login", AsyncMock()) as mock_reset,
+        patch(
+            "src.auth_helpers.increment_failed_login", AsyncMock(return_value=1)
+        ) as mock_inc,
+        patch("src.auth_helpers.lock_user_until", AsyncMock()) as mock_lock,
+    ):
+        r = await client.post(
+            "/login",
+            data={
+                "email": TEST_USER["email"],
+                "password": "wrongpassword",  # pragma: allowlist secret
+            },
+        )
+    assert r.status_code == 400
+    mock_reset.assert_awaited_once_with(TEST_USER["id"])
+    mock_inc.assert_awaited_once_with(TEST_USER["id"])
+    mock_lock.assert_not_awaited()
+
+
 # ── E-Mail verification ───────────────────────────────────────────────────────
 
 

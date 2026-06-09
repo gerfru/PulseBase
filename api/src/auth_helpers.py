@@ -60,6 +60,10 @@ async def _handle_invalid_credentials(
     if user and valid:
         return None
     if user:
+        if user["locked_until"] and user["locked_until"] <= datetime.now(timezone.utc):
+            # Previous lockout window has passed — start counting fresh so a single
+            # post-expiry typo does not immediately re-lock the account.
+            await reset_failed_login(user["id"])
         new_attempts = await increment_failed_login(user["id"])
         if new_attempts >= _MAX_ATTEMPTS:
             until = datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)

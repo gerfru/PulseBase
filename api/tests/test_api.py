@@ -345,6 +345,20 @@ async def test_seizure_notes_at_limit_accepted(client):
     assert r.status_code == 200
 
 
+async def test_seizure_post_rate_limited(client):
+    """POST /api/seizures is capped at 30/min — the 31st request returns 429."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api_seizures.save_seizure", AsyncMock(return_value=1)),
+    ):
+        for _ in range(31):
+            r = await client.post(
+                "/api/seizures",
+                json={"occurred_at": "2026-01-01T10:00:00Z"},
+            )
+    assert r.status_code == 429
+
+
 # ── PATCH/DELETE /api/seizures/{id} ───────────────────────────────────────────
 
 
