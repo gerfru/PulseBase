@@ -1,6 +1,9 @@
 import asyncpg
+import structlog
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+logger = structlog.get_logger(__name__)
 
 
 class Settings(BaseSettings):
@@ -52,9 +55,15 @@ _pool: asyncpg.Pool | None = None
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(
-            settings.db_url,
-            min_size=settings.db_pool_min,
-            max_size=settings.db_pool_max,
-        )
+        try:
+            _pool = await asyncpg.create_pool(
+                settings.db_url,
+                min_size=settings.db_pool_min,
+                max_size=settings.db_pool_max,
+            )
+        except Exception as e:
+            # db_url embeds the DB password — log only the exception type so the
+            # DSN never reaches logs or a propagated trace, then re-raise.
+            logger.error("db.pool.create_failed", reason=type(e).__name__)
+            raise
     return _pool

@@ -9,18 +9,22 @@ from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.middleware.sessions import SessionMiddleware
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from src.db import get_pool
 from src.deps import (
+    HTTP_ERROR_CODES,
     NeedsLogin,
     _rate_limit_exceeded_handler,
+    error_envelope,
     limiter,
     require_user,
     settings,
@@ -179,6 +183,42 @@ app.add_middleware(
 @app.exception_handler(NeedsLogin)
 async def needs_login_handler(request: Request, exc: NeedsLogin) -> RedirectResponse:
     return RedirectResponse("/login", status_code=303)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    # Normalise Pydantic/FastAPI 422s into the unified error envelope. We map
+    # only `loc` + `msg` and deliberately DROP `input`/`ctx`: Pydantic echoes the
+    # offending value, which on auth POSTs (/login, /register, /auth/reset/*) is
+    # the client's plaintext password. Keeping it would leak it into both the
+    # response body and the Sentry event. Security invariant: no client-submitted
+    # value ever leaves the server via an error response.
+    details = [
+        {"field": ".".join(str(p) for p in err["loc"]), "msg": err["msg"]}
+        for err in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=422,
+        content=error_envelope("VALIDATION_ERROR", "Eingabe ungültig", details),
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
+    # Unify raised HTTPExceptions (e.g. 403 CSRF, 404, 405) into the envelope.
+    # Only exc.detail (a developer-controlled string) becomes the message — never
+    # internal state. Preserve headers so 401 challenges / 405 Allow survive.
+    code = HTTP_ERROR_CODES.get(exc.status_code, "ERROR")
+    message = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_envelope(code, message),
+        headers=getattr(exc, "headers", None),
+    )
 
 
 @app.get("/health")

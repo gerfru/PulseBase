@@ -3,6 +3,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from tests.conftest import TEST_USER, TEST_USER_GARMIN
 
 
+def _assert_validation_envelope(r) -> None:
+    """Every 422 goes through the global RequestValidationError handler (PR-A):
+    unified `{error:{code,message,details}}` form, and crucially NO `input`/`ctx`
+    keys — those would echo client-submitted values (e.g. a password)."""
+    body = r.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["message"]
+    for item in body["error"].get("details", []):
+        assert "input" not in item
+        assert "ctx" not in item
+
+
 # ── Activities ────────────────────────────────────────────────────────────────
 
 
@@ -32,12 +44,14 @@ async def test_rpe_zero_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.patch("/api/activities/1/rpe", json={"rpe": 0})
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_rpe_eleven_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.patch("/api/activities/1/rpe", json={"rpe": 11})
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_rpe_not_found_returns_404(client):
@@ -182,12 +196,14 @@ async def test_profile_update_invalid_sex_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.patch("/api/profile", json={"sex": "invalid"})
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_profile_update_future_dob_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.patch("/api/profile", json={"date_of_birth": "2099-01-01"})
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 # ── Garmin link / unlink ──────────────────────────────────────────────────────
@@ -249,6 +265,7 @@ async def test_seizure_missing_occurred_at_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.post("/api/seizures", json={"type": "focal"})
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_seizure_invalid_type_returns_422(client):
@@ -258,6 +275,7 @@ async def test_seizure_invalid_type_returns_422(client):
             json={"occurred_at": "2026-05-01T10:00:00Z", "type": "stroke"},
         )
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_seizure_invalid_severity_returns_422(client):
@@ -267,6 +285,7 @@ async def test_seizure_invalid_severity_returns_422(client):
             json={"occurred_at": "2026-05-01T10:00:00Z", "severity": 6},
         )
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_seizures_list(client):
@@ -282,12 +301,14 @@ async def test_seizures_days_zero_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get("/api/seizures?days=0")
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_seizures_days_over_max_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get("/api/seizures?days=366")
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_seizures_days_boundary_min(client):
@@ -407,12 +428,14 @@ async def test_ml_feedback_invalid_model_returns_422(client):
             json={"model": "bogus", "helpful": True},
         )
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_ml_feedback_missing_helpful_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.post("/api/ml-feedback", json={"model": "readiness_rf"})
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_ml_feedback_get_returns_map(client):
@@ -462,6 +485,7 @@ async def test_glucose_hours_out_of_range_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.get("/api/glucose?hours=0")
     assert r.status_code == 422
+    _assert_validation_envelope(r)
 
 
 async def test_glucose_stats_returns_200(client):
@@ -485,3 +509,34 @@ async def test_evidence_returns_catalog(client):
     first = next(iter(data.values()))
     assert "level" in first
     assert "refs" in first
+
+
+# ── Error envelope (PR-A) ─────────────────────────────────────────────────────
+
+
+async def test_validation_error_does_not_leak_submitted_value(client):
+    """NEU-1 regression guard: a 422 must not echo the client-submitted value
+    back into the response body (it would leak a password on auth forms)."""
+    canary = "leak-canary-do-not-echo"  # pragma: allowlist secret
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.post(
+            "/api/ml-feedback", json={"model": canary, "helpful": True}
+        )
+    assert r.status_code == 422
+    _assert_validation_envelope(r)
+    assert canary not in r.text
+
+
+async def test_csrf_403_uses_error_envelope(client):
+    """A raised HTTPException(403) is normalised to the unified envelope by the
+    global StarletteHTTPException handler. CSRF is bypassed globally in tests
+    (_bypass_csrf), so re-patch verify_csrf_token to False for this one path."""
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_GARMIN)),
+        patch("src.routes.garmin.verify_csrf_token", return_value=False),
+    ):
+        r = await client.post("/garmin/unlink", data={"csrf_token": "x"})
+    assert r.status_code == 403
+    body = r.json()
+    assert body["error"]["code"] == "FORBIDDEN"
+    assert body["error"]["message"]
