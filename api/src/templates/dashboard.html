@@ -6,36 +6,24 @@
 {% endblock %}
 {% block content %}
 
-    <header class="flex items-center justify-between px-4 py-3 mb-4 flex-wrap gap-3">
-        <div class="flex items-baseline gap-3">
-            <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</h1>
-            <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.name }}</span>
-        </div>
-        <div class="flex items-center gap-3 flex-wrap">
-            <div class="flex gap-1" role="group" aria-label="Zeitraum wählen">
-                <button class="time-btn active" data-days="7" aria-label="7 Tage" aria-pressed="true">7T</button>
-                <button class="time-btn" data-days="14" aria-label="14 Tage" aria-pressed="false">14T</button>
-                <button class="time-btn" data-days="30" aria-label="30 Tage" aria-pressed="false">30T</button>
-                <button class="time-btn" data-days="90" aria-label="90 Tage" aria-pressed="false">90T</button>
-                <button class="time-btn" data-days="365" aria-label="365 Tage" aria-pressed="false">365T</button>
-            </div>
-            <div class="flex items-center gap-2">
-                <span id="ml-status" class="sync-last" style="display:none"></span>
-                <span id="sync-last" class="sync-last"></span>
-            </div>
-            <a href="/help"
-               class="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
-               aria-label="Hilfe &amp; Methodologie">? Hilfe</a>
-            <a href="/settings"
-               class="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
-               aria-label="Einstellungen">⚙ Einstellungen</a>
-            <form method="post" action="/logout">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button type="submit"
-                        class="px-3 py-1.5 rounded-lg bg-black/[0.06] dark:bg-white/[0.08] border border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/15 transition-colors">
-                    Abmelden
-                </button>
-            </form>
+    <header class="dash-topbar mb-4">
+        <div class="max-w-7xl mx-auto w-full py-3 flex items-center justify-between gap-3 px-4 sm:px-6">
+            <a href="/dashboard" class="flex items-baseline gap-2.5 no-underline">
+                <span class="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.name }}</span>
+            </a>
+            <nav class="flex items-center gap-1" aria-label="Konto">
+                {% if user.epilepsy_mode %}
+                <a href="/epilepsy" class="topbar-btn">Anfallstagebuch</a>
+                {% endif %}
+                <a href="/help" class="topbar-btn" aria-label="Hilfe &amp; Methodologie">Hilfe</a>
+                <a href="/settings" class="topbar-btn">Einstellungen</a>
+                <span class="topbar-divider" aria-hidden="true"></span>
+                <form method="post" action="/logout">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="topbar-btn topbar-btn-danger">Abmelden</button>
+                </form>
+            </nav>
         </div>
     </header>
 
@@ -49,17 +37,6 @@
         </div>
     </div>
     {% endif %}
-    {% if user.epilepsy_mode %}
-    <div class="px-4 mb-2">
-        <a href="/epilepsy"
-           class="inline-flex items-center gap-2 px-3 py-2 rounded-xl
-                  bg-violet-500/10 border border-violet-500/20
-                  text-violet-800 dark:text-violet-300 text-sm hover:bg-violet-500/15 transition-colors">
-            Anfallstagebuch
-        </a>
-    </div>
-    {% endif %}
-
     <!-- ── Onboarding-/Datenlatenz-Hinweis (einmalig, dismissbar) ── -->
     <div id="onboarding-hint" class="px-4 sm:px-6 pt-5" style="display:none">
         <div role="status" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-800 dark:text-sky-200 text-sm">
@@ -70,6 +47,23 @@
             </span>
             <button id="onboarding-hint-close" type="button" aria-label="Hinweis schließen"
                     class="shrink-0 text-sky-700 dark:text-sky-300/70 hover:text-sky-900 dark:hover:text-sky-200 transition-colors">✕</button>
+        </div>
+    </div>
+
+    <!-- ── View-Toolbar: Zeitraum + Sync-Status ──────────────────── -->
+    <div class="px-4 sm:px-6 pt-5">
+        <div class="view-toolbar">
+            <div class="seg" role="group" aria-label="Zeitraum wählen">
+                <button class="time-btn active" data-days="7" aria-label="7 Tage" aria-pressed="true">7T</button>
+                <button class="time-btn" data-days="14" aria-label="14 Tage" aria-pressed="false">14T</button>
+                <button class="time-btn" data-days="30" aria-label="30 Tage" aria-pressed="false">30T</button>
+                <button class="time-btn" data-days="90" aria-label="90 Tage" aria-pressed="false">90T</button>
+                <button class="time-btn" data-days="365" aria-label="365 Tage" aria-pressed="false">365T</button>
+            </div>
+            <span class="sync-pill">
+                <span id="ml-status" class="sync-last" style="display:none"></span>
+                <span id="sync-last" class="sync-last"></span>
+            </span>
         </div>
     </div>
 
