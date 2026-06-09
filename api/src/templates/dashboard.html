@@ -7,7 +7,7 @@
 {% block content %}
 
     <header class="dash-topbar mb-4">
-        <div class="max-w-7xl mx-auto w-full py-3 flex items-center justify-between gap-3 px-4 sm:px-6">
+        <div class="dash-shell mx-auto w-full py-3 flex items-center justify-between gap-3 px-4 sm:px-6">
             <a href="/dashboard" class="flex items-baseline gap-2.5 no-underline">
                 <span class="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</span>
                 <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.name }}</span>
@@ -27,7 +27,7 @@
         </div>
     </header>
 
-    <div class="max-w-7xl mx-auto w-full">
+    <div class="dash-shell mx-auto w-full">
 
     {% if not user.garmin_linked %}
     <div class="px-4 mb-4">
@@ -236,7 +236,7 @@
         </a>
     </dialog>
 
-    </div><!-- /max-w-7xl -->
+    </div><!-- /dash-shell -->
 
 {% endblock %}
 {% block scripts %}
