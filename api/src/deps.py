@@ -59,12 +59,44 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
+# Map HTTP status codes to stable, machine-readable error codes for the unified
+# error envelope `{error:{code,message,details?}}`. Used by the global exception
+# handlers in main.py and the manual JSONResponse error sites in the routers.
+HTTP_ERROR_CODES: dict[int, str] = {
+    400: "BAD_REQUEST",
+    401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    405: "METHOD_NOT_ALLOWED",
+    409: "CONFLICT",
+    422: "VALIDATION_ERROR",
+    429: "RATE_LIMITED",
+    500: "INTERNAL_ERROR",
+    503: "SERVICE_UNAVAILABLE",
+}
+
+
+def error_envelope(
+    code: str, message: str, details: Any | None = None
+) -> dict[str, dict[str, Any]]:
+    """Build the unified error body `{error:{code,message,details?}}`.
+
+    `details` is omitted when None so simple errors stay compact. Never put
+    client-submitted values (e.g. a posted password) into `details` — see the
+    RequestValidationError handler in main.py, which strips Pydantic's `input`.
+    """
+    err: dict[str, Any] = {"code": code, "message": message}
+    if details is not None:
+        err["details"] = details
+    return {"error": err}
+
+
 async def _rate_limit_exceeded_handler(
     request: Request, exc: RateLimitExceeded
 ) -> JSONResponse:
     return JSONResponse(
         status_code=429,
-        content={"error": {"code": "RATE_LIMITED", "message": "Too many requests."}},
+        content=error_envelope("RATE_LIMITED", "Too many requests."),
     )
 
 

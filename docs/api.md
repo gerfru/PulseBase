@@ -19,6 +19,39 @@ Sessions expire after **1 hour of inactivity** (`max_age=3600`, ASVS V8.2.2).
 
 ---
 
+## Error Format
+
+All JSON error responses use a single envelope:
+
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "Eingabe ungültig", "details": [ … ] } }
+```
+
+`code` is a stable machine-readable string, `message` a human-readable summary, and the
+optional `details` array is only present for validation errors. Two global exception
+handlers in `api/src/main.py` normalise everything into this shape:
+
+| Status | `code` | Source |
+|--------|--------|--------|
+| 400 | `BAD_REQUEST` | raised `HTTPException(400)` |
+| 403 | `FORBIDDEN` | CSRF check on `/garmin/unlink`, `/libre/unlink` |
+| 404 | `NOT_FOUND` | unknown route or missing resource |
+| 405 | `METHOD_NOT_ALLOWED` | wrong HTTP verb |
+| 422 | `VALIDATION_ERROR` | Pydantic request validation |
+| 429 | `RATE_LIMITED` | rate limiter |
+
+**Security note (WS-A / NEU-1):** the 422 handler maps only `loc` → `field` and `msg`; it
+deliberately **drops Pydantic's `input`/`ctx`**, which would otherwise echo the client's
+submitted value (e.g. a plaintext password on `/login`, `/register`, `/auth/reset/*`) into
+both the response body and the Sentry event. No client-submitted value ever leaves the
+server via an error response.
+
+**Exceptions to the envelope:** `GET /health` and `GET /ready` keep the probe convention
+`{ "status": … }` (Kubernetes-style liveness/readiness, polled by UptimeRobot) — these are
+not part of the error envelope.
+
+---
+
 ## Public Routes
 
 ### `GET /login`

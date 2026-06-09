@@ -211,6 +211,7 @@ Namespace-Pakete nicht eindeutig und meldet Duplikat-Modul-Fehler (`domain.model
 - **Starlette 1.0 TemplateResponse-API** — `TemplateResponse(request, "name.html", ctx)` nicht die alte Form mit `{"request": request}` im Context
 - **Garmin-Passwörter nie speichern** — Login-Token Fernet-verschlüsselt in `user_tokens`-Tabelle (V20)
 - **asyncpg direkt** (kein ORM) — alle Queries als Prepared Statements in `ml-service/src/db/` (Package)
+- **Einheitliche Fehlerform** — zwei globale Handler in `api/src/main.py` (`RequestValidationError` + `StarletteHTTPException`) normalisieren alle JSON-Fehler auf `{error:{code,message,details?}}` via `error_envelope()` in `deps.py`. Der 422-Handler **strippt Pydantics `input`/`ctx`** (sonst Passwort-Leak auf Auth-Forms). Ausnahme: `/health`+`/ready` behalten `{status:…}` (Probe-Konvention). Siehe `docs/api.md` → Error Format.
 
 ## mypy-Quirks
 

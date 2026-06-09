@@ -362,6 +362,28 @@ Zusätzlich zur Schema-Validierung sind folgende Endpunkte rate-limitiert (slowa
 | `GET/POST /garmin/link` | 5/h | Credential-Stuffing gegen Garmin API |
 | `GET/POST /libre/link` | 5/h | Credential-Stuffing gegen LibreLink API |
 
+### 8.4 Fehler-Responses ohne Daten-Leakage (WS-A)
+
+Zwei globale Exception-Handler in [`api/src/main.py`](../api/src/main.py) normalisieren
+**alle** JSON-Fehler auf die einheitliche Form `{error:{code,message,details?}}` (Details
+siehe [`docs/api.md` → Error Format](api.md#error-format)). Sicherheitsrelevant:
+
+- **Kein Echo gesendeter Werte (NEU-1).** Der `RequestValidationError`-Handler mappt pro
+  Fehler nur `loc → field` und `msg` und verwirft Pydantics `input`/`ctx`. Der
+  FastAPI-Default hätte den fehlerhaften Wert zurückgespiegelt — auf den Auth-POSTs
+  (`/login`, `/register`, `/auth/reset/*`) ist das **das Klartext-Passwort**, und derselbe
+  Wert wäre auch im Sentry-Event gelandet. Invariante: **kein vom Client gesendeter Wert
+  verlässt den Server je über eine Fehler-Antwort.** Regressions-Schutz:
+  `test_validation_error_does_not_leak_submitted_value` (Canary-Assert).
+- **`debug=False`** (FastAPI-Default, kein `debug=True` in `main.py`) → keine Tracebacks im
+  Response-Body. Die beiden Handler decken `RequestValidationError` und
+  `HTTPException` ab; eine sonst unbehandelte Exception liefert Starlettes generische
+  500-Antwort ohne Stacktrace/interne Details.
+- **DSN nie geloggt (NEU-2).** Die DB-Verbindungs-URL ([`db/pool.py`](../api/src/db/pool.py))
+  enthält das DB-Passwort im Klartext. `get_pool()` fängt Verbindungsfehler ab und loggt
+  ausschließlich `reason=type(e).__name__` (nie den DSN), dann `raise`. Generell gilt:
+  Exceptions werden mit `type(e).__name__` statt `str(e)` geloggt (z. B. `garmin.link.fail`).
+
 ---
 
 ## 9. Secrets Management
