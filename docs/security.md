@@ -142,10 +142,11 @@ IP-basiertes Rate Limiting (slowapi) schützt gegen volumetrische Brute Force. K
 ```
 5 Fehlversuche → locked_until = NOW() + 15 Minuten
 Fehlversuch während Lockout → kein neuer bcrypt-Aufruf (Timing-safe, keine Lockout-Extension)
+Fehlversuch nach abgelaufenem Lockout → Zähler-Reset, dieser Versuch zählt als 1 (kein sofortiges Re-Lock)
 Erfolgreicher Login → failed_login_attempts = 0
 ```
 
-**DoS-Gegenmaßnahme:** Der Lockout könnte von einem Angreifer genutzt werden um legitime User auszusperren. Mitigation: E-Mail-Benachrichtigung informiert den echten Nutzer, `locked_until` läuft automatisch ab (kein Admin-Eingriff nötig).
+**DoS-Gegenmaßnahme:** Der Lockout könnte von einem Angreifer genutzt werden um legitime User auszusperren. Mitigation: E-Mail-Benachrichtigung informiert den echten Nutzer, `locked_until` läuft automatisch ab (kein Admin-Eingriff nötig). Nach Ablauf wird `failed_login_attempts` beim nächsten Versuch zurückgesetzt — ein einzelner Tippfehler nach Sperr-Ende sperrt das Konto nicht sofort erneut (ASVS 2.2.1).
 
 ### 3.4 Password-Reset-Flow
 
@@ -361,6 +362,7 @@ Zusätzlich zur Schema-Validierung sind folgende Endpunkte rate-limitiert (slowa
 | `POST /auth/reset-request` | 3/h | E-Mail-Flooding |
 | `GET/POST /garmin/link` | 5/h | Credential-Stuffing gegen Garmin API |
 | `GET/POST /libre/link` | 5/h | Credential-Stuffing gegen LibreLink API |
+| `POST/PATCH/DELETE /api/seizures` | 30/min | Missbrauch authentifizierter Schreibzugriffe auf Art-9-Gesundheitsdaten |
 
 ### 8.4 Fehler-Responses ohne Daten-Leakage (WS-A)
 

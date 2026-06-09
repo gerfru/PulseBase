@@ -1024,6 +1024,7 @@ not in the allowed set.
 ### `POST /api/seizures`
 
 Logs a new seizure event. Session-protected. Only meaningful when `epilepsy_mode = true`.
+Rate-limited to 30 requests/minute per IP.
 
 **Request body (JSON):**
 
@@ -1084,7 +1085,7 @@ Returns logged seizure events for the authenticated user.
 
 Updates an existing seizure event. Session-protected. Accepts the same body and
 validation as `POST /api/seizures`. The DB layer filters on `id AND user_id`, so a
-user can only modify their own entries.
+user can only modify their own entries. Rate-limited to 30 requests/minute per IP.
 
 **Response:**
 
@@ -1101,6 +1102,7 @@ when the id does not exist or belongs to another user.
 
 Deletes a seizure event. Session-protected and scoped to the authenticated user
 (`id AND user_id`). The frontend shows a confirmation dialog before calling this.
+Rate-limited to 30 requests/minute per IP.
 
 **Response:**
 
