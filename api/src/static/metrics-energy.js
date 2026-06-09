@@ -375,8 +375,7 @@ export const ENERGY_METRICS = {
                 summary:
                     'Tagesenergie als physiologischer Snapshot: 70% aktuelle Physiologie (Schlaf + HRV), 30% Vortags-Trägheit.',
                 recommendation: (() => {
-                    const sc = d?.score ?? null;
-                    if (sc == null) return null;
+                    const sc = d.score; // guaranteed non-null by the early-return guard above
                     if (sc >= 75) return 'Gute Energie — ideal für Training oder anspruchsvolle Aufgaben.';
                     if (sc >= 45) return 'Moderate Energie. Mittelschwere Aktivität möglich, auf Signale achten.';
                     return 'Niedrige Energie. Leichte Aktivität oder bewusste Erholung empfohlen.';
@@ -471,8 +470,7 @@ export const ENERGY_METRICS = {
                 summary:
                     'Bewertet physiologischen Stress via HRV-Abweichung (60%) und Garmin-Stressdaten (40%). Niedriger Score = entspannt.',
                 recommendation: (() => {
-                    const sc = d?.score ?? null;
-                    if (sc == null) return null;
+                    const sc = d.score; // guaranteed non-null by the early-return guard above
                     if (sc < 30) return 'Niedriger Stress — guter Zustand für Belastung oder anspruchsvolle Arbeit.';
                     if (sc < 60) return 'Moderater Stress — normaler Alltag. Bei Training auf Erholung achten.';
                     return 'Hoher Stress — autonomes Nervensystem stark aktiviert. Intensives Training heute vermeiden.';

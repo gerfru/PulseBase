@@ -32,22 +32,26 @@ Ausnahmen — keine offene Implementierungsarbeit.
 - **CD-Pipeline** (CICD-M4) — Auto-Deploy via SSH. Für solo/Single-Server marginal;
   einführen bei häufigem Deploy oder Multi-Environment. Architektur + Trigger:
   [`docs/adr/0002-cd-pipeline.md`](adr/0002-cd-pipeline.md).
-- **JS-Coverage Phase 2** — DOM-/fetch-lastige Loader (`dashboard-loaders`, `activity`,
-  restliche `metrics-*`) ins Vitest-Gate. Hoher Aufwand; metrics-ml ist bereits gegated.
-  Hinweis: `colors.js`/`help.js`/`metrics-overview.js` sind globale `<script>`s ohne
-  Export → per v8-Coverage prinzipiell nicht gate-bar. *(App-Review M2 „Vollständig")*
-- **Style-Politur** *(Style-Review „Bewusst offen")*: Motion-Token-Migration der
-  verstreuten Timings auf `--dur-*`; data-driven Accent/Hero (Readiness als einziges
-  Farbsignal); Chart-Mikro-Interaktionen (`animation:false` ist Bestandsentscheidung).
+- **JS-Coverage Phase 2** — ✅ die 5 reinen Render-Module (`metrics-energy/readiness/sleep/
+  garmin/activity`) sind im Vitest-Gate (7→12 Module, ≥95/90). Offen bleiben nur die
+  DOM-/fetch-lastigen Loader (`dashboard-loaders`, `dashboard-hero`, `activity`). Hinweis:
+  `colors.js`/`help.js`/`metrics-overview.js` sind globale `<script>`s ohne Export → per
+  v8-Coverage prinzipiell nicht gate-bar. *(App-Review M2)*
+- **Style-Politur** *(Style-Review „Bewusst offen")*: ✅ Motion-Token-Migration erledigt
+  (verstreute Timings → `--dur-fast`/`--dur-base`; `.4s` effect-fill + Skeleton bewusst
+  unverändert). Offen: data-driven Accent/Hero (Readiness als einziges Farbsignal — braucht
+  Nutzer-Test); Chart-Mikro-Interaktionen (`animation:false` ist Bestandsentscheidung).
 
 ## 3 · Dokumentierte Ausnahmen / empfohlene Verifikation
 
-- **Accessibility — manueller Test empfohlen:** Charts bieten eine *zusammenfassende*
-  Textalternative (sr-only), aber keine vollständige Datentabelle je Messpunkt; die
-  GPS-Karte ist über die Routen-Textzusammenfassung zugänglich, aber nicht vollständig
-  per Tastatur zoom-/verschiebbar. Ehrlich vermerkt in `accessibility.html`. Ein echter
-  **Screenreader-Live-Test** (NVDA/VoiceOver) steht aus — Code-Review ≠ Usability-Test.
-  *(UX-Review A-1/A-2 Rest)*
+- **Accessibility — umgesetzt; nur Screenreader-Live-Test offen:** Charts haben je eine
+  **vollständige sr-only-Datentabelle pro Messpunkt** (`chart-utils.js` `buildChartDataTable`,
+  via `aria-describedby` mit dem Canvas verknüpft), nicht nur eine Zusammenfassung. Die
+  GPS-Karte ist **per Tastatur fokussier-, verschieb- und zoombar** (Leaflet `keyboard:true`
+  + sr-only-Routensummary + `<kbd>`-Anleitung in `activity.html`) und erhält über die globale
+  `:focus-visible`-Regel einen sichtbaren Fokus-Ring (Parent-`.card` hat Padding, kein
+  Overflow-Clipping). Offen bleibt nur ein echter **Screenreader-Live-Test** (NVDA/VoiceOver)
+  — Code-Review ≠ Usability-Test. *(UX-Review A-1/A-2)*
 - **BFSG-Geltungsbereich** — juristische Frage außerhalb des Reviews; die App hält sich
   per veröffentlichter Erklärung freiwillig an WCAG 2.1 AA.
 - **App-Review Tech-Debt** (ARCH-M2 Service-Layer, ARCH-L2 db-Struktur, OBS-L2
