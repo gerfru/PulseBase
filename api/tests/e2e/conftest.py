@@ -481,6 +481,71 @@ async def ml_feedback_pair():
         await conn.close()
 
 
+@pytest.fixture
+async def idor_activity_pair():
+    """Two verified users where user A owns an activity row.
+
+    Used for the cross-user (IDOR) ownership test on GET /api/activities/{id}:
+    user B must receive 404 for user A's activity. Seeds directly into the test
+    DB so the row has a real, A-owned id. Teardown removes both users (cascade-
+    deletes the activity).
+    """
+    pw_a = "IdorActOwner!2026Pass"  # pragma: allowlist secret
+    pw_b = "IdorActAttacker!2026Pass"  # pragma: allowlist secret
+    email_a = f"idor-act-owner-{_run_id}@e2e.local"
+    email_b = f"idor-act-attacker-{_run_id}@e2e.local"
+    hash_a = bcrypt.hashpw(pw_a.encode(), bcrypt.gensalt()).decode()
+    hash_b = bcrypt.hashpw(pw_b.encode(), bcrypt.gensalt()).decode()
+    conn = await _make_db_conn()
+    try:
+        uid_a = await conn.fetchval(
+            """
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active)
+            VALUES ($1, $2, $3, NOW(), TRUE)
+            ON CONFLICT (email) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    email_verified_at = NOW(), is_active = TRUE
+            RETURNING id
+            """,
+            "IDOR Act Owner",
+            email_a,
+            hash_a,
+        )
+        uid_b = await conn.fetchval(
+            """
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active)
+            VALUES ($1, $2, $3, NOW(), TRUE)
+            ON CONFLICT (email) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    email_verified_at = NOW(), is_active = TRUE
+            RETURNING id
+            """,
+            "IDOR Act Attacker",
+            email_b,
+            hash_b,
+        )
+        await _insert_consents(conn, uid_a)
+        await _insert_consents(conn, uid_b)
+        activity_id = await conn.fetchval(
+            """
+            INSERT INTO activities (user_id, started_at, sport_type, duration_seconds)
+            VALUES ($1, NOW(), 'running', 1800)
+            RETURNING id
+            """,
+            uid_a,
+        )
+        yield {
+            "userA": {"id": uid_a, "email": email_a, "password": pw_a},
+            "userB": {"id": uid_b, "email": email_b, "password": pw_b},
+            "activity_id": activity_id,
+        }
+    finally:
+        await conn.execute(
+            "DELETE FROM users WHERE email = ANY($1::text[])", [email_a, email_b]
+        )
+        await conn.close()
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Capture a screenshot when an E2E test fails."""
