@@ -10,7 +10,9 @@ import {
     TABS,
     CHART_HASHES,
 } from './dashboard-nav.js';
-import { loadEvidence, buildMlTabs, loadMlFeedback, submitMlFeedback, buildCuratedMetrics } from './dashboard-hero.js';
+import { buildMlTabs, buildCuratedMetrics } from './dashboard-hero.js';
+import { loadEvidence } from './dashboard-evidence.js';
+import { loadMlFeedback, submitMlFeedback } from './dashboard-ml-feedback.js';
 import { load, loadReadiness, loadMlInsights, loadEnergyMetrics, loadTrainingLoad } from './dashboard-loaders.js';
 import { showToast, loadMlStatus, loadSyncStatus } from './dashboard-status.js';
 import { initOnboardingHint } from './onboarding.js';

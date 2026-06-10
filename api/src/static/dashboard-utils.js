@@ -170,7 +170,19 @@ export function openFormulaDialog(title, bodyHtml, href) {
 
 export function scoreColor(score) {
     if (score == null) return 'var(--muted)';
-    if (score >= 75) return 'var(--green)';
-    if (score >= 50) return 'var(--amber)';
-    return 'var(--red)';
+    const n = parseFloat(score);
+    if (Number.isNaN(n)) return 'var(--muted)';
+    return n >= 75 ? 'var(--green)' : n >= 45 ? 'var(--amber)' : 'var(--red)';
+}
+
+export const EV_LEVEL_SHORT = { meta: 'M', replicated: 'R', model: 'E' };
+export const EV_LEVEL_CLS = { meta: 'ev-meta', replicated: 'ev-rep', model: 'ev-model' };
+
+export function evBadgeHtml(evEntry, key = '') {
+    if (!evEntry) return '';
+    const short = EV_LEVEL_SHORT[evEntry.level] ?? '?';
+    const cls = EV_LEVEL_CLS[evEntry.level] ?? 'ev-model';
+    const label = esc(evEntry.label ?? '');
+    const name = esc(evEntry.name ?? '');
+    return `<span class="ev-badge ${cls}"${key ? ` data-ev-badge="${esc(key)}"` : ''} title="${label}: ${name}">${short}</span>`;
 }
