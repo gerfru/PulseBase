@@ -29,6 +29,17 @@ repos:
         pass_filenames: false
         files: ^(api|sync-service|ml-service)/src/
 
+  - repo: local
+    hooks:
+      - id: semgrep
+        name: semgrep
+        entry: semgrep
+        language: python
+        additional_dependencies: [semgrep==1.164.0]
+        args: [scan, api/src/, sync-service/src/, ml-service/src/, --config, p/python, --config, p/owasp-top-ten, --error]
+        pass_filenames: false
+        files: ^(api|sync-service|ml-service)/src/.*\.py$
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.4
     hooks:
@@ -47,17 +58,6 @@ repos:
           - .secrets.baseline
           - --exclude-files
           - (^|/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|uv\.lock)$
-
-  - repo: local
-    hooks:
-      - id: semgrep
-        name: semgrep
-        entry: semgrep
-        language: python
-        additional_dependencies: [semgrep==1.164.0]
-        args: [scan, api/src/, sync-service/src/, ml-service/src/, --config, p/python, --config, p/owasp-top-ten, --error]
-        pass_filenames: false
-        files: ^(api|sync-service|ml-service)/src/.*\.py$
 
   - repo: local
     hooks:

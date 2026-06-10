@@ -42,7 +42,7 @@ class GarminClient:
                 self._client.login(self.token_dir)
                 logger.info("garmin.connect.token_login")
             except Exception:
-                logger.warning("garmin.connect.failed — retrying with fresh login")
+                logger.warning("garmin.connect.failed", reason="retrying_fresh_login")
                 self._client.login()
                 self._client.garth.dump(self.token_dir)
                 logger.info("garmin.connect.fresh_login")
@@ -54,7 +54,7 @@ class GarminClient:
     def save_token(self) -> None:
         if self._client and hasattr(self._client, "garth"):
             self._client.garth.dump(self.token_dir)
-            logger.debug("Garmin token auf Disk gespeichert")
+            logger.debug("garmin.token.saved")
 
     def get_activities(self, start: date, end: date) -> list[dict[str, Any]]:
         return (

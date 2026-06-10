@@ -59,6 +59,7 @@ async def libre_link(
                 libre_password,
                 token_dir=tmpdir,
             )
+            del libre_password
             token_json = json.dumps({"token": client.token}).encode()
             blob = fernet_encrypt(token_json, settings.fernet_key)
         await save_user_token(user["id"], "libre", blob)

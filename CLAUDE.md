@@ -369,7 +369,7 @@ TRUSTED_PROXY_CIDRS=["172.23.0.0/16","127.0.0.1/32"]
 
 **`env/.env.sync`** — nur sync-service:
 ```
-SYNC_HOUR=6
+SYNC_INTERVAL_HOURS=2
 SYNC_LOOKBACK_DAYS=30
 SYNC_DAILY_DAYS=2
 ```
@@ -412,7 +412,7 @@ Hinweis: Es gibt **kein** `traefik/`-Verzeichnis (das frühere Traefik-Standalon
 ### CICD-M3: Branch Protection via Ruleset aktiv
 
 Auf `main` ist ein **Ruleset aktiv** (pull_request + required_status_checks + non_fast_forward, leere Bypass-Liste). Die frühere Annahme „nicht erzwingbar auf Private-Free-Plan" ist überholt.
-Die Required-Status-Checks umfassten zunächst nur 3 Jobs; jetzt ist zusätzlich der `ci-ok`-Gate (`CI OK (All Green Gate)`, alle 9 Jobs in `needs`) Required Check, sodass mypy/trivy/e2e/js-Fehler den Merge blockieren.
+Die Required-Status-Checks umfassten zunächst nur 3 Jobs; jetzt ist zusätzlich der `ci-ok`-Gate (`CI OK (All Green Gate)`, alle 12 Jobs in `needs`: lint, js-lint, security, typecheck, test, js-test, e2e, trivy, check-pr-size, deploy-public-smoke, backup-smoke + ci-ok selbst) Required Check, sodass mypy/trivy/e2e/js-Fehler den Merge blockieren.
 Zusätzliche Schutzebene bleibt: Pre-commit-Hooks (`gitleaks`, `ruff`, `mypy`, `no-commit-to-branch`).
 
 **GitHub-native Secret Scanning + Push Protection: blocked-by-plan.** API meldet „Secret scanning is not available for this repository" (Private-Repo ohne GitHub Advanced Security). Defense-in-Depth-Layer 1 (Pre-commit-gitleaks) + Layer 2 (gitleaks-action in CI) decken Secret-Scanning ab; der GitHub-native Layer 3 ist erst mit GHAS / Public-Repo verfügbar. Dependabot-Vulnerability-Alerts sind aktiv (HTTP 204).
