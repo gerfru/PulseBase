@@ -3,7 +3,7 @@ import hashlib
 import asyncpg
 import bcrypt
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from src.mail import (
     send_deletion_confirm_email,
@@ -143,7 +143,7 @@ async def test_register_sends_verify_email_when_api_key_set(client):
         mock_mail_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_mail_settings.resend_from_email = "noreply@example.com"
         mock_mail_settings.app_base_url = "https://example.com"
-        mock_resend.Emails.send = MagicMock()
+        mock_resend.Emails.send_async = AsyncMock()
         r = await client.post(
             "/register",
             data={
@@ -157,7 +157,7 @@ async def test_register_sends_verify_email_when_api_key_set(client):
             },
         )
     assert r.status_code == 303
-    mock_resend.Emails.send.assert_called_once()
+    mock_resend.Emails.send_async.assert_awaited_once()
 
 
 async def test_register_duplicate_email_returns_400(client):
@@ -230,10 +230,10 @@ async def test_reset_request_sends_email_when_api_key_set(client):
         mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
-        mock_resend.Emails.send = MagicMock()
+        mock_resend.Emails.send_async = AsyncMock()
         r = await client.post("/auth/reset-request", data={"email": TEST_USER["email"]})
     assert r.status_code == 200
-    mock_resend.Emails.send.assert_called_once()
+    mock_resend.Emails.send_async.assert_awaited_once()
 
 
 # ── Password reset — reset form ───────────────────────────────────────────────
@@ -490,7 +490,9 @@ async def test_mail_exception_returns_false(client, send_fn, kwargs):
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
         with patch("src.mail.resend_client") as mock_resend:
-            mock_resend.Emails.send = MagicMock(side_effect=Exception("send failed"))
+            mock_resend.Emails.send_async = AsyncMock(
+                side_effect=Exception("send failed")
+            )
             result = await send_fn(**kwargs)
     assert result is False
 
@@ -501,12 +503,12 @@ async def test_lockout_email_sends_when_api_key_set(client):
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
         with patch("src.mail.resend_client") as mock_resend:
-            mock_resend.Emails.send = MagicMock()
+            mock_resend.Emails.send_async = AsyncMock()
             from src.mail import send_lockout_email
 
             await send_lockout_email("victim@example.com", lockout_minutes=15)
-    mock_resend.Emails.send.assert_called_once()
-    call_kwargs = mock_resend.Emails.send.call_args[0][0]
+    mock_resend.Emails.send_async.assert_awaited_once()
+    call_kwargs = mock_resend.Emails.send_async.call_args[0][0]
     assert call_kwargs["to"] == "victim@example.com"
     assert "gesperrt" in call_kwargs["subject"]
 
@@ -665,11 +667,11 @@ async def test_verify_email_sends_when_api_key_set(client):
         mock_mail_settings.resend_api_key = "re_test"  # pragma: allowlist secret
         mock_mail_settings.resend_from_email = "noreply@example.com"
         mock_mail_settings.app_base_url = "https://example.com"
-        mock_resend.Emails.send = MagicMock()
+        mock_resend.Emails.send_async = AsyncMock()
         r = await client.post("/auth/resend-verify", data={"email": TEST_USER["email"]})
     assert r.status_code == 200
-    mock_resend.Emails.send.assert_called_once()
-    call_kwargs = mock_resend.Emails.send.call_args[0][0]
+    mock_resend.Emails.send_async.assert_awaited_once()
+    call_kwargs = mock_resend.Emails.send_async.call_args[0][0]
     assert call_kwargs["to"] == TEST_USER["email"]
 
 
@@ -904,7 +906,7 @@ async def test_lockout_email_resend_error_returns_false(client):
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
         with patch("src.mail.resend_client") as mock_resend:
-            mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
+            mock_resend.Emails.send_async = AsyncMock(side_effect=_resend_error())
             from src.mail import send_lockout_email
 
             result = await send_lockout_email("victim@example.com", lockout_minutes=15)
@@ -917,7 +919,7 @@ async def test_reset_email_resend_error_returns_false(client):
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
         with patch("src.mail.resend_client") as mock_resend:
-            mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
+            mock_resend.Emails.send_async = AsyncMock(side_effect=_resend_error())
             from src.mail import send_reset_email
 
             result = await send_reset_email("user@example.com", "tok")
@@ -930,7 +932,7 @@ async def test_verify_email_resend_error_returns_false(client):
         mock_settings.resend_from_email = "noreply@example.com"
         mock_settings.app_base_url = "https://example.com"
         with patch("src.mail.resend_client") as mock_resend:
-            mock_resend.Emails.send = MagicMock(side_effect=_resend_error())
+            mock_resend.Emails.send_async = AsyncMock(side_effect=_resend_error())
             from src.mail import send_verify_email
 
             result = await send_verify_email("user@example.com", "tok")
@@ -1033,4 +1035,4 @@ async def test_session_cookie_is_httponly_after_login(client):
     assert r.status_code == 303
     set_cookie = r.headers.get("set-cookie", "")
     assert "httponly" in set_cookie.lower()
-    assert "samesite=lax" in set_cookie.lower()
+    assert "samesite=strict" in set_cookie.lower()

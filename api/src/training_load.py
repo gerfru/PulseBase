@@ -21,7 +21,7 @@ def _trimp(
     if hrmax <= resting_hr or avg_hr <= resting_hr:
         return 0.0
     hrr = max(0.0, min(1.0, (avg_hr - resting_hr) / (hrmax - resting_hr)))
-    b = 1.67 if sex == "female" else 1.92
+    b = 1.67 if sex == "female" else 1.92  # Edwards 1993 sex-specific TRIMP exponents
     return (duration_seconds / 60.0) * hrr * math.exp(b * hrr)
 
 

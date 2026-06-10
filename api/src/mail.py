@@ -6,6 +6,8 @@ from src.deps import settings
 
 logger = structlog.get_logger(__name__)
 
+resend_client.api_key = settings.resend_api_key
+
 
 async def _send_email(to: str, subject: str, html: str, log_key: str) -> bool:
     if not settings.resend_api_key:
@@ -13,9 +15,8 @@ async def _send_email(to: str, subject: str, html: str, log_key: str) -> bool:
             "mail.send_skipped", log_key=log_key, reason="RESEND_API_KEY not set"
         )
         return False
-    resend_client.api_key = settings.resend_api_key
     try:
-        resend_client.Emails.send(
+        await resend_client.Emails.send_async(
             {
                 "from": settings.resend_from_email,
                 "to": to,

@@ -23,12 +23,15 @@ async def _handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) ->
     try:
         data = await reader.read(1024)
         path = data.split(b" ")[1] if b" " in data else b"/"
-        if path.startswith(b"/ready") and _pool is not None:
-            try:
-                await _pool.fetchval("SELECT 1")
-                writer.write(_RESPONSE_OK)
-            except Exception:
+        if path.startswith(b"/ready"):
+            if _pool is None:
                 writer.write(_RESPONSE_503)
+            else:
+                try:
+                    await _pool.fetchval("SELECT 1")
+                    writer.write(_RESPONSE_OK)
+                except Exception:
+                    writer.write(_RESPONSE_503)
         else:
             writer.write(_RESPONSE_OK)
         await writer.drain()

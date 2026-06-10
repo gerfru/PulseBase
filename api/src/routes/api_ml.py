@@ -22,10 +22,17 @@ from src.db.ml_feedback import FEEDBACK_MODELS
 router = APIRouter()
 
 
+_RF_MIN_SAMPLES = 30  # minimum training days for Random Forest readiness model
+
+
 @router.get("/api/ml-insights")
 async def api_ml_insights(request: Request) -> dict:
     user = await _deps.require_user(request)
-    return await get_ml_insights(user["id"])
+    insights = await get_ml_insights(user["id"])
+    n_rows = (insights.get("model_meta_rf") or {}).get("n_rows", 0)
+    insights["min_samples_met"] = bool(n_rows >= _RF_MIN_SAMPLES)
+    insights["n_samples"] = int(n_rows) if n_rows else 0
+    return insights
 
 
 @router.get("/api/ml-history", response_model=None)

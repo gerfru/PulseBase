@@ -166,7 +166,9 @@ def make_session_cookie(user_id: int, secret: str) -> str:
 
     from itsdangerous import TimestampSigner
 
-    data = base64.b64encode(json.dumps({"user_id": user_id}).encode())
+    data = base64.b64encode(
+        json.dumps({"user_id": user_id, "session_version": 0}).encode()
+    )
     return TimestampSigner(secret).sign(data).decode()
 
 

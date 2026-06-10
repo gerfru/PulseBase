@@ -88,7 +88,19 @@ async def test_delete_account_success_sends_email_and_shows_pending_page(client)
     mock_email.assert_awaited_once_with(TEST_USER["email"], "test-token")
 
 
+async def test_confirm_delete_account_get_shows_form(client):
+    """GET renders the confirmation form; no deletion occurs."""
+    with patch(
+        "src.routes.account._verify_deletion_token",
+        AsyncMock(return_value=TEST_USER["id"]),
+    ):
+        r = await client.get("/account/delete/confirm/valid-token")
+    assert r.status_code == 200
+
+
 async def test_confirm_delete_account_valid_token_deletes_and_redirects(client):
+    """POST with valid CSRF token deletes the account and redirects."""
+    make_session(client, extra={"csrf_token": "test-csrf-token"})
     with (
         patch(
             "src.routes.account._verify_deletion_token",
@@ -97,7 +109,10 @@ async def test_confirm_delete_account_valid_token_deletes_and_redirects(client):
         patch("src.routes.account.get_user_by_id", AsyncMock(return_value=TEST_USER)),
         patch("src.routes.account.delete_user", AsyncMock()) as mock_delete,
     ):
-        r = await client.get("/account/delete/confirm/valid-token")
+        r = await client.post(
+            "/account/delete/confirm/valid-token",
+            data={"csrf_token": "test-csrf-token"},
+        )
     assert r.status_code == 303
     assert r.headers["location"] == "/login?deleted=1"
     mock_delete.assert_awaited_once_with(TEST_USER["id"])
@@ -138,11 +153,15 @@ async def test_delete_account_email_not_sent_still_shows_pending(client):
 
 async def test_confirm_delete_account_user_not_found_redirects_to_login(client):
     """Valid token but the user no longer exists → redirect to /login (not 500)."""
+    make_session(client, extra={"csrf_token": "test-csrf-token"})
     with (
         patch("src.routes.account._verify_deletion_token", AsyncMock(return_value=999)),
         patch("src.routes.account.get_user_by_id", AsyncMock(return_value=None)),
     ):
-        r = await client.get("/account/delete/confirm/valid-token")
+        r = await client.post(
+            "/account/delete/confirm/valid-token",
+            data={"csrf_token": "test-csrf-token"},
+        )
     assert r.status_code == 303
     assert r.headers["location"] == "/login"
 

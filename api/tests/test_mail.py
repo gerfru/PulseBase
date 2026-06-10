@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -27,7 +27,7 @@ class TestSendEmail:
         ):
             mock_settings.resend_api_key = "re_test_123"  # pragma: allowlist secret
             mock_settings.resend_from_email = "no-reply@example.com"
-            mock_resend.Emails.send = MagicMock(return_value={"id": "ok"})
+            mock_resend.Emails.send_async = AsyncMock(return_value={"id": "ok"})
             from src.mail import _send_email
 
             result = await _send_email("a@b.com", "Subject", "<p>body</p>", "test")
@@ -45,7 +45,7 @@ class TestSendEmail:
         ):
             mock_settings.resend_api_key = "re_bad"  # pragma: allowlist secret
             mock_settings.resend_from_email = "no-reply@example.com"
-            mock_resend.Emails.send = MagicMock(side_effect=err)
+            mock_resend.Emails.send_async = AsyncMock(side_effect=err)
             from src.mail import _send_email
 
             result = await _send_email("a@b.com", "Subject", "<p>body</p>", "test")
@@ -59,7 +59,9 @@ class TestSendEmail:
         ):
             mock_settings.resend_api_key = "re_test"  # pragma: allowlist secret
             mock_settings.resend_from_email = "no-reply@example.com"
-            mock_resend.Emails.send = MagicMock(side_effect=RuntimeError("network"))
+            mock_resend.Emails.send_async = AsyncMock(
+                side_effect=RuntimeError("network")
+            )
             from src.mail import _send_email
 
             result = await _send_email("a@b.com", "Subject", "<p>body</p>", "test")

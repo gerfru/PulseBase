@@ -1,7 +1,7 @@
 from datetime import date
 
 import structlog
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.responses import Response
@@ -18,6 +18,7 @@ from src.db import (
 from src.deps import (
     UserRow,
     _ip_hash,
+    generate_csrf_token,
     limiter,
     require_user,
     verify_csrf_token,
@@ -80,12 +81,39 @@ async def delete_account(
 
 @router.get("/account/delete/confirm/{token}")
 @limiter.limit("10/hour")
-async def confirm_delete_account(request: Request, token: str) -> Response:
+async def get_confirm_delete_account(request: Request, token: str) -> Response:
+    """Render confirmation form. No side effects — safe for email scanner auto-click."""
     user_id = await _verify_deletion_token(token)
     if not user_id:
         return _deps.templates.TemplateResponse(
             request,
-            "account_delete_pending.html",
+            "account_delete_confirm.html",
+            {"error": "Link ungültig oder abgelaufen."},
+            status_code=400,
+        )
+    return _deps.templates.TemplateResponse(
+        request,
+        "account_delete_confirm.html",
+        {"csrf_token": generate_csrf_token(request)},
+    )
+
+
+@router.post("/account/delete/confirm/{token}")
+@limiter.limit("10/hour")
+async def post_confirm_delete_account(
+    request: Request,
+    token: str,
+    csrf_token: str | None = Form(default=None),
+) -> Response:
+    """Perform deletion after user explicitly confirms via the form."""
+    if not verify_csrf_token(request, csrf_token):
+        raise HTTPException(status_code=403, detail="Ungültige Anfrage.")
+
+    user_id = await _verify_deletion_token(token)
+    if not user_id:
+        return _deps.templates.TemplateResponse(
+            request,
+            "account_delete_confirm.html",
             {"error": "Link ungültig oder abgelaufen."},
             status_code=400,
         )
