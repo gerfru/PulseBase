@@ -1,12 +1,12 @@
 import shutil
 from datetime import date, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from .pool import get_pool
 
 
-async def create_user(name: str, email: str, password_hash: str) -> dict:
+async def create_user(name: str, email: str, password_hash: str) -> dict[str, Any]:
     pool = await get_pool()
     row = await pool.fetchrow(
         """
@@ -23,7 +23,7 @@ async def create_user(name: str, email: str, password_hash: str) -> dict:
     return dict(row)
 
 
-async def get_user_by_email(email: str) -> dict | None:
+async def get_user_by_email(email: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT id, name, email, password_hash, garmin_linked, garmin_email,"
@@ -34,7 +34,7 @@ async def get_user_by_email(email: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def get_user_by_id(user_id: int) -> dict | None:
+async def get_user_by_id(user_id: int) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """
@@ -183,7 +183,7 @@ async def request_sync(user_id: int) -> None:
     )
 
 
-async def get_sync_status(user_id: int) -> dict:
+async def get_sync_status(user_id: int) -> dict[str, Any]:
     pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT sync_requested, last_sync_at FROM users WHERE id = $1",
@@ -197,7 +197,7 @@ async def get_sync_status(user_id: int) -> dict:
     }
 
 
-async def get_ml_status(user_id: int) -> dict:
+async def get_ml_status(user_id: int) -> dict[str, Any]:
     pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT ml_requested, last_ml_at FROM users WHERE id = $1",

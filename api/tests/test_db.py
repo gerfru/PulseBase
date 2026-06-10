@@ -733,7 +733,7 @@ async def test_get_sleep_sessions_returns_list():
 
 
 async def test_get_readiness_no_data():
-    from src.db.health import get_readiness
+    from src.readiness import compute_readiness as get_readiness
 
     with patch("src.db.health.get_pool", AsyncMock(return_value=_pool_mock(fetch=[]))):
         result = await get_readiness(1)
@@ -861,7 +861,7 @@ async def test_get_readiness_gut_erholt():
     # 85×0.6 + 78×0.4 = 51 + 31.2 = 82.2 → ≥75 "Gut erholt"
     import json
 
-    from src.db.health import get_readiness
+    from src.readiness import compute_readiness as get_readiness
 
     rows = [
         {"model": "energy_autonomic", "value": 85.0, "metadata": json.dumps({})},
@@ -880,7 +880,7 @@ async def test_get_readiness_in_ordnung():
     # 60×0.6 + 60×0.4 = 60 → ≥55 "In Ordnung"
     import json
 
-    from src.db.health import get_readiness
+    from src.readiness import compute_readiness as get_readiness
 
     rows = [
         {"model": "energy_autonomic", "value": 60.0, "metadata": json.dumps({})},
@@ -898,7 +898,7 @@ async def test_get_readiness_erholen():
     # 40×0.6 + 40×0.4 = 40 → ≥35 "Erholen"
     import json
 
-    from src.db.health import get_readiness
+    from src.readiness import compute_readiness as get_readiness
 
     rows = [
         {"model": "energy_autonomic", "value": 40.0, "metadata": json.dumps({})},
@@ -916,7 +916,7 @@ async def test_get_readiness_erschoepft():
     # 20×0.6 + 20×0.4 = 20 → <35 "Erschöpft"
     import json
 
-    from src.db.health import get_readiness
+    from src.readiness import compute_readiness as get_readiness
 
     rows = [
         {"model": "energy_autonomic", "value": 20.0, "metadata": json.dumps({})},

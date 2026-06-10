@@ -42,8 +42,13 @@ def _get_real_ip(request: Request) -> str:
     return client_host
 
 
+_IP_HASH_PREFIX_LEN = 12  # enough entropy for log correlation without reversibility
+
+
 def _ip_hash(request: Request) -> str:
-    return hashlib.sha256(_get_real_ip(request).encode()).hexdigest()[:12]
+    return hashlib.sha256(_get_real_ip(request).encode()).hexdigest()[
+        :_IP_HASH_PREFIX_LEN
+    ]
 
 
 limiter = Limiter(key_func=_get_real_ip)

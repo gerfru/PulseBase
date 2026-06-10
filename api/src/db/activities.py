@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from typing import Any
 
 from .pool import get_pool
 
@@ -27,7 +28,7 @@ async def get_recent_activities(
     return [dict(r) for r in rows]
 
 
-async def get_activity_detail(user_id: int, activity_id: int) -> dict | None:
+async def get_activity_detail(user_id: int, activity_id: int) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """

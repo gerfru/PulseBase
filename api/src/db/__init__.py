@@ -47,7 +47,6 @@ from .health import (
     get_hrv_trend,
     get_latest_hrv,
     get_latest_training_status,
-    get_readiness,
     get_sleep_sessions,
     get_weekly_stats,
 )
@@ -117,7 +116,6 @@ __all__ = [
     "get_hrv_trend",
     "get_latest_hrv",
     "get_latest_training_status",
-    "get_readiness",
     "get_sleep_sessions",
     "get_weekly_stats",
     "get_ml_history",

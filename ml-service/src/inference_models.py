@@ -200,6 +200,11 @@ def _compute_hrv_baseline(hrv_hist: list[float | None]) -> float:
     return sum(hrv_valid[-30:]) / len(hrv_valid[-30:]) if len(hrv_valid) >= 7 else 0.0
 
 
+def _get_last_hrv(hrv_hist: list[float | None]) -> float | None:
+    valid = [v for v in hrv_hist if v is not None]
+    return valid[-1] if valid else None
+
+
 @dataclass
 class BodyBatteryInputs:
     yesterday_bb: float | None
@@ -281,9 +286,8 @@ async def _run_body_battery_and_stress(
     last_night_h = last_night.get("total_h") or 0.0
     last_night_deep = last_night.get("deep_h")
     last_night_rem = last_night.get("rem_h")
-    hrv_valid = [v for v in hrv_hist if v is not None]
     hrv_baseline = _compute_hrv_baseline(hrv_hist)
-    hrv_last = hrv_valid[-1] if hrv_valid else None
+    hrv_last = _get_last_hrv(hrv_hist)
     await _run_body_battery(
         user_id,
         today,
