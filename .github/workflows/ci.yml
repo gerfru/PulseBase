@@ -28,6 +28,7 @@ jobs:
           ADDED=$(git diff "origin/$BASE_REF"...HEAD \
             -- . ':(exclude)*.lock' ':(exclude)*-lock.json' ':(exclude)*.lockb' \
                ':(exclude)*.md' ':(exclude)*/data/*.json' \
+               ':(exclude)*/tests/*' ':(exclude)*/test_*.py' \
             | grep -cE '^\+[^+]' || echo 0)
           echo "Lines added (excl. lockfiles): $ADDED"
           if [ "$ADDED" -gt 400 ]; then
