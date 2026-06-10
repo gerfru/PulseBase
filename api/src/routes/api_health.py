@@ -20,7 +20,6 @@ from src.db import (
     get_hrv_trend,
     get_latest_hrv,
     get_latest_training_status,
-    get_readiness,
     get_recent_activities,
     get_sleep_sessions,
     get_sync_status,
@@ -33,6 +32,7 @@ from src.db import (
     update_user_profile,
 )
 from src.evidence_catalog import EVIDENCE
+from src.readiness import compute_readiness
 from src.training_load import build_training_load
 
 router = APIRouter()
@@ -151,7 +151,7 @@ async def api_weekly(
 @router.get("/api/readiness")
 async def api_readiness(request: Request) -> dict:
     user = await _deps.require_user(request)
-    return await get_readiness(user["id"])
+    return await compute_readiness(user["id"])
 
 
 @router.get("/api/energy")

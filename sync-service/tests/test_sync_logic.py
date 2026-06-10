@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from main import _sync_activities, _sync_day
+from sync_runner import _sync_activities, _sync_day
 
 _DATE = date(2026, 6, 2)
 _USER_ID = 7
@@ -33,13 +33,13 @@ class TestSyncDay:
         mock_session.garmin_sleep_id = "sleep-abc"
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_summary", return_value=MagicMock()),
-            patch("main.map_sleep", return_value=mock_session),
-            patch("main.map_hrv", return_value=MagicMock()),
-            patch("main.map_body_battery", return_value=[MagicMock()]),
-            patch("main.map_stress", return_value=[MagicMock()]),
-            patch("main.map_training_status", return_value=MagicMock()),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_summary", return_value=MagicMock()),
+            patch("sync_runner.map_sleep", return_value=mock_session),
+            patch("sync_runner.map_hrv", return_value=MagicMock()),
+            patch("sync_runner.map_body_battery", return_value=[MagicMock()]),
+            patch("sync_runner.map_stress", return_value=[MagicMock()]),
+            patch("sync_runner.map_training_status", return_value=MagicMock()),
         ):
             await _sync_day(client, repo, _USER_ID, _DATE)
 
@@ -60,12 +60,12 @@ class TestSyncDay:
         mock_session.garmin_sleep_id = "sleep-xyz"
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_sleep", return_value=mock_session),
-            patch("main.map_hrv", return_value=None),
-            patch("main.map_body_battery", return_value=[]),
-            patch("main.map_stress", return_value=[]),
-            patch("main.map_training_status", return_value=None),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_sleep", return_value=mock_session),
+            patch("sync_runner.map_hrv", return_value=None),
+            patch("sync_runner.map_body_battery", return_value=[]),
+            patch("sync_runner.map_stress", return_value=[]),
+            patch("sync_runner.map_training_status", return_value=None),
         ):
             await _sync_day(client, repo, _USER_ID, _DATE)
 
@@ -83,7 +83,7 @@ class TestSyncDay:
         client.get_stress.side_effect = ConnectionError("down")
         client.get_training_status.side_effect = ConnectionError("down")
 
-        with patch("main.garmin_call", side_effect=lambda fn: fn()):
+        with patch("sync_runner.garmin_call", side_effect=lambda fn: fn()):
             await _sync_day(client, repo, _USER_ID, _DATE)  # must not raise
 
         repo.upsert_daily.assert_not_called()
@@ -102,13 +102,13 @@ class TestSyncDay:
         mock_session.garmin_sleep_id = "sleep-abc"
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_summary", return_value=MagicMock()),
-            patch("main.map_sleep", return_value=mock_session),
-            patch("main.map_hrv", return_value=None),
-            patch("main.map_body_battery", return_value=[]),
-            patch("main.map_stress", return_value=[]),
-            patch("main.map_training_status", return_value=None),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_summary", return_value=MagicMock()),
+            patch("sync_runner.map_sleep", return_value=mock_session),
+            patch("sync_runner.map_hrv", return_value=None),
+            patch("sync_runner.map_body_battery", return_value=[]),
+            patch("sync_runner.map_stress", return_value=[]),
+            patch("sync_runner.map_training_status", return_value=None),
         ):
             await _sync_day(client, repo, _USER_ID, _DATE)
 
@@ -121,13 +121,13 @@ class TestSyncDay:
         repo.sleep_exists.return_value = True
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_summary", return_value=MagicMock()),
-            patch("main.map_sleep", return_value=None),
-            patch("main.map_hrv", return_value=None),
-            patch("main.map_body_battery", return_value=[]),
-            patch("main.map_stress", return_value=[]),
-            patch("main.map_training_status", return_value=None),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_summary", return_value=MagicMock()),
+            patch("sync_runner.map_sleep", return_value=None),
+            patch("sync_runner.map_hrv", return_value=None),
+            patch("sync_runner.map_body_battery", return_value=[]),
+            patch("sync_runner.map_stress", return_value=[]),
+            patch("sync_runner.map_training_status", return_value=None),
         ):
             await _sync_day(client, repo, _USER_ID, _DATE)
 
@@ -140,13 +140,13 @@ class TestSyncDay:
         repo.sleep_exists.return_value = True
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_summary", return_value=MagicMock()),
-            patch("main.map_sleep", return_value=None),
-            patch("main.map_hrv", return_value=None),
-            patch("main.map_body_battery", return_value=[]),
-            patch("main.map_stress", return_value=[]),
-            patch("main.map_training_status", return_value=None),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_summary", return_value=MagicMock()),
+            patch("sync_runner.map_sleep", return_value=None),
+            patch("sync_runner.map_hrv", return_value=None),
+            patch("sync_runner.map_body_battery", return_value=[]),
+            patch("sync_runner.map_stress", return_value=[]),
+            patch("sync_runner.map_training_status", return_value=None),
         ):
             await _sync_day(client, repo, _USER_ID, _DATE)
 
@@ -168,9 +168,9 @@ class TestSyncActivities:
         mock_records = [MagicMock()]
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_activity", return_value=mock_activity),
-            patch("main.map_records", return_value=mock_records),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_activity", return_value=mock_activity),
+            patch("sync_runner.map_records", return_value=mock_records),
         ):
             client.get_activities.return_value = [
                 {"activityId": 101, "sport": "running"}
@@ -186,7 +186,7 @@ class TestSyncActivities:
         client = MagicMock()
         repo = AsyncMock()
 
-        with patch("main.garmin_call", side_effect=lambda fn: fn()):
+        with patch("sync_runner.garmin_call", side_effect=lambda fn: fn()):
             client.get_activities.return_value = [{"sport": "running"}]  # no activityId
             await _sync_activities(client, repo, _USER_ID, _DATE, _DATE)
 
@@ -202,8 +202,8 @@ class TestSyncActivities:
         mock_activity = MagicMock()
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_activity", return_value=mock_activity),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_activity", return_value=mock_activity),
         ):
             client.get_activities.return_value = [{"activityId": 202}]
             await _sync_activities(client, repo, _USER_ID, _DATE, _DATE)

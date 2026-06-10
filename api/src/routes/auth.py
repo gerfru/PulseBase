@@ -169,7 +169,7 @@ async def register(
     await save_consent(user["id"], "health_data", True, ip_hash)
     await save_consent(user["id"], "terms", True, ip_hash)
     await save_consent(user["id"], "age_16plus", True, ip_hash)
-    logger.info("auth.register.success", user_id=user["id"], ip_hash=_ip_hash(request))
+    logger.info("auth.register.success", user_id=user["id"], ip_hash=ip_hash)
     token = await _make_verify_token(user["id"])
     sent = await send_verify_email(email, token)
     return RedirectResponse(

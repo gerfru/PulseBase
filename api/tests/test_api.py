@@ -108,7 +108,8 @@ async def test_api_get_has_private_cache_header(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch(
-            "src.routes.api_health.get_readiness", AsyncMock(return_value={"score": 75})
+            "src.routes.api_health.compute_readiness",
+            AsyncMock(return_value={"score": 75}),
         ),
     ):
         r = await client.get("/api/readiness")
@@ -243,7 +244,8 @@ async def test_readiness_authenticated(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch(
-            "src.routes.api_health.get_readiness", AsyncMock(return_value={"score": 75})
+            "src.routes.api_health.compute_readiness",
+            AsyncMock(return_value={"score": 75}),
         ),
     ):
         r = await client.get("/api/readiness")
