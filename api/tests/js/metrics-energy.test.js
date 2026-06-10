@@ -199,6 +199,57 @@ describe('stress-score-custom render', () => {
     });
 });
 
+describe('branch coverage — empty sub, null-history charts, || [] fallbacks', () => {
+    it('physical: empty sub when score present but no TSB + chart tolerates null CTL/ATL/TSB', () => {
+        const render = ENERGY_METRICS.physical.render;
+        // tsb === '—' but phys != null → the '' sub branch
+        expect(render([{ energy_physical: { score: 70 } }, {}]).sub).toBe('');
+        // history rows without ctl/atl/tsb → `d.ctl ?? null` etc. take the null side
+        expect(render([{ energy_physical: { score: 80, tsb: 10 } }, histN('energy_physical')]).chart).toBeTruthy();
+    });
+
+    it('autonomic: empty sub without deviation + chart tolerates null values', () => {
+        const render = ENERGY_METRICS.autonomic.render;
+        expect(render([{ energy_autonomic: { score: 70 } }, {}]).sub).toBe('');
+        expect(render([{ energy_autonomic: { score: 70 } }, histN('energy_autonomic', { value: null })]).chart).toBeTruthy();
+    });
+
+    it('cognitive: empty sub without debt + chart tolerates null values', () => {
+        const render = ENERGY_METRICS.cognitive.render;
+        expect(render([{ energy_cognitive: { score: 70 } }, {}]).sub).toBe('');
+        expect(render([{ energy_cognitive: { score: 70 } }, histN('energy_cognitive', { value: null })]).chart).toBeTruthy();
+    });
+
+    it('body-battery + stress: history || [] fallback when the history key is missing', () => {
+        const bb = ENERGY_METRICS['body-battery-custom'].render({
+            insights: {
+                body_battery_custom: {
+                    score: 60,
+                    sleep_quality: 0.8,
+                    hrv_factor: 0.9,
+                    sleep_h: 7,
+                    deep_h: 1.5,
+                    rem_h: 1.8,
+                    activity_drain: 10,
+                    stress_drain: 0,
+                    prev_score: 70,
+                },
+            },
+            history: {},
+            daily: [],
+        });
+        expect(bb.value).toBe(60);
+        const st = ENERGY_METRICS['stress-score-custom'].render({
+            insights: {
+                stress_score_custom: { score: 40, hrv_component: 40, garmin_stress: 30, hrv_deviation: 0.1, n_hrv: 30 },
+            },
+            history: {},
+            daily: [],
+        });
+        expect(st.value).toBe('40');
+    });
+});
+
 describe('metric fetch() methods', () => {
     it('each metric fetches its endpoints and parses JSON', async () => {
         const calls = [];

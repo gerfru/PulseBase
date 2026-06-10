@@ -1458,3 +1458,28 @@ async def test_get_ml_feedback_empty_when_no_rows():
     with patch("src.db.ml_feedback.get_pool", AsyncMock(return_value=pool)):
         result = await get_ml_feedback(user_id=99)
     assert result == {}
+
+
+# ── pool ──────────────────────────────────────────────────────────────────────
+
+
+async def test_get_pool_logs_type_and_reraises_on_create_failure():
+    """create_pool failure logs only the exception TYPE (never the DSN) and re-raises."""
+    from src.db import pool as poolmod
+
+    poolmod._pool = None
+    try:
+        with (
+            patch(
+                "src.db.pool.asyncpg.create_pool",
+                AsyncMock(side_effect=RuntimeError("boom")),
+            ),
+            patch("src.db.pool.logger") as mock_logger,
+        ):
+            with pytest.raises(RuntimeError):
+                await poolmod.get_pool()
+        mock_logger.error.assert_called_once()
+        # The db_url (embeds the password) must never leak — only the type name.
+        assert mock_logger.error.call_args.kwargs["reason"] == "RuntimeError"
+    finally:
+        poolmod._pool = None
