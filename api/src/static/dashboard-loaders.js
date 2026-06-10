@@ -1,3 +1,4 @@
+/* global C */
 import { fmtDate } from './chart-utils.js';
 import { _heroData, buildHeroCard, buildCuratedMetrics } from './dashboard-hero.js';
 import { buildWeeklyReview } from './dashboard-weekly.js';
@@ -20,8 +21,8 @@ function renderActivitiesTable(activities) {
                 <td>${fmtDate(a.started_at)}</td>
                 <td>${fmtDuration(a.duration_seconds)}</td>
                 <td>${fmtDist(a.distance_meters)}</td>
-                <td>${a.calories ?? '—'}</td>
-                <td>${a.avg_hr ? `${a.avg_hr} bpm` : '—'}</td>
+                <td>${Number(a.calories) || '—'}</td>
+                <td>${a.avg_hr ? `${Number(a.avg_hr)} bpm` : '—'}</td>
             </tr>`,
                 )
                 .join('')}</tbody>
@@ -120,7 +121,7 @@ function buildActivityCharts(activities, days, endDate) {
     }
 }
 
-function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
+function _renderStepsChart(daily, labels) {
     if (daily.some((d) => d.steps)) {
         hideEmpty('steps');
         makeChart('steps-chart', 'bar', labels, [
@@ -129,7 +130,9 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('steps');
     }
+}
 
+function _renderBatteryChart(daily) {
     const bbDays = daily.filter((d) => d.body_battery_high != null);
     if (bbDays.length) {
         hideEmpty('battery');
@@ -159,7 +162,9 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('battery');
     }
+}
 
+function _renderHrChart(daily, labels) {
     if (daily.some((d) => d.resting_hr)) {
         hideEmpty('hr');
         makeChart('hr-chart', 'line', labels, [
@@ -175,7 +180,9 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('hr');
     }
+}
 
+function _renderStressChart(daily, labels) {
     if (daily.some((d) => d.avg_stress)) {
         hideEmpty('stress');
         makeChart(
@@ -197,11 +204,13 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('stress');
     }
+}
 
+function _renderHrvTrendChart(hrvTrend) {
     if (hrvTrend?.some((h) => h.hrv_weekly_avg || h.hrv_last_night)) {
         hideEmpty('hrv-trend');
         const datasets = [];
-        if (hrvTrend.some((h) => h.hrv_last_night)) {
+        if (hrvTrend.some((h) => h.hrv_last_night))
             datasets.push({
                 label: 'HRV letzte Nacht',
                 data: hrvTrend.map((h) => h.hrv_last_night),
@@ -210,8 +219,7 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
                 tension: 0.3,
                 pointRadius: 0,
             });
-        }
-        if (hrvTrend.some((h) => h.hrv_weekly_avg)) {
+        if (hrvTrend.some((h) => h.hrv_weekly_avg))
             datasets.push({
                 label: 'Wochenø',
                 data: hrvTrend.map((h) => h.hrv_weekly_avg),
@@ -221,7 +229,6 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
                 borderDash: [4, 4],
                 pointRadius: 0,
             });
-        }
         makeChart(
             'hrv-trend-chart',
             'line',
@@ -231,9 +238,10 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('hrv-trend');
     }
+}
 
+function _renderSleepChart(sleep, mlHistory) {
     const sleepSorted = [...sleep].reverse();
-    const sleepLabels = sleepSorted.map((s) => fmtDate(s.date));
     const customSleepHist = (mlHistory?.sleep_score_custom || []).filter((s) => s.value != null);
     if (customSleepHist.length >= 2) {
         hideEmpty('sleep');
@@ -258,7 +266,7 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
         makeChart(
             'sleep-chart',
             'line',
-            sleepLabels,
+            sleepSorted.map((s) => fmtDate(s.date)),
             [
                 {
                     label: 'Score',
@@ -274,7 +282,11 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('sleep');
     }
+}
 
+function _renderSleepStagesChart(sleep) {
+    const sleepSorted = [...sleep].reverse();
+    const sleepLabels = sleepSorted.map((s) => fmtDate(s.date));
     if (sleepSorted.some((s) => s.deep_sleep_seconds)) {
         hideEmpty('sleep-stages');
         makeChart(
@@ -316,8 +328,16 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('sleep-stages');
     }
+}
 
+function _renderIntensityChart(daily, labels, mlHistory) {
     const customIntHist = (mlHistory?.intensity_minutes_custom || []).filter((s) => s.value != null);
+    const intensityScales = {
+        scales: {
+            x: { stacked: true },
+            y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Minuten' } },
+        },
+    };
     if (customIntHist.length >= 2) {
         hideEmpty('intensity');
         makeChart(
@@ -340,12 +360,7 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
                     borderRadius: 2,
                 },
             ],
-            {
-                scales: {
-                    x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Minuten' } },
-                },
-            },
+            intensityScales,
         );
     } else if (daily.some((d) => d.intensity_moderate || d.intensity_vigorous)) {
         hideEmpty('intensity');
@@ -369,17 +384,14 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
                     borderRadius: 2,
                 },
             ],
-            {
-                scales: {
-                    x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Minuten' } },
-                },
-            },
+            intensityScales,
         );
     } else {
         showEmpty('intensity');
     }
+}
 
+function _renderCaloriesChart(daily, labels) {
     if (daily.some((d) => d.calories_total)) {
         hideEmpty('calories');
         makeChart('calories-chart', 'bar', labels, [
@@ -393,6 +405,18 @@ function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
     } else {
         showEmpty('calories');
     }
+}
+
+function buildHealthCharts(daily, labels, sleep, hrvTrend, mlHistory) {
+    _renderStepsChart(daily, labels);
+    _renderBatteryChart(daily);
+    _renderHrChart(daily, labels);
+    _renderStressChart(daily, labels);
+    _renderHrvTrendChart(hrvTrend);
+    _renderSleepChart(sleep, mlHistory);
+    _renderSleepStagesChart(sleep);
+    _renderIntensityChart(daily, labels, mlHistory);
+    _renderCaloriesChart(daily, labels);
 }
 
 export async function load(days, endDate = null) {

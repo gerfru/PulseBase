@@ -1,40 +1,5 @@
 import { buildChartDataTable, isDark } from './chart-utils.js';
-
-const SPORT_EMOJI = {
-    running: '🏃',
-    cycling: '🚴',
-    swimming: '🏊',
-    walking: '🚶',
-    hiking: '🥾',
-    strength_training: '🏋️',
-    yoga: '🧘',
-    indoor_cycling: '🚴',
-    trail_running: '🏔️',
-    open_water_swimming: '🌊',
-    cardio: '💪',
-    cardio_training: '💪',
-    elliptical: '🔄',
-    fitness_equipment: '🏋️',
-    other: '⚡',
-    default: '⚡',
-};
-const SPORT_LABEL = {
-    running: 'Laufen',
-    cycling: 'Radfahren',
-    swimming: 'Schwimmen',
-    walking: 'Gehen',
-    hiking: 'Wandern',
-    strength_training: 'Krafttraining',
-    yoga: 'Yoga',
-    indoor_cycling: 'Indoor Cycling',
-    trail_running: 'Trailrunning',
-    open_water_swimming: 'Freiwasserschwimmen',
-    cardio: 'Cardio',
-    cardio_training: 'Cardio',
-    elliptical: 'Ellipsentrainer',
-    fitness_equipment: 'Fitnessgerät',
-    other: 'Sonstige',
-};
+import { SPORT_EMOJI, SPORT_LABEL, fmtDuration, fmtDist, esc } from './dashboard-utils.js';
 const TS_LABELS = {
     PRODUCTIVE: { label: 'Aufbauend', cls: 'badge-balanced' },
     MAINTAINING: { label: 'Erhalt', cls: 'badge-balanced' },
@@ -44,20 +9,6 @@ const TS_LABELS = {
     DETRAINING: { label: 'Abfall', cls: 'badge-poor' },
 };
 
-function _sportLabel(type) {
-    const emoji = SPORT_EMOJI[type] || SPORT_EMOJI.default;
-    const name = SPORT_LABEL[type] || (type || 'Sonstige').replace(/_/g, ' ');
-    return `${emoji} ${name}`;
-}
-function fmtDuration(s) {
-    if (!s) return '—';
-    const h = Math.floor(s / 3600),
-        m = Math.floor((s % 3600) / 60);
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-function fmtDist(m) {
-    return m ? `${(m / 1000).toFixed(2)} km` : '—';
-}
 function fmtPace(secPerKm) {
     if (!secPerKm) return '—';
     const m = Math.floor(secPerKm / 60),
@@ -180,14 +131,6 @@ function makeChart(id, type, labels, datasets, scales = {}, ariaLabel = '') {
     });
 }
 
-function esc(s) {
-    return String(s ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
-
 function statTile(label, value) {
     return `<div class="stat-tile"><div class="stat-label">${esc(label)}</div><div class="stat-value" style="font-size:1.2rem">${esc(value)}</div></div>`;
 }
@@ -201,8 +144,8 @@ function econColor(val, lo, hi) {
 
 function econRow(label, val, sub, color) {
     return `<div class="kv-row">
-        <span class="kv-label">${label}${sub ? `<small class="kv-sub">${sub}</small>` : ''}</span>
-        <span class="kv-value"${color ? ` style="color:${color}"` : ''}>${val}</span>
+        <span class="kv-label">${esc(label)}${sub ? `<small class="kv-sub">${esc(sub)}</small>` : ''}</span>
+        <span class="kv-value"${color ? ` style="color:${color}"` : ''}>${esc(String(val ?? '—'))}</span>
     </div>`;
 }
 
