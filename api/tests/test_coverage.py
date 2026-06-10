@@ -11,7 +11,7 @@ import types
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from tests.conftest import TEST_USER
+from tests.conftest import TEST_USER, TEST_USER_EPILEPSY
 
 
 # ── _get_real_ip ──────────────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ async def test_profile_update_spo2_enabled(client):
 
 async def test_seizure_valid_severity(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.save_seizure", AsyncMock(return_value=1)),
     ):
         r = await client.post(

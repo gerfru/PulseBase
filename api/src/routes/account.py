@@ -67,7 +67,6 @@ async def delete_account(
         logger.warning(
             "auth.account.delete.email_not_sent",
             user_id=user["id"],
-            confirm_url=f"/account/delete/confirm/{token}",
         )
     logger.info(
         "auth.account.delete.pending", user_id=user["id"], ip_hash=_ip_hash(request)

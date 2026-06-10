@@ -368,17 +368,36 @@ async def save_consent(
     policy_version: str = "v1.0",
 ) -> None:
     pool = await get_pool()
-    await pool.execute(
-        """
-        INSERT INTO user_consents
-            (user_id, consent_type, accepted, ip_address_hash, privacy_policy_version)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (user_id, consent_type) DO UPDATE
-            SET accepted = $3, timestamp = NOW(), ip_address_hash = $4
-        """,
-        user_id,
-        consent_type,
-        accepted,
-        ip_address_hash,
-        policy_version,
-    )
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Immutable audit record — never updated (GDPR Art. 5(2) accountability)
+            await conn.execute(
+                """
+                INSERT INTO user_consent_events
+                    (user_id, consent_type, accepted, ip_address_hash, privacy_policy_version)
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                user_id,
+                consent_type,
+                accepted,
+                ip_address_hash,
+                policy_version,
+            )
+            # Current-state upsert — updated on re-consent (including policy version)
+            await conn.execute(
+                """
+                INSERT INTO user_consents
+                    (user_id, consent_type, accepted, ip_address_hash, privacy_policy_version)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (user_id, consent_type) DO UPDATE
+                    SET accepted = $3,
+                        timestamp = NOW(),
+                        ip_address_hash = $4,
+                        privacy_policy_version = $5
+                """,
+                user_id,
+                consent_type,
+                accepted,
+                ip_address_hash,
+                policy_version,
+            )

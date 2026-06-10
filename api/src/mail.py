@@ -54,7 +54,7 @@ async def send_reset_email(to_email: str, token: str) -> bool:
         subject="PulseBase — Passwort zurücksetzen",
         html=(
             f"<p>Klicke auf diesen Link um dein Passwort zurückzusetzen "
-            f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
+            f"(gültig 15 Minuten):</p><p><a href='{url}'>{url}</a></p>"
         ),
         log_key="reset",
     )
@@ -81,7 +81,7 @@ async def send_deletion_confirm_email(to_email: str, token: str) -> bool:
         html=(
             "<p>Du hast die Löschung deines Kontos angefordert.</p>"
             "<p>Klicke auf diesen Link um die Löschung zu bestätigen "
-            f"(gültig 24 Stunden):</p><p><a href='{url}'>{url}</a></p>"
+            f"(gültig 1 Stunde):</p><p><a href='{url}'>{url}</a></p>"
             "<p>Falls du das nicht warst, kannst du diesen Link ignorieren. "
             "Dein Konto bleibt unverändert.</p>"
         ),
