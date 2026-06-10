@@ -405,7 +405,7 @@ Trigger für Einführung: >3 Entwickler oder Business-Logik die über mehrere Ro
 
 Zwei klar getrennte Betriebsarten:
 - **Heim (`make up`):** App hängt am externen `proxy`-Netz; das separate Repo **homelab-gateway** stellt Caddy (TLS-Terminierung, nur über Tailscale-IP erreichbar) sowie zentrales Loki/Promtail/Uptime-Kuma bereit. PulseBase bündelt selbst keinen Proxy und kein Monitoring.
-- **Public SaaS (`make up-public`):** self-contained über das Overlay `docker-compose.public.yml` + gebündeltes **Caddy** mit automatischem Let's Encrypt auf einer öffentlichen Domain (Ports 80/443 auf `0.0.0.0`). Env: `env/.env.public` (`PUBLIC_DOMAIN`, `ACME_EMAIL`). Monitoring hier über externe SaaS-Dienste (Sentry + Better Stack/Axiom + UptimeRobot), nicht über das homelab-gateway.
+- **Public SaaS (`make up-public`):** self-contained über das Overlay `deploy/docker-compose.public.yml` + gebündeltes **Caddy** mit automatischem Let's Encrypt auf einer öffentlichen Domain (Ports 80/443 auf `0.0.0.0`). Env: `env/.env.public` (`PUBLIC_DOMAIN`, `ACME_EMAIL`). Monitoring hier über externe SaaS-Dienste (Sentry + Better Stack/Axiom + UptimeRobot), nicht über das homelab-gateway.
 
 Hinweis: Es gibt **kein** `traefik/`-Verzeichnis (das frühere Traefik-Standalone war nie implementiert; durch Caddy ersetzt).
 
@@ -450,7 +450,7 @@ Die Datei hatte den 400-Zeilen-Trigger erreicht und wurde aufgeteilt: `routes/ap
 ### Monitoring & Alert-Setup (L-79)
 
 **Log-Aggregation läuft NICHT in PulseBase.** Die 3 App-Container tragen das Label `monitoring=true`; im Heimbetrieb werden ihre stdout-JSON-Logs vom **Promtail des homelab-gateway** automatisch gescrapt und in dessen zentralem **Loki** (`{project="pulsebase"}`) aggregiert. `make up` startet weder Loki noch Promtail.
-**Public SaaS:** stdout-Logs via Vector-Sidecar (`docker-compose.public.yml`) an **Better Stack/Axiom** shippen.
+**Public SaaS:** stdout-Logs via Vector-Sidecar (`deploy/docker-compose.public.yml`) an **Better Stack/Axiom** shippen.
 
 **Sentry Alert-Rules (einmalig im Sentry-Dashboard konfigurieren):**
 

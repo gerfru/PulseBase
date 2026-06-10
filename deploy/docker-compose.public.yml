@@ -1,6 +1,6 @@
 # Public SaaS overlay — self-contained public instance with bundled Caddy (TLS via
 # Let's Encrypt) and a Vector log-shipper. Use ONLY with the base file:
-#   docker compose -f docker-compose.yml -f docker-compose.public.yml up -d
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.public.yml up -d
 # (or `make up-public`). NEVER `make up` on the public VPS — that requires the
 # home gateway's external `proxy` network, which does not exist here.
 #
@@ -27,9 +27,9 @@ services:
       - "443:443"
       - "443:443/udp"  # HTTP/3 (QUIC)
     env_file:
-      - env/.env.public
+      - ../env/.env.public
     volumes:
-      - ./Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data      # issued certs + ACME account keys — MUST persist
       - caddy-config:/config
     networks:
@@ -57,10 +57,10 @@ services:
     security_opt:
       - "no-new-privileges:true"
     env_file:
-      - env/.env.public      # BETTERSTACK_SOURCE_TOKEN (or AXIOM_TOKEN/AXIOM_DATASET)
+      - ../env/.env.public      # BETTERSTACK_SOURCE_TOKEN (or AXIOM_TOKEN/AXIOM_DATASET)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./vector.public.toml:/etc/vector/vector.toml:ro
+      - ./vector.toml:/etc/vector/vector.toml:ro
     networks:
       - internal
     healthcheck:

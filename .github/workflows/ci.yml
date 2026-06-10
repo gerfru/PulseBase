@@ -243,7 +243,7 @@ jobs:
           sed -i "s|^HTTPS_ONLY=.*|HTTPS_ONLY=false|" env/.env.api
 
       - name: Start test stack
-        run: docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.test.yml up -d --wait
+        run: docker compose --env-file env/.env --env-file env/.env.app -f deploy/docker-compose.test.yml up -d --wait
 
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
@@ -288,7 +288,7 @@ jobs:
 
       - name: Stop test stack
         if: always()
-        run: docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.test.yml down
+        run: docker compose --env-file env/.env --env-file env/.env.app -f deploy/docker-compose.test.yml down
 
   deploy-public-smoke:
     name: Public Deployment Smoke
@@ -314,7 +314,7 @@ jobs:
       - name: Validate public overlay (api decoupled from proxy network)
         run: |
           json=$(docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.yml -f docker-compose.public.yml config --format json)
+            -f docker-compose.yml -f deploy/docker-compose.public.yml config --format json)
           # Form-agnostic (networks may render as map or list): assert api's networks
           # do NOT reference proxy, but DO reference internal.
           echo "$json" | jq -e '(.services.api.networks | tostring | test("proxy")) | not' >/dev/null \
@@ -330,7 +330,7 @@ jobs:
           # flyway is a one-shot migration container (exits 0) — not in the wait set;
           # api pulls it via `depends_on: service_completed_successfully`.
           docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.public.ci.yml \
+            -f docker-compose.yml -f deploy/docker-compose.public.yml -f deploy/docker-compose.public.ci.yml \
             up -d --build --wait db api caddy
 
       - name: Smoke — reach app through Caddy
@@ -343,13 +343,13 @@ jobs:
         if: failure()
         run: |
           docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.public.ci.yml logs --tail=80
+            -f docker-compose.yml -f deploy/docker-compose.public.yml -f deploy/docker-compose.public.ci.yml logs --tail=80
 
       - name: Tear down
         if: always()
         run: |
           docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.public.ci.yml down -v
+            -f docker-compose.yml -f deploy/docker-compose.public.yml -f deploy/docker-compose.public.ci.yml down -v
 
   backup-smoke:
     name: Backup Smoke
@@ -373,12 +373,12 @@ jobs:
       - name: Bring up test DB
         run: |
           docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.test.yml up -d --wait db-test
+            -f deploy/docker-compose.test.yml up -d --wait db-test
 
       - name: Run migrations (blocks until complete)
         run: |
           docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.test.yml run --rm flyway-test
+            -f deploy/docker-compose.test.yml run --rm flyway-test
 
       - name: Seed sentinel row
         run: |
@@ -417,7 +417,7 @@ jobs:
         if: always()
         run: |
           docker compose --env-file env/.env --env-file env/.env.app \
-            -f docker-compose.test.yml down -v
+            -f deploy/docker-compose.test.yml down -v
 
   test:
     name: Tests

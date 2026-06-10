@@ -13,6 +13,9 @@ __pycache__/
 *.pyo
 .venv/
 *.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # Node.js
 node_modules/
@@ -28,3 +31,4 @@ tokens/
 # Claude Code
 CLAUDE.md
 claude/
+review-app-report.md
