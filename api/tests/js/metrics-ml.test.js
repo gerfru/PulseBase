@@ -206,3 +206,62 @@ describe('correlations render', () => {
         expect(out.recommendation).toContain('zu wenig Daten');
     });
 });
+
+describe('metrics-ml branch coverage — null-data charts + key fallbacks', () => {
+    it('hr-zscore: chart tolerates a null resting_hr + z_score ?? 0 guard', () => {
+        const render = ML_METRICS['hr-zscore'].render;
+        const daily = [
+            { date: '2026-05-01', resting_hr: 48 },
+            { date: '2026-05-02', resting_hr: null }, // d.resting_hr ?? null
+        ];
+        expect(render([{ anomaly_hr: { z_score: 2.4, is_anomaly: true, baseline_mean: 49 } }, daily]).chart).toBeTruthy();
+        // is_anomaly true but z_score null → (null ?? 0) > 2 is false → soft wording
+        const soft = render([{ anomaly_hr: { z_score: null, is_anomaly: true } }, []]);
+        expect(soft.recommendation).toContain('Mögliche Auffälligkeit');
+    });
+
+    it('readiness-rf: history chart tolerates a null value', () => {
+        const render = ML_METRICS['readiness-rf'].render;
+        const hist = {
+            readiness_rf: [
+                { date: '2026-05-01', value: 70 },
+                { date: '2026-05-02', value: null }, // d.value ?? null
+                { date: '2026-05-03', value: 72 },
+                { date: '2026-05-04', value: 71 },
+            ],
+        };
+        expect(render([{ readiness_rf: { value: 70 } }, hist]).chart).toBeTruthy();
+    });
+
+    it('hrv-status: tolerates null hrv_status (|| "") and null nightly HRV in chart', () => {
+        const render = ML_METRICS['hrv-status'].render;
+        const out = render([
+            { date: '2026-05-01', hrv_status: 'balanced', hrv_last_night: 70 },
+            { date: '2026-05-02', hrv_status: null, hrv_last_night: null }, // || '' and ?? null
+        ]);
+        expect(out.chart).toBeTruthy();
+        expect(out.kpis.find((k) => k.label.startsWith('Ausgeglichen')).value).toBe('1 / 2 Tage');
+    });
+
+    it('training-status: empty-key fallback when status missing + TSB chart tolerates null tsb', () => {
+        const render = ML_METRICS['training-status'].render;
+        // (undefined || '').toUpperCase() === '' → tsMap[''] || fallback, data?.training_status ?? '—'
+        expect(render([{}, {}]).value).toBe('—');
+        const hist = {
+            energy_physical: [
+                { date: '2026-05-01', tsb: 5 },
+                { date: '2026-05-02', tsb: null }, // d.tsb ?? null
+                { date: '2026-05-03', tsb: 3 },
+                { date: '2026-05-04', tsb: 4 },
+            ],
+        };
+        expect(render([{ training_status: 'PRODUCTIVE', date: '2026-05-04' }, hist]).chart).toBeTruthy();
+    });
+
+    it('battery-pattern: unknown pattern uses •/raw-key fallbacks', () => {
+        const render = ML_METRICS['battery-pattern'].render;
+        const out = render({ battery_pattern: { pattern: 'mystery', cluster: 2, features: {} } });
+        expect(out.sub).toBe('mystery'); // BP_LABELS[...] ?? bp.pattern
+        expect(out.value).toContain('•'); // BP_ICONS[...] ?? '•'
+    });
+});

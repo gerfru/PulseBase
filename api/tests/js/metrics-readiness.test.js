@@ -122,6 +122,94 @@ describe('recovery render', () => {
     });
 });
 
+describe('metrics-readiness branch coverage — null-data charts, empty parts, recovery fallbacks', () => {
+    const renderReadiness = READINESS_METRICS.readiness.render;
+    const renderRecovery = READINESS_METRICS.recovery.render;
+
+    it('readiness: combined chart + sparkline tolerate null / date-absent component values', () => {
+        const history = {
+            energy_autonomic: [
+                { date: '2026-05-01', value: 78 },
+                { date: '2026-05-02', value: null }, // sparkline d.value==null + both-null date
+                { date: '2026-05-03', value: 78 },
+                { date: '2026-05-04', value: 78 },
+            ],
+            energy_cognitive: [
+                { date: '2026-05-02', value: null }, // same date null in both → parts empty → return null
+                { date: '2026-05-05', value: 65 }, // date only in cognitive → autonMap[d] ?? null
+                { date: '2026-05-06', value: 65 },
+                { date: '2026-05-07', value: 65 },
+            ],
+        };
+        const energy = {
+            energy_autonomic: { score: 78, deviation: 0.5 },
+            energy_cognitive: { score: 65, debt_hours: 2 },
+        };
+        const out = renderReadiness([{ score: 80, label: 'Gut erholt' }, energy, history]);
+        expect(out.charts).toHaveLength(1);
+        expect(out.customHtml).toContain('svg');
+    });
+
+    it('readiness: empty detail when component score present but deviation/debt absent', () => {
+        // a != null but deviation null → '' ; c != null but debt null → ''
+        const out = renderReadiness([
+            { score: 50 },
+            { energy_autonomic: { score: 70 }, energy_cognitive: { score: 60 } },
+            {},
+        ]);
+        expect(out.customHtml).not.toContain('keine Daten');
+    });
+
+    it('recovery: data.sleep || [] fallback when the sleep key is absent', () => {
+        const hrv = [55, 60, 65, 70].map((w, i) => ({
+            date: `2026-05-0${i + 1}`,
+            hrv_last_night: w,
+            hrv_weekly_avg: w,
+        }));
+        const out = renderRecovery({ hrv, insights: {} }); // no sleep key → data.sleep || []
+        expect(out.value).toBeDefined();
+    });
+
+    it('recovery: charts tolerate null nightly/weekly HRV and null sleep_score', () => {
+        const hrv = [
+            { date: '2026-05-01', hrv_last_night: 60, hrv_weekly_avg: 60 },
+            { date: '2026-05-02', hrv_last_night: null, hrv_weekly_avg: null }, // ?? null
+            { date: '2026-05-03', hrv_last_night: 65, hrv_weekly_avg: 65 },
+            { date: '2026-05-04', hrv_last_night: 70, hrv_weekly_avg: 70 },
+        ];
+        const sleep = [
+            { date: '2026-05-01', sleep_score: 80, total_sleep_seconds: 27000, deep_sleep_seconds: 5400 },
+            { date: '2026-05-02', sleep_score: null, total_sleep_seconds: 20000 }, // ?? null
+            { date: '2026-05-03', sleep_score: 70, total_sleep_seconds: 25000 },
+            { date: '2026-05-04', sleep_score: 60, total_sleep_seconds: 24000 },
+        ];
+        const out = renderRecovery({ hrv, sleep, insights: { correlation_sleep_hrv: { r: 0.5, n: 20 } } });
+        expect(out.charts).toHaveLength(2);
+    });
+
+    it('recovery: neutral HRV + mid sleep bands yield no recommendation parts (returns null)', () => {
+        // flat HRV ≈ 90d mean (neither ≥1.05× nor <0.92×) and mid sleep 50–74 (neither ≥75 nor <50)
+        const flatHrv = [60, 60, 60, 60].map((w, i) => ({
+            date: `2026-05-0${i + 1}`,
+            hrv_last_night: w,
+            hrv_weekly_avg: w,
+        }));
+        const midSleep = [1, 2, 3, 4].map((n) => ({ date: `2026-05-0${n}`, sleep_score: 60, total_sleep_seconds: 25000 }));
+        expect(renderRecovery({ hrv: flatHrv, sleep: midSleep, insights: {} }).recommendation).toBeNull();
+    });
+
+    it('recovery: null latest weekly HRV skips the HRV recommendation part (386 false branch)', () => {
+        const nullWeekly = [
+            { date: '2026-05-01', hrv_last_night: 60, hrv_weekly_avg: 60 },
+            { date: '2026-05-02', hrv_last_night: 62, hrv_weekly_avg: null }, // latest weekly null
+        ];
+        const goodSleep = [1, 2, 3, 4].map((n) => ({ date: `2026-05-0${n}`, sleep_score: 80, total_sleep_seconds: 27000 }));
+        const out = renderRecovery({ hrv: nullWeekly, sleep: goodSleep, insights: {} });
+        // HRV part skipped, sleep part still produced
+        expect(out.recommendation).toContain('Schlaf-Score gut');
+    });
+});
+
 describe('metric fetch() methods', () => {
     it('each metric fetches its endpoints and parses JSON', async () => {
         const calls = [];

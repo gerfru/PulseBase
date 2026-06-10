@@ -1417,3 +1417,69 @@ async def test_save_user_token_executes_upsert():
     call_sql = pool.execute.await_args[0][0]
     assert "ON CONFLICT" in call_sql
     assert "user_tokens" in call_sql
+
+
+# ── ml_feedback ───────────────────────────────────────────────────────────────
+
+
+async def test_save_ml_feedback_upserts_bind_params():
+    from src.db.ml_feedback import save_ml_feedback
+
+    pool = _pool_mock(execute="INSERT 0 1")
+    with patch("src.db.ml_feedback.get_pool", AsyncMock(return_value=pool)):
+        await save_ml_feedback(user_id=42, model="readiness_rf", helpful=True)
+    pool.execute.assert_awaited_once()
+    call = pool.execute.await_args
+    sql = call.args[0]
+    assert "ON CONFLICT" in sql  # idempotent / toggleable upsert
+    assert "ml_feedback" in sql
+    # bind params: user_id, model, helpful (prediction_date is server-side CURRENT_DATE)
+    assert call.args[1:] == (42, "readiness_rf", True)
+
+
+async def test_get_ml_feedback_maps_rows_to_dict():
+    from src.db.ml_feedback import get_ml_feedback
+
+    rows = [
+        {"model": "readiness_rf", "helpful": True},
+        {"model": "anomaly_hr", "helpful": False},
+    ]
+    pool = _pool_mock(fetch=rows)
+    with patch("src.db.ml_feedback.get_pool", AsyncMock(return_value=pool)):
+        result = await get_ml_feedback(user_id=42)
+    assert result == {"readiness_rf": True, "anomaly_hr": False}
+    pool.fetch.assert_awaited_once()
+
+
+async def test_get_ml_feedback_empty_when_no_rows():
+    from src.db.ml_feedback import get_ml_feedback
+
+    pool = _pool_mock(fetch=[])
+    with patch("src.db.ml_feedback.get_pool", AsyncMock(return_value=pool)):
+        result = await get_ml_feedback(user_id=99)
+    assert result == {}
+
+
+# ── pool ──────────────────────────────────────────────────────────────────────
+
+
+async def test_get_pool_logs_type_and_reraises_on_create_failure():
+    """create_pool failure logs only the exception TYPE (never the DSN) and re-raises."""
+    from src.db import pool as poolmod
+
+    poolmod._pool = None
+    try:
+        with (
+            patch(
+                "src.db.pool.asyncpg.create_pool",
+                AsyncMock(side_effect=RuntimeError("boom")),
+            ),
+            patch("src.db.pool.logger") as mock_logger,
+        ):
+            with pytest.raises(RuntimeError):
+                await poolmod.get_pool()
+        mock_logger.error.assert_called_once()
+        # The db_url (embeds the password) must never leak — only the type name.
+        assert mock_logger.error.call_args.kwargs["reason"] == "RuntimeError"
+    finally:
+        poolmod._pool = None

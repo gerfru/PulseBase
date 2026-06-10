@@ -582,3 +582,45 @@ describe('Edit/Delete-Steuerung (Coverage)', () => {
         );
     });
 });
+
+// ── DOM-Guard- + Delegations-Defensiv-Branches (Coverage) ─────────────────────
+
+describe('DOM guards + delegation edge cases', () => {
+    it('clearLogMessages tolerates a missing #log-msg element', () => {
+        const msg = document.getElementById('log-msg');
+        msg.remove();
+        expect(() => cancelEditMode()).not.toThrow(); // `if (msg)` false branch
+        document.body.appendChild(msg);
+    });
+
+    it('enter/cancelEditMode tolerate missing #log-card-title and #log-cancel', async () => {
+        mockFetch([{ id: 77, occurred_at: '2024-03-15T10:30:00Z', type: 'focal', duration_seconds: 60, severity: 2, notes: 'X' }]);
+        await loadEvents();
+        const title = document.getElementById('log-card-title');
+        const cancel = document.getElementById('log-cancel');
+        title.remove();
+        cancel.remove();
+        expect(() => enterEditMode('77')).not.toThrow(); // `if (title)` / `if (cancel)` false in enterEditMode
+        expect(() => cancelEditMode()).not.toThrow(); // ...and in cancelEditMode
+        document.body.appendChild(title);
+        document.body.appendChild(cancel);
+    });
+
+    it('event-list click outside any edit/delete button is a no-op (delBtn null branch)', async () => {
+        mockFetch([{ id: 11, occurred_at: '2024-03-15T10:30:00Z', type: 'focal' }]);
+        await loadEvents();
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        document.getElementById('event-list').click(); // neither edit nor delete target
+        expect(_getEditingId()).toBeNull();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('delete-ok with no pending selection deletes nothing (pendingDeleteId == null)', () => {
+        document.getElementById('seizure-delete-cancel').click(); // ensure pendingDeleteId = null
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        document.getElementById('seizure-delete-ok').click(); // `if (pendingDeleteId != null)` false
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+});

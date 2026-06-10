@@ -114,6 +114,17 @@ describe('running-economy render', () => {
         expect(out.value).toBe('—');
         expect(out.kpis).toHaveLength(0);
     });
+
+    it('uses empty history fallback when running_economy history is missing (|| [] branch)', () => {
+        const out = render({
+            insights: {
+                running_economy: { score: 70, avg_gct_ms: 230, avg_vo_mm: 70.5, avg_vr_pct: 7.2, n_activities: 6 },
+            },
+            history: {},
+        });
+        expect(out.chart.labels).toEqual([]);
+        expect(out.chart.datasets[0].data).toEqual([]);
+    });
 });
 
 describe('metric fetch() methods', () => {
