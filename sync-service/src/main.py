@@ -10,7 +10,7 @@ import structlog
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from config import Settings, require_fernet_key
-from health_server import start_health_server
+from health_server import set_pool as set_health_pool, start_health_server
 from scheduler import configure_scheduler
 from crypto import (
     fernet_decrypt,
@@ -341,6 +341,7 @@ async def main() -> None:  # pragma: no cover
 
     repo = TimescaleRepository(settings.db_url)
     await repo.init()
+    set_health_pool(repo._pool)
 
     # Sentinel written at startup so the healthcheck passes during the initial sync
     Path("/tmp/sync_alive").touch()  # nosec B108

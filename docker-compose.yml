@@ -71,6 +71,9 @@ services:
     container_name: pulsebase-api
     restart: unless-stopped
     stop_grace_period: 45s
+    init: true
+    security_opt:
+      - "no-new-privileges:true"
     labels:
       - "monitoring=true"
     env_file:
@@ -108,6 +111,9 @@ services:
     container_name: pulsebase-sync
     restart: unless-stopped
     stop_grace_period: 120s
+    init: true
+    security_opt:
+      - "no-new-privileges:true"
     labels:
       - "monitoring=true"
     depends_on:
@@ -123,7 +129,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      test: ["CMD-SHELL", "test -f /tmp/sync_alive && python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
       interval: 30s
       timeout: 5s
       start_period: 120s
@@ -144,6 +150,9 @@ services:
     container_name: pulsebase-ml
     restart: unless-stopped
     stop_grace_period: 120s
+    init: true
+    security_opt:
+      - "no-new-privileges:true"
     labels:
       - "monitoring=true"
     depends_on:
@@ -162,7 +171,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      test: ["CMD-SHELL", "test -f /tmp/ml_alive && python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
       interval: 30s
       timeout: 5s
       start_period: 60s

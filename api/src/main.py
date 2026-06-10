@@ -232,12 +232,17 @@ async def app_metrics(request: Request) -> dict[str, float | int]:
     async with _metrics_lock:
         active = _active_requests
         errors = _error_requests
+    pool = await get_pool()
+    pool_size = pool.get_size()
+    pool_idle = pool.get_idle_size()
     return {
         "active_requests": active,
         "error_requests_total": errors,
         "uptime_seconds": round(time.monotonic() - _start_time),
         "memory_mb": round(_proc.memory_info().rss / 1024 / 1024, 1),
         "cpu_percent": _proc.cpu_percent(interval=None),
+        "db_pool_used": pool_size - pool_idle,
+        "db_pool_max": pool_size,
     }
 
 
