@@ -53,11 +53,11 @@ def _ip_hash(request: Request) -> str:
 
 limiter = Limiter(key_func=_get_real_ip)
 
-DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt()).decode()
+DUMMY_HASH = bcrypt.hashpw(b"dummy", bcrypt.gensalt(rounds=12)).decode()
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
 
 
 def verify_password(password: str, hashed: str) -> bool:

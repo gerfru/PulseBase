@@ -1,3 +1,5 @@
+# 361 lines — approaching 400-line threshold.
+# Split trigger: sleep/HRV queries → db/sleep.py when file exceeds 400 lines.
 from datetime import date, timedelta
 from typing import Any
 
