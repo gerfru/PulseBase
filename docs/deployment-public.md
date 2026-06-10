@@ -21,8 +21,8 @@ Internet ──▶ Caddy (:80/:443, Let's Encrypt) ──▶ api:8000 (internal-
 Das Overlay `docker-compose.public.yml` entkoppelt `api` vom externen `proxy`-Netz
 des homelab-gateway (per `networks: !override`) und ergänzt **Caddy** + **Vector**.
 
-Beteiligte Dateien: `docker-compose.public.yml`, `Caddyfile.public`,
-`vector.public.toml`, `env/.env.public`.
+Beteiligte Dateien: `deploy/docker-compose.public.yml`, `deploy/Caddyfile`,
+`deploy/vector.toml`, `env/.env.public`.
 
 ## Voraussetzungen (in dieser Reihenfolge!)
 
@@ -53,7 +53,7 @@ make secure-env                                 # chmod 600 inkl. env/.env.publi
 # 3) Merge prüfen (api ohne proxy-Netz, caddy publisht 80/443)
 make config-public
 
-# 4) (Empfohlen) Erst mit ACME-Staging testen: in Caddyfile.public die acme_ca-Zeile
+# 4) (Empfohlen) Erst mit ACME-Staging testen: in deploy/Caddyfile die acme_ca-Zeile
 #    einkommentieren → make up-public → Zertifikat ok? → Zeile wieder auskommentieren.
 
 # 5) Start
@@ -99,7 +99,7 @@ führt täglich [`scripts: backup.sh`](../backup/backup.sh) aus (`pg_dump -Fc` �
   Regressionen lassen sich einer Version zuordnen. Alert-Rules siehe Runbook unten.
 - **Logs**: Vector-Sidecar shippt die stdout-JSON-Logs an Better Stack
   (`BETTERSTACK_SOURCE_TOKEN` in `env/.env.public`). Alternativ Axiom — Sink in
-  `vector.public.toml` tauschen.
+  `deploy/vector.toml` tauschen.
 - **Uptime**: UptimeRobot-Monitore auf `https://app.example.com/health` **und** `/ready`
   (erkennt DB-down). Alert → E-Mail/Telegram.
 

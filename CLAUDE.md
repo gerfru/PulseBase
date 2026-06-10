@@ -198,7 +198,7 @@ ml-service/src/
     ├── running_economy.py GCT / Vertikal-Oszillation / Vertical Ratio → Score
     └── hrv_recovery.py    HRV-Erholungstrajektorie nach Belastung (ΔHRV/Tag)
 
-db/migrations/        Flyway: V1–V26 (V15 Epilepsie, V19 Consents, V20 user_tokens, V22 reset-token, V26 single-use verify/deletion-token)
+db/migrations/        Flyway: V1–V27 (V15 Epilepsie, V19 Consents, V20 user_tokens, V22 reset-token, V26 single-use verify/deletion-token, V27 consent-events audit-log)
 ```
 
 Die `__init__.py`-Dateien in den sync-service-Sub-Paketen sind Pflicht — ohne sie erkennt mypy die
