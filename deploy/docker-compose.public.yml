@@ -29,7 +29,7 @@ services:
     env_file:
       - env/.env.public
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data      # issued certs + ACME account keys — MUST persist
       - caddy-config:/config
     networks:
@@ -60,7 +60,7 @@ services:
       - env/.env.public      # BETTERSTACK_SOURCE_TOKEN (or AXIOM_TOKEN/AXIOM_DATASET)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./vector.toml:/etc/vector/vector.toml:ro
+      - ./deploy/vector.toml:/etc/vector/vector.toml:ro
     networks:
       - internal
     healthcheck:

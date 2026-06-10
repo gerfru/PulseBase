@@ -71,8 +71,8 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
     env_file:
-      - env/.env.app
-      - env/.env.api
+      - ../env/.env.app
+      - ../env/.env.api
     environment:
       DB_HOST: db-test
       DB_PORT: 5432

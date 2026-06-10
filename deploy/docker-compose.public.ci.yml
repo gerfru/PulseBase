@@ -12,7 +12,7 @@ services:
     ports: !override
       - "8080:80"
     volumes:
-      - ./Caddyfile.ci:/etc/caddy/Caddyfile:ro
+      - ./deploy/Caddyfile.ci:/etc/caddy/Caddyfile:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
       interval: 10s
