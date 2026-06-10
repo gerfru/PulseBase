@@ -10,7 +10,7 @@ import {
     TABS,
     CHART_HASHES,
 } from './dashboard-nav.js';
-import { loadEvidence, buildMlTabs, loadMlFeedback, submitMlFeedback } from './dashboard-hero.js';
+import { loadEvidence, buildMlTabs, loadMlFeedback, submitMlFeedback, buildCuratedMetrics } from './dashboard-hero.js';
 import { load, loadReadiness, loadMlInsights, loadEnergyMetrics, loadTrainingLoad } from './dashboard-loaders.js';
 import { showToast, loadMlStatus, loadSyncStatus } from './dashboard-status.js';
 import { initOnboardingHint } from './onboarding.js';
@@ -97,7 +97,9 @@ if (TABS.includes(_hash)) {
 } else {
     setTab('training');
 }
-loadEvidence().catch(() => {});
+loadEvidence()
+    .then(() => buildCuratedMetrics())
+    .catch(() => {});
 load(currentDays).catch(() => showToast('Dashboard konnte nicht geladen werden', 'error'));
 loadTrainingLoad().catch(() => {});
 loadReadiness().catch(() => showToast('Readiness-Score konnte nicht geladen werden', 'error'));

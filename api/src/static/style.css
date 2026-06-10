@@ -673,6 +673,41 @@ html:not(.dark) .ev-meta  { background: #dcfce7; color: #166534; }
 html:not(.dark) .ev-rep   { background: #fef9c3; color: #854d0e; }
 html:not(.dark) .ev-model { background: #e0f2fe; color: #0c4a6e; }
 
+/* ── Metrik-Übersichts-Kacheln (geteilt: /metrics + Dashboard „Deine Metriken") ── */
+.metrics-section-heading {
+  font-size: var(--text-sm); font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted); margin-bottom: var(--sp-3);
+}
+.metrics-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--sp-3);
+}
+.metric-overview-tile {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--sp-4); text-decoration: none;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.metric-overview-tile:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.metric-overview-icon { font-size: 1.4rem; line-height: 1; }
+.metric-overview-title { font-size: var(--text-xs); color: var(--muted); font-weight: 600; margin-top: 2px; }
+.metric-overview-val { font-size: var(--text-lg); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+/* ── Verwandte-Metriken-Block (Detailseiten) ── */
+.related-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--sp-3);
+}
+.related-tile {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); text-decoration: none;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.related-tile:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.related-tile-icon { font-size: 1.25rem; line-height: 1; }
+.related-tile-title { font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+
 /* ── Hero Dots — Zone 1 ──────────────────────────────────────────────────── */
 .hero-dot-row   { display: flex; gap: var(--sp-4); margin-top: var(--sp-2); justify-content: flex-start; }
 .hero-dot-item  { display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; }

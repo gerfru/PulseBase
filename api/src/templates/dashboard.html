@@ -96,6 +96,15 @@
         </div>
     </div>
 
+    <!-- ── Deine Metriken: kuratierte Eigen-Metriken (Phase 2) ───────── -->
+    <!-- Werte aus bereits geladenem /api/ml-insights (kein Extra-Request); gefüllt
+         durch buildCuratedMetrics() in dashboard-hero.js. Bewusst nur Metriken, die
+         die Hero-Card NICHT zeigt (keine Few/Tufte-Doppelung). -->
+    <section id="curated-metrics" class="px-4 sm:px-6 pt-5" aria-labelledby="curated-metrics-heading" hidden>
+        <h2 id="curated-metrics-heading" class="metrics-section-heading">Deine Metriken</h2>
+        <div class="metrics-overview-grid" id="curated-metrics-grid"></div>
+    </section>
+
     <!-- ── Tab-Navigation ────────────────────────────────────────── -->
     <nav class="flex px-4 sm:px-6 mt-5 border-b border-black/[0.07] dark:border-white/[0.07]" role="tablist" aria-label="Dashboard-Bereiche">
         <button class="tab-btn active" data-tab="training" role="tab" id="tab-btn-training" aria-controls="tab-training" aria-selected="true">Training</button>
