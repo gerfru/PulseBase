@@ -36,6 +36,8 @@ production database — always add a new migration file.
 | `V23__pending_deletion.sql` | Adds `pending_deletion_at TIMESTAMPTZ` to `users` (two-step account deletion with e-mail confirmation) |
 | `V24__per_service_roles.sql` | Creates per-service least-privilege DB roles `pulse_sync` (ingest) and `pulse_ml` (read-only inference + `ml_predictions` write); column-level grants (ADR-0001) |
 | `V25__ml_feedback.sql` | Creates `ml_feedback` table for 👍/👎 item-level feedback on ML predictions |
+| `V26__single_use_tokens.sql` | Adds `verification_token_hash`, `verification_token_expires_at`, `deletion_token_hash`, `deletion_token_expires_at` to `users` — single-use, server-side-verified tokens (replaces replayable stateless itsdangerous payloads) |
+| `V27__user_consent_events.sql` | Creates immutable `user_consent_events` audit table — append-only log of every consent change for GDPR Art. 5(2) accountability; `user_consents` remains the current-state table |
 
 ---
 
