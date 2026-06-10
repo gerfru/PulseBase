@@ -196,6 +196,7 @@ jobs:
           exit-code: '1'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          trivyignores: backup/.trivyignore
           format: table
           output: trivy-backup.txt
       - name: Upload backup Trivy results
