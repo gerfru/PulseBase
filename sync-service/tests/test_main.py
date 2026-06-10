@@ -19,7 +19,7 @@ from datetime import date
 from pathlib import Path
 
 from garmin.client import garmin_call
-from main import (
+from sync_runner import (
     _sync_activities,
     _sync_day,
     process_sync_requests,
@@ -79,7 +79,7 @@ class TestSyncAllUsers:
             {"id": 1, "garmin_email": "a@test.com"},
             {"id": 2, "garmin_email": "b@test.com"},
         ]
-        with patch("main.sync_user", new_callable=AsyncMock) as mock_sync:
+        with patch("sync_runner.sync_user", new_callable=AsyncMock) as mock_sync:
             await sync_all_users(repo, days=7, settings=MagicMock())
         assert mock_sync.call_count == 2
 
@@ -96,7 +96,7 @@ class TestSyncAllUsers:
                 raise RuntimeError("user 1 failed")
             synced_ids.append(user["id"])
 
-        with patch("main.sync_user", side_effect=fake_sync):
+        with patch("sync_runner.sync_user", side_effect=fake_sync):
             await sync_all_users(repo, days=7, settings=MagicMock())
 
         assert 2 in synced_ids, "user 2 must be synced even after user 1 fails"
@@ -112,7 +112,7 @@ class TestSyncAllUsers:
             if user["id"] == 10:
                 raise RuntimeError("fail")
 
-        with patch("main.sync_user", side_effect=partial_failure):
+        with patch("sync_runner.sync_user", side_effect=partial_failure):
             await sync_all_users(repo, days=7, settings=MagicMock())
 
         # mark_sync_done must be called for both users (finally block)
@@ -130,7 +130,7 @@ class TestProcessSyncRequests:
         repo.get_sync_requested_users.return_value = [
             {"id": 42, "garmin_email": "x@test.com"}
         ]
-        with patch("main.sync_user", new_callable=AsyncMock):
+        with patch("sync_runner.sync_user", new_callable=AsyncMock):
             await process_sync_requests(repo, daily_days=7, settings=MagicMock())
         repo.set_ml_requested.assert_called_once_with(42)
         repo.mark_sync_done.assert_called_once_with(42)
@@ -144,7 +144,7 @@ class TestProcessSyncRequests:
         async def failing_sync(user, repo, days, settings):
             raise RuntimeError("sync exploded")
 
-        with patch("main.sync_user", side_effect=failing_sync):
+        with patch("sync_runner.sync_user", side_effect=failing_sync):
             await process_sync_requests(repo, daily_days=7, settings=MagicMock())
 
         # Both side-effects must fire from the finally block even on error
@@ -154,7 +154,7 @@ class TestProcessSyncRequests:
     async def test_no_requested_users_is_noop(self):
         repo = AsyncMock()
         repo.get_sync_requested_users.return_value = []
-        with patch("main.sync_user", new_callable=AsyncMock) as mock_sync:
+        with patch("sync_runner.sync_user", new_callable=AsyncMock) as mock_sync:
             await process_sync_requests(repo, daily_days=7, settings=MagicMock())
         mock_sync.assert_not_called()
 
@@ -175,7 +175,7 @@ class TestSyncAllLibre:
         async def auth_err(user, repo, settings):
             raise LibreAuthError("not linked")
 
-        with patch("main.sync_libre_user", side_effect=auth_err):
+        with patch("sync_runner.sync_libre_user", side_effect=auth_err):
             await sync_all_libre(repo, MagicMock())  # must not propagate
 
     async def test_generic_error_is_handled_without_raising(self):
@@ -185,7 +185,7 @@ class TestSyncAllLibre:
         async def network_err(user, repo, settings):
             raise ConnectionError("network unreachable")
 
-        with patch("main.sync_libre_user", side_effect=network_err):
+        with patch("sync_runner.sync_libre_user", side_effect=network_err):
             await sync_all_libre(repo, MagicMock())  # must not propagate
 
     async def test_continues_after_one_user_fails(self):
@@ -198,7 +198,7 @@ class TestSyncAllLibre:
                 raise LibreAuthError("not linked")
             synced.append(user["id"])
 
-        with patch("main.sync_libre_user", side_effect=sometimes_fails):
+        with patch("sync_runner.sync_libre_user", side_effect=sometimes_fails):
             await sync_all_libre(repo, MagicMock())
 
         assert 2 in synced, "user 2 must be synced even after user 1 fails"
@@ -217,8 +217,8 @@ class TestSyncDualLinkedUser:
         repo.get_active_users.return_value = [self.DUAL_USER]
         repo.get_libre_users.return_value = [self.DUAL_USER]
         with (
-            patch("main.sync_user", new_callable=AsyncMock) as mock_garmin,
-            patch("main.sync_libre_user", new_callable=AsyncMock) as mock_libre,
+            patch("sync_runner.sync_user", new_callable=AsyncMock) as mock_garmin,
+            patch("sync_runner.sync_libre_user", new_callable=AsyncMock) as mock_libre,
         ):
             await sync_all_users(repo, days=7, settings=MagicMock())
             await sync_all_libre(repo, MagicMock())
@@ -238,8 +238,8 @@ class TestSyncDualLinkedUser:
             called.append("libre")
 
         with (
-            patch("main.sync_user", side_effect=failing_garmin),
-            patch("main.sync_libre_user", side_effect=ok_libre),
+            patch("sync_runner.sync_user", side_effect=failing_garmin),
+            patch("sync_runner.sync_libre_user", side_effect=ok_libre),
         ):
             await sync_all_users(repo, days=7, settings=MagicMock())
             await sync_all_libre(repo, MagicMock())
@@ -264,9 +264,9 @@ class TestSyncActivities:
         activity_mock.records = []
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_activity", return_value=activity_mock),
-            patch("main.map_records", return_value=[]),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_activity", return_value=activity_mock),
+            patch("sync_runner.map_records", return_value=[]),
         ):
             await _sync_activities(
                 client,
@@ -284,7 +284,7 @@ class TestSyncActivities:
 
         repo = AsyncMock()
 
-        with patch("main.garmin_call", side_effect=lambda fn: fn()):
+        with patch("sync_runner.garmin_call", side_effect=lambda fn: fn()):
             await _sync_activities(
                 client,
                 repo,
@@ -304,8 +304,8 @@ class TestSyncActivities:
         repo.records_exist.return_value = True  # already stored
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_activity", return_value=MagicMock(records=[])),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_activity", return_value=MagicMock(records=[])),
         ):
             await _sync_activities(
                 client,
@@ -331,9 +331,9 @@ class TestSyncActivities:
         activity_mock.records = []  # will be set by _sync_activities
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_activity", return_value=activity_mock),
-            patch("main.map_records", return_value=[record_mock]),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_activity", return_value=activity_mock),
+            patch("sync_runner.map_records", return_value=[record_mock]),
         ):
             await _sync_activities(
                 client,
@@ -359,13 +359,13 @@ class TestSyncDay:
         sleep_mock.garmin_sleep_id = 555
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_summary", return_value=MagicMock()),
-            patch("main.map_sleep", return_value=sleep_mock),
-            patch("main.map_hrv", return_value=MagicMock()),
-            patch("main.map_body_battery", return_value=[]),
-            patch("main.map_stress", return_value=[]),
-            patch("main.map_training_status", return_value="PRODUCTIVE"),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_summary", return_value=MagicMock()),
+            patch("sync_runner.map_sleep", return_value=sleep_mock),
+            patch("sync_runner.map_hrv", return_value=MagicMock()),
+            patch("sync_runner.map_body_battery", return_value=[]),
+            patch("sync_runner.map_stress", return_value=[]),
+            patch("sync_runner.map_training_status", return_value="PRODUCTIVE"),
         ):
             await _sync_day(client, repo, user_id=1, current=date(2026, 1, 1))
 
@@ -380,13 +380,13 @@ class TestSyncDay:
         repo = AsyncMock()
 
         with (
-            patch("main.garmin_call", side_effect=lambda fn: fn()),
-            patch("main.map_summary", side_effect=RuntimeError("network error")),
-            patch("main.map_sleep", return_value=None),
-            patch("main.map_hrv", return_value=None),
-            patch("main.map_body_battery", return_value=[]),
-            patch("main.map_stress", return_value=[]),
-            patch("main.map_training_status", return_value=None),
+            patch("sync_runner.garmin_call", side_effect=lambda fn: fn()),
+            patch("sync_runner.map_summary", side_effect=RuntimeError("network error")),
+            patch("sync_runner.map_sleep", return_value=None),
+            patch("sync_runner.map_hrv", return_value=None),
+            patch("sync_runner.map_body_battery", return_value=[]),
+            patch("sync_runner.map_stress", return_value=[]),
+            patch("sync_runner.map_training_status", return_value=None),
         ):
             await _sync_day(client, repo, user_id=1, current=date(2026, 1, 1))
 
@@ -398,7 +398,7 @@ class TestSyncDay:
         client = MagicMock()
         repo = AsyncMock()
 
-        with patch("main.garmin_call", side_effect=RuntimeError("api down")):
+        with patch("sync_runner.garmin_call", side_effect=RuntimeError("api down")):
             await _sync_day(client, repo, user_id=1, current=date(2026, 1, 1))
 
         repo.upsert_daily.assert_not_awaited()
@@ -423,10 +423,10 @@ class TestSyncLibreUser:
         glucose_row = MagicMock()
 
         with (
-            patch("main.fernet_decrypt", return_value=b'{"token": "tok"}'),
-            patch("main.connect_with_token", return_value=MagicMock()),
-            patch("main.get_recent_glucose", return_value=[MagicMock()]),
-            patch("main.map_glucose_reading", return_value=glucose_row),
+            patch("sync_runner.fernet_decrypt", return_value=b'{"token": "tok"}'),
+            patch("sync_runner.connect_with_token", return_value=MagicMock()),
+            patch("sync_runner.get_recent_glucose", return_value=[MagicMock()]),
+            patch("sync_runner.map_glucose_reading", return_value=glucose_row),
         ):
             await sync_libre_user(user, repo, settings)
 
@@ -462,13 +462,13 @@ class TestSyncLibreUser:
         settings.token_base_dir = tmp_path
 
         with (
-            patch("main.fernet_encrypt", return_value=b"encrypted"),
+            patch("sync_runner.fernet_encrypt", return_value=b"encrypted"),
             patch(
-                "main.fernet_decrypt",
+                "sync_runner.fernet_decrypt",
                 return_value=_json.dumps({"token": "test-tok"}).encode(),
             ),
-            patch("main.connect_with_token", return_value=MagicMock()),
-            patch("main.get_recent_glucose", return_value=[]),
+            patch("sync_runner.connect_with_token", return_value=MagicMock()),
+            patch("sync_runner.get_recent_glucose", return_value=[]),
         ):
             await sync_libre_user(user, repo, settings)
 
@@ -502,13 +502,13 @@ class TestSyncUser:
         settings.fernet_key = "key"
 
         with (
-            patch("main.fernet_decrypt", return_value=b"raw_token"),
-            patch("main.fernet_encrypt", return_value=b"new_encrypted"),
-            patch("main.restore_token_dir"),
-            patch("main.serialize_token_dir", return_value=b"serialized"),
-            patch("main.GarminClient") as MockClient,
-            patch("main._sync_activities", new_callable=AsyncMock),
-            patch("main._sync_day", new_callable=AsyncMock),
+            patch("sync_runner.fernet_decrypt", return_value=b"raw_token"),
+            patch("sync_runner.fernet_encrypt", return_value=b"new_encrypted"),
+            patch("sync_runner.restore_token_dir"),
+            patch("sync_runner.serialize_token_dir", return_value=b"serialized"),
+            patch("sync_runner.GarminClient") as MockClient,
+            patch("sync_runner._sync_activities", new_callable=AsyncMock),
+            patch("sync_runner._sync_day", new_callable=AsyncMock),
         ):
             MockClient.return_value.connect = MagicMock()
             await sync_user(user, repo, days=2, settings=settings)
@@ -529,13 +529,13 @@ class TestSyncUser:
         settings.token_base_dir = tmp_path
 
         with (
-            patch("main.serialize_token_dir", return_value=b"serialized"),
-            patch("main.fernet_encrypt", return_value=b"encrypted"),
-            patch("main.fernet_decrypt", return_value=b"raw"),
-            patch("main.restore_token_dir"),
-            patch("main.GarminClient") as MockClient,
-            patch("main._sync_activities", new_callable=AsyncMock),
-            patch("main._sync_day", new_callable=AsyncMock),
+            patch("sync_runner.serialize_token_dir", return_value=b"serialized"),
+            patch("sync_runner.fernet_encrypt", return_value=b"encrypted"),
+            patch("sync_runner.fernet_decrypt", return_value=b"raw"),
+            patch("sync_runner.restore_token_dir"),
+            patch("sync_runner.GarminClient") as MockClient,
+            patch("sync_runner._sync_activities", new_callable=AsyncMock),
+            patch("sync_runner._sync_day", new_callable=AsyncMock),
         ):
             MockClient.return_value.connect = MagicMock()
             await sync_user(user, repo, days=1, settings=settings)

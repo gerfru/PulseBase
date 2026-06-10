@@ -127,32 +127,32 @@ def test_configure_scheduler_adds_jobs_and_starts(monkeypatch):
 
 
 async def test_sync_date_range_handles_activity_failure(monkeypatch):
-    import main
+    import sync_runner
 
     monkeypatch.setattr(
-        main, "_sync_activities", AsyncMock(side_effect=RuntimeError("boom"))
+        sync_runner, "_sync_activities", AsyncMock(side_effect=RuntimeError("boom"))
     )
-    monkeypatch.setattr(main, "_sync_day", AsyncMock())
+    monkeypatch.setattr(sync_runner, "_sync_day", AsyncMock())
 
     # days=0 → single day loop; must complete without raising despite the failure
-    await main._sync_date_range(MagicMock(), MagicMock(), user_id=1, days=0)
-    main._sync_day.assert_awaited()
+    await sync_runner._sync_date_range(MagicMock(), MagicMock(), user_id=1, days=0)
+    sync_runner._sync_day.assert_awaited()
 
 
-# ── main.sync_libre_user: invalid token JSON → LibreAuthError ─────────────────
+# ── sync_runner.sync_libre_user: invalid token JSON → LibreAuthError ──────────
 
 
 async def test_sync_libre_user_invalid_token_format_raises(monkeypatch):
-    import main
+    import sync_runner
     from libre.client import LibreAuthError
 
     repo = MagicMock()
     repo.get_user_token = AsyncMock(return_value=b"encrypted-blob")
-    monkeypatch.setattr(main, "require_fernet_key", lambda s: "key")
-    monkeypatch.setattr(main, "fernet_decrypt", lambda blob, key: b"not-json")
+    monkeypatch.setattr(sync_runner, "require_fernet_key", lambda s: "key")
+    monkeypatch.setattr(sync_runner, "fernet_decrypt", lambda blob, key: b"not-json")
 
     with pytest.raises(LibreAuthError, match="Ungültiges Token-Format"):
-        await main.sync_libre_user({"id": 1}, repo, MagicMock())
+        await sync_runner.sync_libre_user({"id": 1}, repo, MagicMock())
 
 
 # ── main._run_initial_sync: completes vs shutdown ─────────────────────────────

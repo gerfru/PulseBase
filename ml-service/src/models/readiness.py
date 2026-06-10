@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -112,13 +113,11 @@ def train_and_save(
     importances = {
         f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
     }
-    from datetime import date as _date
-
     return {
         "features": feature_names,
         "importances": importances,
         "n_rows": len(X),
-        "trained_at": _date.today().isoformat(),
+        "trained_at": date.today().isoformat(),
     }
 
 
