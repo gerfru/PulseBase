@@ -35,7 +35,7 @@ services:
     container_name: pulsebase-flyway-test
     command: migrate
     volumes:
-      - ./db/migrations:/flyway/sql
+      - ../db/migrations:/flyway/sql
     environment:
       - FLYWAY_URL=jdbc:postgresql://db-test:5432/garmin_test
       - FLYWAY_USER=${DB_USER}
@@ -65,14 +65,14 @@ services:
         max-file: "3"
 
   api-test:
-    build: ./api
+    build: ../api
     container_name: pulsebase-api-test
     restart: unless-stopped
     ports:
       - "127.0.0.1:8001:8000"
     env_file:
-      - env/.env.app
-      - env/.env.api
+      - ../env/.env.app
+      - ../env/.env.api
     environment:
       DB_HOST: db-test
       DB_PORT: 5432

@@ -3,7 +3,7 @@
 DC := docker compose --env-file env/.env --env-file env/.env.app
 # Public SaaS deployment (bundled Caddy + Let's Encrypt). The overlay decouples
 # api from the home gateway's external `proxy` network. See docs/deployment-public.md.
-DC_PUBLIC := docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.yml -f docker-compose.public.yml
+DC_PUBLIC := docker compose --env-file env/.env --env-file env/.env.app -f docker-compose.yml -f deploy/docker-compose.public.yml
 
 # E2E Test-Credentials (lokal, kein echter Account)
 TEST_EMAIL  ?= e2e@pulsebase.test
@@ -180,13 +180,13 @@ test: ## Unit + Integration aller 3 Services (kein Docker nötig)
 	cd ml-service && .venv/bin/pytest tests/ -v
 
 test-build: ## api-Test-Image bauen (ohne Stack zu starten)
-	$(DC) -f docker-compose.test.yml build api-test
+	$(DC) -f deploy/docker-compose.test.yml build api-test
 
 test-env-up: ## Test-Stack auf Port 8001 starten (Image muss bereits gebaut sein — make test-build)
-	$(DC) -f docker-compose.test.yml up -d --wait --wait-timeout 120
+	$(DC) -f deploy/docker-compose.test.yml up -d --wait --wait-timeout 120
 
 test-env-down: ## Test-Stack stoppen
-	docker compose -f docker-compose.test.yml down 2>/dev/null || true
+	docker compose -f deploy/docker-compose.test.yml down 2>/dev/null || true
 	docker rm -f pulsebase-db-test pulsebase-flyway-test pulsebase-api-test 2>/dev/null || true
 
 test-seed: ## Live-DB (garmin) → Test-DB (garmin_test) kopieren — Test-Stack muss laufen (make test-env-up)

@@ -1,8 +1,8 @@
 # CI-only overlay on top of docker-compose.public.yml. Makes the public Caddy
 # testable in CI without ACME/public DNS: HTTP-only on host port 8080, no Vector.
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.public.yml \
-#                  -f docker-compose.public.ci.yml up -d --wait db flyway api caddy
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.public.yml \
+#                  -f deploy/docker-compose.public.ci.yml up -d --wait db flyway api caddy
 services:
   caddy:
     # !override replaces the inherited env_file (env/.env.public is absent in CI).
@@ -12,7 +12,7 @@ services:
     ports: !override
       - "8080:80"
     volumes:
-      - ./Caddyfile.ci:/etc/caddy/Caddyfile:ro
+      - ./deploy/Caddyfile.ci:/etc/caddy/Caddyfile:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
       interval: 10s
