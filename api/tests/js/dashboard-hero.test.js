@@ -4,7 +4,6 @@ import {
     submitMlFeedback,
     applyFeedbackState,
     loadMlFeedback,
-    _heroData,
 } from '../../src/static/dashboard-hero.js';
 
 describe('heroRecommendation', () => {
@@ -78,7 +77,6 @@ function feedbackDom(model) {
 
 describe('ML feedback', () => {
     beforeEach(() => {
-        _heroData.mlFeedback = {};
         document.body.innerHTML = '';
     });
     afterEach(() => {
@@ -114,7 +112,6 @@ describe('ML feedback', () => {
         expect(opts.method).toBe('POST');
         expect(JSON.parse(opts.body)).toEqual({ model: 'readiness_rf', helpful: true });
         expect(up.getAttribute('aria-pressed')).toBe('true');
-        expect(_heroData.mlFeedback.readiness_rf).toBe(true);
     });
 
     it('submitMlFeedback rejects on a non-ok response', async () => {

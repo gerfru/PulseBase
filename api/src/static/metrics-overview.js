@@ -284,6 +284,7 @@ const METRIC_GROUPS = [
     },
 ];
 
+// Mirrors scoreColor() in dashboard-utils.js (classic-script context, cannot import)
 function scoreColor(val) {
     if (val == null) return 'var(--muted)';
     const n = parseFloat(val);
@@ -291,6 +292,7 @@ function scoreColor(val) {
     return n >= 75 ? 'var(--green)' : n >= 45 ? 'var(--amber)' : 'var(--red)';
 }
 
+// Mirrors EV_LEVEL_SHORT/EV_LEVEL_CLS in dashboard-utils.js (classic-script context)
 const EV_LEVEL_SHORT = { meta: 'M', replicated: 'R', model: 'E' };
 const EV_LEVEL_CLS = { meta: 'ev-meta', replicated: 'ev-rep', model: 'ev-model' };
 

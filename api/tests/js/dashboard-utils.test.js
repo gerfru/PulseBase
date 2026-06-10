@@ -53,13 +53,13 @@ describe('scoreColor', () => {
         expect(scoreColor(100)).toBe('var(--green)');
     });
 
-    it('returns amber between 50 and 74', () => {
-        expect(scoreColor(50)).toBe('var(--amber)');
+    it('returns amber between 45 and 74', () => {
+        expect(scoreColor(45)).toBe('var(--amber)');
         expect(scoreColor(74)).toBe('var(--amber)');
     });
 
-    it('returns red below 50', () => {
-        expect(scoreColor(49)).toBe('var(--red)');
+    it('returns red below 45', () => {
+        expect(scoreColor(44)).toBe('var(--red)');
         expect(scoreColor(0)).toBe('var(--red)');
     });
 });

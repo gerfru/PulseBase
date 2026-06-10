@@ -1,4 +1,9 @@
-import { sparklineSvg, esc, scoreLabel, openFormulaDialog } from './dashboard-utils.js';
+/* global C */
+import { sparklineSvg, esc, scoreColor, scoreLabel, EV_LEVEL_SHORT, EV_LEVEL_CLS } from './dashboard-utils.js';
+import { feedbackButtons } from './dashboard-ml-feedback.js';
+import { getEvidence, openEvidenceDialog } from './dashboard-evidence.js';
+export { applyFeedbackState, loadMlFeedback, submitMlFeedback } from './dashboard-ml-feedback.js';
+export { loadEvidence, openEvidenceDialog, evBadge } from './dashboard-evidence.js';
 
 export const _heroData = {
     readiness: null,
@@ -9,109 +14,7 @@ export const _heroData = {
     energy: null,
     ml: null,
     hrvTrend: null,
-    mlFeedback: {},
 };
-
-// ── ML-Feedback (👍/👎) — UX-Review [D3-1] ──────────────────────────────────────
-// Binäres, pro Tag/Modell umschaltbares Feedback auf ML-Tiles. Buttons stehen als
-// Geschwister neben den verlinkten Tiles (kein <button> in <a>); CSP-konform per
-// Event-Delegation in dashboard.js verdrahtet. Rendert den aktiven Zustand aus
-// _heroData.mlFeedback, damit Re-Renders der Tiles ihn nicht verlieren.
-
-function feedbackButtons(model) {
-    const fb = _heroData.mlFeedback || {};
-    const helpful = Object.hasOwn(fb, model) ? fb[model] : null;
-    const up = helpful === true;
-    const down = helpful === false;
-    return `<div class="ml-feedback" role="group" aria-label="War diese Einschätzung treffend?">
-        <span class="ml-feedback-q">Treffend?</span>
-        <button type="button" class="ml-feedback-btn${up ? ' active' : ''}" data-fb-model="${esc(model)}" data-fb-val="1" aria-label="Einschätzung war treffend" aria-pressed="${up}">👍</button>
-        <button type="button" class="ml-feedback-btn${down ? ' active' : ''}" data-fb-model="${esc(model)}" data-fb-val="0" aria-label="Einschätzung war nicht treffend" aria-pressed="${down}">👎</button>
-    </div>`;
-}
-
-export function applyFeedbackState(map) {
-    _heroData.mlFeedback = map || {};
-    document.querySelectorAll('[data-fb-model]').forEach((btn) => {
-        const m = btn.dataset.fbModel;
-        const isUp = btn.dataset.fbVal === '1';
-        const has = Object.hasOwn(_heroData.mlFeedback, m);
-        const on = has && _heroData.mlFeedback[m] === isUp;
-        btn.classList.toggle('active', on);
-        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
-}
-
-export async function loadMlFeedback() {
-    try {
-        const map = await fetch('/api/ml-feedback').then((r) => r.json());
-        applyFeedbackState(map);
-    } catch (_) {}
-}
-
-export async function submitMlFeedback(model, helpful) {
-    const res = await fetch('/api/ml-feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, helpful }),
-    });
-    if (!res.ok) throw new Error('feedback failed');
-    applyFeedbackState({ ...(_heroData.mlFeedback || {}), [model]: helpful });
-}
-
-export let _evidence = {};
-
-export async function loadEvidence() {
-    try {
-        _evidence = await fetch('/api/evidence').then((r) => r.json());
-    } catch (_) {}
-}
-
-export function openEvidenceDialog(key) {
-    const e = _evidence[key];
-    if (!e) return;
-    const levelLabel =
-        { meta: '🟢 Meta-Analyse', replicated: '🟡 Repliziert', model: '🔵 Eigenmodell' }[e.level] ?? e.level;
-    const typeLabels = {
-        recovery: 'Erholung',
-        capacity: 'Kapazität',
-        trend: 'Verlauf',
-        prediction: 'Prognose',
-        screening: 'Screening',
-    };
-    const typeBadge = e.metric_type
-        ? `<span class="metric-type-chip type-${e.metric_type}">${typeLabels[e.metric_type] ?? e.metric_type}</span>`
-        : '';
-    const horizon = e.time_horizon ? `<p class="disclosure-horizon">⏱ ${esc(e.time_horizon)}</p>` : '';
-    const intendedUse = e.intended_use
-        ? `<div class="disclosure-block intended"><strong>Wofür:</strong> ${esc(e.intended_use)}</div>`
-        : '';
-    const notFor = e.not_for
-        ? `<div class="disclosure-block not-for"><strong>Nicht geeignet für:</strong> ${esc(e.not_for)}</div>`
-        : '';
-    const refs = (e.refs || []).map((r) => `<li class="ml-3 list-disc">${esc(r)}</li>`).join('');
-    const body = `
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-            <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${e.level === 'meta' ? 'bg-green-100 text-green-800 dark:bg-green-700/50 dark:text-green-300' : e.level === 'replicated' ? 'bg-amber-100 text-amber-800 dark:bg-amber-700/50 dark:text-amber-300' : 'bg-sky-100 text-sky-800 dark:bg-sky-700/50 dark:text-sky-300'}">${levelLabel}</span>
-            ${typeBadge}
-        </div>
-        ${horizon}
-        ${intendedUse}
-        ${notFor}
-        <p class="mb-3" style="margin-top:8px">${esc(e.summary)}</p>
-        ${refs ? `<ul class="mb-3 text-xs text-slate-600 dark:text-slate-400 space-y-0.5">${refs}</ul>` : ''}
-        ${e.limitations ? `<p class="text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-2"><strong class="text-slate-700 dark:text-slate-300">Einschränkungen:</strong> ${esc(e.limitations)}</p>` : ''}
-        <p class="disclosure-disclaimer">Kein Ersatz für ärztliche Beratung · Keine medizinische Diagnose · Personalisierte Kalibrierung</p>`;
-    openFormulaDialog(e.name || key, body, '#');
-}
-
-export function evBadge(key) {
-    const e = _evidence[key];
-    if (!e) return '';
-    const cls = e.level === 'meta' ? 'ev-meta' : e.level === 'replicated' ? 'ev-rep' : 'ev-model';
-    const short = e.level === 'meta' ? 'M' : e.level === 'replicated' ? 'R' : 'E';
-    return `<button class="ev-badge ${cls}" data-ev-badge="${key}" title="${esc(e.label)}: ${esc(e.name)}">${short}</button>`;
-}
 
 // ── Kuratierte „Deine Metriken"-Leiste (Phase 2) ─────────────────────────────
 // Eigen-Metriken, die die Hero-Card NICHT zeigt. Werte aus bereits geladenem
@@ -161,22 +64,12 @@ const CURATED = [
     },
 ];
 
-const _EV_SHORT = { meta: 'M', replicated: 'R', model: 'E' };
-const _EV_CLS = { meta: 'ev-meta', replicated: 'ev-rep', model: 'ev-model' };
-
-function _curatedColor(valStr) {
-    if (valStr == null || valStr === '—') return 'var(--muted)';
-    const n = parseFloat(valStr);
-    if (Number.isNaN(n)) return 'var(--muted)';
-    return n >= 75 ? 'var(--green)' : n >= 45 ? 'var(--amber)' : 'var(--red)';
-}
-
 export function buildCuratedMetrics() {
     const section = document.getElementById('curated-metrics');
     const grid = document.getElementById('curated-metrics-grid');
     if (!section || !grid) return;
     const ml = _heroData.ml || {};
-    const ev = _evidence || {};
+    const ev = getEvidence();
 
     const tiles = CURATED.map((item) => {
         let valStr = '—';
@@ -184,10 +77,10 @@ export function buildCuratedMetrics() {
             const v = item.val(ml);
             valStr = v != null ? String(v) + item.unit : '—';
         } catch (_) {}
-        const color = _curatedColor(valStr);
+        const color = scoreColor(valStr);
         const e = item.evKey ? ev[item.evKey] : null;
         const badge = e
-            ? `<span class="ev-badge ${_EV_CLS[e.level] ?? 'ev-model'}" title="${esc(e.label ?? '')}: ${esc(e.name ?? '')}">${_EV_SHORT[e.level] ?? '?'}</span>`
+            ? `<span class="ev-badge ${EV_LEVEL_CLS[e.level] ?? 'ev-model'}" title="${esc(e.label ?? '')}: ${esc(e.name ?? '')}">${EV_LEVEL_SHORT[e.level] ?? '?'}</span>`
             : '';
         const horizon = e?.time_horizon ? `<span class="metric-horizon">${esc(e.time_horizon)}</span>` : '';
         return `<a href="/metrics/${esc(item.name)}" class="metric-overview-tile card">
@@ -203,6 +96,108 @@ export function buildCuratedMetrics() {
 
     grid.innerHTML = tiles;
     section.hidden = false;
+}
+
+function _tileCls(s) {
+    return s == null ? 'heute-muted' : s >= 70 ? 'heute-green' : s >= 45 ? 'heute-amber' : 'heute-red';
+}
+
+function _signalTiles(auton, cog, ml, sparkHrv, sparkSleep, sparkStress) {
+    const stressRaw = ml.stress_score_custom?.score;
+    const stressForColor = stressRaw != null ? 100 - stressRaw : null;
+    const stressLbl = stressRaw == null ? '—' : stressRaw < 30 ? 'Niedrig' : stressRaw < 60 ? 'Moderat' : 'Hoch';
+    const devRaw = auton?.deviation;
+    const autDevLbl = devRaw != null ? (devRaw >= 0 ? `+${devRaw.toFixed(1)}σ` : `${devRaw.toFixed(1)}σ`) : '—';
+    const debtRaw = cog?.debt_hours;
+    const cogDebtLbl = debtRaw != null ? (debtRaw > 0.1 ? `${debtRaw.toFixed(1)}h Schuld` : 'Kein Defizit') : '—';
+
+    return [
+        {
+            label: 'HRV',
+            href: '/metrics/autonomic',
+            s: auton?.score,
+            val: autDevLbl,
+            spark: sparkHrv,
+            col: C.green,
+            horizon: 'Heute Nacht · 90T-Basis',
+        },
+        {
+            label: 'Schlaf',
+            href: '/metrics/cognitive',
+            s: cog?.score,
+            val: cogDebtLbl,
+            spark: sparkSleep,
+            col: C.violet,
+            horizon: '7-Tage kumulativ',
+        },
+        {
+            label: 'Stress',
+            href: '/metrics/stress-score-custom',
+            s: stressForColor,
+            val: stressLbl,
+            spark: sparkStress,
+            col: C.orange,
+            horizon: 'Heute · Tageswert',
+        },
+    ]
+        .map(
+            ({ label, href, s, val, spark, col, horizon }) =>
+                `<a href="${esc(href)}" class="hero-heute-item">
+            <span class="hero-heute-val ${_tileCls(s)}" style="font-size:1.05rem">${esc(val)}</span>
+            ${sparklineSvg(spark, col, 56, 16)}
+            <span class="hero-heute-label">${esc(label)}</span>
+            <span class="metric-horizon">${esc(horizon)}</span>
+        </a>`,
+        )
+        .join('');
+}
+
+function _capacityTilesOnly(_bbScore, _tsb, sparkBatt) {
+    const bbTile =
+        _bbScore != null
+            ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
+            <span class="hero-heute-val ${_tileCls(_bbScore)}" style="font-size:1.05rem">${Math.round(_bbScore)} %</span>
+            ${sparklineSvg(sparkBatt, C.green, 56, 16)}
+            <span class="hero-heute-label">Energie</span>
+            <span class="metric-horizon">Heute · Snapshot</span>
+        </a>`
+            : '';
+    const tsbCls =
+        _tsb == null ? 'heute-muted' : _tsb >= -15 ? 'heute-green' : _tsb >= -30 ? 'heute-amber' : 'heute-red';
+    const tsbStr = _tsb != null ? (_tsb >= 0 ? `+${_tsb.toFixed(1)}` : _tsb.toFixed(1)) : '—';
+    const tsbLbl = _tsb == null ? '—' : _tsb >= -15 ? 'Erholt' : _tsb >= -30 ? 'Trainingsphase' : 'Hohe Last';
+    const tsbTile =
+        _tsb != null
+            ? `<a href="/metrics/physical" class="hero-heute-item">
+            <span class="hero-heute-val ${tsbCls}" style="font-size:1.05rem">TSB ${esc(tsbStr)}</span>
+            <span class="hero-heute-score-lbl">${esc(tsbLbl)}</span>
+            <span class="hero-heute-label">Trainingsform</span>
+            <span class="metric-horizon">42-Tage-Verlauf</span>
+        </a>`
+            : '';
+    return bbTile + tsbTile;
+}
+
+function _animateRing(progress, scoreEl, fill, score) {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+        if (progress) progress.setAttribute('stroke-dasharray', `${fill} 327`);
+        if (scoreEl) scoreEl.textContent = String(score);
+    } else {
+        requestAnimationFrame(() => {
+            if (progress || scoreEl) {
+                const t0 = performance.now();
+                (function tick(now) {
+                    const p = Math.min((now - t0) / 600, 1);
+                    const eased = 1 - (1 - p) ** 3;
+                    const f = Math.round(eased * fill);
+                    if (progress) progress.setAttribute('stroke-dasharray', `${f} 327`);
+                    if (scoreEl) scoreEl.textContent = String(Math.round(eased * score));
+                    if (p < 1) requestAnimationFrame(tick);
+                })(performance.now());
+            }
+        });
+    }
 }
 
 export function heroRecommendation(s) {
@@ -272,60 +267,6 @@ export function buildHeroCard() {
     const rfSubCls =
         rfScore != null ? (rfScore >= 75 ? 'heute-green' : rfScore >= 50 ? 'heute-amber' : 'heute-red') : '';
 
-    function tileCls(s) {
-        return s == null ? 'heute-muted' : s >= 70 ? 'heute-green' : s >= 45 ? 'heute-amber' : 'heute-red';
-    }
-
-    function signalTiles() {
-        const stressRaw = ml.stress_score_custom?.score;
-        const stressForColor = stressRaw != null ? 100 - stressRaw : null;
-        const stressLbl = stressRaw == null ? '—' : stressRaw < 30 ? 'Niedrig' : stressRaw < 60 ? 'Moderat' : 'Hoch';
-        const devRaw = auton?.deviation;
-        const autDevLbl = devRaw != null ? (devRaw >= 0 ? `+${devRaw.toFixed(1)}σ` : `${devRaw.toFixed(1)}σ`) : '—';
-        const debtRaw = cog?.debt_hours;
-        const cogDebtLbl = debtRaw != null ? (debtRaw > 0.1 ? `${debtRaw.toFixed(1)}h Schuld` : 'Kein Defizit') : '—';
-
-        return [
-            {
-                label: 'HRV',
-                href: '/metrics/autonomic',
-                s: auton?.score,
-                val: autDevLbl,
-                spark: sparkHrv,
-                col: C.green,
-                horizon: 'Heute Nacht · 90T-Basis',
-            },
-            {
-                label: 'Schlaf',
-                href: '/metrics/cognitive',
-                s: cog?.score,
-                val: cogDebtLbl,
-                spark: sparkSleep,
-                col: C.violet,
-                horizon: '7-Tage kumulativ',
-            },
-            {
-                label: 'Stress',
-                href: '/metrics/stress-score-custom',
-                s: stressForColor,
-                val: stressLbl,
-                spark: sparkStress,
-                col: C.orange,
-                horizon: 'Heute · Tageswert',
-            },
-        ]
-            .map(
-                ({ label, href, s, val, spark, col, horizon }) =>
-                    `<a href="${esc(href)}" class="hero-heute-item">
-                <span class="hero-heute-val ${tileCls(s)}" style="font-size:1.05rem">${esc(val)}</span>
-                ${sparklineSvg(spark, col, 56, 16)}
-                <span class="hero-heute-label">${esc(label)}</span>
-                <span class="metric-horizon">${esc(horizon)}</span>
-            </a>`,
-            )
-            .join('');
-    }
-
     // Capacity recommendation (displayed in HEUTE MÖGLICH header)
     let capRecText = '',
         capRecCls = '';
@@ -354,32 +295,6 @@ export function buildHeroCard() {
             capRecText = 'Moderates Training';
             capRecCls = 'rec-amber';
         }
-    }
-
-    function capacityTilesOnly() {
-        const bbTile =
-            _bbScore != null
-                ? `<a href="/metrics/body-battery-custom" class="hero-heute-item">
-                <span class="hero-heute-val ${tileCls(_bbScore)}" style="font-size:1.05rem">${Math.round(_bbScore)} %</span>
-                ${sparklineSvg(sparkBatt, C.green, 56, 16)}
-                <span class="hero-heute-label">Energie</span>
-                <span class="metric-horizon">Heute · Snapshot</span>
-            </a>`
-                : '';
-        const tsbCls =
-            _tsb == null ? 'heute-muted' : _tsb >= -15 ? 'heute-green' : _tsb >= -30 ? 'heute-amber' : 'heute-red';
-        const tsbStr = _tsb != null ? (_tsb >= 0 ? `+${_tsb.toFixed(1)}` : _tsb.toFixed(1)) : '—';
-        const tsbLbl = _tsb == null ? '—' : _tsb >= -15 ? 'Erholt' : _tsb >= -30 ? 'Trainingsphase' : 'Hohe Last';
-        const tsbTile =
-            _tsb != null
-                ? `<a href="/metrics/physical" class="hero-heute-item">
-                <span class="hero-heute-val ${tsbCls}" style="font-size:1.05rem">TSB ${esc(tsbStr)}</span>
-                <span class="hero-heute-score-lbl">${esc(tsbLbl)}</span>
-                <span class="hero-heute-label">Trainingsform</span>
-                <span class="metric-horizon">42-Tage-Verlauf</span>
-            </a>`
-                : '';
-        return bbTile + tsbTile;
     }
 
     const mlTile =
@@ -417,12 +332,12 @@ export function buildHeroCard() {
                     <span class="hero-section-label">ERHOLUNGSSIGNALE</span>
                     ${conflictInfo}
                 </div>
-                <div class="hero-signals-row">${signalTiles()}</div>
+                <div class="hero-signals-row">${_signalTiles(auton, cog, ml, sparkHrv, sparkSleep, sparkStress)}</div>
                 <div class="hero-capacity-header">
                     <span class="hero-section-label">TRAININGSKAPAZITÄT</span>
                     ${capRecText ? `<span class="${capRecCls} hero-cap-rec">${esc(capRecText)}</span>` : ''}
                 </div>
-                <div class="hero-capacity-grid">${capacityTilesOnly()}</div>
+                <div class="hero-capacity-grid">${_capacityTilesOnly(_bbScore, _tsb, sparkBatt)}</div>
                 ${mlTile}
                 ${rfScore != null ? feedbackButtons('readiness_rf') : ''}
                 ${rfScore != null ? '<p class="disclosure-disclaimer" style="margin-top:6px">Schätzung auf Basis deiner Daten — kein medizinischer Befund.</p>' : ''}
@@ -441,27 +356,7 @@ export function buildHeroCard() {
     if (score != null) {
         const progress = document.getElementById('hero-ring-progress');
         const scoreEl = document.getElementById('hero-ring-score');
-        // CSS-reduced-motion-Guard greift hier nicht (JS-getriebenes setAttribute) →
-        // Endzustand sofort setzen statt zu animieren.
-        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (reduceMotion) {
-            if (progress) progress.setAttribute('stroke-dasharray', `${fill} 327`);
-            if (scoreEl) scoreEl.textContent = String(score);
-        } else {
-            requestAnimationFrame(() => {
-                if (progress || scoreEl) {
-                    const t0 = performance.now();
-                    (function tick(now) {
-                        const p = Math.min((now - t0) / 600, 1);
-                        const eased = 1 - (1 - p) ** 3; // cubic ease-out (optisch wie --ease-out)
-                        const f = Math.round(eased * fill);
-                        if (progress) progress.setAttribute('stroke-dasharray', `${f} 327`);
-                        if (scoreEl) scoreEl.textContent = String(Math.round(eased * score));
-                        if (p < 1) requestAnimationFrame(tick);
-                    })(performance.now());
-                }
-            });
-        }
+        _animateRing(progress, scoreEl, fill, score);
     } else {
         const scoreEl = document.getElementById('hero-ring-score');
         if (scoreEl) scoreEl.textContent = '—';
