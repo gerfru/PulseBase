@@ -31,7 +31,7 @@ Zwei davon (Sentry, UptimeRobot) sind kostenlos im Standardumfang.
    ```bash
    make up-public
    ```
-   Tipp: zuerst mit der ACME-Staging-CA testen (Zeile in `Caddyfile.public` einkommentieren),
+   Tipp: zuerst mit der ACME-Staging-CA testen (Zeile in `deploy/Caddyfile` einkommentieren),
    um das Prod-Rate-Limit (5 gleiche Zertifikate/Woche) nicht zu treffen.
 
 **Troubleshooting:**

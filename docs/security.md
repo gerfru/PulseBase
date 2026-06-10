@@ -234,7 +234,7 @@ Beide Parameter müssen passen. Wenn `$2` (eingeloggte User-ID) nicht zum Datens
 
 **Deployment-Optionen:**
 - **Heim — homelab-gateway (Caddy):** ACME via HTTP-01/DNS-01 im `homelab-gateway`; nur über Tailscale erreichbar.
-- **Public SaaS — `make up-public`:** gebündeltes Caddy holt automatisch ein Let's-Encrypt-Cert für `PUBLIC_DOMAIN` (`Caddyfile.public`). Self-signed TLS ist für öffentliches Deployment nicht akzeptabel.
+- **Public SaaS — `make up-public`:** gebündeltes Caddy holt automatisch ein Let's-Encrypt-Cert für `PUBLIC_DOMAIN` (`deploy/Caddyfile`). Self-signed TLS ist für öffentliches Deployment nicht akzeptabel.
 
 ### 5.2 Security Headers
 
