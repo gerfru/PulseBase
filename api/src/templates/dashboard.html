@@ -119,8 +119,8 @@
             <p class="empty" id="weekly-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full">
-            <h2>Training Load <span class="text-sm font-normal text-slate-600 dark:text-slate-400 ml-1">Ermüdung · Fitness · Form</span></h2>
+        <div class="card col-span-full" data-href="/metrics/physical">
+            <h2><a class="card-title-link" href="/metrics/physical">Training Load</a> <span class="text-sm font-normal text-slate-600 dark:text-slate-400 ml-1">Ermüdung · Fitness · Form</span></h2>
             <div class="flex gap-6 mb-3 text-sm">
                 <span>Ermüdung&nbsp;<strong id="tl-atl">—</strong></span>
                 <span>Fitness&nbsp;<strong id="tl-ctl">—</strong></span>
@@ -130,8 +130,8 @@
             <p class="empty" id="training-load-empty" style="display:none">Noch keine Aktivitätsdaten</p>
         </div>
 
-        <div class="card col-span-full">
-            <h2>Intensitätsminuten</h2>
+        <div class="card col-span-full" data-href="/metrics/intensity-minutes">
+            <h2><a class="card-title-link" href="/metrics/intensity-minutes">Intensitätsminuten</a></h2>
             <div class="chart-wrap"><canvas id="intensity-chart"></canvas></div>
             <p class="empty" id="intensity-empty" style="display:none">Noch keine Daten</p>
         </div>
@@ -154,26 +154,26 @@
     <!-- ── Tab: Verlauf ──────────────────────────────────────────── -->
     <div id="tab-verlauf" role="tabpanel" aria-labelledby="tab-btn-verlauf" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
 
-        <div class="card">
-            <h2>Body Battery</h2>
+        <div class="card" data-href="/metrics/body-battery-custom">
+            <h2><a class="card-title-link" href="/metrics/body-battery-custom">Body Battery</a></h2>
             <div class="chart-wrap"><canvas id="battery-chart"></canvas></div>
             <p class="empty" id="battery-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <div class="card">
-            <h2>Ruhepuls</h2>
+        <div class="card" data-href="/metrics/hr-zscore">
+            <h2><a class="card-title-link" href="/metrics/hr-zscore">Ruhepuls</a></h2>
             <div class="chart-wrap"><canvas id="hr-chart"></canvas></div>
             <p class="empty" id="hr-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <div class="card">
-            <h2>Schritte</h2>
+        <div class="card" data-href="/metrics/steps">
+            <h2><a class="card-title-link" href="/metrics/steps">Schritte</a></h2>
             <div class="chart-wrap"><canvas id="steps-chart"></canvas></div>
             <p class="empty" id="steps-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <div class="card">
-            <h2>Stress</h2>
+        <div class="card" data-href="/metrics/stress-score-custom">
+            <h2><a class="card-title-link" href="/metrics/stress-score-custom">Stress</a></h2>
             <div class="chart-wrap"><canvas id="stress-chart"></canvas></div>
             <p class="empty" id="stress-empty" style="display:none">Noch keine Daten</p>
         </div>
@@ -194,20 +194,20 @@
     <!-- ── Tab: Erholung ─────────────────────────────────────────── -->
     <div id="tab-erholung" role="tabpanel" aria-labelledby="tab-btn-erholung" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12" style="display:none">
 
-        <div class="card">
-            <h2>Schlaf-Score</h2>
+        <div class="card" data-href="/metrics/sleep-score-custom">
+            <h2><a class="card-title-link" href="/metrics/sleep-score-custom">Schlaf-Score</a></h2>
             <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
             <p class="empty" id="sleep-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <div class="card">
-            <h2>HRV-Verlauf</h2>
+        <div class="card" data-href="/metrics/hrv-status-custom">
+            <h2><a class="card-title-link" href="/metrics/hrv-status-custom">HRV-Verlauf</a></h2>
             <div class="chart-wrap"><canvas id="hrv-trend-chart"></canvas></div>
             <p class="empty" id="hrv-trend-empty" style="display:none">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full">
-            <h2>Schlafphasen</h2>
+        <div class="card col-span-full" data-href="/metrics/sleep-score-custom">
+            <h2><a class="card-title-link" href="/metrics/sleep-score-custom">Schlafphasen</a></h2>
             <div class="chart-wrap"><canvas id="sleep-stages-chart"></canvas></div>
             <p class="empty" id="sleep-stages-empty" style="display:none">Noch keine Daten</p>
         </div>

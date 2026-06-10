@@ -64,6 +64,16 @@ document.getElementById('activities-container').addEventListener('click', (e) =>
     const tr = e.target.closest('tr[data-id]');
     if (tr) location.href = `/activity/${tr.dataset.id}`;
 });
+// Klickbare Chart-Cards → Metrik-Detailseite. Der Titel ist bereits ein echter
+// <a> (Tastatur/Mittelklick/Fokus); dieser Handler macht zusätzlich die ganze
+// Card inkl. Diagrammfläche per Maus klickbar. Klicks auf echte Links/Buttons
+// in der Card überlassen wir deren nativer Navigation.
+document.querySelectorAll('.card[data-href]').forEach((card) => {
+    card.addEventListener('click', (e) => {
+        if (e.target.closest('a, button')) return;
+        location.href = card.dataset.href;
+    });
+});
 // ML-Feedback (👍/👎): Delegation auf body, da die Tiles in zwei Containern liegen
 // (#bento-hero Readiness, #ml-erholung-content Anomalie). CSP-konform, kein Inline-Handler.
 document.body.addEventListener('click', (e) => {
