@@ -27,7 +27,7 @@ async def get_user_by_email(email: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT id, name, email, password_hash, garmin_linked, garmin_email,"
-        " failed_login_attempts, locked_until, email_verified_at"
+        " failed_login_attempts, locked_until, email_verified_at, session_version"
         " FROM users WHERE email = $1 AND is_active = true",
         email,
     )
@@ -39,12 +39,20 @@ async def get_user_by_id(user_id: int) -> dict[str, Any] | None:
     row = await pool.fetchrow(
         """
         SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email,
-               date_of_birth, sex, epilepsy_mode, spo2_enabled
+               date_of_birth, sex, epilepsy_mode, spo2_enabled, session_version
         FROM users WHERE id = $1 AND is_active = true AND email_verified_at IS NOT NULL
         """,
         user_id,
     )
     return dict(row) if row else None
+
+
+async def increment_session_version(user_id: int) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET session_version = session_version + 1 WHERE id = $1",
+        user_id,
+    )
 
 
 async def update_user_profile(

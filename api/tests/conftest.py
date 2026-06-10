@@ -25,7 +25,7 @@ def make_session(client, user_id: int = 1, extra: dict | None = None) -> None:
     from src.deps import settings
 
     signer = TimestampSigner(settings.session_secret)
-    session_data: dict = {"user_id": str(user_id)}
+    session_data: dict = {"user_id": str(user_id), "session_version": 0}
     if extra:
         session_data.update(extra)
     data = b64encode(json.dumps(session_data).encode("utf-8"))
@@ -46,6 +46,7 @@ TEST_USER = {
     "failed_login_attempts": 0,
     "locked_until": None,
     "email_verified_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    "session_version": 0,
 }
 
 TEST_USER_EPILEPSY = {**TEST_USER, "epilepsy_mode": True}

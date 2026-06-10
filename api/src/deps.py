@@ -42,7 +42,9 @@ def _get_real_ip(request: Request) -> str:
     return client_host
 
 
-_IP_HASH_PREFIX_LEN = 12  # enough entropy for log correlation without reversibility
+# 12 hex chars = 48 bits of SHA-256 output — enough entropy for log correlation,
+# not enough to brute-force the ~4 billion distinct IPv4 addresses (2^32 << 2^48).
+_IP_HASH_PREFIX_LEN = 12
 
 
 def _ip_hash(request: Request) -> str:
@@ -117,6 +119,7 @@ class UserRow(TypedDict):
     sex: str | None
     epilepsy_mode: bool
     spo2_enabled: bool
+    session_version: int
 
 
 class NeedsLogin(Exception):
@@ -129,6 +132,9 @@ async def require_user(request: Request) -> UserRow:
         raise NeedsLogin()
     user = await get_user_by_id(int(user_id))
     if not user:
+        raise NeedsLogin()
+    if request.session.get("session_version") != user["session_version"]:
+        request.session.clear()
         raise NeedsLogin()
     return cast(UserRow, user)
 

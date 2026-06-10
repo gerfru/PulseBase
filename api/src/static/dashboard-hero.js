@@ -297,13 +297,16 @@ export function buildHeroCard() {
         }
     }
 
+    const minSamplesMet = ml.min_samples_met !== false;
+    const nSamples = ml.n_samples ?? 0;
     const mlTile =
         rfScore != null
             ? `<a href="/metrics/readiness-rf" class="hero-heute-item">
             <span class="hero-heute-val ${rfSubCls}" style="font-size:1.05rem">~${rfScore}</span>
-            <span class="hero-heute-score-lbl">ML-Prognose</span>
+            <span class="hero-heute-score-lbl">KI-Prognose</span>
             <span class="hero-heute-label">Readiness Morgen</span>
             ${rfLo != null && rfHi != null ? `<span class="metric-horizon">Spanne ${rfLo}–${rfHi}</span>` : ''}
+            ${!minSamplesMet ? `<span class="metric-horizon" style="color:var(--amber)">Noch ${30 - nSamples} Trainingstage bis Modell aktiv</span>` : ''}
             <span class="metric-horizon">Prognose · Morgen</span>
         </a>`
             : '';

@@ -1,7 +1,11 @@
 import asyncio
+import re
 import secrets
+import statistics
 import time
 import uuid
+from collections import deque
+from collections.abc import AsyncGenerator
 
 import psutil
 from contextlib import asynccontextmanager
@@ -71,10 +75,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+_TOKEN_PATH_RE = re.compile(r"^/(auth/(reset|verify)|account/delete/confirm)/[^/]+")
+
+
+def _safe_path(path: str) -> str:
+    """Replace token segments in sensitive URL paths to avoid leaking them in logs."""
+    return _TOKEN_PATH_RE.sub(lambda m: m.group(0).rsplit("/", 1)[0] + "/<token>", path)
+
+
 _active_requests: int = 0
 _error_requests: int = 0
 _metrics_lock = asyncio.Lock()
 _start_time: float = time.monotonic()
+_duration_deque: deque[float] = deque(maxlen=1000)
 # Module-level Process so cpu_percent() keeps state between scrapes. A fresh
 # psutil.Process() per request would always report 0.0 on its first call.
 _proc = psutil.Process()
@@ -87,7 +100,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         global _active_requests, _error_requests
         async with _metrics_lock:
             _active_requests += 1
-        request_id = str(uuid.uuid4())[:8]
+        request_id = str(uuid.uuid4())
         clear_contextvars()
         bind_contextvars(request_id=request_id)
         start = time.perf_counter()
@@ -105,10 +118,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
                 async with _metrics_lock:
                     _error_requests += 1
         duration_ms = round((time.perf_counter() - start) * 1000, 1)
+        _duration_deque.append(duration_ms)
         logger.info(
             "http.request",
             method=request.method,
-            path=request.url.path,
+            path=_safe_path(request.url.path),
             status=response.status_code,
             duration_ms=duration_ms,
             active_requests=_active_requests,
@@ -129,13 +143,14 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         elif path.startswith("/api/") and request.method == "GET":
             response.headers.setdefault("Cache-Control", "private, no-cache")
+            response.headers.setdefault("Vary", "Cookie")
         elif request.method in ("POST", "PUT", "PATCH", "DELETE"):
             response.headers.setdefault("Cache-Control", "no-store")
         return response
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # pragma: no cover
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # pragma: no cover
     pool = await get_pool()
     logger.info("db.pool_initialized")
     # Prime cpu_percent() so the first /api/metrics scrape reports a real value.
@@ -175,7 +190,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=settings.session_secret,
     https_only=settings.https_only,
-    same_site="lax",
+    same_site="strict",
     max_age=3600,
 )
 
@@ -227,7 +242,7 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/api/metrics")
-async def app_metrics(request: Request) -> dict[str, float | int]:
+async def app_metrics(request: Request) -> dict[str, float | int | None]:
     await require_user(request)
     async with _metrics_lock:
         active = _active_requests
@@ -235,6 +250,12 @@ async def app_metrics(request: Request) -> dict[str, float | int]:
     pool = await get_pool()
     pool_size = pool.get_size()
     pool_idle = pool.get_idle_size()
+    samples = list(_duration_deque)
+    p95 = (
+        round(statistics.quantiles(samples, n=20)[18], 1)
+        if len(samples) >= 20
+        else None
+    )
     return {
         "active_requests": active,
         "error_requests_total": errors,
@@ -243,6 +264,7 @@ async def app_metrics(request: Request) -> dict[str, float | int]:
         "cpu_percent": _proc.cpu_percent(interval=None),
         "db_pool_used": pool_size - pool_idle,
         "db_pool_max": pool_size,
+        "p95_duration_ms": p95,
     }
 
 
