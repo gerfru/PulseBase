@@ -65,7 +65,7 @@ async def test_require_user_returns_user_when_found():
     from src.deps import require_user
 
     class FakeRequest:
-        session = {"user_id": 1}
+        session = {"user_id": 1, "session_version": 0}
 
     with patch("src.deps.get_user_by_id", AsyncMock(return_value=TEST_USER)):
         result = await require_user(FakeRequest())

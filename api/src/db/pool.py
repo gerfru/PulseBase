@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""  # SENTRY_DSN — empty = disabled
     db_pool_min: int = 1  # DB_POOL_MIN — asyncpg pool min_size
     db_pool_max: int = 5  # DB_POOL_MAX — asyncpg pool max_size
+    privacy_policy_version: str = (
+        "v1.0"  # PRIVACY_POLICY_VERSION — bumped when policy changes
+    )
 
     @field_validator("fernet_key")
     @classmethod

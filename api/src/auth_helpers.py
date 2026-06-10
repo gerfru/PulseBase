@@ -107,4 +107,5 @@ async def _establish_session(request: Request, user: dict) -> None:
     await reset_failed_login(user["id"])
     request.session.clear()
     request.session["user_id"] = str(user["id"])
+    request.session["session_version"] = user["session_version"]
     logger.info("auth.login.success", user_id=user["id"], ip_hash=_ip_hash(request))

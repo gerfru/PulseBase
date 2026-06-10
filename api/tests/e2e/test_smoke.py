@@ -16,8 +16,9 @@ from tests.e2e.conftest import (
     TEST_PASSWORD,
 )  # pragma: allowlist secret
 
-# Tests that require seeded Garmin data — skip when CI_HAS_DATA is not set.
-# Set CI_HAS_DATA=true in environments where the test user has actual data.
+# Tests that require seeded Garmin data — intentionally skipped in standard CI.
+# Standard CI does not set CI_HAS_DATA because Garmin sync requires real credentials.
+# To run locally with data: make test-seed && CI_HAS_DATA=true pytest api/tests/e2e/
 requires_data = pytest.mark.skipif(
     os.getenv("CI_HAS_DATA") != "true",
     reason="requires seeded Garmin data (set CI_HAS_DATA=true)",

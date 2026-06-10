@@ -26,6 +26,7 @@ from src.db import (
     clear_verify_token,
     create_user,
     get_user_by_email,
+    increment_session_version,
     save_consent,
     set_email_verified,
     update_password,
@@ -35,6 +36,7 @@ from src.deps import (
     generate_csrf_token,
     hash_password,
     limiter,
+    settings,
     templates,
     verify_csrf_token,
 )
@@ -166,9 +168,10 @@ async def register(
         logger.warning("auth.register.fail", reason="duplicate_email")
         return _register_error(request, "Diese E-Mail ist bereits registriert.")
     ip_hash = _ip_hash(request)
-    await save_consent(user["id"], "health_data", True, ip_hash)
-    await save_consent(user["id"], "terms", True, ip_hash)
-    await save_consent(user["id"], "age_16plus", True, ip_hash)
+    pv = settings.privacy_policy_version
+    await save_consent(user["id"], "health_data", True, ip_hash, pv)
+    await save_consent(user["id"], "terms", True, ip_hash, pv)
+    await save_consent(user["id"], "age_16plus", True, ip_hash, pv)
     logger.info("auth.register.success", user_id=user["id"], ip_hash=ip_hash)
     token = await _make_verify_token(user["id"])
     sent = await send_verify_email(email, token)
@@ -358,6 +361,7 @@ async def reset_password(
         )
     await clear_reset_token(user_id)
     await update_password(user_id, hash_password(password))
+    await increment_session_version(user_id)
     request.session.clear()
     logger.info("auth.password_reset.success", user_id=user_id)
     return RedirectResponse("/login?reset=1", status_code=303)

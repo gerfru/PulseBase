@@ -397,6 +397,45 @@ async def test_seizure_risk_high_level(client):
     assert r.json()["level"] == "high"
 
 
+# ── Epilepsy guard — must return 403 when epilepsy_mode=False ─────────────────
+
+
+async def test_seizure_create_requires_epilepsy_mode(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.post(
+            "/api/seizures",
+            json={"occurred_at": "2026-05-01T10:00:00Z", "type": "focal"},
+        )
+    assert r.status_code == 403
+
+
+async def test_seizure_list_requires_epilepsy_mode(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/seizures")
+    assert r.status_code == 403
+
+
+async def test_seizure_update_requires_epilepsy_mode(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.patch(
+            "/api/seizures/1",
+            json={"occurred_at": "2026-05-01T10:00:00Z", "type": "focal"},
+        )
+    assert r.status_code == 403
+
+
+async def test_seizure_delete_requires_epilepsy_mode(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.delete("/api/seizures/1")
+    assert r.status_code == 403
+
+
+async def test_seizure_risk_requires_epilepsy_mode(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/seizures/risk")
+    assert r.status_code == 403
+
+
 # ── ML Feedback ───────────────────────────────────────────────────────────────
 
 

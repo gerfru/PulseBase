@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Kontolöschung bestätigen{% endblock %}
+{% block content %}
+<div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-100 mb-1">PulseBase</h1>
+    <p class="text-slate-400 text-sm mb-8">Kontolöschung bestätigen</p>
+
+    <div class="w-full max-w-sm">
+        <div class="card">
+            {% if error %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm">{{ error }}</div>
+            <p class="mt-3 text-slate-400 text-sm">
+                Der Bestätigungslink ist ungültig oder abgelaufen. Bitte starte die Kontolöschung erneut.
+            </p>
+            {% else %}
+            <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-sm font-medium">
+                Achtung: Diese Aktion ist unwiderruflich.
+            </div>
+            <p class="text-slate-300 text-sm mb-6">
+                Dein Konto und alle gesundheitlichen Daten werden dauerhaft gelöscht. Eine Wiederherstellung ist nicht möglich.
+            </p>
+            <form method="post" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit"
+                    class="w-full py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition-colors">
+                    Konto endgültig löschen
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        <p class="mt-5 text-center text-sm text-slate-400">
+            <a href="/settings" class="text-emerald-400 hover:underline">Abbrechen — zurück zu Einstellungen</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
