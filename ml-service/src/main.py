@@ -13,6 +13,7 @@ from backfill import backfill_user
 from config import Settings
 from db import (
     close_pool,
+    get_pool,
     count_energy_gaps,
     get_active_users,
     get_activity_trimp_inputs,
@@ -215,7 +216,7 @@ async def main() -> None:  # pragma: no cover
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
 
-    await start_health_server()
+    await start_health_server(pool=await get_pool())
 
     logger.info("ml.initial_run")
     initial_task = asyncio.create_task(run_all_users(settings, include_training=True))

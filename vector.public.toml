@@ -2,6 +2,10 @@
 # via the Docker socket and forwards their structlog JSON to Better Stack (or swap
 # the sink for Axiom). Local `json-file` logging + `make logs-*` stay intact.
 
+[api]
+enabled = true
+address = "127.0.0.1:8686"
+
 [sources.pulsebase_docker]
 type = "docker_logs"
 # Only PulseBase containers (compose project label), not every container on the host.

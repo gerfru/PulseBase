@@ -48,7 +48,7 @@
     },
     {
       "description": "Docker Digest-Updates (gleiche Version, neuer Digest): sicher, automatisch mergen",
-      "matchManagers": ["docker-compose"],
+      "matchManagers": ["docker-compose", "dockerfile"],
       "matchUpdateTypes": ["digest"],
       "automerge": true
     },

@@ -1,9 +1,11 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97 AS builder
 WORKDIR /build
-RUN python -m venv /venv
-COPY pyproject.toml .
-RUN /venv/bin/pip install --no-cache-dir .
+RUN pip install --no-cache-dir uv
+COPY pyproject.toml uv.lock ./
+RUN uv export --frozen --no-dev -o requirements.txt && \
+    python -m venv /venv && \
+    /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97
@@ -14,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && \
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 USER appuser
 COPY src/ ./src/
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
