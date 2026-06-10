@@ -13,7 +13,7 @@ os.environ.setdefault("HTTPS_ONLY", "false")
 os.environ.setdefault("FERNET_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 
 from src.main import app
@@ -82,13 +82,22 @@ async def client():
     # Route tests still mock individual DB functions; this is a no-op fallback so
     # unmocked DB touches (e.g. _make_verify_token) don't hit a real socket.
     with (
-        patch("src.main.get_pool", AsyncMock(return_value=AsyncMock())),
+        patch("src.main.get_pool", AsyncMock(return_value=_main_pool_mock())),
         patch("src.db.users.get_pool", AsyncMock(return_value=_pool_mock())),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
             yield ac
+
+
+def _main_pool_mock() -> AsyncMock:
+    """Pool mock for src.main — needs sync get_size/get_idle_size for /api/metrics."""
+    pool = AsyncMock()
+    pool.fetchval = AsyncMock(return_value=1)
+    pool.get_size = MagicMock(return_value=5)
+    pool.get_idle_size = MagicMock(return_value=5)
+    return pool
 
 
 def _pool_mock() -> AsyncMock:

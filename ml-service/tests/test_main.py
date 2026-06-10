@@ -348,9 +348,12 @@ class TestShutdown:
         mock_settings = MagicMock()
         mock_settings.sentry_dsn = ""
 
+        mock_pool = AsyncMock()
         with (
             patch("main.init_pool", new_callable=AsyncMock),
+            patch("main.get_pool", new_callable=AsyncMock, return_value=mock_pool),
             patch("main.close_pool", new_callable=AsyncMock),
+            patch("main.start_health_server", new_callable=AsyncMock),
             patch("main.run_all_users", new_callable=AsyncMock),
             patch("main._configure_ml_scheduler", return_value=mock_scheduler),
             patch("main.asyncio.get_running_loop", return_value=mock_loop),

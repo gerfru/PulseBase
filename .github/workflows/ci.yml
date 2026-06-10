@@ -99,15 +99,12 @@ jobs:
           semgrep scan --error --config p/python --config p/owasp-top-ten \
             api/src/ sync-service/src/ ml-service/src/
       - name: SBOM (CycloneDX via syft)
-        # Version-pinned binary (kein un-verifizierter Action-SHA). Evidence für
-        # ISO 27001 / EU Cyber Resilience Act. Bei echtem Release zusätzlich ans
-        # Release-Asset anhängen (Release-Please/semantic-release).
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
-            | sh -s -- -b /usr/local/bin v1.18.1
-          syft version
-          syft scan dir:. -o cyclonedx-json=pulsebase-sbom.cdx.json
-          echo "SBOM-Komponenten: $(jq '.components | length' pulsebase-sbom.cdx.json)"
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          artifact-name: pulsebase-sbom.cdx.json
+          output-file: pulsebase-sbom.cdx.json
+          format: cyclonedx-json
 
   typecheck:
     name: Type Check

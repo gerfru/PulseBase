@@ -54,6 +54,8 @@ services:
     image: timberio/vector:0.56.0-alpine@sha256:8f2de273559680c4a6a03bb2bcf4a7636b08e0fb15269f546adc7b2cef2b6e8c
     container_name: pulsebase-vector
     restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
     env_file:
       - env/.env.public      # BETTERSTACK_SOURCE_TOKEN (or AXIOM_TOKEN/AXIOM_DATASET)
     volumes:
@@ -61,6 +63,11 @@ services:
       - ./vector.public.toml:/etc/vector/vector.toml:ro
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8686/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:
