@@ -72,9 +72,9 @@ async def test_require_user_returns_user_when_found():
     assert result == TEST_USER
 
 
-async def test_require_user_rejects_unverified_email_user():
-    """L-05: get_user_by_id filters by email_verified_at IS NOT NULL;
-    an unverified user resolves to None which triggers NeedsLogin."""
+async def test_require_user_returns_needs_login_when_db_returns_none():
+    """get_user_by_id filters by email_verified_at IS NOT NULL in SQL;
+    an unverified user resolves to None which triggers NeedsLogin — no separate Python branch."""
     from src.deps import require_user, NeedsLogin
 
     class FakeRequest:

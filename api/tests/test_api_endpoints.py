@@ -268,6 +268,13 @@ async def test_seizure_missing_occurred_at_returns_422(client):
     _assert_validation_envelope(r)
 
 
+async def test_update_seizure_missing_occurred_at_returns_422(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
+        r = await client.patch("/api/seizures/5", json={"type": "focal"})
+    assert r.status_code == 422
+    _assert_validation_envelope(r)
+
+
 async def test_seizure_invalid_type_returns_422(client):
     with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.post(

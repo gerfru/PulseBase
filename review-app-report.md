@@ -26,9 +26,9 @@
 | Wave | Scope | Findings | Status |
 |---|---|---|---|
 | **Wave 1** | Security & Observability | H1 · H2 · H3 · H4 · M4 · C1 · L9 | ✅ |
-| **Wave 2** | Docker & CI Infrastructure | H5 · H6 · M1 · M2 · M3 · M11 · M12 · M13 · M14 · M15 · L1 · L3 · L4 · L24 | ⏳ |
-| **Wave 3** | Python Code Quality | M9 · L10 · L13 · L14 · L15 · L16 · L17 | ⏳ |
-| **Wave 4** | JS Code Quality | M5 · M6 · M7 · M8 · M10 · L7 · L8 · L11 · L12 · L19 | ⏳ |
+| **Wave 2** | Docker & CI Infrastructure | H5 · H6 · M1 · M2 · M3 · M11 · M12 · M13 · M14 · M15 · L1 · L3 · L4 · L24 | ✅ |
+| **Wave 3** | Python Code Quality | M9 · L10 · L13 · L14 · L15 · L16 · L17 | ✅ |
+| **Wave 4** | JS Code Quality | M5 · M6 · M7 · M8 · M10 · L7 · L8 · L11 · L12 · L19 | ✅ |
 | **Wave 5** | Tests | M16 · M17 · M18 · L20 · L21 · L22 · L23 | ⏳ |
 | **Wave 6** | Docs, Cosmetics & Minor Fixes | L2 · L5 · L6 · L18 · L25 · L26 · L27 · L28 | ⏳ |
 

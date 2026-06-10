@@ -8,10 +8,17 @@ cannot prove.
 """
 
 import json
+import os
 
+import pytest
 from playwright.async_api import async_playwright
 
 from tests.e2e.conftest import BASE_URL
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv("CI_HAS_DATA"),
+    reason="requires live test DB with CI_HAS_DATA=true",
+)
 
 
 async def _login(ctx, email: str, password: str):

@@ -1006,8 +1006,8 @@ async def test_register_consent_stores_ip_hash_not_raw_ip(client):
 # ── is_active=False ───────────────────────────────────────────────────────────
 
 
-async def test_login_inactive_user_returns_400(client):
-    """Login with is_active=False account shows generic error (no info leak)."""
+async def test_login_unknown_email_returns_400(client):
+    """is_active=False is filtered at SQL level (AND is_active = true in get_user_by_email) → same 400 as unknown email."""
     with patch("src.routes.auth.get_user_by_email", AsyncMock(return_value=None)):
         r = await client.post(
             "/login",
