@@ -136,7 +136,7 @@ async def test_sync_date_range_handles_activity_failure(monkeypatch):
 
     # days=0 → single day loop; must complete without raising despite the failure
     await sync_runner._sync_date_range(MagicMock(), MagicMock(), user_id=1, days=0)
-    sync_runner._sync_day.assert_awaited()
+    assert sync_runner._sync_day.await_count >= 1
 
 
 # ── sync_runner.sync_libre_user: invalid token JSON → LibreAuthError ──────────
