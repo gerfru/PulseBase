@@ -113,6 +113,98 @@ export function evBadge(key) {
     return `<button class="ev-badge ${cls}" data-ev-badge="${key}" title="${esc(e.label)}: ${esc(e.name)}">${short}</button>`;
 }
 
+// ── Kuratierte „Deine Metriken"-Leiste (Phase 2) ─────────────────────────────
+// Eigen-Metriken, die die Hero-Card NICHT zeigt. Werte aus bereits geladenem
+// _heroData.ml (/api/ml-insights), Evidence aus _evidence (/api/evidence) → kein
+// zusätzlicher Request. Render rein aus eigenen Daten: kein Inline-Handler, keine
+// Fremddaten in innerHTML, alle Interpolationen via esc() → CSP-/XSS-sicher.
+const CURATED = [
+    {
+        name: 'training-monotony',
+        title: 'Training Monotony',
+        icon: '🔁',
+        evKey: 'training_monotony',
+        val: (d) => d.training_monotony?.monotony?.toFixed(2),
+        unit: '',
+    },
+    {
+        name: 'sleep-consistency',
+        title: 'Schlaf-Konsistenz',
+        icon: '🌙',
+        evKey: 'sleep_consistency',
+        val: (d) => d.sleep_consistency?.score?.toFixed(0),
+        unit: '',
+    },
+    {
+        name: 'hrv-recovery',
+        title: 'HRV Recovery',
+        icon: '⬆️',
+        evKey: 'hrv_recovery',
+        val: (d) => d.hrv_recovery?.recovery_speed?.toFixed(1),
+        unit: ' HRV/d',
+    },
+    {
+        name: 'spo2-trend',
+        title: 'SpO₂ Trend',
+        icon: '🩸',
+        evKey: 'spo2_trend',
+        val: (d) => d.spo2_trend?.mean_spo2?.toFixed(1),
+        unit: ' %',
+    },
+    {
+        name: 'running-economy',
+        title: 'Running Economy',
+        icon: '🏃',
+        evKey: 'running_economy',
+        val: (d) => d.running_economy?.score?.toFixed(0),
+        unit: '',
+    },
+];
+
+const _EV_SHORT = { meta: 'M', replicated: 'R', model: 'E' };
+const _EV_CLS = { meta: 'ev-meta', replicated: 'ev-rep', model: 'ev-model' };
+
+function _curatedColor(valStr) {
+    if (valStr == null || valStr === '—') return 'var(--muted)';
+    const n = parseFloat(valStr);
+    if (Number.isNaN(n)) return 'var(--muted)';
+    return n >= 75 ? 'var(--green)' : n >= 45 ? 'var(--amber)' : 'var(--red)';
+}
+
+export function buildCuratedMetrics() {
+    const section = document.getElementById('curated-metrics');
+    const grid = document.getElementById('curated-metrics-grid');
+    if (!section || !grid) return;
+    const ml = _heroData.ml || {};
+    const ev = _evidence || {};
+
+    const tiles = CURATED.map((item) => {
+        let valStr = '—';
+        try {
+            const v = item.val(ml);
+            valStr = v != null ? String(v) + item.unit : '—';
+        } catch (_) {}
+        const color = _curatedColor(valStr);
+        const e = item.evKey ? ev[item.evKey] : null;
+        const badge = e
+            ? `<span class="ev-badge ${_EV_CLS[e.level] ?? 'ev-model'}" title="${esc(e.label ?? '')}: ${esc(e.name ?? '')}">${_EV_SHORT[e.level] ?? '?'}</span>`
+            : '';
+        const horizon = e?.time_horizon ? `<span class="metric-horizon">${esc(e.time_horizon)}</span>` : '';
+        return `<a href="/metrics/${esc(item.name)}" class="metric-overview-tile card">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <span class="metric-overview-icon">${esc(item.icon)}</span>
+                ${badge}
+            </div>
+            <span class="metric-overview-title">${esc(item.title)}</span>
+            <span class="metric-overview-val" style="color:${color}">${esc(valStr)}</span>
+            ${horizon}
+        </a>`;
+    }).join('');
+
+    grid.innerHTML = tiles;
+    section.hidden = false;
+}
+
 export function heroRecommendation(s) {
     if (s == null) return '';
     const [text, cls] =

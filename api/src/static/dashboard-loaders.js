@@ -1,5 +1,5 @@
 import { fmtDate } from './chart-utils.js';
-import { _heroData, buildHeroCard } from './dashboard-hero.js';
+import { _heroData, buildHeroCard, buildCuratedMetrics } from './dashboard-hero.js';
 import { buildWeeklyReview } from './dashboard-weekly.js';
 import { makeChart, showEmpty, hideEmpty, sportLabel, fmtDuration, fmtDist, secToH } from './dashboard-utils.js';
 
@@ -433,6 +433,7 @@ export async function loadMlInsights() {
     const d = await fetch('/api/ml-insights').then((r) => r.json());
     _heroData.ml = d;
     buildHeroCard();
+    buildCuratedMetrics();
 }
 
 export async function loadEnergyMetrics() {

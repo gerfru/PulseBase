@@ -93,3 +93,28 @@ def test_configure_sentry_release_is_package_version_not_unknown():
     release = mock_init.call_args.kwargs["release"]
     assert release != "unknown"
     assert release[0].isdigit()
+
+
+def test_release_prefers_app_version_env(monkeypatch):
+    """_release(): APP_VERSION env override wins (line 17)."""
+    from logging_config import _release
+
+    monkeypatch.setenv("APP_VERSION", "9.9.9")
+    assert _release() == "9.9.9"
+
+
+def test_release_falls_back_to_unknown(monkeypatch):
+    """_release(): no env, no dist, unreadable pyproject → 'unknown' (lines 29-30)."""
+    import importlib.metadata
+
+    from logging_config import _release
+
+    monkeypatch.delenv("APP_VERSION", raising=False)
+    with (
+        patch(
+            "importlib.metadata.version",
+            side_effect=importlib.metadata.PackageNotFoundError,
+        ),
+        patch("pathlib.Path.read_text", side_effect=OSError("boom")),
+    ):
+        assert _release() == "unknown"

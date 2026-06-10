@@ -28,6 +28,9 @@ async function pollMlStatus() {
         } else {
             const age = s.last_ml_at ? fmtSyncAge(s.last_ml_at) : null;
             setMlStatus(age ? `🤖 Zuletzt analysiert ${age}` : '', !!age);
+            // Defensiv-Guard: pollMlStatus läuft ausschließlich über einen gesetzten
+            // Timer → der false-Zweig ist hier unerreichbar (toter Schutzcode).
+            /* v8 ignore next */
             if (_mlPollTimer) {
                 showToast('ML Einblicke aktualisiert');
                 loadMlInsights();
@@ -74,6 +77,9 @@ async function pollSyncStatus() {
         if (s.pending) {
             _syncPollTimer = setTimeout(pollSyncStatus, 5000);
         } else {
+            // Defensiv-Guard: pollSyncStatus läuft ausschließlich über einen gesetzten
+            // Timer → der false-Zweig ist hier unerreichbar (toter Schutzcode).
+            /* v8 ignore next */
             if (_syncPollTimer) {
                 showToast('Sync abgeschlossen');
                 resetOffset();

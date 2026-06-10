@@ -16,6 +16,69 @@ const METRICS = {
     ...READINESS_METRICS,
 };
 
+// ── Verwandte Metriken (Phase 3) — Vernetzung der Detailseiten ───────────────
+// Mapping je (aufgelöster) Metrik-Name → 2-3 thematisch verwandte Metriken.
+// Statische, eigene Daten → Render via esc(), kein Inline-Handler, kein DOMPurify nötig.
+const RELATED = {
+    readiness: [
+        { name: 'hrv-status-custom', title: 'HRV Status', icon: '🔬' },
+        { name: 'hrv-recovery', title: 'HRV Recovery', icon: '⬆️' },
+        { name: 'sleep-score-custom', title: 'Schlafqualität', icon: '✨' },
+    ],
+    'hrv-status-custom': [
+        { name: 'autonomic', title: 'Autonome Energie', icon: '💚' },
+        { name: 'hrv-recovery', title: 'HRV Recovery', icon: '⬆️' },
+        { name: 'stress-score-custom', title: 'Stress Score', icon: '🧘' },
+    ],
+    'hrv-recovery': [
+        { name: 'hrv-status-custom', title: 'HRV Status', icon: '🔬' },
+        { name: 'autonomic', title: 'Autonome Energie', icon: '💚' },
+    ],
+    'body-battery-custom': [
+        { name: 'battery-pattern', title: 'Body Battery Muster', icon: '🔮' },
+        { name: 'readiness', title: 'Erholung', icon: '🔄' },
+        { name: 'hr-zscore', title: 'Ruhepuls Z-Score', icon: '❤️' },
+    ],
+    'battery-pattern': [
+        { name: 'body-battery-custom', title: 'Body Battery', icon: '🔋' },
+        { name: 'readiness', title: 'Erholung', icon: '🔄' },
+    ],
+    'sleep-score-custom': [
+        { name: 'sleep-consistency', title: 'Schlaf-Konsistenz', icon: '🌙' },
+        { name: 'cognitive', title: 'Kognitive Energie', icon: '🧠' },
+        { name: 'hrv-status-custom', title: 'HRV Status', icon: '🔬' },
+    ],
+    'sleep-consistency': [
+        { name: 'sleep-score-custom', title: 'Schlafqualität', icon: '✨' },
+        { name: 'cognitive', title: 'Kognitive Energie', icon: '🧠' },
+    ],
+    'stress-score-custom': [
+        { name: 'hrv-status-custom', title: 'HRV Status', icon: '🔬' },
+        { name: 'readiness', title: 'Erholung', icon: '🔄' },
+    ],
+    'hr-zscore': [
+        { name: 'battery-pattern', title: 'Body Battery Muster', icon: '🔮' },
+        { name: 'readiness', title: 'Erholung', icon: '🔄' },
+    ],
+    'intensity-minutes': [
+        { name: 'training-monotony', title: 'Training Monotony', icon: '🔁' },
+        { name: 'training-effect', title: 'Training Effect', icon: '📈' },
+        { name: 'physical', title: 'Physische Energie', icon: '⚡' },
+    ],
+    'training-monotony': [
+        { name: 'intensity-minutes', title: 'Intensitätsminuten', icon: '⏱️' },
+        { name: 'physical', title: 'Physische Energie', icon: '⚡' },
+    ],
+    'running-economy': [
+        { name: 'intensity-minutes', title: 'Intensitätsminuten', icon: '⏱️' },
+        { name: 'physical', title: 'Physische Energie', icon: '⚡' },
+    ],
+    correlations: [
+        { name: 'hrv-status-custom', title: 'HRV Status', icon: '🔬' },
+        { name: 'sleep-score-custom', title: 'Schlafqualität', icon: '✨' },
+    ],
+};
+
 async function load() {
     const _redirects = { physical: 'readiness', autonomic: 'readiness', cognitive: 'readiness' };
     const rawName = location.pathname.split('/').filter(Boolean).at(-1);
@@ -75,6 +138,21 @@ async function load() {
                 </div>`;
                 })
                 .join('');
+        }
+
+        // Verwandte-Metriken-Block (Phase 3) — nur wenn Mapping existiert
+        const related = RELATED[name];
+        const relNav = document.getElementById('related-metrics');
+        if (relNav && related?.length) {
+            document.getElementById('related-grid').innerHTML = related
+                .map(
+                    (r) => `<a href="/metrics/${esc(r.name)}" class="related-tile card">
+                    <span class="related-tile-icon">${esc(r.icon)}</span>
+                    <span class="related-tile-title">${esc(r.title)}</span>
+                </a>`,
+                )
+                .join('');
+            relNav.hidden = false;
         }
 
         if (result.charts?.length) {

@@ -257,6 +257,31 @@ const METRIC_GROUPS = [
             },
         ],
     },
+    {
+        label: 'ML & Muster',
+        items: [
+            {
+                name: 'battery-pattern',
+                title: 'Body Battery Muster',
+                icon: '🔮',
+                fetch: '/api/ml-insights',
+                evKey: 'battery_pattern',
+                val: (d) => d.battery_pattern?.pattern ?? null,
+                unit: '',
+                color: 'var(--indigo)',
+            },
+            {
+                name: 'correlations',
+                title: 'Korrelationen',
+                icon: '🔗',
+                fetch: '/api/ml-insights',
+                evKey: 'correlation_sleep_hrv',
+                val: (d) => (d.correlation_sleep_hrv?.r != null ? `r=${d.correlation_sleep_hrv.r.toFixed(2)}` : null),
+                unit: '',
+                color: 'var(--blue)',
+            },
+        ],
+    },
 ];
 
 function scoreColor(val) {

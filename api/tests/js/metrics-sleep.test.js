@@ -89,6 +89,22 @@ describe('hrv-status-custom render', () => {
         expect(out.kpis).toHaveLength(0);
     });
 
+    it('prefixes a + sign for a positive deviation (d.deviation >= 0 branch)', () => {
+        const out = render({
+            insights: {
+                hrv_status_custom: {
+                    status: 'BALANCED',
+                    deviation: 0.5,
+                    baseline_mean: 3.9,
+                    baseline_std: 0.2,
+                    hrv_7d_mean: 3.8,
+                },
+            },
+            history: {},
+        });
+        expect(out.kpis.find((k) => k.label === 'σ-Abweichung').value).toBe('+0.50σ');
+    });
+
     it('handles an unknown status + missing deviation/baseline (null recommendation, — KPIs)', () => {
         const out = render({ insights: { hrv_status_custom: { status: 'WEIRD' } }, history: {} });
         expect(out.recommendation).toBeNull();
@@ -144,6 +160,14 @@ describe('sleep-consistency render', () => {
         const out = render({ insights: { sleep_consistency: null }, sleep: [] });
         expect(out.value).toBe('—');
         expect(out.kpis).toHaveLength(0);
+    });
+
+    it('uses empty sleep fallback when data.sleep is missing (data.sleep || [] branch)', () => {
+        const out = render({
+            insights: { sleep_consistency: { score: 75, std_wake_h: 0.4, std_sleep_h: 0.3, n_nights: 7 } },
+        });
+        expect(out.value).toBe('75');
+        expect(out.chart).toBeNull();
     });
 });
 
