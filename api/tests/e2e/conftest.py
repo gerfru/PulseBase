@@ -392,11 +392,11 @@ async def idor_seizure_pair():
         )
         uid_b = await conn.fetchval(
             """
-            INSERT INTO users (name, email, password_hash, email_verified_at, is_active)
-            VALUES ($1, $2, $3, NOW(), TRUE)
+            INSERT INTO users (name, email, password_hash, email_verified_at, is_active, epilepsy_mode)
+            VALUES ($1, $2, $3, NOW(), TRUE, TRUE)
             ON CONFLICT (email) DO UPDATE
                 SET password_hash = EXCLUDED.password_hash,
-                    email_verified_at = NOW(), is_active = TRUE
+                    email_verified_at = NOW(), is_active = TRUE, epilepsy_mode = TRUE
             RETURNING id
             """,
             "IDOR Attacker",
