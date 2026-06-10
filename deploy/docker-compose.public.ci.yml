@@ -7,7 +7,7 @@ services:
   caddy:
     # !override replaces the inherited env_file (env/.env.public is absent in CI).
     env_file: !override
-      - ../env/.env.app          # present in CI; Caddyfile.ci uses no env vars
+      - env/.env.app          # present in CI; Caddyfile.ci uses no env vars
     # !override replaces the inherited 80/443 list with a single host mapping.
     ports: !override
       - "8080:80"
