@@ -1,7 +1,7 @@
 import pytest
 from datetime import date, timezone
 
-from conftest import (
+from tests.conftest import (
     RAW_ACTIVITY_MINIMAL,
     RAW_ACTIVITY_RUNNING,
     RAW_ACTIVITY_UNKNOWN_SPORT,
