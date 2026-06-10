@@ -1256,25 +1256,48 @@ async def test_delete_user_executes_transaction():
 async def test_save_consent_executes_upsert():
     from src.db.users import save_consent
 
-    pool = _pool_mock()
+    conn = AsyncMock()
+    acquire_ctx = MagicMock()
+    acquire_ctx.__aenter__ = AsyncMock(return_value=conn)
+    acquire_ctx.__aexit__ = AsyncMock(return_value=False)
+    transaction_ctx = MagicMock()
+    transaction_ctx.__aenter__ = AsyncMock(return_value=None)
+    transaction_ctx.__aexit__ = AsyncMock(return_value=False)
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=acquire_ctx)
+    conn.transaction = MagicMock(return_value=transaction_ctx)
+    conn.execute = AsyncMock(return_value="INSERT 1")
+
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
         await save_consent(1, "health_data", True, "test-ip-hash")
-    pool.execute.assert_awaited_once()
-    sql = pool.execute.call_args[0][0]
-    assert "user_consents" in sql
-    assert "ON CONFLICT" in sql
+
+    calls = [str(c.args[0]) for c in conn.execute.call_args_list]
+    assert any("user_consents" in sql and "ON CONFLICT" in sql for sql in calls)
+    assert any("user_consent_events" in sql for sql in calls)
 
 
 async def test_save_consent_uses_ip_address_hash_column():
     """ip_address_hash column name must be used (not ip_address)."""
     from src.db.users import save_consent
 
-    pool = _pool_mock()
+    conn = AsyncMock()
+    acquire_ctx = MagicMock()
+    acquire_ctx.__aenter__ = AsyncMock(return_value=conn)
+    acquire_ctx.__aexit__ = AsyncMock(return_value=False)
+    transaction_ctx = MagicMock()
+    transaction_ctx.__aenter__ = AsyncMock(return_value=None)
+    transaction_ctx.__aexit__ = AsyncMock(return_value=False)
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=acquire_ctx)
+    conn.transaction = MagicMock(return_value=transaction_ctx)
+    conn.execute = AsyncMock(return_value="INSERT 1")
+
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
         await save_consent(1, "terms", True, "test-ip-hash")
-    sql = pool.execute.call_args[0][0]
-    assert "ip_address_hash" in sql
-    assert "::inet" not in sql  # must not cast as INET (raw hash is TEXT)
+
+    all_sql = " ".join(str(c.args[0]) for c in conn.execute.call_args_list)
+    assert "ip_address_hash" in all_sql
+    assert "::inet" not in all_sql  # must not cast as INET (raw hash is TEXT)
 
 
 async def test_delete_user_removes_token_dir_when_exists():
