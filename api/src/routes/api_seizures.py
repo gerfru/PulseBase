@@ -6,11 +6,12 @@ Part of the /api/* surface — split out of the former monolithic api.py
 
 from datetime import datetime
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 import src.deps as _deps
+from src.deps import UserRow
 from src.db import (
     delete_seizure,
     get_seizure_risk,
@@ -44,9 +45,15 @@ class SeizureBody(BaseModel):
         return v
 
 
+def _require_epilepsy_mode(user: UserRow) -> None:
+    if not user.get("epilepsy_mode"):
+        raise HTTPException(status_code=403, detail="Epilepsy mode not enabled")
+
+
 @router.post("/api/seizures")
 async def api_log_seizure(request: Request, body: SeizureBody) -> dict:
     user = await _deps.require_user(request)
+    _require_epilepsy_mode(user)
     id_ = await save_seizure(
         user["id"],
         body.occurred_at,
@@ -63,6 +70,7 @@ async def api_update_seizure(
     request: Request, seizure_id: int, body: SeizureBody
 ) -> dict | JSONResponse:
     user = await _deps.require_user(request)
+    _require_epilepsy_mode(user)
     updated = await update_seizure(
         user["id"],
         seizure_id,
@@ -83,6 +91,7 @@ async def api_update_seizure(
 @router.delete("/api/seizures/{seizure_id}", response_model=None)
 async def api_delete_seizure(request: Request, seizure_id: int) -> dict | JSONResponse:
     user = await _deps.require_user(request)
+    _require_epilepsy_mode(user)
     deleted = await delete_seizure(user["id"], seizure_id)
     if not deleted:
         return JSONResponse(
@@ -98,10 +107,12 @@ async def api_get_seizures(
     days: int = Query(default=365, ge=1, le=365),
 ) -> list:
     user = await _deps.require_user(request)
+    _require_epilepsy_mode(user)
     return await get_seizures(user["id"], days)
 
 
 @router.get("/api/seizures/risk")
 async def api_seizure_risk(request: Request) -> dict:
     user = await _deps.require_user(request)
+    _require_epilepsy_mode(user)
     return await get_seizure_risk(user["id"])

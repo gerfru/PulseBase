@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from tests.conftest import TEST_USER, TEST_USER_GARMIN
+from tests.conftest import TEST_USER, TEST_USER_EPILEPSY, TEST_USER_GARMIN
 
 
 def _assert_validation_envelope(r) -> None:
@@ -250,7 +250,7 @@ async def test_libre_unlink_redirects(client):
 
 async def test_seizure_create_valid(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.save_seizure", AsyncMock(return_value=1)),
     ):
         r = await client.post(
@@ -262,14 +262,14 @@ async def test_seizure_create_valid(client):
 
 
 async def test_seizure_missing_occurred_at_returns_422(client):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.post("/api/seizures", json={"type": "focal"})
     assert r.status_code == 422
     _assert_validation_envelope(r)
 
 
 async def test_seizure_invalid_type_returns_422(client):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.post(
             "/api/seizures",
             json={"occurred_at": "2026-05-01T10:00:00Z", "type": "stroke"},
@@ -279,7 +279,7 @@ async def test_seizure_invalid_type_returns_422(client):
 
 
 async def test_seizure_invalid_severity_returns_422(client):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.post(
             "/api/seizures",
             json={"occurred_at": "2026-05-01T10:00:00Z", "severity": 6},
@@ -290,7 +290,7 @@ async def test_seizure_invalid_severity_returns_422(client):
 
 async def test_seizures_list(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.get_seizures", AsyncMock(return_value=[])),
     ):
         r = await client.get("/api/seizures")
@@ -298,14 +298,14 @@ async def test_seizures_list(client):
 
 
 async def test_seizures_days_zero_returns_422(client):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.get("/api/seizures?days=0")
     assert r.status_code == 422
     _assert_validation_envelope(r)
 
 
 async def test_seizures_days_over_max_returns_422(client):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.get("/api/seizures?days=366")
     assert r.status_code == 422
     _assert_validation_envelope(r)
@@ -313,7 +313,7 @@ async def test_seizures_days_over_max_returns_422(client):
 
 async def test_seizures_days_boundary_min(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.get_seizures", AsyncMock(return_value=[])),
     ):
         r = await client.get("/api/seizures?days=1")
@@ -322,7 +322,7 @@ async def test_seizures_days_boundary_min(client):
 
 async def test_seizures_days_boundary_max(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.get_seizures", AsyncMock(return_value=[])),
     ):
         r = await client.get("/api/seizures?days=365")
@@ -331,7 +331,7 @@ async def test_seizures_days_boundary_max(client):
 
 async def test_seizure_risk(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.get_seizure_risk", AsyncMock(return_value={})),
     ):
         r = await client.get("/api/seizures/risk")
@@ -340,7 +340,7 @@ async def test_seizure_risk(client):
 
 async def test_seizure_risk_response_has_level_and_flags(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch(
             "src.routes.api_seizures.get_seizure_risk",
             AsyncMock(return_value={"level": "ok", "flags": []}),
@@ -355,7 +355,7 @@ async def test_seizure_risk_response_has_level_and_flags(client):
 
 async def test_seizure_risk_warning_level(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch(
             "src.routes.api_seizures.get_seizure_risk",
             AsyncMock(
@@ -374,7 +374,7 @@ async def test_seizure_risk_warning_level(client):
 
 async def test_seizure_risk_high_level(client):
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch(
             "src.routes.api_seizures.get_seizure_risk",
             AsyncMock(

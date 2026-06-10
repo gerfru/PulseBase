@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from tests.conftest import TEST_USER
+from tests.conftest import TEST_USER, TEST_USER_EPILEPSY
 
 
 # ── L1: api.py split — import smoke + route-registration ──────────────────────
@@ -318,7 +318,7 @@ async def test_ml_status_authenticated(client):
 
 async def test_seizure_notes_too_long_rejected(client):
     """POST /api/seizures with notes > 2000 chars must return 422."""
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.post(
             "/api/seizures",
             json={
@@ -332,7 +332,7 @@ async def test_seizure_notes_too_long_rejected(client):
 async def test_seizure_notes_at_limit_accepted(client):
     """POST /api/seizures with notes == 2000 chars must succeed."""
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.save_seizure", AsyncMock(return_value=1)),
     ):
         r = await client.post(
@@ -351,7 +351,7 @@ async def test_seizure_notes_at_limit_accepted(client):
 async def test_update_seizure_success(client):
     """PATCH /api/seizures/{id} returns ok when a row was updated."""
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.update_seizure", AsyncMock(return_value=True)),
     ):
         r = await client.patch(
@@ -369,7 +369,7 @@ async def test_update_seizure_success(client):
 async def test_update_seizure_not_found_returns_404(client):
     """PATCH on a foreign/missing id returns 404 (ownership enforced in DB layer)."""
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.update_seizure", AsyncMock(return_value=False)),
     ):
         r = await client.patch(
@@ -382,7 +382,7 @@ async def test_update_seizure_not_found_returns_404(client):
 
 async def test_update_seizure_invalid_type_rejected(client):
     """PATCH with an invalid type is rejected by SeizureBody validation (422)."""
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)):
         r = await client.patch(
             "/api/seizures/5",
             json={"occurred_at": "2026-01-01T10:00:00Z", "type": "bogus"},
@@ -393,7 +393,7 @@ async def test_update_seizure_invalid_type_rejected(client):
 async def test_delete_seizure_success(client):
     """DELETE /api/seizures/{id} returns ok when a row was deleted."""
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.delete_seizure", AsyncMock(return_value=True)),
     ):
         r = await client.delete("/api/seizures/5")
@@ -404,7 +404,7 @@ async def test_delete_seizure_success(client):
 async def test_delete_seizure_not_found_returns_404(client):
     """DELETE on a foreign/missing id returns 404."""
     with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER_EPILEPSY)),
         patch("src.routes.api_seizures.delete_seizure", AsyncMock(return_value=False)),
     ):
         r = await client.delete("/api/seizures/999")
