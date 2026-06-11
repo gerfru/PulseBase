@@ -1,5 +1,5 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:81ada6cb56bcbe3909644b4cb76ebe5354c65eaaad788a437bc1340a7638d49d AS builder
+FROM python:3.14-slim@sha256:d7a925f9eb9639a93e455b9f12c167569358818c0f62b51b88edbc8fcf34c421 AS builder
 WORKDIR /build
 RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
@@ -8,7 +8,7 @@ RUN uv export --frozen --no-dev -o requirements.txt && \
     /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:81ada6cb56bcbe3909644b4cb76ebe5354c65eaaad788a437bc1340a7638d49d
+FROM python:3.14-slim@sha256:d7a925f9eb9639a93e455b9f12c167569358818c0f62b51b88edbc8fcf34c421
 WORKDIR /app
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/* && \
     adduser --disabled-password --gecos "" appuser && \
