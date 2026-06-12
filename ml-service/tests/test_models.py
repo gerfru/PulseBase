@@ -9,6 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from models._integrity import verify_and_load, write_hash
 from models.anomaly import detect_metric_anomaly as detect_resting_hr_anomaly
 from models.battery_pattern import (
     _assign_pattern_labels,
@@ -40,6 +41,97 @@ from models.spo2_metrics import (
 from models.stress_metrics import compute_stress_score
 from models.training_effect import compute_banister_trimp, compute_training_effect_today
 from models.training_load import compute_acwr, compute_training_monotony
+
+
+# ── Model Integrity ─────────────────────────────────────────────────────────
+
+
+def test_write_hash_creates_sidecar(tmp_path):
+    """write_hash must create a .sha256 sidecar next to the model file."""
+    model_path = tmp_path / "test_model.joblib"
+    import joblib
+
+    joblib.dump({"data": [1, 2, 3]}, model_path)
+    digest = write_hash(model_path)
+
+    sidecar = model_path.with_suffix(".joblib.sha256")
+    assert sidecar.exists()
+    assert sidecar.read_text().strip() == digest
+    assert len(digest) == 64  # SHA-256 hex is 64 chars
+
+
+def test_verify_and_load_succeeds_with_valid_hash(tmp_path):
+    """verify_and_load returns the object when the hash matches."""
+    import joblib
+
+    model_path = tmp_path / "test_model.joblib"
+    payload = {"key": "value"}
+    joblib.dump(payload, model_path)
+    write_hash(model_path)
+
+    loaded = verify_and_load(model_path)
+    assert loaded == payload
+
+
+def test_verify_and_load_raises_on_tampered_model(tmp_path):
+    """verify_and_load must raise ValueError when file content differs from sidecar."""
+    import joblib
+
+    model_path = tmp_path / "test_model.joblib"
+    joblib.dump({"original": True}, model_path)
+    write_hash(model_path)
+
+    # Tamper: overwrite the model file with different content
+    model_path.write_bytes(model_path.read_bytes() + b"\x00\xff")
+
+    with pytest.raises(ValueError, match="integrity check failed"):
+        verify_and_load(model_path)
+
+
+def test_verify_and_load_no_sidecar_still_loads(tmp_path):
+    """Without a sidecar, verify_and_load logs a warning but loads the file."""
+    import joblib
+
+    model_path = tmp_path / "legacy_model.joblib"
+    joblib.dump({"legacy": True}, model_path)
+    # No sidecar written — backward compatibility case
+
+    loaded = verify_and_load(model_path)
+    assert loaded == {"legacy": True}
+
+
+def test_train_and_save_writes_integrity_sidecar(tmp_path):
+    """train_and_save must leave a .sha256 sidecar alongside the model file."""
+    model_path = tmp_path / "readiness_rf_1.joblib"
+    train_and_save(_make_rows(60), model_path)
+
+    sidecar = model_path.with_suffix(".joblib.sha256")
+    assert sidecar.exists()
+    assert len(sidecar.read_text().strip()) == 64
+
+
+def test_fit_and_save_writes_integrity_sidecar():
+    """fit_and_save must leave a .sha256 sidecar alongside the model file."""
+    import tempfile
+
+    history = {f"2026-04-{i:02d}": _make_day_records(20) for i in range(1, 20)}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = fit_and_save(history, tmpdir, user_id=42)
+        assert result is True
+        sidecar = Path(tmpdir) / "battery_pattern_42.joblib.sha256"
+        assert sidecar.exists()
+        assert len(sidecar.read_text().strip()) == 64
+
+
+def test_fit_and_save_is_atomic():
+    """No .joblib.tmp file must remain after a successful fit_and_save."""
+    import tempfile
+
+    history = {f"2026-04-{i:02d}": _make_day_records(20) for i in range(1, 20)}
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fit_and_save(history, tmpdir, user_id=1)
+        tmp = Path(tmpdir) / "battery_pattern_1.joblib.tmp"
+        assert not tmp.exists()
 
 
 # ── Body Battery ───────────────────────────────────────────────────────────
