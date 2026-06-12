@@ -54,6 +54,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=(), payment=()"
         )
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         if settings.https_only:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"

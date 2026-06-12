@@ -284,6 +284,17 @@ const METRIC_GROUPS = [
     },
 ];
 
+// Mirrors esc() in dashboard-utils.js (classic-script context, cannot import)
+function esc(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Mirrors scoreColor() in dashboard-utils.js (classic-script context, cannot import)
 function scoreColor(val) {
     if (val == null) return 'var(--muted)';
@@ -340,7 +351,7 @@ async function buildGrid() {
                 const evEntry = item.evKey ? evidence[item.evKey] : null;
                 const badge = evBadgeHtml(evEntry);
                 const horizon = evEntry?.time_horizon
-                    ? `<span class="metric-horizon">${evEntry.time_horizon}</span>`
+                    ? `<span class="metric-horizon">${esc(evEntry.time_horizon)}</span>`
                     : '';
                 return `<a href="/metrics/${item.name}" class="metric-overview-tile card">
                 <div style="display:flex;align-items:center;justify-content:space-between">

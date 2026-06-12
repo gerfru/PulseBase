@@ -5,6 +5,8 @@ import joblib  # type: ignore[import-untyped]
 import numpy as np
 from sklearn.cluster import KMeans  # type: ignore[import-untyped]
 
+from models._integrity import verify_and_load, write_hash
+
 _MIN_DAYS = 14
 _N_CLUSTERS = 3
 _MIN_POINTS_PER_DAY = 6
@@ -133,7 +135,10 @@ def fit_and_save(
     labels = _assign_pattern_labels(kmeans)
     path = Path(model_dir) / f"battery_pattern_{user_id}.joblib"
     path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"kmeans": kmeans, "labels": labels}, path)
+    tmp_path = path.with_suffix(".joblib.tmp")
+    joblib.dump({"kmeans": kmeans, "labels": labels}, tmp_path)
+    tmp_path.rename(path)
+    write_hash(path)
     return True
 
 
@@ -149,7 +154,7 @@ def predict_today(
     if feat is None:
         return None
 
-    saved = joblib.load(path)
+    saved = verify_and_load(path)
     kmeans: KMeans = saved["kmeans"]
     labels: dict[int, str] = saved["labels"]
 
