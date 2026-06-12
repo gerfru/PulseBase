@@ -16,10 +16,17 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
 
 # Node.js
 node_modules/
 api/coverage/
+
+# OS
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
