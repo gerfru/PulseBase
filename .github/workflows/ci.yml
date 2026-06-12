@@ -224,12 +224,31 @@ jobs:
       - run: pnpm run test:coverage
         working-directory: api
 
+  check-e2e-secrets:
+    name: Check E2E Secrets
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - name: Detect configured secrets
+        id: check
+        env:
+          E2E_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+        run: |
+          if [ -n "$E2E_EMAIL" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::E2E_TEST_EMAIL not set — E2E tests skipped (fork or unconfigured repo). See docs/development.md."
+          fi
+
   e2e:
     name: E2E Tests
-    needs: [lint, js-lint, security, typecheck, test, js-test, trivy]
-    # Test-Bench immer ausführen — auch wenn vorgelagerte Jobs (z.B. PR-Size) fehlschlagen.
-    # !cancelled() = läuft trotz Fehlern, respektiert aber manuellen Abbruch.
-    if: ${{ !cancelled() }}
+    needs: [lint, js-lint, security, typecheck, test, js-test, trivy, check-e2e-secrets]
+    # !cancelled()                   = läuft trotz Fehlern, respektiert manuellen Abbruch.
+    # check-e2e-secrets.available    = übersprungen in Forks/PRs ohne konfigurierte Secrets
+    #                                  (skipped zählt bei ci-ok nicht als Fehler).
+    if: ${{ !cancelled() && needs.check-e2e-secrets.outputs.available == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -259,16 +278,6 @@ jobs:
       - name: Install Playwright browsers
         run: uv run playwright install chromium --with-deps
         working-directory: api
-
-      - name: Validate test secrets
-        run: |
-          if [ -z "$TEST_EMAIL" ] || [ -z "$TEST_PASSWORD" ]; then
-            echo "::error::E2E_TEST_EMAIL and E2E_TEST_PASSWORD must be set as repository secrets"
-            exit 1
-          fi
-        env:
-          TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}  # pragma: allowlist secret
 
       - name: Create CI test user
         working-directory: api
@@ -447,7 +456,7 @@ jobs:
     name: CI OK (All Green Gate)
     runs-on: ubuntu-latest
     if: always()
-    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, e2e, deploy-public-smoke, backup-smoke, trivy]
+    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, check-e2e-secrets, e2e, deploy-public-smoke, backup-smoke, trivy]
     steps:
       - name: All checks passed
         run: |
