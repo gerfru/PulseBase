@@ -343,7 +343,7 @@ export function buildHeroCard() {
                 <div class="hero-capacity-grid">${_capacityTilesOnly(_bbScore, _tsb, sparkBatt)}</div>
                 ${mlTile}
                 ${rfScore != null ? feedbackButtons('readiness_rf') : ''}
-                ${rfScore != null ? '<p class="disclosure-disclaimer" style="margin-top:6px">Schätzung auf Basis deiner Daten — kein medizinischer Befund.</p>' : ''}
+                ${rfScore != null ? '<p class="disclosure-disclaimer" style="margin-top:6px">Automatisierte KI-Prognose auf Basis deiner Daten — kein medizinischer Befund (EU AI Act Art. 52).</p>' : ''}
             </div>
         </div>`;
 

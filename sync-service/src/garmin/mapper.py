@@ -95,8 +95,8 @@ def map_records(details: dict[str, Any] | None) -> list[ActivityRecord]:
                 power=_int_or_none(m.get("directPower")),
                 elevation=m.get("directElevation") or m.get("directGrade"),
                 distance=m.get("sumDistance"),
-                lat=point.get("lat"),
-                lng=point.get("lon"),
+                lat=round(point["lat"], 4) if point.get("lat") is not None else None,
+                lng=round(point["lon"], 4) if point.get("lon") is not None else None,
             )
         )
 

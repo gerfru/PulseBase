@@ -1,5 +1,17 @@
 # Setup Guide
 
+## Vor dem ersten öffentlichen Betrieb (Compliance-Checkliste)
+
+Folgende Punkte müssen vor dem Betrieb mit mehreren Nutzern erledigt sein:
+
+- [ ] Impressum-Platzhalter in `api/src/templates/imprint.html` befüllen (§ 5 TMG / Art. 10 ECRL)
+- [ ] Datenschutzerklärung unter `/privacy` auf Vollständigkeit prüfen (DSGVO Art. 13/14)
+- [ ] DPIA (`docs/dpia.md`) ausfüllen, unterzeichnen und archivieren (DSGVO Art. 35)
+- [ ] `PRIVACY_POLICY_VERSION` in `env/.env.api` setzen (für Consent-Versionierung)
+- [ ] Festplattenverschlüsselung auf dem Server aktivieren (TOM gem. DSGVO Art. 32)
+- [ ] Backup-Verschlüsselung prüfen: `env/.env.backup` → `BACKUP_ENCRYPTION_PASSWORD` gesetzt
+- [ ] E-Mail-Verifikation getestet (Resend API-Key in `env/.env.api`)
+
 ## Requirements
 
 - Docker + Docker Compose
