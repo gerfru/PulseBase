@@ -72,7 +72,7 @@ beforeEach(() => {
     document.getElementById('log-msg').style.display = 'none';
     document.getElementById('log-error').style.display = 'none';
     document.getElementById('log-error').textContent = '';
-    document.getElementById('log-cancel').style.display = 'none';
+    document.getElementById('log-cancel').classList.add('hidden');
     document.getElementById('log-card-title').textContent = 'Anfall erfassen';
     document.getElementById('log-submit').textContent = '';
     cancelEditMode();
@@ -361,7 +361,7 @@ describe('edit mode', () => {
         expect(document.getElementById('notes').value).toBe('Vorhandene Notiz');
         expect(document.getElementById('log-card-title').textContent).toBe('Anfall bearbeiten');
         expect(document.getElementById('log-submit').textContent).toBe('Aktualisieren');
-        expect(document.getElementById('log-cancel').style.display).toBe('');
+        expect(document.getElementById('log-cancel').classList.contains('hidden')).toBe(false);
     });
 
     it('does nothing for an unknown id', async () => {
@@ -391,7 +391,7 @@ describe('edit mode', () => {
         expect(_getEditingId()).toBeNull();
         expect(document.getElementById('notes').value).toBe('');
         expect(document.getElementById('log-card-title').textContent).toBe('Anfall erfassen');
-        expect(document.getElementById('log-cancel').style.display).toBe('none');
+        expect(document.getElementById('log-cancel').classList.contains('hidden')).toBe(true);
     });
 
     it('falls back to defaults when editing an event with null fields', async () => {
@@ -556,7 +556,7 @@ describe('Edit/Delete-Steuerung (Coverage)', () => {
         cancelEditMode();
         expect(document.getElementById('log-card-title').textContent).toBe('Anfall erfassen');
         expect(document.getElementById('log-submit').textContent).toBe('Speichern');
-        expect(document.getElementById('log-cancel').style.display).toBe('none');
+        expect(document.getElementById('log-cancel').classList.contains('hidden')).toBe(true);
         expect(_getEditingId()).toBeNull();
     });
 

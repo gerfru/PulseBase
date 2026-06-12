@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}PulseBase — Hilfe & Methodologie{% endblock %}
 {% block extra_head %}
-<style>
+<style nonce="{{ nonce }}">
 .help-search-wrap { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: var(--sp-3) 0 var(--sp-2); border-bottom: 1px solid var(--border); margin-bottom: var(--sp-4); }
 .help-search-input { display: block; width: 100%; padding: 10px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); color: var(--text); outline: none; transition: border-color .15s; }
 .help-search-input:focus { border-color: var(--accent); }

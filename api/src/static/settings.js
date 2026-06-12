@@ -19,7 +19,7 @@ document.getElementById('epilepsy-toggle')?.addEventListener('change', async (e)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ epilepsy_mode: e.target.checked }),
     });
-    document.getElementById('epilepsy-link').style.display = e.target.checked ? '' : 'none';
+    document.getElementById('epilepsy-link').classList.toggle('hidden', !e.target.checked);
 });
 
 document.getElementById('spo2-toggle')?.addEventListener('change', async (e) => {
