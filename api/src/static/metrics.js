@@ -105,14 +105,14 @@ async function load() {
         const summaryEl = document.getElementById('metric-summary');
         if (summaryEl && result.summary) {
             summaryEl.textContent = result.summary;
-            summaryEl.style.display = '';
+            summaryEl.classList.remove('hidden');
         }
 
         // Recommendation block
         const recEl = document.getElementById('metric-recommendation');
         if (recEl && result.recommendation) {
             recEl.textContent = result.recommendation;
-            recEl.style.display = '';
+            recEl.classList.remove('hidden');
         }
 
         // Deep-link to help article
@@ -176,7 +176,7 @@ async function load() {
                         .getElementById('chart-card')
                         ?.parentNode?.insertBefore(chartCard, document.getElementById('chart-card')?.nextSibling);
                 }
-                chartCard.style.display = '';
+                chartCard.classList.remove('hidden');
                 document.getElementById(titleId).textContent = chart.title;
                 const baseScalesM =
                     chart.scales ||
@@ -203,7 +203,7 @@ async function load() {
                 });
             });
         } else if (result.chart) {
-            document.getElementById('chart-card').style.display = '';
+            document.getElementById('chart-card').classList.remove('hidden');
             document.getElementById('chart-title').textContent = result.chart.title;
             const baseScalesS =
                 result.chart.scales ||

@@ -46,9 +46,9 @@ export const CHART_HASHES = {
 
 export function setTab(name) {
     document.querySelectorAll('.tab-panel').forEach((p) => {
-        p.style.display = 'none';
+        p.classList.add('hidden');
     });
-    document.getElementById(`tab-${name}`).style.display = '';
+    document.getElementById(`tab-${name}`).classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach((b) => {
         const selected = b.dataset.tab === name;
         b.classList.toggle('active', selected);

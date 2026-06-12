@@ -170,7 +170,7 @@ export const ML_METRICS = {
                 ],
                 eli5: 'Ein Computerprogramm hat aus deinen Daten gelernt: "Wenn HRV hoch, Schlaf gut und Ruhepuls normal ist, dann ist diese Person morgen meistens fit." 100 Entscheidungsbäume stimmen jeweils unabhängig voneinander ab und ihr Durchschnitt ist die Prognose. Je mehr Tage das Modell beobachtet hat, desto besser kennt es deine persönlichen Muster.',
                 summary:
-                    'Personalisierte ML-Prognose deiner Readiness für morgen — trainiert ausschließlich auf deinen eigenen Daten.',
+                    'Automatisierte KI-Prognose deiner Readiness für morgen — trainiert auf deinen eigenen Daten. Informativ, kein medizinischer Befund (EU AI Act Art. 52).',
                 recommendation: (() => {
                     if (score == null) return null;
                     if (score >= 75)

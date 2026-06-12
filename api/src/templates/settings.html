@@ -76,7 +76,7 @@
                 </select>
             </div>
             <div class="flex items-center justify-between">
-                <span id="profile-msg" class="text-xs text-emerald-500" style="display:none">Gespeichert ✓</span>
+                <span id="profile-msg" class="text-xs text-emerald-500 hidden">Gespeichert ✓</span>
                 <span></span>
                 <button id="profile-save"
                         class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs font-semibold transition-colors">
@@ -112,7 +112,7 @@
             </label>
         </div>
         <div id="epilepsy-link"
-             style="{% if not user.epilepsy_mode %}display:none;{% endif %}margin-bottom:var(--sp-4,1rem);padding-top:var(--sp-3,0.75rem)">
+             class="mb-4 pt-3 {% if not user.epilepsy_mode %}hidden{% endif %}">
             <a href="/epilepsy" class="text-sm text-emerald-500 hover:underline">
                 → Anfallstagebuch öffnen
             </a>

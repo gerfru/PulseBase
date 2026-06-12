@@ -18,20 +18,20 @@
     <div class="px-4 pb-10 flex flex-col gap-4">
 
         <!-- Training Effect -->
-        <div class="card" id="effect-card" style="display:none">
+        <div class="card hidden" id="effect-card">
             <h2>Trainingswirkung</h2>
             <p class="card-desc">Garmin Firstbeat · Skala 0–5 · 1–2 Erhalt · 2–3 Verbesserung · 3–4 Stark verbessernd · 4–5 Überbelastung</p>
             <div id="effect-aerobic" class="effect-row">
                 <span class="effect-name">Aerobe Wirkung</span>
-                <div class="effect-bar"><div class="effect-fill" id="fill-aerobic" style="width:0%"></div></div>
+                <div class="effect-bar"><div class="effect-fill" id="fill-aerobic"></div></div>
                 <span class="effect-val" id="val-aerobic">—</span>
             </div>
             <div id="effect-anaerobic" class="effect-row">
                 <span class="effect-name">Anaerobe Wirkung</span>
-                <div class="effect-bar"><div class="effect-fill" id="fill-anaerobic" style="width:0%"></div></div>
+                <div class="effect-bar"><div class="effect-fill" id="fill-anaerobic"></div></div>
                 <span class="effect-val" id="val-anaerobic">—</span>
             </div>
-            <div id="training-status-row" style="display:none; margin-top: var(--sp-3);">
+            <div id="training-status-row" class="hidden mt-3">
                 <div class="kv-row">
                     <span class="kv-label">Trainingszustand</span>
                     <span id="training-status-badge"></span>
@@ -44,7 +44,7 @@
             <h2>Anstrengung (RPE)</h2>
             <p class="card-desc">Rating of Perceived Exertion — deine subjektive Einschätzung der Belastung · Skala 1 (sehr leicht) bis 10 (maximale Anstrengung) · Foster et al. (2001)</p>
             <div class="rpe-chips" id="rpe-chips"></div>
-            <div id="rpe-stats" style="display:none; margin-top:var(--sp-4)">
+            <div id="rpe-stats" class="hidden mt-4">
                 <div class="kv-row">
                     <span class="kv-label">
                         Session Load
@@ -52,7 +52,7 @@
                     </span>
                     <span class="kv-value" id="rpe-session-load">—</span>
                 </div>
-                <div class="kv-row" style="margin-top:var(--sp-2)">
+                <div class="kv-row mt-2">
                     <span class="kv-label">
                         HR:RPE Effizienz
                         <small class="kv-sub">Ø Puls ÷ RPE — je niedriger, desto mehr Herzstress pro wahrgenommener Anstrengung</small>
@@ -64,14 +64,14 @@
         </div>
 
         <!-- Laufökonomie -->
-        <div class="card" id="economy-card" style="display:none">
+        <div class="card hidden" id="economy-card">
             <h2>Laufökonomie</h2>
             <p class="card-desc">Biomechanische Effizienz-Kennzahlen · Garmin Running Dynamics</p>
             <div id="economy-rows"></div>
         </div>
 
         <!-- GPS Map -->
-        <div class="card" id="map-card" style="display:none">
+        <div class="card hidden" id="map-card">
             <h2>GPS-Track</h2>
             <p id="map-summary" class="sr-only"></p>
             <div id="map" class="relative h-[300px] sm:h-[400px] rounded-xl overflow-hidden mb-2"></div>
@@ -82,19 +82,19 @@
 
         <!-- Charts -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            <div class="card" id="hr-card" style="display:none">
+            <div class="card hidden" id="hr-card">
                 <h2>Herzfrequenz</h2>
                 <div class="chart-wrap"><canvas id="hr-chart"></canvas></div>
             </div>
-            <div class="card" id="pace-card" style="display:none">
+            <div class="card hidden" id="pace-card">
                 <h2 id="pace-title">Pace</h2>
                 <div class="chart-wrap"><canvas id="pace-chart"></canvas></div>
             </div>
-            <div class="card" id="elev-card" style="display:none">
+            <div class="card hidden" id="elev-card">
                 <h2>Höhenprofil</h2>
                 <div class="chart-wrap"><canvas id="elev-chart"></canvas></div>
             </div>
-            <div class="card" id="cadence-card" style="display:none">
+            <div class="card hidden" id="cadence-card">
                 <h2>Kadenz</h2>
                 <div class="chart-wrap"><canvas id="cadence-chart"></canvas></div>
             </div>

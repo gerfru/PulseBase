@@ -257,7 +257,7 @@ describe('ML/Sync polling (Coverage)', () => {
             .mockResolvedValueOnce({ json: () => Promise.resolve({ pending: false }) });
         await loadMlStatus();
         await vi.advanceTimersByTimeAsync(8000);
-        expect(document.getElementById('ml-status').style.display).toBe('none');
+        expect(document.getElementById('ml-status').classList.contains('hidden')).toBe(true);
         vi.clearAllTimers();
     });
 
