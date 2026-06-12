@@ -66,10 +66,10 @@ function renderRpe(activityId, initialRpe, avgHr, durationSeconds) {
     function updateStats(rpe) {
         const statsEl = document.getElementById('rpe-stats');
         if (!rpe) {
-            statsEl.style.display = 'none';
+            statsEl.classList.add('hidden');
             return;
         }
-        statsEl.style.display = '';
+        statsEl.classList.remove('hidden');
         const durationMin = (durationSeconds || 0) / 60;
         document.getElementById('rpe-session-load').textContent = `${Math.round(rpe * durationMin)} AU`;
         document.getElementById('rpe-hr-ratio').textContent = avgHr ? `${(avgHr / rpe).toFixed(1)} bpm/RPE` : '—';
@@ -192,7 +192,7 @@ function renderEconomy(a) {
     if (a.avg_running_power) rows.push(econRow('Laufleistung', `${a.avg_running_power} W`, '', null));
 
     document.getElementById('economy-rows').innerHTML = rows.join('');
-    document.getElementById('economy-card').style.display = '';
+    document.getElementById('economy-card').classList.remove('hidden');
 }
 
 async function load() {
@@ -225,7 +225,7 @@ async function load() {
 
     // Training Effect
     if (a.aerobic_effect || a.anaerobic_effect) {
-        document.getElementById('effect-card').style.display = '';
+        document.getElementById('effect-card').classList.remove('hidden');
         if (a.aerobic_effect) {
             document.getElementById('fill-aerobic').style.width = `${(a.aerobic_effect / 5) * 100}%`;
             document.getElementById('val-aerobic').textContent = a.aerobic_effect.toFixed(1);
@@ -240,7 +240,7 @@ async function load() {
             label: a.training_status,
             cls: 'badge-unbalanced',
         };
-        document.getElementById('training-status-row').style.display = '';
+        document.getElementById('training-status-row').classList.remove('hidden');
         const span = document.createElement('span');
         span.className = `badge ${ts.cls}`;
         span.textContent = ts.label;
@@ -262,7 +262,7 @@ async function load() {
     // GPS Map
     const gpsPoints = records.filter((r) => r.lat && r.lng).map((r) => [r.lat, r.lng]);
     if (gpsPoints.length > 1) {
-        document.getElementById('map-card').style.display = '';
+        document.getElementById('map-card').classList.remove('hidden');
         // Accessibility (WCAG 1.1.1 / 2.1.1): Die Routen-Textzusammenfassung in
         // #map-summary traegt den Inhalt fuer Screenreader. Auf dem #map-Div KEIN
         // role="img" (das wuerde die interaktive Karte als statisches Bild
@@ -299,7 +299,7 @@ async function load() {
 
     // HR Chart
     if (records.some((r) => r.heart_rate)) {
-        document.getElementById('hr-card').style.display = '';
+        document.getElementById('hr-card').classList.remove('hidden');
         makeChart(
             'hr-chart',
             'line',
@@ -320,7 +320,7 @@ async function load() {
 
     // Pace or Speed Chart
     if (isRunning && records.some((r) => r.pace_sec_per_km)) {
-        document.getElementById('pace-card').style.display = '';
+        document.getElementById('pace-card').classList.remove('hidden');
         document.getElementById('pace-title').textContent = 'Pace';
         makeChart(
             'pace-chart',
@@ -339,7 +339,7 @@ async function load() {
             'Pace-Verlauf in Minuten pro Kilometer',
         );
     } else if (isCycling && records.some((r) => r.pace_sec_per_km)) {
-        document.getElementById('pace-card').style.display = '';
+        document.getElementById('pace-card').classList.remove('hidden');
         document.getElementById('pace-title').textContent = 'Geschwindigkeit';
         makeChart(
             'pace-chart',
@@ -363,7 +363,7 @@ async function load() {
 
     // Elevation Chart
     if (records.some((r) => r.elevation)) {
-        document.getElementById('elev-card').style.display = '';
+        document.getElementById('elev-card').classList.remove('hidden');
         makeChart(
             'elev-chart',
             'line',
@@ -385,7 +385,7 @@ async function load() {
 
     // Cadence Chart
     if (records.some((r) => r.cadence)) {
-        document.getElementById('cadence-card').style.display = '';
+        document.getElementById('cadence-card').classList.remove('hidden');
         makeChart(
             'cadence-chart',
             'line',

@@ -61,7 +61,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             f"script-src 'nonce-{nonce}' 'strict-dynamic'; "
-            "style-src 'self' 'unsafe-inline'; "
+            f"style-src 'self' 'nonce-{nonce}'; "
             "font-src 'self'; "
             "img-src 'self' data: https:; "
             "media-src 'self' data:; "

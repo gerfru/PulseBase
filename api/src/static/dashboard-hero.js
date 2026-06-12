@@ -385,7 +385,7 @@ export function buildMlTabs() {
         const anomaly = ml.anomaly_hr;
         const bp = ml.battery_pattern;
         if (anomaly || bp) {
-            document.getElementById('ml-erholung-card').style.display = '';
+            document.getElementById('ml-erholung-card').classList.remove('hidden');
             let html = '<div class="ml-kpi-row">';
             if (anomaly) {
                 const z = anomaly.z_score;
@@ -426,7 +426,7 @@ export function buildMlTabs() {
         const rf = ml.readiness_rf;
         const corr = ml.correlation_sleep_hrv;
         if (rf || corr) {
-            document.getElementById('ml-verlauf-card').style.display = '';
+            document.getElementById('ml-verlauf-card').classList.remove('hidden');
             let html = '<div class="ml-kpi-row">';
             if (rf?.value != null) {
                 const score = Math.round(rf.value);

@@ -173,7 +173,7 @@ export function enterEditMode(id) {
     if (title) title.textContent = 'Anfall bearbeiten';
     document.getElementById('log-submit').textContent = 'Aktualisieren';
     const cancel = document.getElementById('log-cancel');
-    if (cancel) cancel.style.display = '';
+    if (cancel) cancel.classList.remove('hidden');
     document.getElementById('occurred-at').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
@@ -191,7 +191,7 @@ export function cancelEditMode() {
     if (title) title.textContent = 'Anfall erfassen';
     document.getElementById('log-submit').textContent = 'Speichern';
     const cancel = document.getElementById('log-cancel');
-    if (cancel) cancel.style.display = 'none';
+    if (cancel) cancel.classList.add('hidden');
 }
 
 export async function logSeizure() {

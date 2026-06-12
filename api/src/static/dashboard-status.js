@@ -16,7 +16,7 @@ let _mlPollTimer = null;
 function setMlStatus(text, visible) {
     const el = document.getElementById('ml-status');
     el.textContent = text;
-    el.style.display = visible ? '' : 'none';
+    el.classList.toggle('hidden', !visible);
 }
 
 async function pollMlStatus() {
