@@ -6,6 +6,8 @@ import joblib  # type: ignore[import-untyped]
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor  # type: ignore[import-untyped]
 
+from models._integrity import verify_and_load, write_hash
+
 _MIN_TRAINING_ROWS = 30
 
 
@@ -110,6 +112,7 @@ def train_and_save(
         {"model": model, "features": feature_names, "medians": medians}, tmp_path
     )
     tmp_path.rename(model_path)
+    write_hash(model_path)
     importances = {
         f: round(float(v), 4) for f, v in zip(feature_names, model.feature_importances_)
     }
@@ -126,7 +129,7 @@ def predict_tomorrow(
 ) -> dict[str, Any] | None:
     if not model_path.exists():
         return None
-    saved = joblib.load(model_path)
+    saved = verify_and_load(model_path)
     if isinstance(saved, dict):
         model = saved["model"]
         feature_names: list[str] = saved["features"]
