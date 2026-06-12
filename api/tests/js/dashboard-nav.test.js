@@ -113,8 +113,8 @@ describe('setTab', () => {
     beforeEach(() => {
         document.body.innerHTML = `
             <div class="tab-panel" id="tab-training"></div>
-            <div class="tab-panel" id="tab-verlauf" style="display:none"></div>
-            <div class="tab-panel" id="tab-erholung" style="display:none"></div>
+            <div class="tab-panel hidden" id="tab-verlauf"></div>
+            <div class="tab-panel hidden" id="tab-erholung"></div>
             <button class="tab-btn" data-tab="training" class="active"></button>
             <button class="tab-btn" data-tab="verlauf"></button>
             <button class="tab-btn" data-tab="erholung"></button>
@@ -123,13 +123,13 @@ describe('setTab', () => {
 
     it('shows the selected tab panel', () => {
         setTab('verlauf');
-        expect(document.getElementById('tab-verlauf').style.display).toBe('');
+        expect(document.getElementById('tab-verlauf').classList.contains('hidden')).toBe(false);
     });
 
     it('hides all other tab panels', () => {
         setTab('erholung');
-        expect(document.getElementById('tab-training').style.display).toBe('none');
-        expect(document.getElementById('tab-verlauf').style.display).toBe('none');
+        expect(document.getElementById('tab-training').classList.contains('hidden')).toBe(true);
+        expect(document.getElementById('tab-verlauf').classList.contains('hidden')).toBe(true);
     });
 
     it('sets active class on the matching tab button', () => {
