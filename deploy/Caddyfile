@@ -20,6 +20,14 @@
 		level INFO
 	}
 
+	# Block /health and /ready from external access; internal Docker healthchecks
+	# hit the API container directly on port 8000 and are not affected.
+	@block_internal_endpoints {
+		path /health /ready
+		not remote_ip private_ranges
+	}
+	respond @block_internal_endpoints 404
+
 	reverse_proxy api:8000 {
 		header_up X-Forwarded-Proto {scheme}
 	}

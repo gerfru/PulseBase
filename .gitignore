@@ -30,6 +30,6 @@ tokens/
 
 # Claude Code
 CLAUDE.md
-claude/
+.claude/
 review-app-report.md
 review-secure-report.md
