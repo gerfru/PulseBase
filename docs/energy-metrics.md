@@ -382,9 +382,9 @@ Kurzdokumentation der restlichen Modelle:
 |--------|-----------|----------|
 | **ACWR** | ATL/CTL-Ratio; Zonen <0.8/0.8–1.3/1.3–1.5/>1.5 | 50 Tage |
 | **Training Monotony** | Foster (1998): mean(TRIMP)/σ(TRIMP); Strain = Σ×Monotony | 7 Tage |
-| **Sleep Consistency** | Phillips: σ (Standardabweichung ohne Mitternachts-Wraparound) auf Einschlaf-/Aufwachzeit; score=100−σ_wake×15−σ_sleep×10 | 14 Tage |
+| **Sleep Consistency** | Zirkuläre σ (Rayleigh R) auf Einschlaf-/Aufwachzeit — behandelt Mitternachts-Wraparound korrekt; score=100−σ_wake×15−σ_sleep×10 | 14 Tage |
 | **SpO2 Trend** | Lineare Regression auf SpO2-History; Apnoe-Flag wenn min_spo2 < 90% in ≥2 Nächten | 7 Tage |
-| **Stress Score** | HRV σ-Score invertiert + Garmin avg_stress (60/40 blend) | 90 Tage |
+| **Autonomer Stressindex** | HRV σ-Score invertiert + Garmin avg_stress (75/25 blend — Garmin-Stress ist HRV-abgeleitet, daher gering gewichtet) | 90 Tage |
 | **Running Economy** | Z-Score auf Bodenkon­takt­zeit, vertikale Oszillation, vertikales Verhältnis | kein festes Zeitfenster; jüngste Aktivitäten, Top 5 verwendet |
 | **HRV Recovery** | TRIMP-Peak-Detection (>1.5×mean); ΔHRV/Tag in 7-Tage-Fenster post-Peak | 60 Tage |
 | **Anomalie-Erkennung** | Z-Score: z=(x−μ)/σ; threshold 2.0σ; min. 7 Punkte; 31 Tage History | 31 Tage |

@@ -93,15 +93,15 @@ const HELP_GROUPS = [
             {
                 key: 'stress_score_custom',
                 metricName: 'stress-score-custom',
-                title: 'Stress Score (HRV-basiert)',
-                eli5: 'Ein hoher Stress Score bedeutet: dein Nervensystem ist aktiviert. Gemessen wird das über HRV-Abweichung von deinem 97-Tage-Durchschnitt. Ein Score unter 30 = du bist entspannt. Über 60 = dein Körper ist in Kampf-oder-Flucht-Modus. Das kombiniert auch Garmins Stressmarker (sympathische Aktivität).',
+                title: 'Autonomer Stressindex',
+                eli5: "Der Autonome Stressindex misst, wie angespannt dein Nervensystem gerade ist. Gemessen wird das über HRV-Abweichung von deinem 97-Tage-Durchschnitt. Ein Score unter 30 = du bist entspannt. Über 60 = dein Körper ist in Kampf-oder-Flucht-Modus. Garmin's eigener Stress-Wert fließt zu 25% ein — er ist aber selbst HRV-basiert, daher niedrig gewichtet.",
                 formula: [
-                    ['Blending', 'Score = HRV-Komponente × 0.6 + Garmin avg_stress × 0.4'],
+                    ['Blending', 'Score = HRV-Komponente × 0.75 + Garmin avg_stress × 0.25'],
                     ['HRV-Component', '50 − (ln(HRV_today) − μ) / σ × 20'],
                     ['μ, σ', 'Mittel und Standardabw. von ln(HRV), letzte 97 Tage'],
                 ],
                 science:
-                    'Die logarithmische Transformation von HRV (ln RMSSD) ist eine Standard-Normalisierungstechnik. Z-Scores nach ln-Transformation ermöglichen Vergleiche über Zeit ohne Abhängigkeit vom absoluten Niveau. Der 60/40-Blend kombiniert parasympathische Aktivität (HRV) mit sympathischen Markern (Garmin avg_stress).',
+                    'Die logarithmische Transformation von HRV (ln RMSSD) ist eine Standard-Normalisierungstechnik. Z-Scores nach ln-Transformation ermöglichen Vergleiche über Zeit ohne Abhängigkeit vom absoluten Niveau. Der 75/25-Blend gewichtet HRV stärker, da Garmins avg_stress ebenfalls HRV-basiert ist und eine 60/40-Teilung das Signal doppelt zählen würde.',
                 sources: [
                     {
                         label: 'Task Force ESC/NASPE (1996): HRV Standards',
