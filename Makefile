@@ -1,4 +1,4 @@
-.PHONY: network up up-public down-public logs-public config-public restore-test backup down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
+.PHONY: network up up-public down-public logs-public config-public restore-test backup down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy backfill-records tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env --env-file env/.env.app
 # Public SaaS deployment (bundled Caddy + Let's Encrypt). The overlay decouples
@@ -52,8 +52,7 @@ sync: network
 	$(DC) build sync-service && $(DC) up -d --force-recreate sync-service
 
 trigger-sync: ## Garmin-Sync für alle aktiven User anfordern (sync-service verarbeitet binnen 1 Minute)
-	@export $$(grep -v '^#' env/.env | xargs) 2>/dev/null; \
-	$(DC) exec -T db psql -U $${DB_APP_USER} -d garmin \
+	$(DC) exec -T db psql -U garmin_app -d garmin \
 	  -c "UPDATE users SET sync_requested = true WHERE garmin_linked = true AND is_active = true;"
 	@echo "Sync angefordert — läuft binnen 1 Minute. Fortschritt: make logs-sync"
 
@@ -75,6 +74,9 @@ migrate: network
 backfill-energy:
 	$(DC) exec ml-service python /app/src/backfill_energy.py
 
+backfill-records: ## Fetch GPS/HR records from Garmin for all activities without records
+	$(DC) exec sync-service python /app/src/backfill_records.py
+
 backfill-battery: ## Force-recompute body_battery_custom with new model (deletes old predictions first)
 	$(DC) exec db psql -U garmin_app garmin \
 	  -c "DELETE FROM ml_predictions WHERE model = 'body_battery_custom';"
@@ -84,13 +86,12 @@ status:
 	$(DC) ps
 
 db: network
-	@export $$(grep -v '^#' env/.env | xargs) 2>/dev/null; \
 	if [ -n "$(SQL)" ]; then \
-		$(DC) exec -T db psql -U $${DB_APP_USER} -d garmin -c "$(SQL)"; \
+		$(DC) exec -T db psql -U garmin_app -d garmin -c "$(SQL)"; \
 	elif [ -t 0 ]; then \
-		$(DC) exec db psql -U $${DB_APP_USER} -d garmin; \
+		$(DC) exec db psql -U garmin_app -d garmin; \
 	else \
-		$(DC) exec -T db psql -U $${DB_APP_USER} -d garmin; \
+		$(DC) exec -T db psql -U garmin_app -d garmin; \
 	fi
 
 gen-secrets:

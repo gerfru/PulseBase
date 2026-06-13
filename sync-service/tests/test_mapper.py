@@ -254,6 +254,23 @@ class TestMapRecords:
         }
         assert map_records(raw) == []
 
+    def test_direct_grade_not_used_as_elevation_fallback(self):
+        """directGrade is a % slope, not elevation in metres — must not be used."""
+        raw = {
+            "activityDetailMetrics": [
+                {
+                    "metricType": "directGrade",
+                    "metrics": [{"sequenceNumber": 0, "value": 5.0}],
+                }
+            ],
+            "geoPolylineDTO": {
+                "polyline": [{"time": 1745704800000, "lat": 48.20, "lon": 16.37}]
+            },
+        }
+        result = map_records(raw)
+        assert len(result) == 1
+        assert result[0].elevation is None
+
 
 _RAW_SUMMARY = {
     "totalSteps": 8500,
@@ -434,3 +451,52 @@ class TestMapRecordsNonDictEntry:
         }
         records = map_records(details)
         assert len(records) == 1
+
+
+class TestMapRecordsNewFormat:
+    """New Garmin API format: metricDescriptors + positional value arrays."""
+
+    _DESCRIPTORS = [
+        {"metricsIndex": 0, "key": "directTimestamp", "unit": {"key": "gmt"}},
+        {"metricsIndex": 1, "key": "directHeartRate", "unit": {"key": "bpm"}},
+        {"metricsIndex": 2, "key": "directSpeed", "unit": {"key": "mps"}},
+        {"metricsIndex": 3, "key": "directElevation", "unit": {"key": "meter"}},
+        {"metricsIndex": 4, "key": "sumDistance", "unit": {"key": "meter"}},
+    ]
+
+    _DETAILS = {
+        "metricDescriptors": _DESCRIPTORS,
+        "activityDetailMetrics": [
+            {"metrics": [1_000_000_000, 82.0, 2.78, 350.5, 0.0]},
+            {"metrics": [1_000_001_000, 90.0, 3.10, 351.0, 10.0]},
+        ],
+        "geoPolylineDTO": {
+            "polyline": [
+                {"time": 1_000_000_000, "lat": 47.05, "lon": 15.44},
+                {"time": 1_000_001_000, "lat": 47.06, "lon": 15.45},
+            ]
+        },
+    }
+
+    def test_heart_rate_extracted(self):
+        records = map_records(self._DETAILS)
+        assert records[0].heart_rate == 82
+        assert records[1].heart_rate == 90
+
+    def test_elevation_extracted(self):
+        records = map_records(self._DETAILS)
+        assert records[0].elevation == pytest.approx(350.5)
+        assert records[1].elevation == pytest.approx(351.0)
+
+    def test_pace_derived_from_speed(self):
+        records = map_records(self._DETAILS)
+        assert records[0].pace_sec_per_km == pytest.approx(1000 / 2.78, rel=0.01)
+
+    def test_gps_coordinates(self):
+        records = map_records(self._DETAILS)
+        assert records[0].lat == pytest.approx(47.05)
+        assert records[0].lng == pytest.approx(15.44)
+
+    def test_correct_count(self):
+        records = map_records(self._DETAILS)
+        assert len(records) == 2
