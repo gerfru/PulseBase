@@ -31,7 +31,7 @@ from models.readiness import (
     train_and_save,
 )
 from models.running_economy import compute_running_economy
-from models.sleep_metrics import compute_sleep_consistency
+from models.sleep_metrics import _std_hours_circular, compute_sleep_consistency
 from models.sleep_score import compute_custom_sleep_score
 from models.spo2_metrics import (
     _classify_trend,
@@ -234,6 +234,36 @@ def test_body_battery_activity_drain():
         avg_stress=25.0,  # high TRIMP
     )
     assert rest["score"] > hard["score"]
+
+
+def test_body_battery_no_hrv_data_uses_sleep_quality():
+    """Without HRV baseline the fallback must be sleep_quality, not 0.5.
+    Perfect sleep → score well above the old hard-coded 0.5 cap (~88).
+    """
+    perfect_sleep = compute_body_battery(
+        yesterday_score=72.0,
+        sleep_hours=8.0,
+        deep_sleep_hours=1.6,
+        rem_sleep_hours=2.0,
+        hrv_last_night=None,  # no HRV data
+        hrv_baseline=0.0,
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    poor_sleep = compute_body_battery(
+        yesterday_score=72.0,
+        sleep_hours=4.0,
+        deep_sleep_hours=0.4,
+        rem_sleep_hours=0.5,
+        hrv_last_night=None,
+        hrv_baseline=0.0,
+        today_trimp=0.0,
+        avg_stress=25.0,
+    )
+    # Perfect sleep should score higher than poor sleep even without HRV data
+    assert perfect_sleep["score"] > poor_sleep["score"]
+    # Perfect sleep should reach above the old 0.5-cap maximum (~88)
+    assert perfect_sleep["score"] > 90
 
 
 def test_sleep_quality_phases_beat_duration_alone():
@@ -790,6 +820,36 @@ def test_sleep_consistency_high_variance_lower_score():
     assert result["n_nights"] == 10
 
 
+def test_std_hours_circular_midnight_wrap():
+    """_std_hours_circular must return a small σ for values clustered around midnight."""
+    # 23:30 and 00:30 are 1h apart circularly; linear std would give ≈11.5h
+    hours = [23.5, 0.5, 23.5, 0.5]
+    sigma = _std_hours_circular(hours)
+    assert sigma < 1.0, f"Expected σ < 1h for near-midnight cluster, got {sigma:.2f}h"
+    # Values uniformly spread (0, 6, 12, 18) → large circular σ
+    sigma_spread = _std_hours_circular([0.0, 6.0, 12.0, 18.0])
+    assert sigma_spread > sigma
+
+
+def test_sleep_consistency_midnight_wrap():
+    """Circular std must treat 23:30 and 00:30 as 1 h apart, not 23 h apart."""
+    rows = [
+        {"start_h": 23.5, "end_h": 7.0},
+        {"start_h": 0.5, "end_h": 7.0},
+        {"start_h": 23.0, "end_h": 7.5},
+        {"start_h": 0.0, "end_h": 6.5},
+        {"start_h": 23.75, "end_h": 7.25},
+        {"start_h": 0.25, "end_h": 7.0},
+        {"start_h": 23.5, "end_h": 7.0},
+        {"start_h": 0.5, "end_h": 7.0},
+    ]
+    result = compute_sleep_consistency(rows)
+    assert result["score"] is not None
+    assert result["score"] >= 85.0, (
+        f"Expected ≥85 for near-midnight sleeper, got {result['score']}"
+    )
+
+
 # ── Stress Metrics ──────────────────────────────────────────────────────────
 
 
@@ -819,6 +879,16 @@ def test_stress_score_blends_garmin_stress():
     with_garmin = compute_stress_score(history, avg_stress=80.0)
     without_garmin = compute_stress_score(history, avg_stress=None)
     assert with_garmin["score"] != without_garmin["score"]
+
+
+def test_stress_score_blend_ratio_is_75_25():
+    """Verify exact 75/25 HRV/Garmin blend coefficient."""
+    history = [60.0] * 30
+    avg_garmin = 80.0
+    result = compute_stress_score(history, avg_stress=avg_garmin)
+    hrv_component = result["hrv_component"]
+    expected = round(hrv_component * 0.75 + avg_garmin * 0.25, 1)
+    assert result["score"] == pytest.approx(expected, abs=0.05)
 
 
 # ── SpO2 Metrics ─────────────────────────────────────────────────────────────
@@ -1004,6 +1074,7 @@ def test_running_economy_no_gct():
 
 
 def test_running_economy_ideal_gct():
+    # Values well inside optimal thresholds (GCT < 240 ms, VO < 80 mm, VR < 8 %)
     activities = [
         {
             "avg_ground_contact_time": 200,
@@ -1017,11 +1088,12 @@ def test_running_economy_ideal_gct():
 
 
 def test_running_economy_poor_biomechanics():
+    # Values well above the optimal thresholds → score < 50
     activities = [
         {
-            "avg_ground_contact_time": 280,
-            "avg_vertical_oscillation": 90,
-            "avg_vertical_ratio": 12.0,
+            "avg_ground_contact_time": 340,
+            "avg_vertical_oscillation": 120,
+            "avg_vertical_ratio": 13.0,
         }
     ] * 3
     result = compute_running_economy(activities)

@@ -18,9 +18,11 @@ def compute_running_economy(activities: list[dict[str, Any]]) -> dict[str, Any]:
     avg_vo = sum(a.get("avg_vertical_oscillation") or 80 for a in recent) / len(recent)
     avg_vr = sum(a.get("avg_vertical_ratio") or 9 for a in recent) / len(recent)
 
-    gct_score = max(0.0, min(100.0, 100.0 - (avg_gct - 200.0) * 0.5))
-    vo_score = max(0.0, min(100.0, 100.0 - (avg_vo - 60.0) * 2.5))
-    vr_score = max(0.0, min(100.0, 100.0 - (avg_vr - 6.0) * 8.0))
+    # Thresholds aligned with activity.js display labels:
+    # GCT < 240 ms optimal, VO < 8 cm (80 mm) optimal, VR < 8 % optimal.
+    gct_score = max(0.0, min(100.0, 100.0 - max(0.0, avg_gct - 240.0) * 0.5))
+    vo_score = max(0.0, min(100.0, 100.0 - max(0.0, avg_vo - 80.0) * 2.5))
+    vr_score = max(0.0, min(100.0, 100.0 - max(0.0, avg_vr - 8.0) * 8.0))
 
     score = gct_score * 0.4 + vo_score * 0.35 + vr_score * 0.25
 

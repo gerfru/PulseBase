@@ -2,13 +2,27 @@ import math
 from typing import Any
 
 
+def _std_hours_circular(hours: list[float]) -> float:
+    """Circular standard deviation for hour values in [0, 24).
+
+    Maps hours onto the unit circle so that e.g. 23:30 and 00:30 are 1 h
+    apart instead of 23 h apart (Mardia & Jupp 2000, directional statistics).
+    R = mean resultant length (0 = maximally dispersed, 1 = perfectly constant).
+    """
+    if len(hours) < 2:
+        return 0.0
+    angles = [h / 24.0 * 2 * math.pi for h in hours]
+    sin_mean = sum(math.sin(a) for a in angles) / len(angles)
+    cos_mean = sum(math.cos(a) for a in angles) / len(angles)
+    R = math.sqrt(sin_mean**2 + cos_mean**2)
+    if R >= 1.0:
+        return 0.0
+    return math.sqrt(-2 * math.log(R)) / (2 * math.pi) * 24
+
+
 def compute_sleep_consistency(session_rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Phillips et al. (2017) Sci Rep 7:3216: Sleep consistency score.
-    100 − (σ_wake×15 + σ_sleep×10), σ in hours.
-    σ is a plain (linear) standard deviation of bedtime/wake-time hours;
-    it does NOT handle midnight wrap-around (e.g. 23:30 vs 00:30 are treated
-    as ~23h apart, not ~1h). Acceptable while sleep/wake times stay on one
-    side of midnight; revisit with true circular statistics if that breaks.
+    100 − (σ_wake×15 + σ_sleep×10), σ in hours (circular statistics).
     """
     if len(session_rows) < 5:
         return {"score": None, "reason": "insufficient_data"}
@@ -19,15 +33,8 @@ def compute_sleep_consistency(session_rows: list[dict[str, Any]]) -> dict[str, A
     if len(sleeps) < 2 or len(wakes) < 2:
         return {"score": None, "reason": "insufficient_data"}
 
-    def std_hours(hours: list[float]) -> float:
-        """Linear std of hour values (no midnight wrap-around handling)."""
-        if len(hours) < 2:  # pragma: no cover
-            return 0.0
-        m = sum(hours) / len(hours)
-        return math.sqrt(sum((h - m) ** 2 for h in hours) / len(hours))
-
-    std_sleep = std_hours(sleeps)
-    std_wake = std_hours(wakes)
+    std_sleep = _std_hours_circular(sleeps)
+    std_wake = _std_hours_circular(wakes)
     score = max(0.0, min(100.0, 100.0 - std_wake * 15 - std_sleep * 10))
     return {
         "score": round(score, 1),
