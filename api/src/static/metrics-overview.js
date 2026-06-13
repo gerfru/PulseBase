@@ -8,14 +8,14 @@ const METRIC_GROUPS = [
         label: 'Erholung',
         items: [
             {
-                name: 'readiness',
-                title: 'Erholung',
-                icon: '🔄',
-                fetch: '/api/readiness',
-                evKey: 'energy_autonomic',
-                val: (d) => d.score,
+                name: 'body-battery-custom',
+                title: 'Body Battery & Erholung',
+                icon: '🔋',
+                fetch: '/api/ml-insights',
+                evKey: 'body_battery_custom',
+                val: (d) => (d.body_battery_custom?.score != null ? Math.round(d.body_battery_custom.score) : null),
                 unit: '',
-                color: 'var(--green)',
+                color: 'var(--amber)',
             },
             {
                 name: 'autonomic',
@@ -247,7 +247,7 @@ const METRIC_GROUPS = [
             },
             {
                 name: 'stress-score-custom',
-                title: 'Stress Score',
+                title: 'Autonomer Stressindex',
                 icon: '🧘',
                 fetch: '/api/ml-insights',
                 evKey: 'stress_score_custom',

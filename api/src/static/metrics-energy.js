@@ -286,12 +286,13 @@ export const ENERGY_METRICS = {
         title: 'Body Battery (Custom)',
         section: 'Energie',
         async fetch() {
-            const [insights, history, daily] = await Promise.all([
+            const [insights, history, daily, readiness] = await Promise.all([
                 fetch('/api/ml-insights').then((r) => r.json()),
                 fetch('/api/ml-history?days=30').then((r) => r.json()),
                 fetch('/api/daily?days=30').then((r) => r.json()),
+                fetch('/api/readiness').then((r) => r.json()),
             ]);
-            return { insights, history, daily };
+            return { insights, history, daily, readiness };
         },
         render(data) {
             const d = data.insights.body_battery_custom;
@@ -380,12 +381,27 @@ export const ENERGY_METRICS = {
                     if (sc >= 45) return 'Moderate Energie. Mittelschwere Aktivität möglich, auf Signale achten.';
                     return 'Niedrige Energie. Leichte Aktivität oder bewusste Erholung empfohlen.';
                 })(),
+                customHtml: (() => {
+                    const r = data.readiness;
+                    const rScore = r?.score != null ? Math.round(r.score) : null;
+                    const rLevel =
+                        rScore == null ? '—' : rScore >= 75 ? '✓ Erholt' : rScore >= 45 ? '⚠️ Moderat' : '❌ Belastet';
+                    return `<div class="card" style="margin-top:1rem">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+                            <h3 style="margin:0;font-size:1rem">🔄 Erholung (ML Readiness)</h3>
+                            <a href="/metrics/readiness" style="font-size:0.75rem;color:var(--emerald-500)">Details →</a>
+                        </div>
+                        <div style="font-size:2rem;font-weight:700;margin-bottom:0.25rem">${rScore ?? '—'}</div>
+                        <div style="font-size:0.85rem;color:var(--muted)">${rLevel}</div>
+                        ${r?.recommendation ? `<p style="font-size:0.8rem;margin-top:0.5rem;color:inherit">${r.recommendation}</p>` : ''}
+                    </div>`;
+                })(),
             };
         },
     },
 
     'stress-score-custom': {
-        title: 'Stress Score (Custom)',
+        title: 'Autonomer Stressindex',
         section: 'Energie',
         async fetch() {
             const [insights, history, daily] = await Promise.all([
@@ -414,12 +430,12 @@ export const ENERGY_METRICS = {
                     { label: 'Daten (97d)', value: `${d.n_hrv} Nächte` },
                 ],
                 chart: {
-                    title: '30-Tage-Verlauf: unser Score (60% HRV) vs. Garmin Stress (40% Gewicht)',
+                    title: '30-Tage-Verlauf: Autonomer Stressindex (75% HRV) vs. Garmin Stress (25% Gewicht)',
                     type: 'line',
                     labels: hist.map((d) => fmtDate(d.date)),
                     datasets: [
                         {
-                            label: 'Stress Score (Custom)',
+                            label: 'Autonomer Stressindex',
                             data: hist.map((d) => d.value),
                             borderColor: C.red,
                             backgroundColor: 'transparent',
@@ -439,7 +455,7 @@ export const ENERGY_METRICS = {
                     scales: { y: { beginAtZero: true, max: 100 } },
                 },
                 formula: [
-                    ['Blending', 'Score = HRV-Komponente × 0.6 + Garmin avg_stress × 0.4'],
+                    ['Blending', 'Score = HRV-Komponente × 0.75 + Garmin avg_stress × 0.25'],
                     ['HRV-Component', '50 − (ln(HRV_today) − μ) / σ × 20'],
                     ['μ, σ', 'Mittel und Standardabw. von ln(HRV), letzte 97 Tage'],
                     ['Höhere HRV', '→ Niedrigerer Score (Erholung)'],
@@ -448,10 +464,13 @@ export const ENERGY_METRICS = {
                         'Aus Literatur',
                         'Task Force ESC/NASPE (1996) HRV-Standarisierung · Shaffer (2017) ln(HRV) Normalisierung',
                     ],
-                    ['Heuristisch', '60/40-Blend HRV/Garmin · ×20 Skalierungsfaktor'],
+                    [
+                        'Heuristisch',
+                        '75/25-Blend HRV/Garmin · ×20 Skalierungsfaktor · Garmin-Stress ist selbst HRV-basiert → bewusst niedriger gewichtet',
+                    ],
                 ],
                 science:
-                    'Die logarithmische Transformation von HRV (ln RMSSD) ist eine Standard-Normalisierungstechnik (Task Force 1996, Shaffer 2017) für nicht-Gaußsche RMSSD-Verteilungen. Z-Scores nach ln-Transformation ermöglichen Vergleiche über Zeit ohne Abhängigkeit vom absoluten Niveau. Der 60/40-Blend kombiniert parasympathische Aktivität (HRV) mit sympathischen Markernen (Garmin avg_stress) — beide widerspiegeln autonome Balance, sind aber statistisch unabhängig.',
+                    'Die logarithmische Transformation von HRV (ln RMSSD) ist eine Standard-Normalisierungstechnik (Task Force 1996, Shaffer 2017) für nicht-Gaußsche RMSSD-Verteilungen. Z-Scores nach ln-Transformation ermöglichen Vergleiche über Zeit ohne Abhängigkeit vom absoluten Niveau. Der 75/25-Blend gewichtet HRV stärker, da Garmins avg_stress ebenfalls aus HRV abgeleitet wird — eine 60/40-Teilung würde das HRV-Signal doppelt zählen. Garmin-Stress wird mit 25% beibehalten, da manche Geräte zusätzliche Signale (Atemfrequenz, Hautleitwert) einfließen lassen.',
                 sources: [
                     {
                         label: 'Task Force ESC/NASPE (1996): HRV Standards — Circulation 93(5)',
@@ -466,9 +485,9 @@ export const ENERGY_METRICS = {
                         url: 'https://pubmed.ncbi.nlm.nih.gov/23539253/',
                     },
                 ],
-                eli5: 'Ein hoher Stress Score bedeutet: dein Nervensystem ist aktiviert (hohe Herzfrequenzvariabilität ist schlecht = hoher Stress). Gemessen wird das über HRV-Abweichung von deinem 97-Tage-Durchschnitt. Ein Score unter 30 = du bist entspannt. Über 60 = dein Körper ist in Kampf-oder-Flucht-Modus. Das kombiniert auch Garmins Stressmarker (sympathische Aktivität).',
+                eli5: "Der Autonome Stressindex misst, wie angespannt dein Nervensystem gerade ist. Niedrige HRV = dein Körper ist im Stress-Modus. Wir vergleichen deine heutige HRV mit deinem persönlichen 97-Tage-Mittelwert und berechnen daraus einen Score: unter 30 = entspannt, über 60 = Nervensystem stark aktiviert. Garmin's eigener Stress-Wert fließt zu 25% ein — er ist aber selbst HRV-basiert, daher niedrig gewichtet.",
                 summary:
-                    'Bewertet physiologischen Stress via HRV-Abweichung (60%) und Garmin-Stressdaten (40%). Niedriger Score = entspannt.',
+                    'Misst physiologischen Stress des autonomen Nervensystems via HRV-Abweichung (75%) und Garmin-Stressdaten (25%). Niedriger Score = entspannt.',
                 recommendation: (() => {
                     const sc = d.score; // guaranteed non-null by the early-return guard above
                     if (sc < 30) return 'Niedriger Stress — guter Zustand für Belastung oder anspruchsvolle Arbeit.';
