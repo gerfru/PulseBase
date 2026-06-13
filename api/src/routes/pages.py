@@ -37,6 +37,7 @@ _VALID_METRICS = {
     "recovery",
     "battery-pattern",
     "correlations",
+    "vo2max",
 }
 
 

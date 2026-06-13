@@ -28,7 +28,7 @@ const RELATED = {
     'hrv-status-custom': [
         { name: 'autonomic', title: 'Autonome Energie', icon: '💚' },
         { name: 'hrv-recovery', title: 'HRV Recovery', icon: '⬆️' },
-        { name: 'stress-score-custom', title: 'Stress Score', icon: '🧘' },
+        { name: 'stress-score-custom', title: 'Autonomer Stressindex', icon: '🧘' },
     ],
     'hrv-recovery': [
         { name: 'hrv-status-custom', title: 'HRV Status', icon: '🔬' },
@@ -76,6 +76,10 @@ const RELATED = {
     correlations: [
         { name: 'hrv-status-custom', title: 'HRV Status', icon: '🔬' },
         { name: 'sleep-score-custom', title: 'Schlafqualität', icon: '✨' },
+    ],
+    vo2max: [
+        { name: 'training-effect', title: 'Training Effect', icon: '📈' },
+        { name: 'intensity-minutes', title: 'Intensitätsminuten', icon: '⏱️' },
     ],
 };
 

@@ -278,4 +278,48 @@ export const ACTIVITY_METRICS = {
             };
         },
     },
+
+    vo2max: {
+        title: 'VO₂max (Schätzung)',
+        section: 'Aktivität',
+        async fetch() {
+            return fetch('/api/ml-insights').then((r) => r.json());
+        },
+        render(data) {
+            const d = data.training_effect_custom;
+            const vo2 = d?.vo2max;
+            return {
+                value: vo2 != null ? `${vo2}` : '—',
+                sub: 'mL/kg/min · Uth et al. (2004) · 15 × HRmax / HRruhepuls',
+                kpis: [
+                    { label: 'VO₂max Schätzwert', value: vo2 != null ? `${vo2} mL/kg/min` : '—' },
+                    { label: 'Methode', value: 'Uth 2004 (HR-Ratio)' },
+                    { label: 'HRmax Quelle', value: 'Max. aus letzten 12 Monaten' },
+                ],
+                formula: [
+                    ['Uth 2004', 'VO₂max = 15 × (HRmax / HRruhepuls)'],
+                    ['Einheit', 'mL/kg/min (relativ zum Körpergewicht)'],
+                    ['Genauigkeit', 'r = 0.97 gegen Ergometer-Messung (n=33)'],
+                ],
+                science:
+                    'Die Uth-Formel (2004, Eur J Appl Physiol) schätzt VO₂max aus dem Verhältnis von Maximal- zu Ruheherzfrequenz. Sie ist nicht-invasiv und erfordert keine Spiroergometrie. Einschränkung: Am genauesten für trainierte Ausdauersportler; bei sehr niedrigem Ruhepuls (≤ 40 bpm) kann der Wert leicht überoptimistisch sein.',
+                sources: [
+                    {
+                        label: 'Uth et al. (2004) — Eur J Appl Physiol',
+                        url: 'https://pubmed.ncbi.nlm.nih.gov/14624296/',
+                    },
+                ],
+                eli5: 'Je größer der Unterschied zwischen Maximal- und Ruhepuls, desto effizienter ist dein Herz. Ein tiefer Ruhepuls und ein hoher Maximalpuls ergeben einen hohen VO₂max — ein international vergleichbarer Ausdauerwert.',
+                summary: 'Schätzung der maximalen Sauerstoffaufnahme aus dem Herzfrequenz-Verhältnis.',
+                recommendation:
+                    vo2 == null
+                        ? 'Noch keine Daten — synchronisiere mindestens eine intensive Aktivität mit Herzfrequenzmessung.'
+                        : vo2 >= 55
+                          ? 'Ausgezeichnete aerobe Kapazität (≥ 55 mL/kg/min).'
+                          : vo2 >= 45
+                            ? 'Gute aerobe Kapazität. Zone-3/4-Intervalle 1–2× wöchentlich steigern VO₂max weiter.'
+                            : 'Ausbaufähig. Zone-3/4-Intervalle sind der effektivste VO₂max-Booster.',
+            };
+        },
+    },
 };

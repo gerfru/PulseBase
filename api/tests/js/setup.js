@@ -13,6 +13,7 @@ ChartMock.defaults = {
     interaction: {},
     elements: { point: {} },
 };
+ChartMock.register = vi.fn();
 global.Chart = ChartMock;
 
 // DOMPurify is loaded as UMD global in browser — pass-through mock for unit tests
