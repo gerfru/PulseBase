@@ -16,3 +16,8 @@ jobs:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5
         with:
           release-type: simple
+          # History was rewritten by git-filter-repo; old tags no longer point to
+          # commits on main. This SHA is the last pre-Wave-17 commit (v1.2.0) so
+          # release-please collects only Wave 17 commits and proposes v1.3.0.
+          # Remove after the first release-please release PR is merged.
+          last-release-sha: e7ad52fed962e4e41a08e8d609ddbb19fd1cf5bb  # pragma: allowlist secret
