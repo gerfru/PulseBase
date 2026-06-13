@@ -72,9 +72,20 @@
 
         <!-- GPS Map -->
         <div class="card hidden" id="map-card">
-            <h2>GPS-Track</h2>
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <h2 class="mb-0">GPS-Track</h2>
+                <div id="map-layer-control" class="hidden items-center gap-1.5">
+                    <label for="map-layer-select" class="sr-only">Karten-Layer</label>
+                    <select id="map-layer-select" class="text-xs px-2 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                        <option value="normal">Standard</option>
+                        <option value="hr-zones">Puls-Zonen</option>
+                        <option value="pace-zones">Pace / Speed</option>
+                    </select>
+                </div>
+            </div>
             <p id="map-summary" class="sr-only"></p>
             <div id="map" class="relative h-[300px] sm:h-[400px] rounded-xl overflow-hidden mb-2"></div>
+            <div id="hr-zone-legend" class="hidden flex-wrap gap-2 mt-1 mb-1"></div>
             <p class="text-xs text-slate-600 dark:text-slate-400">
                 Karte mit <kbd>Tab</kbd> fokussieren, dann mit den <kbd>Pfeiltasten</kbd> verschieben und mit <kbd>+</kbd> / <kbd>−</kbd> zoomen.
             </p>

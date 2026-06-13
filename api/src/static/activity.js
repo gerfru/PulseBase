@@ -111,6 +111,57 @@ function renderRpe(activityId, initialRpe, avgHr, durationSeconds) {
 
 // Chart.defaults werden zentral in chart-utils.js gesetzt (beim Import oben).
 
+// Alle Aktivitäts-Chart-Instanzen für synchronisierten Crosshair.
+const activityCharts = [];
+
+// Zeichnet eine vertikale Linie an der aktiven Tooltip-Position.
+const _crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw(chart) {
+        if (!chart.tooltip._active?.length) return;
+        const x = chart.tooltip._active[0].element.x;
+        const { ctx } = chart;
+        const { top, bottom } = chart.chartArea;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = document.documentElement.classList.contains('dark')
+            ? 'rgba(148,163,184,0.5)'
+            : 'rgba(100,116,139,0.35)';
+        ctx.stroke();
+        ctx.restore();
+    },
+};
+
+// Überträgt den Hover-Index auf alle anderen Aktivitäts-Charts.
+const _syncPlugin = {
+    id: 'syncCrosshair',
+    afterEvent(chart, args) {
+        const { event: e } = args;
+        if (e.type !== 'mousemove' && e.type !== 'mouseout') return;
+        activityCharts.forEach((other) => {
+            if (other === chart) return;
+            if (e.type === 'mouseout') {
+                other.tooltip.setActiveElements([], {});
+            } else {
+                const els = chart.getElementsAtEventForMode(e.native, 'index', { intersect: false }, true);
+                if (els.length) {
+                    const idx = els[0].index;
+                    other.tooltip.setActiveElements(
+                        other.data.datasets.map((_, di) => ({ datasetIndex: di, index: idx })),
+                        { x: 0, y: 0 },
+                    );
+                }
+            }
+            other.update('none');
+        });
+    },
+};
+
+Chart.register(_crosshairPlugin, _syncPlugin);
+
 function makeChart(id, type, labels, datasets, scales = {}, ariaLabel = '') {
     const canvas = document.getElementById(id);
     // Accessibility: Textalternative + Datentabelle fuer Screenreader (WCAG 1.1.1).
@@ -118,7 +169,7 @@ function makeChart(id, type, labels, datasets, scales = {}, ariaLabel = '') {
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', label);
     buildChartDataTable(canvas, labels, datasets, label);
-    return new Chart(canvas, {
+    const chart = new Chart(canvas, {
         type,
         data: { labels, datasets },
         options: {
@@ -129,6 +180,8 @@ function makeChart(id, type, labels, datasets, scales = {}, ariaLabel = '') {
             scales,
         },
     });
+    activityCharts.push(chart);
+    return chart;
 }
 
 function statTile(label, value) {
@@ -261,6 +314,8 @@ async function load() {
 
     // GPS Map
     const gpsPoints = records.filter((r) => r.lat && r.lng).map((r) => [r.lat, r.lng]);
+    // Align gpsRecords to gpsPoints for HR lookup (same lat/lng filter)
+    const gpsRecords = records.filter((r) => r.lat && r.lng);
     if (gpsPoints.length > 1) {
         document.getElementById('map-card').classList.remove('hidden');
         // Accessibility (WCAG 1.1.1 / 2.1.1): Die Routen-Textzusammenfassung in
@@ -279,22 +334,131 @@ async function load() {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             maxZoom: 18,
         }).addTo(map);
+
+        const HR_ZONES = [
+            { label: 'Z1 Erholung', pct: 0.6, color: C.blue },
+            { label: 'Z2 Grundlage', pct: 0.7, color: C.green },
+            { label: 'Z3 Aerob', pct: 0.8, color: C.amber },
+            { label: 'Z4 Schwelle', pct: 0.9, color: C.orange },
+            { label: 'Z5 VO₂max', pct: 1.0, color: C.red },
+        ];
+
+        const maxHr = a.max_hr || 190;
+        const hasHrData = gpsRecords.some((r) => r.heart_rate);
+        const hasPaceData = gpsRecords.some((r) => r.pace_sec_per_km);
+
+        let trackLayer = null;
+        let hrLayers = [];
+
+        function addStartEndMarkers() {
+            L.circleMarker(gpsPoints[0], {
+                radius: 7,
+                color: C.green,
+                fillColor: C.green,
+                fillOpacity: 1,
+                weight: 2,
+            }).addTo(map);
+            L.circleMarker(gpsPoints[gpsPoints.length - 1], {
+                radius: 7,
+                color: C.red,
+                fillColor: C.red,
+                fillOpacity: 1,
+                weight: 2,
+            }).addTo(map);
+        }
+
+        function drawDefaultTrack() {
+            for (const l of hrLayers) map.removeLayer(l);
+            hrLayers = [];
+            if (!trackLayer) {
+                trackLayer = L.polyline(gpsPoints, { color: C.indigo, weight: 3, opacity: 0.85 }).addTo(map);
+            } else {
+                trackLayer.addTo(map);
+            }
+            document.getElementById('hr-zone-legend').classList.add('hidden');
+            document.getElementById('hr-zone-legend').style.display = '';
+        }
+
+        function drawHrZoneTrack() {
+            if (trackLayer) map.removeLayer(trackLayer);
+            for (const l of hrLayers) map.removeLayer(l);
+            hrLayers = [];
+            for (let i = 0; i < gpsPoints.length - 1; i++) {
+                const hr = gpsRecords[i]?.heart_rate;
+                const pct = hr && maxHr ? hr / maxHr : 0;
+                const zone = HR_ZONES.find((z) => pct <= z.pct) || HR_ZONES.at(-1);
+                const seg = L.polyline([gpsPoints[i], gpsPoints[i + 1]], {
+                    color: hr ? zone.color : C.muted,
+                    weight: 4,
+                    opacity: 0.9,
+                }).addTo(map);
+                hrLayers.push(seg);
+            }
+            const legendEl = document.getElementById('hr-zone-legend');
+            legendEl.innerHTML = HR_ZONES.map(
+                (z) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;color:inherit">
+                    <span style="width:12px;height:12px;border-radius:50%;background:${z.color};display:inline-block"></span>${esc(z.label)}</span>`,
+            ).join('');
+            legendEl.classList.remove('hidden');
+            legendEl.style.display = 'flex';
+        }
+
         const track = L.polyline(gpsPoints, { color: C.indigo, weight: 3, opacity: 0.85 }).addTo(map);
+        trackLayer = track;
         map.fitBounds(track.getBounds().pad(0.12));
-        L.circleMarker(gpsPoints[0], {
-            radius: 7,
-            color: C.green,
-            fillColor: C.green,
-            fillOpacity: 1,
-            weight: 2,
-        }).addTo(map);
-        L.circleMarker(gpsPoints[gpsPoints.length - 1], {
-            radius: 7,
-            color: C.red,
-            fillColor: C.red,
-            fillOpacity: 1,
-            weight: 2,
-        }).addTo(map);
+        addStartEndMarkers();
+
+        function drawPaceZoneTrack() {
+            if (trackLayer) map.removeLayer(trackLayer);
+            for (const l of hrLayers) map.removeLayer(l);
+            hrLayers = [];
+            const paceValues = gpsRecords.map((r) => r.pace_sec_per_km).filter((v) => v != null && v > 0);
+            if (!paceValues.length) {
+                drawDefaultTrack();
+                return;
+            }
+            const sorted = [...paceValues].sort((a, b) => a - b);
+            const q = (p) => sorted[Math.max(0, Math.floor(sorted.length * p) - 1)];
+            const PACE_ZONES = [
+                { max: q(0.2), color: C.green },
+                { max: q(0.4), color: C.blue },
+                { max: q(0.6), color: C.amber },
+                { max: q(0.8), color: C.orange },
+                { max: Infinity, color: C.red },
+            ];
+            for (let i = 0; i < gpsPoints.length - 1; i++) {
+                const pace = gpsRecords[i]?.pace_sec_per_km;
+                const zone = pace ? PACE_ZONES.find((z) => pace <= z.max) || PACE_ZONES.at(-1) : null;
+                hrLayers.push(
+                    L.polyline([gpsPoints[i], gpsPoints[i + 1]], {
+                        color: zone ? zone.color : C.muted,
+                        weight: 4,
+                        opacity: 0.9,
+                    }).addTo(map),
+                );
+            }
+            const paceLabels = isCycling
+                ? ['Sehr schnell', 'Schnell', 'Mittel', 'Langsam', 'Sehr langsam']
+                : ['Sehr schnell', 'Schnell', 'Mittel', 'Langsam', 'Sehr langsam'];
+            const legendEl = document.getElementById('hr-zone-legend');
+            legendEl.innerHTML = PACE_ZONES.map(
+                (z, i) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;color:inherit">
+                    <span style="width:12px;height:12px;border-radius:50%;background:${z.color};display:inline-block"></span>${esc(paceLabels[i])}</span>`,
+            ).join('');
+            legendEl.classList.remove('hidden');
+            legendEl.style.display = 'flex';
+        }
+
+        if (hasHrData || hasPaceData) {
+            const control = document.getElementById('map-layer-control');
+            control.classList.remove('hidden');
+            control.classList.add('flex');
+            document.getElementById('map-layer-select').addEventListener('change', (e) => {
+                if (e.target.value === 'hr-zones') drawHrZoneTrack();
+                else if (e.target.value === 'pace-zones') drawPaceZoneTrack();
+                else drawDefaultTrack();
+            });
+        }
     }
 
     // HR Chart
