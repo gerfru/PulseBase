@@ -55,6 +55,7 @@ def map_activity(raw: dict[str, Any], user_id: int) -> Activity:
 
 
 def _build_metric_index(metrics: list) -> dict[int, dict]:
+    """Old Garmin API format: list of metric-type groups with sequenceNumber."""
     index: dict[int, dict] = {}
     for metric_group in metrics:
         for entry in metric_group.get("metrics", []):
@@ -67,6 +68,21 @@ def _build_metric_index(metrics: list) -> dict[int, dict]:
     return index
 
 
+def _build_metric_index_v2(descriptors: list, metrics: list) -> dict[int, dict]:
+    """New Garmin API format: metricDescriptors + positional value arrays per timepoint."""
+    idx_to_key = {d["metricsIndex"]: d["key"] for d in descriptors}
+    result: dict[int, dict] = {}
+    for row_i, entry in enumerate(metrics):
+        values = entry.get("metrics", [])
+        row: dict = {}
+        for pos, val in enumerate(values):
+            key = idx_to_key.get(pos)
+            if key is not None and val is not None:
+                row[key] = val
+        result[row_i] = row
+    return result
+
+
 def map_records(details: dict[str, Any] | None) -> list[ActivityRecord]:
     if not details:
         return []
@@ -74,7 +90,11 @@ def map_records(details: dict[str, Any] | None) -> list[ActivityRecord]:
 
     metrics = details.get("activityDetailMetrics") or []
     polyline = (details.get("geoPolylineDTO") or {}).get("polyline", [])
-    metric_by_index = _build_metric_index(metrics)
+    descriptors = details.get("metricDescriptors")
+    if descriptors:
+        metric_by_index = _build_metric_index_v2(descriptors, metrics)
+    else:
+        metric_by_index = _build_metric_index(metrics)
 
     for i, point in enumerate(polyline):
         ts_raw = point.get("time")
@@ -93,7 +113,7 @@ def map_records(details: dict[str, Any] | None) -> list[ActivityRecord]:
                     m.get("directRunCadence") or m.get("directBikeCadence")
                 ),
                 power=_int_or_none(m.get("directPower")),
-                elevation=m.get("directElevation") or m.get("directGrade"),
+                elevation=m.get("directElevation"),
                 distance=m.get("sumDistance"),
                 lat=round(point["lat"], 4) if point.get("lat") is not None else None,
                 lng=round(point["lon"], 4) if point.get("lon") is not None else None,

@@ -68,6 +68,27 @@ class TestRecordsExist:
         assert await repo.records_exist(99) is False
 
 
+class TestGetActivitiesWithoutRecords:
+    async def test_returns_list_of_dicts(self, mock_repo):
+        repo, conn = mock_repo
+        conn.fetch.return_value = [
+            {"db_id": 1, "garmin_activity_id": 111},
+            {"db_id": 2, "garmin_activity_id": 222},
+        ]
+        result = await repo.get_activities_without_records(user_id=42)
+        assert result == [
+            {"db_id": 1, "garmin_activity_id": 111},
+            {"db_id": 2, "garmin_activity_id": 222},
+        ]
+        conn.fetch.assert_called_once()
+
+    async def test_returns_empty_list_when_all_have_records(self, mock_repo):
+        repo, conn = mock_repo
+        conn.fetch.return_value = []
+        result = await repo.get_activities_without_records(user_id=42)
+        assert result == []
+
+
 class TestBulkInsertRecords:
     async def test_no_op_on_empty_list(self, mock_repo):
         repo, conn = mock_repo

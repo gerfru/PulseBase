@@ -109,6 +109,22 @@ class TimescaleRepository(
             )
             return row is not None
 
+    async def get_activities_without_records(self, user_id: int) -> list[dict]:
+        async with self._db.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT a.id AS db_id, a.garmin_activity_id
+                FROM activities a
+                WHERE a.user_id = $1
+                  AND NOT EXISTS (
+                      SELECT 1 FROM activity_records r WHERE r.activity_id = a.id
+                  )
+                ORDER BY a.started_at DESC
+                """,
+                user_id,
+            )
+            return [dict(r) for r in rows]
+
     # ── Activity Records (GPS Tracks) ─────────────────────────────────────────
 
     async def bulk_insert_records(self, activity_id: int, records: list) -> None:

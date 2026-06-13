@@ -11,6 +11,9 @@ class ActivityRepository(ABC):
     @abstractmethod
     async def records_exist(self, activity_id: int) -> bool: ...
 
+    @abstractmethod
+    async def get_activities_without_records(self, user_id: int) -> list[dict]: ...
+
 
 class ActivityRecordRepository(ABC):
     @abstractmethod
