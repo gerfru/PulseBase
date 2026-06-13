@@ -75,6 +75,19 @@
                     <option value="diverse" {% if user.sex == 'diverse' %}selected{% endif %}>Divers</option>
                 </select>
             </div>
+            <div class="flex flex-col gap-1.5">
+                <label for="weight" class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Körpergewicht
+                    <span class="text-xs text-slate-600 dark:text-slate-400 font-normal ml-1">(für VO₂max, W/kg)</span>
+                </label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="weight" step="0.1" min="30" max="300"
+                           value="{{ '%.1f'|format(user.weight_kg) if user.weight_kg else '' }}"
+                           placeholder="z.B. 75.0"
+                           class="w-32 px-3.5 py-2 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400 transition-colors">
+                    <span class="text-sm text-slate-600 dark:text-slate-400">kg</span>
+                </div>
+            </div>
             <div class="flex items-center justify-between">
                 <span id="profile-msg" class="text-xs text-emerald-500 hidden">Gespeichert ✓</span>
                 <span></span>

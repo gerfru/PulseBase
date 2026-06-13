@@ -39,7 +39,7 @@ async def get_user_by_id(user_id: int) -> dict[str, Any] | None:
     row = await pool.fetchrow(
         """
         SELECT id, name, email, garmin_linked, garmin_email, libre_linked, libre_email,
-               date_of_birth, sex, epilepsy_mode, spo2_enabled, session_version
+               date_of_birth, sex, weight_kg, epilepsy_mode, spo2_enabled, session_version
         FROM users WHERE id = $1 AND is_active = true AND email_verified_at IS NOT NULL
         """,
         user_id,
@@ -59,12 +59,14 @@ async def update_user_profile(
     user_id: int,
     date_of_birth: date | None,
     sex: str | None,
+    weight_kg: float | None = None,
 ) -> None:
     pool = await get_pool()
     await pool.execute(
-        "UPDATE users SET date_of_birth = $1, sex = $2 WHERE id = $3",
+        "UPDATE users SET date_of_birth = $1, sex = $2, weight_kg = $3 WHERE id = $4",
         date_of_birth,
         sex,
+        weight_kg,
         user_id,
     )
 

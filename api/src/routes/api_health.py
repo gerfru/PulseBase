@@ -197,6 +197,7 @@ async def api_sync_status(request: Request) -> dict:
 class ProfileBody(BaseModel):
     date_of_birth: date | None = None
     sex: str | None = None
+    weight_kg: float | None = None
     epilepsy_mode: bool | None = None
     spo2_enabled: bool | None = None
 
@@ -214,6 +215,13 @@ class ProfileBody(BaseModel):
             raise ValueError("date_of_birth must be in the past")
         return v
 
+    @field_validator("weight_kg")
+    @classmethod
+    def validate_weight(cls, v: float | None) -> float | None:
+        if v is not None and not (30 <= v <= 300):
+            raise ValueError("weight_kg must be between 30 and 300")
+        return v
+
 
 @router.patch("/api/profile")
 async def api_update_profile(request: Request, body: ProfileBody) -> dict:
@@ -223,8 +231,10 @@ async def api_update_profile(request: Request, body: ProfileBody) -> dict:
         await update_epilepsy_mode(user["id"], body.epilepsy_mode)
     if "spo2_enabled" in fields and body.spo2_enabled is not None:
         await update_spo2_enabled(user["id"], body.spo2_enabled)
-    if "date_of_birth" in fields or "sex" in fields:
-        await update_user_profile(user["id"], body.date_of_birth, body.sex)
+    if "date_of_birth" in fields or "sex" in fields or "weight_kg" in fields:
+        await update_user_profile(
+            user["id"], body.date_of_birth, body.sex, body.weight_kg
+        )
     return {"ok": True}
 
 
