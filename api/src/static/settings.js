@@ -1,10 +1,15 @@
 document.getElementById('profile-save').addEventListener('click', async () => {
     const dob = document.getElementById('dob').value;
     const sex = document.getElementById('sex').value;
+    const weightVal = document.getElementById('weight').value;
     await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date_of_birth: dob || null, sex: sex || null }),
+        body: JSON.stringify({
+            date_of_birth: dob || null,
+            sex: sex || null,
+            weight_kg: weightVal ? parseFloat(weightVal) : null,
+        }),
     });
     const msg = document.getElementById('profile-msg');
     msg.style.display = 'inline';

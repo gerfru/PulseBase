@@ -5,6 +5,7 @@ document.body.innerHTML =
     '<button id="profile-save"></button>' +
     '<input id="dob" />' +
     '<select id="sex"><option value=""></option></select>' +
+    '<input id="weight" type="number" />' +
     '<span id="profile-msg" style="display:none"></span>' +
     '<input type="checkbox" id="epilepsy-toggle" />' +
     '<span id="epilepsy-link"></span>' +
@@ -27,6 +28,28 @@ await import('../../src/static/settings.js');
 
 beforeEach(() => {
     vi.clearAllMocks();
+});
+
+describe('profile save', () => {
+    it('includes weight_kg in the fetch body when a value is entered', async () => {
+        document.getElementById('dob').value = '1990-01-01';
+        document.getElementById('sex').value = '';
+        document.getElementById('weight').value = '75.5';
+        document.getElementById('profile-save').click();
+        await Promise.resolve();
+        const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1].body);
+        expect(body.weight_kg).toBeCloseTo(75.5);
+    });
+
+    it('sends weight_kg as null when the field is empty', async () => {
+        document.getElementById('dob').value = '';
+        document.getElementById('sex').value = '';
+        document.getElementById('weight').value = '';
+        document.getElementById('profile-save').click();
+        await Promise.resolve();
+        const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1].body);
+        expect(body.weight_kg).toBeNull();
+    });
 });
 
 describe('Libre unlink confirmation', () => {

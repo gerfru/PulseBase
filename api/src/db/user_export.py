@@ -59,7 +59,7 @@ async def export_user_data(user_id: int) -> dict:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """SELECT id, name, email, created_at, email_verified_at,
-                      date_of_birth, sex, epilepsy_mode, spo2_enabled,
+                      date_of_birth, sex, weight_kg, epilepsy_mode, spo2_enabled,
                       garmin_linked, garmin_email, libre_linked, libre_email
                FROM users WHERE id = $1""",
             user_id,
