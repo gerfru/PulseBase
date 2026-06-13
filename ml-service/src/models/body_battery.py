@@ -69,11 +69,13 @@ def compute_body_battery(
     # Sleep quality: phases (60%) + duration (40%)
     sleep_quality = _sleep_quality(sleep_hours, deep_sleep_hours, rem_sleep_hours)
 
-    # HRV recovery indicator: last night vs personal 30-day baseline
+    # HRV recovery indicator: last night vs personal 30-day baseline.
+    # Falls back to sleep_quality when no HRV baseline exists so the score
+    # range stays fully open instead of being clamped to [52.5, 88].
     hrv_factor = (
         min(1.0, hrv_last_night / hrv_baseline)
         if hrv_baseline > 0 and hrv_last_night
-        else 0.5
+        else sleep_quality
     )
 
     # Fresh daily score from today's physiology

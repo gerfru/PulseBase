@@ -31,7 +31,7 @@ Für eine verständliche Erklärung ohne Mathekenntnisse: [eli5.md](eli5.md).
 | `training_monotony` | Algorithmisch | CV-Statistik | Training Monotony + Strain |
 | `sleep_consistency` | Algorithmisch | Zirkuläre σ | Schlaf-/Aufwachzeit-Konsistenz |
 | `spo2_trend` | Algorithmisch | Lineare Regression | SpO2-Trendanalyse + Apnoe-Flag |
-| `stress_score_custom` | Algorithmisch | HRV-σ invertiert | HRV-basierter Tagesstress 0–100 |
+| `stress_score_custom` | Algorithmisch | HRV-σ + Garmin (75/25) | Autonomer Stressindex 0–100 (Garmin-Stress HRV-abgeleitet → 25% Gewicht) |
 | `hrv_recovery` | Algorithmisch | ΔHRV/Tag | HRV-Erholungstrajektorie |
 | `running_economy` | Algorithmisch | Z-Score-Normierung | Laufökonomie (GCT/VO/VR) |
 | `energy_physical` | Algorithmisch | CTL/TSB Banister | Physische Energie (TSB-basiert) |

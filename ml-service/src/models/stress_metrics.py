@@ -6,10 +6,12 @@ def compute_stress_score(
     hrv_history: list[float | None],
     avg_stress: float | None,
 ) -> dict[str, Any]:
-    """HRV-baseline deviation + Garmin avg_stress (60/40 blend).
+    """HRV-baseline deviation + Garmin avg_stress (75/25 blend).
 
     Uses log(HRV) z-score methodology (Task Force ESC/NASPE 1996, Shaffer 2017).
-    High HRV → low stress. Blending weight heuristically calibrated.
+    High HRV → low stress. Garmin stress is itself HRV-derived, so it is
+    weighted at 25% to reduce double-counting while still incorporating any
+    additional signals (respiration, skin conductance) on supported devices.
     """
     valid = [x for x in hrv_history if x is not None]
 
@@ -24,7 +26,7 @@ def compute_stress_score(
     hrv_stress = max(0.0, min(100.0, 50.0 - deviation * 20.0))
 
     if avg_stress is not None:
-        score = hrv_stress * 0.6 + avg_stress * 0.4
+        score = hrv_stress * 0.75 + avg_stress * 0.25
     else:
         score = hrv_stress
 
