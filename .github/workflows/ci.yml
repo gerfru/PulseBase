@@ -1,8 +1,11 @@
 name: CI
 
+# Nur auf PRs — GitHub testet beim pull_request-Event bereits den Merge-Commit
+# (main + Branch). Ein separater push:[main]-Lauf nach dem Merge wäre bei
+# stets aktuellem Branch redundant; Branch-Protection "Require branches to be
+# up to date before merging" sichert das ab. release-please.yml triggert
+# weiterhin eigenständig auf push:[main].
 on:
-  push:
-    branches: [main]
   pull_request:
 
 concurrency:
@@ -62,6 +65,9 @@ jobs:
 
   security:
     name: Security
+    # Release-PRs (release-please) ändern nur CHANGELOG/version.txt/Manifest —
+    # die schweren Jobs (security, trivy, e2e, smoke) bringen dort keinen Mehrwert.
+    if: github.head_ref != 'release-please--branches--main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -129,6 +135,7 @@ jobs:
 
   trivy:
     name: Trivy Image Scan
+    if: github.head_ref != 'release-please--branches--main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -226,6 +233,7 @@ jobs:
 
   check-e2e-secrets:
     name: Check E2E Secrets
+    if: github.head_ref != 'release-please--branches--main'
     runs-on: ubuntu-latest
     outputs:
       available: ${{ steps.check.outputs.available }}
@@ -248,7 +256,7 @@ jobs:
     # !cancelled()                   = läuft trotz Fehlern, respektiert manuellen Abbruch.
     # check-e2e-secrets.available    = übersprungen in Forks/PRs ohne konfigurierte Secrets
     #                                  (skipped zählt bei ci-ok nicht als Fehler).
-    if: ${{ !cancelled() && needs.check-e2e-secrets.outputs.available == 'true' }}
+    if: ${{ !cancelled() && needs.check-e2e-secrets.outputs.available == 'true' && github.head_ref != 'release-please--branches--main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -304,7 +312,7 @@ jobs:
   deploy-public-smoke:
     name: Public Deployment Smoke
     needs: [lint, typecheck, test]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && github.head_ref != 'release-please--branches--main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -365,7 +373,7 @@ jobs:
   backup-smoke:
     name: Backup Smoke
     needs: [lint, typecheck, test]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && github.head_ref != 'release-please--branches--main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
