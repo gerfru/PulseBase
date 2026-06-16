@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "extra-files": [
+        { "type": "toml", "path": "api/pyproject.toml", "jsonpath": "$.project.version" },
+        { "type": "toml", "path": "sync-service/pyproject.toml", "jsonpath": "$.project.version" },
+        { "type": "toml", "path": "ml-service/pyproject.toml", "jsonpath": "$.project.version" }
+      ]
+    }
+  }
+}
