@@ -175,7 +175,7 @@ def _check_identifier_leak(text: str) -> bool:
 
 def _check_disclaimer(text: str, segment: str) -> bool:
     disclaimer = SEGMENT_DISCLAIMERS.get(segment)
-    return bool(disclaimer) and disclaimer in text
+    return disclaimer is not None and disclaimer in text
 
 
 def _check_coverage(text: str, insight: WeeklyInsight) -> bool:
