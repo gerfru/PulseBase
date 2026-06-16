@@ -22,7 +22,19 @@ def test_api_aggregator_includes_all_feature_routers():
     for mod in (api_health, api_ml, api_seizures, api_glucose):
         assert mod.router.routes, f"{mod.__name__} registered no routes"
 
-    paths = {r.path for r in api.router.routes}
+    # Starlette 1.3 represents included sub-routers as _IncludedRouter
+    # wrappers (.original_router) instead of flattening their routes, so
+    # collect paths recursively to stay version-robust.
+    def collect_paths(router):
+        found = set()
+        for r in router.routes:
+            if hasattr(r, "path"):
+                found.add(r.path)
+            elif hasattr(r, "original_router"):
+                found |= collect_paths(r.original_router)
+        return found
+
+    paths = collect_paths(api.router)
     for expected in (
         "/api/activities",
         "/api/daily",
