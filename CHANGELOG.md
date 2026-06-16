@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/gerfru/PulseBase/compare/v1.3.0...v1.4.0) (2026-06-16)
+
+
+### Features
+
+* **insights:** fail-secure post-check gate + fallback (P3) ([#225](https://github.com/gerfru/PulseBase/issues/225)) ([d9d7e9e](https://github.com/gerfru/PulseBase/commit/d9d7e9e9ea94809bc418e354bd9f8a2c8dcd4d93))
+* **insights:** KI-Wochen-Insights — design docs + Schicht-1 (P0–P2) ([#223](https://github.com/gerfru/PulseBase/issues/223)) ([300fdf1](https://github.com/gerfru/PulseBase/commit/300fdf11950cd4eae3513fc0691fa4fca01f5b4b))
+
 ## 1.3.0 (2026-06-14)
 
 
