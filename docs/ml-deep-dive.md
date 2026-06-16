@@ -244,9 +244,12 @@ Output wird auf [0, 100] geclippt: `min(100.0, max(0.0, prediction))`.
 tmp_path = model_path.with_suffix(".joblib.tmp")
 joblib.dump({"model": model, "features": feature_names, "medians": medians}, tmp_path)
 tmp_path.rename(model_path)  # atomic on same filesystem (Named Volume)
+write_hash(model_path)       # schreibt Integritäts-Hash (models/_integrity.py)
 # model_path: /app/models/readiness_rf_{user_id}.joblib
 ```
 Atomares Schreiben verhindert korrupte Modell-Dateien bei SIGTERM während des Saves.
+Zusätzlich wird ein Integritäts-Hash hinterlegt; die Inferenz lädt das Modell über
+`verify_and_load()` und prüft den Hash, bevor das joblib-Pickle deserialisiert wird.
 
 **Feature Importances** werden nach dem Training als `model_meta_rf` in
 `ml_predictions` gespeichert:
@@ -263,18 +266,36 @@ Atomares Schreiben verhindert korrupte Modell-Dateien bei SIGTERM während des S
 ### Inferenz
 
 ```python
-saved = joblib.load(model_path)
+saved = verify_and_load(model_path)   # Integritäts-Check (Hash) vor dem Laden
 model = saved["model"]
 feature_names = saved["features"]
+medians = saved.get("medians", {})
 
-# Für jedes aktive Feature: Wert holen (None → Fehler → return None)
-X = [[features[f] for f in feature_names]]
-score = float(model.predict(X)[0])
-return round(min(100.0, max(0.0, score)), 1)
+# Für jedes aktive Feature: Wert holen; fehlt er → per-Feature-Median (aus Training).
+# Nur wenn weder Wert noch Median existiert → return None.
+vals = []
+for f in feature_names:
+    v = features.get(f)
+    if v is None:
+        v = medians.get(f)
+    if v is None:
+        return None
+    vals.append(float(v))
+X = np.array([vals])
+
+# Score = Mittel der Einzelbaum-Vorhersagen; Konfidenzband aus 10./90. Perzentil.
+tree_preds = np.array([t.predict(X)[0] for t in model.estimators_])
+return {
+    "score":           _clamp(float(np.mean(tree_preds))),
+    "confidence_low":  _clamp(float(np.percentile(tree_preds, 10))),
+    "confidence_high": _clamp(float(np.percentile(tree_preds, 90))),
+}
 ```
 
-Gibt `None` zurück wenn ein aktives Feature im aktuellen Datensatz fehlt.
-Prediction date = morgen (`date.today() + timedelta(days=1)`).
+Gibt `None` zurück, wenn für ein aktives Feature weder ein aktueller Wert noch ein
+gespeicherter Trainings-Median vorliegt. `_clamp` rundet auf [0, 100].
+Die Inferenz speichert `readiness_rf` für **heute und morgen** (gleicher Score);
+der `confidence_low/high`-Bereich wandert als Metadata mit (`inference_models.py: _run_readiness`).
 
 ---
 
@@ -398,16 +419,16 @@ ON CONFLICT (date, user_id, model) DO UPDATE
 | `hrv_status_custom` | Score 0–100 | `status`, `deviation`, `baseline_mean`, `baseline_std`, `hrv_7d_mean` |
 | `intensity_minutes_custom` | Score 0–100 | `moderate_minutes`, `vigorous_minutes`, `hrmax_used`, `resting_hr_used` |
 | `training_effect_custom` | Score 0–100 | `effect`, `trimp_today`, `ctl`, `atl`, `tsb`, `vo2max`, `sex`, `b_coeff` |
-| `acwr` | Ratio (float) | `atl_7d`, `ctl_42d`, `level` (`green`/`amber`/`red`) |
-| `training_monotony` | Monotony (float) | `strain`, `trimp_mean`, `trimp_std`, `trimp_7d` |
-| `sleep_consistency` | Score 0–100 | `sigma_wake`, `sigma_sleep`, `n_nights` |
+| `acwr` | Ratio (float) | `atl`, `ctl`, `level` (`green`/`amber`/`red`) |
+| `training_monotony` | Monotony (float) | `strain`, `trimp_7d_mean`, `trimp_7d_std`, `trimp_values` |
+| `sleep_consistency` | Score 0–100 | `std_wake_h`, `std_sleep_h`, `n_nights` |
 | `spo2_trend` | mean_spo2 (float) | `slope`, `trend` (`falling`/`stable`/`rising`), `apnea_flag` (true wenn `min_spo2 < 90` an ≥ 2 Nächten), `apnea_nights` |
-| `stress_score_custom` | Score 0–100 | `deviation`, `baseline_mean`, `baseline_std` |
+| `stress_score_custom` | Score 0–100 | `hrv_component`, `garmin_stress`, `hrv_deviation`, `n_hrv` |
 | `hrv_recovery` | recovery_speed (float) | `n_events`, `hrv_baseline`, `trimp_threshold` |
-| `running_economy` | Score 0–100 | `gct_score`, `vo_score`, `vr_score`, `n_runs` |
+| `running_economy` | Score 0–100 | `gct_score`, `vo_score`, `vr_score`, `avg_gct_ms`, `avg_vo_mm`, `avg_vr_pct`, `n_activities` |
 | `energy_physical` | Score 0–100 | `tsb`, `ctl`, `atl` |
-| `energy_autonomic` | Score 0–100 | `deviation_sigma`, `hrv_last_night`, `baseline_mean` |
-| `energy_cognitive` | Score 0–100 | `sleep_debt_hours`, `sleep_h_7d_mean` |
+| `energy_autonomic` | Score 0–100 | `deviation`, `baseline_mean`, `baseline_std`, `hrv_7d_mean` |
+| `energy_cognitive` | Score 0–100 | `debt_hours`, `days_used` |
 
 ---
 

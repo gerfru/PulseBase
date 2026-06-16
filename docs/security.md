@@ -77,7 +77,7 @@ PulseBase ist eine öffentlich zugängliche Self-Hosted-App mit echten Nutzern. 
 | Gesundheitsdaten (Aktivitäten, HRV, Schlaf, Glukose, Anfälle) | Art. 9 (hoch) | TimescaleDB | DB auf internem Netz, kein direkter Zugriff |
 | Garmin/LibreLink Auth-Token | Art. 9 indirekt (Zugriff auf Gesundheitsdaten) | `user_tokens`-Tabelle | Fernet-verschlüsselt at rest |
 | E-Mail, Passwort-Hash | Art. 6 | `users`-Tabelle | bcrypt, nie Plaintext |
-| Session-Cookie | — | Client-Browser | httpOnly, secure, sameSite=Lax |
+| Session-Cookie | — | Client-Browser | httpOnly, secure, sameSite=Strict, max_age=3600 (1h) |
 | Consent-Audit-Log | Art. 5(2) Rechenschaftspflicht | `user_consents`-Tabelle | IP als SHA-256-Hash (keine Reverse-Lookup-Möglichkeit) |
 | Strukturierte Logs | — | stdout / Container-Log | Keine PII (E-Mail, IP nie geloggt) |
 | ML-Modelle | — | `ml-models`-Volume | Aggregiert, kein Rückschluss auf Individuen |
@@ -121,11 +121,11 @@ PulseBase nutzt **signierte Cookie-Sessions** (Starlette `SessionMiddleware`) st
 **Warum kein JWT?**
 JWT erfordert Token-Invalidierung (z.B. bei Konto-Kompromittierung) entweder via Datenbank-Lookup (dann verliert man Statelessness) oder via kurze TTL + Refresh-Token-Rotation (erhöhte Komplexität). Für ein Single-Server-Deployment bringt JWT keinen Vorteil.
 
-**Session-Cookie-Eigenschaften:**
-- `httpOnly=True` — kein JavaScript-Zugriff (verhindert Cookie-Diebstahl via XSS)
-- `secure=True` (wenn `HTTPS_ONLY=true`) — Cookie nur über HTTPS übertragen
-- `sameSite="lax"` — Schutz gegen CSRF bei Navigation (POST-Requests von anderen Domains werden blockiert)
-- TTL: Starlette-Default (Session endet beim Schließen des Browsers, keine persistente Speicherung)
+**Session-Cookie-Eigenschaften** (gesetzt in `api/src/main.py`, `SessionMiddleware`):
+- `httpOnly=True` — kein JavaScript-Zugriff (Starlette-Default; reduziert Cookie-Diebstahl via XSS)
+- `secure=True` (wenn `HTTPS_ONLY=true`, via `https_only=settings.https_only`) — Cookie nur über HTTPS übertragen
+- `sameSite="strict"` — Cookie wird bei Cross-Site-Requests gar nicht mitgesendet (stärker als `lax`)
+- `max_age=3600` — Session läuft nach 1 Stunde ab (signiertes Cookie mit eingebettetem Ablauf, kein reines Browser-Session-Cookie)
 
 **Session-Fixation verhindern:**
 ```python
@@ -157,15 +157,15 @@ Erfolgreicher Login → failed_login_attempts = 0
 # Reset-Token ist NICHT stateless — Zufallswert wird gehasht in der DB abgelegt
 raw = secrets.token_urlsafe(32)
 token_hash = hashlib.sha256(raw.encode()).hexdigest()
-expires_at = datetime.now(timezone.utc) + timedelta(seconds=3600)  # _RESET_MAX_AGE = 1h
+expires_at = datetime.now(timezone.utc) + timedelta(seconds=900)  # _RESET_MAX_AGE = 15 min
 await save_reset_token(user_id, token_hash, expires_at)
 # Validierung per DB-Lookup auf den SHA-256-Hash, nicht per HMAC-Signatur
 ```
 
 - Nur der SHA-256-**Hash** liegt in der DB — ein DB-Leak gibt keine nutzbaren Tokens preis
-- 1h TTL (`_RESET_MAX_AGE`) — kurzes Fenster reduziert Risiko bei abgefangener E-Mail
+- 15min TTL (`_RESET_MAX_AGE = 900`) — kurzes Fenster reduziert Risiko bei abgefangener E-Mail
 - **Token-Invalidierung nach Verwendung:** Nach erfolgreichem Reset wird der DB-Eintrag entwertet — Replay-Angriffe mit demselben Token schlagen fehl.
-- **Nur** E-Mail-Verify- und Account-Delete-Token nutzen stateless `itsdangerous.URLSafeTimedSerializer` (HMAC-signiert mit `SESSION_SECRET`, getrennt per Salt) — der Reset-Token nicht.
+- **Alle drei** Token-Typen sind DB-backed single-use (Reset 15 min, E-Mail-Verify 24h, Account-Delete 1h): ein Zufallswert wird gemailt, nur sein SHA-256-Hash + Ablauf wird gespeichert, serverseitig geprüft und bei Verwendung gelöscht (V26 hat Verify/Delete von stateless `itsdangerous` auf DB-backed umgestellt — keine replaybaren Tokens mehr).
 
 ### 3.5 Garmin/LibreLink Credential-Handling
 
@@ -304,7 +304,7 @@ CSRF (Cross-Site Request Forgery) nutzt aus, dass Browser Cookies automatisch mi
 
 ### 7.2 Double-Submit-Cookie-Pattern
 
-PulseBase implementiert das **Double-Submit-Cookie-Pattern** (kein `SameSite=Strict` ausreichend, da Navigations-POSTs noch funktionieren müssen):
+PulseBase implementiert das **Double-Submit-Cookie-Pattern** zusätzlich zum `SameSite=Strict`-Cookie (Defense in Depth — der CSRF-Token-Check hängt nicht allein vom Browser-SameSite-Verhalten ab):
 
 ```python
 # Generierung (GET-Endpoint):
@@ -321,8 +321,8 @@ if not session_token or not hmac.compare_digest(session_token, form_token):
 
 `hmac.compare_digest()` statt `==` verhindert Timing-Angriffe auf den Token-Vergleich.
 
-**Warum nicht nur `sameSite=lax` reicht:**
-`lax` blockt Cross-Site-POSTs über Formulare — aber nicht wenn der Angreifer per JavaScript `fetch()` mit `credentials: include` und `mode: 'no-cors'` arbeitet. Double-Submit ist robuster.
+**Warum zusätzlich zum `sameSite=strict`-Cookie:**
+Der Session-Cookie ist auf `sameSite=strict` gesetzt (`api/src/main.py`) — Browser senden ihn bei Cross-Site-Requests gar nicht mit. Der serverseitige Double-Submit-Token bleibt als zweite, browser-unabhängige Schicht bestehen, falls ein Browser SameSite nicht korrekt durchsetzt.
 
 ---
 
@@ -796,9 +796,9 @@ DELETE FROM user_tokens WHERE user_id = <id>;
 | Löschung (Art. 17) | `POST /account/delete` | ✅ | E-Mail + Passwort als Bestätigung, atomar in TX |
 | Datenportabilität (Art. 20) | `GET /account/export` | ✅ | Maschinenlesbares JSON-Format |
 | Einwilligung (Art. 7, 9) | `/register` | ✅ | 3 Checkboxen (Gesundheitsdaten, AGB, Alter ≥16) + Audit-Log |
-| Widerruf | Konto-Löschung = impliziter Widerruf | ✅ | Alle Daten inkl. user_consents werden gelöscht |
+| Widerruf | Konto-Löschung = impliziter Widerruf | ✅ | Alle Nutzdaten werden gelöscht; Consent-Logs (user_consents, user_consent_events) bleiben pseudonymisiert erhalten (V30, SET NULL) |
 
-**Wichtig:** Die Consent-Audit-Logs (`user_consents`) werden bei Konto-Löschung mitgelöscht — das ist DSGVO-konform, da der Zweck (Nachweis der Einwilligung) nach Löschung entfällt.
+**Wichtig:** Die Consent-Audit-Logs (`user_consents`, `user_consent_events`) werden bei Konto-Löschung **nicht** gelöscht, sondern pseudonymisiert: V30 ersetzte `ON DELETE CASCADE` durch `ON DELETE SET NULL` — beim Löschen der User-Zeile wird `user_id` auf NULL gesetzt, der Datensatz bleibt als anonymer Nachweis erhalten (Art. 5(2) Rechenschaftspflicht). Alle anderen Nutzdaten werden in derselben Transaktion gelöscht (`delete_user`, `api/src/db/users.py`).
 
 ---
 

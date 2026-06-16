@@ -26,7 +26,7 @@ PulseBase besteht aus drei Diensten, die gleichzeitig laufen und miteinander red
 
 ### 1. Der Postbote (Sync-Service)
 
-Der Sync-Service ist wie ein Postbote, der jeden Morgen um eine feste Uhrzeit
+Der Sync-Service ist wie ein Postbote, der regelmäßig (standardmäßig alle 2 Stunden)
 bei Garmin klingelt und alle neuen Daten abholt:
 
 - Wie viele Schritte hast du gestern gemacht?
@@ -191,6 +191,27 @@ Normalbereich für Nicht-Diabetiker: ca. 70–140 mg/dL.
 
 PulseBase ist kein Medizinprodukt und gibt keine medizinischen Empfehlungen.
 Die Werte dienen ausschließlich der persönlichen Übersicht.
+
+---
+
+## Epilepsie-Modus (optional)
+
+PulseBase hat einen optionalen **Epilepsie-Modus**, den du in den Einstellungen
+ein- oder ausschalten kannst. Ist er aus, ist davon nichts zu sehen.
+
+Schaltest du ihn ein, bekommst du zwei Dinge:
+
+- **Ein Anfallstagebuch** — du kannst Anfälle eintragen (Zeitpunkt, Dauer, Typ,
+  Schwere, Notiz), später bearbeiten oder löschen.
+- **Einen Risiko-Indikator** — eine einfache Ampel (grün / gelb / rot), die aus
+  deinen Garmin-Werten der letzten Tage berechnet wird: Schlafmangel, ein
+  HRV-Einbruch, hoher Stress, leere Body Battery, viel intensives Training oder
+  ein erhöhter Ruhepuls schieben die Ampel Richtung Rot.
+
+Das ist eine **regelbasierte Heuristik, kein medizinisches Werkzeug** — es sagt
+keine Anfälle voraus und ist nicht klinisch validiert. Es soll dir nur einen
+groben Anhaltspunkt geben, an welchen Tagen mehrere Belastungsfaktoren
+zusammenkommen.
 
 ---
 

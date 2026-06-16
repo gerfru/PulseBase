@@ -65,7 +65,7 @@ make up           # alles auf einmal
 ## Datenbank
 
 ```bash
-make migrate      # Flyway-Migrationen ausführen (V1–V27)
+make migrate      # Flyway-Migrationen ausführen (V1–V31)
 make db           # psql-Shell öffnen
 make db SQL="SELECT ..." # SQL direkt ausführen
 ```
@@ -234,13 +234,14 @@ Reihenfolge beim Commit:
 1. **gitleaks** — Secret-Scan (kein Commit wenn Secrets im Diff)
 2. **pre-commit-hooks** — trailing whitespace, YAML/JSON/TOML-Validierung, `no-commit-to-branch` (blockiert direkten Push auf `main`)
 3. **bandit** — SAST: Security-Check für `api/src/`, `sync-service/src/`, `ml-service/src/`
-4. **ruff** — Python Lint + Auto-Fix
-5. **ruff-format** — Python Formatting
-6. **detect-secrets** — Baseline-Check gegen `.secrets.baseline`
-7. **biome** — JS Lint + Format für `api/src/static/`
-8. **mypy-api** — Type Check `api/src/`
-9. **mypy-sync** — Type Check `sync-service/src/`
-10. **mypy-ml** — Type Check `ml-service/src/`
+4. **semgrep** — SAST (`p/python` + `p/owasp-top-ten`) für `api/src/`, `sync-service/src/`, `ml-service/src/`
+5. **ruff** — Python Lint + Auto-Fix
+6. **ruff-format** — Python Formatting
+7. **detect-secrets** — Baseline-Check gegen `.secrets.baseline`
+8. **biome** — JS Lint + Format für `api/src/static/`
+9. **mypy-api** — Type Check `api/src/`
+10. **mypy-sync** — Type Check `sync-service/src/`
+11. **mypy-ml** — Type Check `ml-service/src/`
 
 Hooks manuell auf allen Dateien ausführen:
 
@@ -384,7 +385,7 @@ Vollständige Referenz aller `make`-Targets — die README verlinkt hierher.
 
 | Befehl | Beschreibung |
 |--------|--------------|
-| `make migrate` | Flyway-Migrationen ausführen (V1–V27) |
+| `make migrate` | Flyway-Migrationen ausführen (V1–V31) |
 | `make db` | psql-Shell öffnen |
 | `make db SQL="SELECT ..."` | SQL direkt ausführen |
 

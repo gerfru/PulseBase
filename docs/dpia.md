@@ -72,11 +72,11 @@ Diese Genauigkeit reicht für Kartenvisualisierungen aus.
 
 | Recht | Umsetzung |
 |-------|-----------|
-| Auskunft (Art. 15) | Auf Anfrage via E-Mail; Account-Export geplant |
+| Auskunft (Art. 15) | Account-Export `GET /account/export` (JSON, alle Daten außer `password_hash`) |
 | Berichtigung (Art. 16) | Profil-Einstellungen unter `/settings` |
 | Löschung (Art. 17) | Account-Löschung löscht alle Nutzdaten; Consent-Audit-Log pseudonymisiert (V30) |
 | Einschränkung (Art. 18) | Auf Anfrage via E-Mail |
-| Datenübertragbarkeit (Art. 20) | _[geplant / noch nicht implementiert]_ |
+| Datenübertragbarkeit (Art. 20) | Account-Export `GET /account/export` (maschinenlesbares JSON) |
 | Widerspruch (Art. 21) | Garmin-Verknüpfung unter `/settings` trennbar |
 
 ---
@@ -108,11 +108,11 @@ EU AI Act Art. 52: Prognosen sind als KI-generiert gekennzeichnet (Disclaimer im
 - Verschlüsselung in Transit: TLS 1.2+ (Caddy)
 - Verschlüsselung at Rest: _[Festplattenverschlüsselung des Hosts aktivieren]_
 - Passwort-Hashing: bcrypt (cost 12)
-- Session-Sicherheit: HttpOnly, Secure, SameSite=Lax Cookies
+- Session-Sicherheit: HttpOnly, Secure, SameSite=Strict Cookies (max_age 1h)
 - Rate Limiting: Login-Lockout nach 5 Fehlversuchen
 - CSP: `style-src 'nonce-…'`, keine `unsafe-inline`
 - Secrets: `.env`-Dateien, nicht im Git-Repository
-- Backup: tägliche Postgres-Dumps, AES-verschlüsselt
+- Backup: tägliche Postgres-Dumps (`pg_dump -Fc`), age-verschlüsselt (X25519 / ChaCha20-Poly1305, asymmetrisch — privater Key offsite)
 
 ---
 

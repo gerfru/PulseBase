@@ -9,7 +9,7 @@ Folgende Punkte müssen vor dem Betrieb mit mehreren Nutzern erledigt sein:
 - [ ] DPIA (`docs/dpia.md`) ausfüllen, unterzeichnen und archivieren (DSGVO Art. 35)
 - [ ] `PRIVACY_POLICY_VERSION` in `env/.env.api` setzen (für Consent-Versionierung)
 - [ ] Festplattenverschlüsselung auf dem Server aktivieren (TOM gem. DSGVO Art. 32)
-- [ ] Backup-Verschlüsselung prüfen: `env/.env.backup` → `BACKUP_ENCRYPTION_PASSWORD` gesetzt
+- [ ] Backup-Verschlüsselung prüfen: `env/.env.backup` → `AGE_RECIPIENT` gesetzt (age Public-Key)
 - [ ] E-Mail-Verifikation getestet (Resend API-Key in `env/.env.api`)
 
 ## Requirements
@@ -107,7 +107,7 @@ The API container joins the external `proxy` network shared with homelab-gateway
 Wait until the API is ready:
 ```bash
 make status
-make logs
+make logs-dashboard
 ```
 
 > **Public SaaS (without homelab-gateway):** Use `make up-public` instead. This
@@ -220,7 +220,7 @@ automatically on the next run.
 Check that the `db` container is healthy before the API starts.
 ```bash
 make status
-make logs
+make logs-dashboard
 ```
 
 **`proxy` network not found:**
