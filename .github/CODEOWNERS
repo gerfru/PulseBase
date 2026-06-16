@@ -1,0 +1,3 @@
+# Code owners for PulseBase.
+# The evidence catalog carries health claims — every change needs explicit review.
+/api/src/insights/evidence_catalog.json @gerfru
