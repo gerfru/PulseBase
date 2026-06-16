@@ -1,8 +1,9 @@
 # Review — Offene Punkte (konsolidiert)
 
-Stand: 2026-06-08. Fasst die **verbliebenen** Punkte aus den drei Reviews zusammen
-(App/Security/CI, UX/AI/Accessibility, Style/CSS). Die Vollberichte wurden nach
-vollständiger Umsetzung entfernt — sie liegen in der Git-Historie.
+Stand: 2026-06-08 (re-verifiziert 2026-06-16 gegen Codebase, Stand v1.3.0). Fasst die
+**verbliebenen** Punkte aus den drei Reviews zusammen (App/Security/CI, UX/AI/Accessibility,
+Style/CSS). Die Vollberichte wurden nach vollständiger Umsetzung entfernt — sie liegen in
+der Git-Historie.
 
 ## Status der drei Reviews
 
@@ -26,14 +27,21 @@ Ausnahmen — keine offene Implementierungsarbeit.
   `age-keygen`) + `make up`; der Backup-Container sichert dann täglich verschlüsselt
   (Runbook in [deployment-public.md](deployment-public.md#backups-health-pii-pflicht)),
   monatlich `make restore-test`. *(seit Wave 16 PR-B Container statt Host-Cron)*
-- [ ] **GitHub-native Secret-Scanning** aktivieren, sobald Public-Repo / GHAS verfügbar
-  (aktuell blocked-by-plan; Layer 1+2 gitleaks decken ab). *(App-Review M3)*
+- [x] **GitHub-native Secret-Scanning** — ✅ erledigt: Repo ist seit dem Public-Release
+  öffentlich (`gerfru/PulseBase`, visibility PUBLIC) und GitHub Secret-Scanning ist aktiv
+  (API `repos/.../secret-scanning/alerts` antwortet 200/`[]`, also aktiviert, 0 Alerts).
+  Ergänzt die bestehenden gitleaks-Layer 1+2. *(App-Review M3)*
 
 ## 2 · Bewusst aufgeschoben (Trigger dokumentiert)
 
-- **CD-Pipeline** (CICD-M4) — Auto-Deploy via SSH. Für solo/Single-Server marginal;
+- **CD-Pipeline** (CICD-M4) — *Deploy*-Automatisierung (Auto-Deploy auf den Server via SSH)
+  bleibt aufgeschoben (ADR-0002 weiterhin „Deferred"): für solo/Single-Server marginal,
   einführen bei häufigem Deploy oder Multi-Environment. Architektur + Trigger:
   [`docs/adr/0002-cd-pipeline.md`](adr/0002-cd-pipeline.md).
+  Hinweis: Die *Release*-Automatisierung (Versionierung/Changelog/GitHub-Release via
+  release-please, Conventional Commits) ist seit dem Public-Release vorhanden
+  (`.github/workflows/release-please.yml`, zuletzt v1.3.0) — der **Deploy** auf den Server
+  erfolgt aber weiterhin manuell per `make up`.
 - **JS-Coverage Phase 2** — ✅ die 5 reinen Render-Module (`metrics-energy/readiness/sleep/
   garmin/activity`) sind im Vitest-Gate (7→12 Module, ≥95/90). Offen bleiben nur die
   DOM-/fetch-lastigen Loader (`dashboard-loaders`, `dashboard-hero`, `activity`). Hinweis:

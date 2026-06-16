@@ -34,7 +34,7 @@ handlers in `api/src/main.py` normalise everything into this shape:
 | Status | `code` | Source |
 |--------|--------|--------|
 | 400 | `BAD_REQUEST` | raised `HTTPException(400)` |
-| 403 | `FORBIDDEN` | CSRF check on `/garmin/unlink`, `/libre/unlink` |
+| 403 | `FORBIDDEN` | CSRF check (`/garmin/unlink`, `/libre/unlink`, `POST /account/delete/confirm/{token}`) or epilepsy-mode guard on `/api/seizures*` |
 | 404 | `NOT_FOUND` | unknown route or missing resource |
 | 405 | `METHOD_NOT_ALLOWED` | wrong HTTP verb |
 | 422 | `VALIDATION_ERROR` | Pydantic request validation |
@@ -66,6 +66,9 @@ Rate-limited to 10 requests/minute per IP.
 |-------|------|----------|
 | `email` | string | yes |
 | `password` | string | yes |
+
+A valid `csrf_token` form field is also required; on mismatch the login form is
+re-rendered with an error (HTTP 400).
 
 On success: redirects to `/`. Failed-attempt counter resets to 0.
 
@@ -130,12 +133,14 @@ Rate-limited to 3 requests/hour per IP.
 | `email` | string | yes |
 
 Always returns HTTP 200 (non-leaking — same response whether the email exists or not).
-If the email is registered and not yet verified, a new signed verification link is sent.
-If `RESEND_API_KEY` is not configured, the link is logged to stdout instead.
+If the email is registered and not yet verified, a new single-use verification link is sent.
+If sending fails (e.g. `RESEND_API_KEY` not configured), the form is re-rendered with a
+warning; the link is not logged.
 
 ### `GET /auth/verify/{token}`
 
-Completes email verification. Token is HMAC-signed, 24h TTL (different salt from password-reset tokens).
+Completes email verification. Token is a random single-use value (only its SHA-256 hash
+is stored server-side), 24h TTL.
 
 Returns HTTP 400 if the token is invalid or expired.
 On success: sets `email_verified_at` and redirects to `/login?verified=1`.
@@ -153,12 +158,13 @@ Rate-limited to 3 requests/hour per IP.
 | `email` | string | yes |
 
 Always returns HTTP 200 with a confirmation message (non-leaking — same response whether
-the email exists or not). If the email is registered, a signed reset link is sent via
-Resend. If `RESEND_API_KEY` is not configured, the link is logged to stdout instead.
+the email exists or not). If the email is registered, a single-use reset link is sent via
+Resend (15-minute TTL). The link is never logged to stdout.
 
 ### `GET /auth/reset/{token}`
 
-Renders the new password form. Token is a time-limited HMAC-signed value (1 hour TTL).
+Renders the new password form. Token is a random single-use value (only its SHA-256 hash
+is stored server-side), 15-minute TTL.
 
 Returns HTTP 400 if the token is invalid or expired.
 
@@ -194,12 +200,15 @@ Renders the Garmin account linking form.
 
 ### `POST /garmin/link`
 
+Rate-limited to 5 requests/hour per IP. Requires a valid `csrf_token` form field
+(re-renders the form with an error, HTTP 403, on mismatch).
+
 | Field | Type | Notes |
 |-------|------|-------|
 | `garmin_email` | string | Garmin Connect email |
 | `garmin_password` | string | Used once, then deleted from memory |
 
-Authenticates against Garmin Connect via a temporary directory (`tempfile.TemporaryDirectory`), Fernet-encrypts the session token, and stores it in the `user_tokens` DB table. Marks user as `garmin_linked = true`. No token is written permanently to disk.
+Authenticates against Garmin Connect via a temporary directory (`tempfile.TemporaryDirectory`), Fernet-encrypts the session token, and stores it in the `user_tokens` DB table. Marks user as `garmin_linked = true`, then queues an initial sync. No token is written permanently to disk.
 
 On success: redirects to `/?linked=1`.
 On failure: re-renders form with error (HTTP 400).
@@ -238,6 +247,9 @@ Renders the LibreLinkUp linking form. When already linked, shows the connected
 email and a disconnect button instead of the form.
 
 ### `POST /libre/link`
+
+Rate-limited to 5 requests/hour per IP. Requires a valid `csrf_token` form field
+(re-renders the form with an error, HTTP 403, on mismatch).
 
 | Field            | Type   | Notes                                                |
 |------------------|--------|------------------------------------------------------|
@@ -289,9 +301,9 @@ A valid `csrf_token` form field is also required (HTTP 400 on mismatch).
 
 This is the **first step of a two-step deletion**. On success it does *not* delete
 immediately: it marks the account as pending-deletion, sends a confirmation email
-containing a signed link (`/account/delete/confirm/{token}`), and renders the
-`account_delete_pending.html` page. If the email cannot be sent, the confirmation URL
-is written to the log instead. The actual deletion happens at the confirm endpoint below.
+containing a single-use link (`/account/delete/confirm/{token}`), and renders the
+`account_delete_pending.html` page. If the email cannot be sent, the event is logged.
+The actual deletion happens at `POST /account/delete/confirm/{token}` below.
 
 On failure (wrong email or password): re-renders settings page with error (HTTP 400).
 
@@ -299,12 +311,23 @@ On failure (wrong email or password): re-renders settings page with error (HTTP 
 
 Rate-limited to 10 requests/hour per IP.
 
-Completes the deletion. Token is HMAC-signed (24h TTL). On a valid token, deletes the
-account and all associated data (activities, sleep, HRV, glucose, seizure events, daily
-summaries, ML predictions, Garmin tokens), clears the session, and redirects to
-`/login?deleted=1`.
+Renders the deletion confirmation form (`account_delete_confirm.html`) — **no side effects**,
+so an email scanner auto-clicking the link cannot delete the account. The token is a random
+single-use value (only its SHA-256 hash is stored server-side), 1-hour TTL.
 
-Returns HTTP 400 (renders `account_delete_pending.html` with an error) if the token is
+Returns HTTP 400 (renders `account_delete_confirm.html` with an error) if the token is
+invalid or expired.
+
+### `POST /account/delete/confirm/{token}`
+
+Rate-limited to 10 requests/hour per IP.
+
+Performs the deletion after the user explicitly confirms via the form. Requires a valid
+`csrf_token` form field (HTTP 403 on mismatch). On a valid token, deletes the account and
+all associated data (activities, sleep, HRV, glucose, seizure events, daily summaries,
+ML predictions, Garmin tokens), clears the session, and redirects to `/login?deleted=1`.
+
+Returns HTTP 400 (renders `account_delete_confirm.html` with an error) if the token is
 invalid or expired. Redirects to `/login` if the user no longer exists.
 
 ### `GET /account/export`
@@ -583,7 +606,9 @@ Returns weekly training volume aggregates.
 
 ### `GET /api/readiness`
 
-Returns a rule-based readiness score for the most recent day with data (within last 2 days).
+Returns a recovery score (0–100) computed from the autonomic and cognitive energy
+dimensions. Training-stress balance (physical/TSB) is deliberately **excluded** — it
+measures accumulated weekly load, not today's recovery quality.
 
 **Response:**
 
@@ -592,7 +617,6 @@ Returns a rule-based readiness score for the most recent day with data (within l
   "score": 74,
   "label": "In Ordnung",
   "cls": "badge-balanced",
-  "energy_physical": 62,
   "energy_autonomic": 78,
   "energy_cognitive": 85
 }
@@ -600,21 +624,21 @@ Returns a rule-based readiness score for the most recent day with data (within l
 
 | Field | Notes |
 |-------|-------|
-| `score` | 0–100, weighted average of the three energy dimensions |
-| `label` | `Bereit` (≥75) / `In Ordnung` (≥55) / `Erholen` (≥35) / `Pause` (<35) |
-| `cls` | CSS badge class for color coding |
-| `energy_physical` | Physical energy score or `null` if not yet computed |
+| `score` | 0–100, weighted average of the two energy dimensions |
+| `label` | `Gut erholt` (≥75) / `In Ordnung` (≥55) / `Erholen` (≥35) / `Erschöpft` (<35) |
+| `cls` | CSS badge class for color coding (`badge-balanced` / `badge-unbalanced` / `badge-poor`) |
 | `energy_autonomic` | Autonomic (HRV) energy score or `null` |
 | `energy_cognitive` | Cognitive (sleep debt) energy score or `null` |
-| `score: null` | Returned when none of the three energy dimensions have data yet |
 
-**Score formula** (missing dimensions are excluded and weights renormalized):
+When neither dimension has data, the response is `{"score": null, "label": "Keine Daten",
+"cls": "badge-poor", "energy_autonomic": null, "energy_cognitive": null}`.
+
+**Score formula** (a missing dimension is excluded and the weights renormalized):
 
 | Dimension | Weight |
 |-----------|--------|
-| Physical energy (CTL/TSB) | 35% |
-| Autonomic energy (HRV σ-baseline) | 40% |
-| Cognitive energy (sleep debt) | 25% |
+| Autonomic energy (HRV σ-baseline) | 60% |
+| Cognitive energy (sleep debt) | 40% |
 
 ---
 
@@ -648,9 +672,9 @@ Returns recent glucose readings from LibreLinkUp. Only available when `libre_lin
 
 **Query parameters:**
 
-| Parameter | Default | Notes                         |
-|-----------|---------|-------------------------------|
-| `hours`   | `24`    | How many hours back to return |
+| Parameter | Default | Range  | Notes                         |
+|-----------|---------|--------|-------------------------------|
+| `hours`   | `24`    | 1–168  | How many hours back to return |
 
 **Response** — array ordered by `time DESC`:
 
@@ -783,7 +807,10 @@ to `ml_predictions`; this endpoint returns the most recent row per model (within
 | `running_economy` | Running efficiency score 0–100 | `avg_gct_ms`, `avg_vo_mm`, `avg_vr_pct`; running only; null if no runs |
 | `hrv_recovery` | HRV recovery speed post-training | `recovery_speed` (ms/day), `n_events`, `hrv_baseline`, `trimp_threshold` |
 
-Returns `{}` if no ML data has been computed yet.
+In addition to the per-model keys, the response always carries two top-level fields:
+`min_samples_met` (boolean — `true` once ≥ 30 valid training rows exist for the RF model)
+and `n_samples` (integer — number of training rows used). When no per-model ML data has
+been computed yet, only these two fields are present.
 
 ---
 
@@ -846,13 +873,14 @@ Saves the user's date of birth, biological sex, and optional epilepsy / SpO₂ m
 **Request body (JSON):**
 
 ```json
-{ "date_of_birth": "1990-05-15", "sex": "m", "epilepsy_mode": true, "spo2_enabled": true }
+{ "date_of_birth": "1990-05-15", "sex": "m", "weight_kg": 72.5, "epilepsy_mode": true, "spo2_enabled": true }
 ```
 
 | Field | Type | Constraint |
 |-------|------|------------|
 | `date_of_birth` | `date \| null` | ISO 8601, must be in the past |
 | `sex` | `string \| null` | `"m"`, `"f"`, or `"diverse"` |
+| `weight_kg` | `float \| null` | 30–300 |
 | `epilepsy_mode` | `boolean \| null` | Enables seizure diary; omit to leave unchanged |
 | `spo2_enabled` | `boolean \| null` | Enables SpO₂ tracking; omit to leave unchanged |
 
@@ -1014,7 +1042,7 @@ not in the allowed set.
 `hrv-status-custom`, `training-status`, `readiness`, `sleep-score-custom`,
 `stress-score-custom`, `intensity-minutes`, `training-effect`, `training-monotony`,
 `spo2-trend`, `sleep-consistency`, `running-economy`, `hrv-recovery`, `recovery`,
-`battery-pattern`, `correlations`
+`battery-pattern`, `correlations`, `vo2max`
 
 **Response:** HTML page (`metrics.html` template). Data is loaded client-side via
 `/api/activities`, `/api/daily`, `/api/sleep`, `/api/hrv/trend`, and `/api/energy`.
@@ -1023,7 +1051,9 @@ not in the allowed set.
 
 ### `POST /api/seizures`
 
-Logs a new seizure event. Session-protected. Only meaningful when `epilepsy_mode = true`.
+Logs a new seizure event. Session-protected. Requires `epilepsy_mode = true` —
+returns HTTP 403 (`{"error": {"code": "FORBIDDEN", "message": "Epilepsy mode not enabled"}}`)
+otherwise. The same `epilepsy_mode` guard (403) applies to every `/api/seizures*` endpoint below.
 
 **Request body (JSON):**
 
@@ -1280,7 +1310,8 @@ ready.
 ### `GET /api/metrics`
 
 Returns runtime saturation metrics collected via `psutil` (active/error request counters,
-uptime, RSS memory, CPU percent). **Session-protected** (requires a valid session).
+uptime, RSS memory, CPU percent, DB pool usage, p95 request duration). **Session-protected**
+(requires a valid session).
 
 ```json
 {
@@ -1288,6 +1319,11 @@ uptime, RSS memory, CPU percent). **Session-protected** (requires a valid sessio
   "error_requests_total": 0,
   "uptime_seconds": 4213,
   "memory_mb": 84.2,
-  "cpu_percent": 0.3
+  "cpu_percent": 0.3,
+  "db_pool_used": 2,
+  "db_pool_max": 10,
+  "p95_duration_ms": 42.0
 }
 ```
+
+`p95_duration_ms` is `null` until at least 20 requests have been observed.

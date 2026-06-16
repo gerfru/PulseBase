@@ -141,7 +141,7 @@ from `input.css` + `api/tailwind.config.js`. Run after any template changes:
 make tailwind-build
 ```
 
-The output (`tailwind.min.css`, ~19 KB) is committed and served as a static file.
+The output (`tailwind.min.css`, ~27 KB) is committed and served as a static file.
 No CDN, no runtime script, no build step in Docker.
 
 **Light / Dark theme:**

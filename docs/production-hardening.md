@@ -148,7 +148,7 @@ Datenschutzerklärung, nicht vorausgewählt).
 | Garmin Aktivitätsdaten | Garmin Connect API | Analyse, Dashboard | bis Konto-Löschung | Nein (EU-Hosting) |
 | Garmin Gesundheitsdaten (HRV, Schlaf) | Garmin Connect API | Analyse, ML | bis Konto-Löschung | Nein |
 | Glukosedaten | LibreLink API | Analyse | bis Konto-Löschung | Nein |
-| Login-Session | Starlette SessionMiddleware | Auth | 14 Tage inaktiv | Nein |
+| Login-Session | Starlette SessionMiddleware | Auth | 1 Stunde (max_age=3600) | Nein |
 | Garmin Auth-Token + LibreLink Token | user_tokens DB-Tabelle (Fernet-verschlüsselt, V20) | Sync | bis Konto getrennt | Nein |
 
 ---
@@ -158,9 +158,9 @@ Datenschutzerklärung, nicht vorausgewählt).
 ### 3.1 Password-Reset-Flow ✅
 
 Implementiert **DB-backed** (`api/src/auth_tokens.py`): `secrets.token_urlsafe(32)` → SHA-256-Hash
-→ via `save_reset_token` in der DB abgelegt, Validierung per DB-Lookup. 1-Stunde TTL (`_RESET_MAX_AGE = 3600`).
-(Nur E-Mail-Verify und Account-Delete nutzen stateless `itsdangerous.URLSafeTimedSerializer`, HMAC-signiert
-mit `SESSION_SECRET`.) E-Mail-Versand via Resend (3.000 Mails/Mo kostenlos).
+→ via `save_reset_token` in der DB abgelegt, Validierung per DB-Lookup. 15-Minuten TTL (`_RESET_MAX_AGE = 900`).
+(Seit V26 sind **alle drei** Token-Typen DB-backed single-use: Reset 15 min, E-Mail-Verify 24h, Account-Delete 1h —
+`itsdangerous`/`URLSafeTimedSerializer` wird nicht mehr verwendet.) E-Mail-Versand via Resend (3.000 Mails/Mo kostenlos).
 
 ```
 GET  /auth/reset-request  → Formular anzeigen
@@ -204,8 +204,9 @@ User werden per Backfill sofort verifiziert.
 
 Ablauf: Register → Token-Mail → `/auth/verify/{token}` → `email_verified_at` setzen.
 Login sperrt nicht-verifizierte Accounts (klare Fehlermeldung + Resend-Link `/auth/resend-verify`).
-Verify-Token nutzt stateless `itsdangerous.URLSafeTimedSerializer` (Salt `email-verify`, 24h TTL) —
-anders als der DB-backed Password-Reset-Token (siehe 3.1).
+Verify-Token ist DB-backed single-use (SHA-256-Hash + Ablauf in der DB, 24h TTL `_VERIFY_MAX_AGE = 86400`,
+gleiche Methodik wie der Password-Reset-Token, siehe 3.1 — V26 hat den früheren stateless
+`itsdangerous`-Token abgelöst).
 Resend-Endpoint non-leaking (immer 200), Rate Limit 3/h.
 
 ### 3.4 Account-Lockout ✅

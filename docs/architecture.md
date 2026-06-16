@@ -53,10 +53,11 @@ FastAPI  ...
 | Container | Image / Build | Role |
 |-----------|--------------|------|
 | `pulsebase-db` | `timescale/timescaledb:2.x-pg16` (SHA-pinned) | Time-series database |
-| `pulsebase-flyway` | `flyway/flyway:11` (SHA-pinned) | Runs DB migrations on startup, then exits |
+| `pulsebase-flyway` | `flyway/flyway:12` (SHA-pinned) | Runs DB migrations on startup, then exits |
 | `pulsebase-api` | `./api` (FastAPI) | Web app: auth, HTML pages, JSON API |
 | `pulsebase-sync` | `./sync-service` (Python) | Garmin data pull every 2h (Libre every 5 min) |
 | `pulsebase-ml` | `./ml-service` (Python) | ML inference daily + training weekly |
+| `pulsebase-backup` | `./backup` (`postgres:18-alpine` + shell) | Age-encrypted DB backups (`pg_dump` → `backups` volume) |
 
 HTTPS:
 - **homelab-gateway** (default, `make up`): Caddy on the shared `proxy` Docker network (Tailscale-only)
@@ -169,7 +170,8 @@ internal (PulseBase-only)
   ├── pulsebase-db
   ├── pulsebase-flyway
   ├── pulsebase-sync
-  └── pulsebase-ml
+  ├── pulsebase-ml
+  └── pulsebase-backup
 ```
 
 No ports are exposed to the host in the default setup — all traffic enters via Caddy
@@ -220,5 +222,6 @@ Docker Compose `stop_grace_period` values allow time for in-flight jobs:
 |--------|---------|
 | `timescale-data` | PostgreSQL data directory (persisted) |
 | `ml-models` | Serialized scikit-learn models (`joblib`) for ML inference |
+| `backups` | Age-encrypted DB backup archives written by `backup` service |
 
 Session tokens (Garmin, LibreLink) are stored Fernet-encrypted in the `user_tokens` DB table — no separate Docker volume required. ML models are written by `ml-service` and read back on the next inference run.

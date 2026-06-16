@@ -56,13 +56,15 @@ Request-Details. Ohne Sentry merkst du Fehler erst wenn User sich melden.
 
 2. DSN kopieren (Format: `https://xxx@oNNNNNN.ingest.sentry.io/NNNNNNN`)
 
-3. In `env/.env.api` eintragen:
+3. Zentral in `env/.env.app` eintragen (wird von allen drei Services geladen):
    ```
    SENTRY_DSN=https://xxx@oNNNNNN.ingest.sentry.io/NNNNNNN
    ```
-   Der API-Service initialisiert Sentry automatisch beim Start wenn `SENTRY_DSN`
-   gesetzt ist. Sync-Service und ML-Service haben eigene Sentry-Initialisierung
-   (gleiche DSN, unterschiedliche `server_name`).
+   Alle drei Services (api, sync, ml) initialisieren Sentry automatisch beim Start,
+   wenn `SENTRY_DSN` gesetzt ist (gleiche DSN, unterschiedliche `server_name`).
+   `env/.env.app` wird vor den Service-spezifischen Files geladen — daher hier
+   eintragen und **nicht** zusätzlich in `.env.api`/`.env.sync`/`.env.ml`, sonst
+   überschreibt ein dort leeres `SENTRY_DSN=` den zentralen Wert.
 
 4. Alert Rules im Sentry-Dashboard konfigurieren:
    - **Issues → Alerts → Create Alert Rule**
