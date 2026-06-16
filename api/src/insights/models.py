@@ -1,0 +1,102 @@
+"""Schicht-1 Trust-Vertrag fuer KI-Wochen-Insights (ADR-0003).
+
+Reine Datenmodelle — kein LLM, keine DB. Das ``WeeklyInsight`` ist der einzige
+Payload, der an das LLM geht, und darf nie einen Identifier tragen
+(Security-Invariante 2). Zahlen sind ``Decimal`` (exakte Zahlen-Treue fuer den
+binaeren Number-Grounding-Check).
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+
+class MetricKey(str, Enum):
+    HRV = "hrv"
+    GLUCOSE_CV = "glucose_cv"
+    TIME_IN_RANGE = "time_in_range"
+    TRAINING_LOAD = "training_load"
+
+
+class Unit(str, Enum):
+    MS = "ms"
+    PERCENT = "%"
+    TSS = "TSS"
+    MGDL = "mg/dL"
+    MMOL = "mmol/L"
+
+
+class Trend(str, Enum):
+    UP = "up"
+    SLIGHTLY_UP = "slightly_up"
+    STABLE = "stable"
+    SLIGHTLY_DOWN = "slightly_down"
+    DOWN = "down"
+
+
+_UP_TRENDS = (Trend.UP, Trend.SLIGHTLY_UP)
+_DOWN_TRENDS = (Trend.DOWN, Trend.SLIGHTLY_DOWN)
+
+
+class Metric(BaseModel):
+    """Eine gepruefte Kennzahl. Immutable; ``trend`` muss zum Vorzeichen von
+    ``change_pct`` passen (Defense in Depth zum Trend-Richtungs-Guard)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    key: MetricKey
+    value: Decimal
+    unit: Unit
+    change_pct: Decimal | None
+    trend: Trend
+
+    @model_validator(mode="after")
+    def _trend_matches_change(self) -> Metric:
+        if self.change_pct is None:
+            return self
+        if self.change_pct > 0 and self.trend in _DOWN_TRENDS:
+            raise ValueError(
+                f"trend {self.trend.value} contradicts positive change_pct"
+            )
+        if self.change_pct < 0 and self.trend in _UP_TRENDS:
+            raise ValueError(
+                f"trend {self.trend.value} contradicts negative change_pct"
+            )
+        return self
+
+
+class WeeklyInsight(BaseModel):
+    """Der Trust-Vertrag fuer eine ISO-Woche. Enthaelt nie einen Identifier —
+    ``iso_year``/``iso_week`` sind eine Zeitspanne, keine Person."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    iso_year: int
+    iso_week: int
+    metrics: list[Metric]
+    flags: list[str]
+    evidence: list[str]
+    catalog_version: str
+    unavailable: list[MetricKey] = []
+
+    @field_validator("iso_week")
+    @classmethod
+    def _valid_week(cls, v: int) -> int:
+        if not 1 <= v <= 53:
+            raise ValueError("iso_week must be in 1..53")
+        return v
+
+    @field_validator("evidence")
+    @classmethod
+    def _evidence_in_catalog(cls, v: list[str]) -> list[str]:
+        # Lazy import vermeidet einen Import-Zyklus und entkoppelt die Modelle
+        # von der Ladereihenfolge des Katalogs (Grounding bei Konstruktion).
+        from src.insights.evidence import VALID_EVIDENCE_KEYS
+
+        unknown = [k for k in v if k not in VALID_EVIDENCE_KEYS]
+        if unknown:
+            raise ValueError(f"unknown evidence keys: {unknown}")
+        return v
