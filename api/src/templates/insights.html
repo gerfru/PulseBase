@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}PulseBase — Wochen-Insights{% endblock %}
+{% block extra_head %}
+<script nonce="{{ nonce }}" src="/static/vendor/purify.min.js"></script>
+{% endblock %}
+{% block content %}
+
+    <header class="dash-topbar mb-4">
+        <div class="dash-shell mx-auto w-full py-3 flex items-center justify-between gap-3 px-4 sm:px-6">
+            <a href="/dashboard" class="flex items-baseline gap-2.5 no-underline">
+                <span class="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.name }}</span>
+            </a>
+            <nav class="flex items-center gap-1" aria-label="Konto">
+                <a href="/dashboard" class="topbar-btn">Dashboard</a>
+                <a href="/help" class="topbar-btn" aria-label="Hilfe &amp; Methodologie">Hilfe</a>
+                <a href="/settings" class="topbar-btn">Einstellungen</a>
+                <span class="topbar-divider" aria-hidden="true"></span>
+                <form method="post" action="/logout">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="topbar-btn topbar-btn-danger">Abmelden</button>
+                </form>
+            </nav>
+        </div>
+    </header>
+
+    <div class="dash-shell mx-auto w-full px-4 sm:px-6">
+        <div class="card col-span-full">
+            <h1 class="text-xl font-bold mb-1">Wochen-Insights
+                <span class="text-xs font-normal text-slate-500 dark:text-slate-400">— automatisierte Analyse, kein medizinischer Befund</span>
+            </h1>
+
+            <div class="flex items-center justify-between gap-3 mt-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <button id="ins-prev" class="topbar-btn" aria-label="Vorige Woche">◀</button>
+                    <span id="ins-week" class="text-sm font-medium text-slate-700 dark:text-slate-300">…</span>
+                    <button id="ins-next" class="topbar-btn" aria-label="Nächste Woche">▶</button>
+                </div>
+                <div class="flex items-center gap-1" role="tablist" aria-label="Tonlage">
+                    <button class="topbar-btn ins-seg" data-seg="hobby" aria-pressed="true">Hobby</button>
+                    <button class="topbar-btn ins-seg" data-seg="pro" aria-pressed="false">Pro</button>
+                    <button class="topbar-btn ins-seg" data-seg="profi" aria-pressed="false">Profi</button>
+                </div>
+            </div>
+
+            <div id="ins-content" aria-live="polite">
+                <p class="text-sm text-slate-500">Lade Auswertung…</p>
+            </div>
+
+            <div class="mt-4 flex items-center justify-end">
+                <button id="ins-regen" class="topbar-btn">Neu generieren</button>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ nonce }}" type="module" src="/static/insights.js?v={{ v }}"></script>
+{% endblock %}
