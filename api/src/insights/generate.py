@@ -85,6 +85,9 @@ async def generate_all_segments(
         iso_year=iso_year,
         iso_week=iso_week,
         generators={seg: o.generator for seg, o in outputs.items()},
+        # Nur Riegel-Namen (z.B. "disclaimer") — kein Health-Payload (C3).
+        failures={seg: list(o.failures) for seg, o in outputs.items() if o.failures},
+        attempts={seg: o.attempts for seg, o in outputs.items()},
         latency_ms=round((time.monotonic() - start) * 1000),
     )
     return insight, outputs
