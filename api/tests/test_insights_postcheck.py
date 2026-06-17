@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
-from src.insights.postcheck import post_check, run_gate
+from src.insights.postcheck import arun_gate, post_check, run_gate
 
 
 def _insight(**kw) -> WeeklyInsight:
@@ -97,3 +97,35 @@ def test_run_gate_falls_back_after_failures():
     assert out.attempts == 3
     # Der Fallback selbst besteht den Post-Check.
     assert post_check(out.text, _insight(), "hobby").passed
+
+
+# --- arun_gate (async) ----------------------------------------------------- #
+
+
+async def test_arun_gate_returns_llm_when_valid():
+    good = f"Woche 24: Zielbereich 58 % (-4.1 %). {_DISCLAIMER}"
+
+    async def gen() -> str:
+        return good
+
+    out = await arun_gate(gen, _insight(), "hobby")
+    assert out.generator == "llm"
+    assert out.attempts == 1
+
+
+async def test_arun_gate_falls_back_after_failures():
+    async def gen() -> str:
+        return "halluzinierte 999 zahl"
+
+    out = await arun_gate(gen, _insight(), "hobby")
+    assert out.generator == "fallback_template"
+    assert out.attempts == 3
+
+
+async def test_arun_gate_falls_back_on_provider_error():
+    async def gen() -> str:
+        raise RuntimeError("boom")
+
+    out = await arun_gate(gen, _insight(), "hobby")
+    assert out.generator == "fallback_template"
+    assert "provider_error" in out.failures

@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     privacy_policy_version: str = (
         "v1.0"  # PRIVACY_POLICY_VERSION — bumped when policy changes
     )
+    # KI-Wochen-Insights (ADR-0003). Default aus — Generierung liefert dann das
+    # deterministische Fallback. Ollama laeuft nativ am Host (nicht in Docker).
+    ollama_enabled: bool = False  # OLLAMA_ENABLED
+    ollama_base_url: str = "http://host.docker.internal:11434"  # OLLAMA_BASE_URL
+    ollama_model: str = "llama3.1:8b"  # OLLAMA_MODEL
+    ollama_timeout_seconds: int = 30  # OLLAMA_TIMEOUT_SECONDS
 
     @field_validator("fernet_key")
     @classmethod
