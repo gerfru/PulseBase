@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     currentDays,
     currentOffset,
@@ -13,10 +13,17 @@ import {
 } from '../../src/static/dashboard-nav.js';
 import { charts } from '../../src/static/dashboard-utils.js';
 
-// Reset module state before each test since currentDays/currentOffset are module-level lets
+// Reset module state before each test since currentDays/currentOffset are module-level lets.
+// Fake timers durchgehend: setTab() plant einen 50-ms-setTimeout (Chart-Resize) — mit echten
+// Timern feuern die Timer frueherer Tests asynchron nach und resizen fremde Charts mit (Flake).
 beforeEach(() => {
     resetOffset();
     setCurrentDays(7);
+    vi.useFakeTimers();
+});
+
+afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
 });
 
