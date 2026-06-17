@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/gerfru/PulseBase/compare/v1.4.0...v1.5.0) (2026-06-17)
+
+
+### Features
+
+* **insights:** local Ollama provider + generation orchestration (P4) ([#228](https://github.com/gerfru/PulseBase/issues/228)) ([51ea328](https://github.com/gerfru/PulseBase/commit/51ea3287cc84887e4bd8e96e6159906ae9378512))
+
 ## [1.4.0](https://github.com/gerfru/PulseBase/compare/v1.3.0...v1.4.0) (2026-06-16)
 
 
