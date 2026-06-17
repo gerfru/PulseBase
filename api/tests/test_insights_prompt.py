@@ -59,6 +59,25 @@ def test_prompt_includes_evidence_statement():
     assert "Evidenz-Hinweise" in p
 
 
+def test_prompt_uses_label_band_and_context_rule():
+    ins = _insight(
+        metrics=[
+            Metric(
+                key=MetricKey.TRAINING_FORM,
+                value=Decimal("28"),
+                unit=Unit.POINTS,
+                change_pct=Decimal("55.6"),
+                trend=Trend.UP,
+            )
+        ]
+    )
+    p = build_prompt(ins, "pro")
+    assert "Trainingsform" in p  # kanonisches Label, nicht der rohe Key
+    assert "Niveau: hohe Belastung" in p  # 28 ist niedrig -> Belastung
+    assert "im Kontext des Niveaus" in p  # Interpretations-Regel
+    assert "training_form" not in p
+
+
 def test_prompt_unknown_segment_raises():
     with pytest.raises(ValueError):
         build_prompt(_insight(), "enterprise")

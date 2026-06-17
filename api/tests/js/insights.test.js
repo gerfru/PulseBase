@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
+    mdInline,
     renderInsight,
     shiftWeek,
+    weekRangeLabel,
 } from '../../src/static/insights.js';
 
 const DATA = {
@@ -19,10 +21,12 @@ const DATA = {
 };
 
 describe('renderInsight', () => {
-    it('renders the selected segment body + metric + KI badge', () => {
+    it('renders body + German label + arrow + KI badge', () => {
         const html = renderInsight(DATA, 'hobby');
         expect(html).toContain('Hallo Welt');
-        expect(html).toContain('time_in_range');
+        expect(html).toContain('Zeit im Zielbereich'); // German label, not raw key
+        expect(html).not.toContain('time_in_range');
+        expect(html).toContain('→'); // stable arrow, not "stable"
         expect(html).toContain('KI-generiert');
         expect(html).toContain('llama3.1:8b');
     });
@@ -41,6 +45,22 @@ describe('renderInsight', () => {
 
     it('returns empty string for null data', () => {
         expect(renderInsight(null, 'hobby')).toBe('');
+    });
+});
+
+describe('weekRangeLabel', () => {
+    it('returns the Mon–Sun date range of the ISO week', () => {
+        expect(weekRangeLabel(2026, 24)).toBe('08.06.–14.06.');
+    });
+});
+
+describe('mdInline', () => {
+    it('renders **bold** as <strong>', () => {
+        expect(mdInline('Heute **gut** erholt')).toBe('Heute <strong>gut</strong> erholt');
+    });
+
+    it('escapes before bolding (XSS-safe)', () => {
+        expect(mdInline('**<script>x</script>**')).not.toContain('<script>');
     });
 });
 

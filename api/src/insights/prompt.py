@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from src.insights.bands import band_label
 from src.insights.evidence import VALID_EVIDENCE_KEYS, caveats_for, statement_for
 from src.insights.guard import assert_no_identifier
-from src.insights.models import Metric, WeeklyInsight
+from src.insights.models import Metric, MetricKey, WeeklyInsight
 from src.insights.templates import SEGMENT_DISCLAIMERS
 
 _SEGMENT_TONE: dict[str, str] = {
@@ -21,16 +22,35 @@ _SEGMENT_TONE: dict[str, str] = {
     "profi": "praezise und fachlich (fuer Profi-Sportler und Staff)",
 }
 
+# Kanonische deutsche Labels (konsistent mit dem Dashboard) — sonst erfindet das
+# Modell eigene Bezeichnungen ("Motivationshoehe" etc.).
+METRIC_LABEL: dict[MetricKey, str] = {
+    MetricKey.READINESS: "Erholung (Readiness)",
+    MetricKey.SLEEP: "Schlaf",
+    MetricKey.TRAINING_FORM: "Trainingsform",
+    MetricKey.STRESS: "Stress",
+    MetricKey.BODY_BATTERY: "Body Battery",
+    MetricKey.HRV: "HRV",
+    MetricKey.TRAINING_VOLUME: "Trainingsvolumen",
+    MetricKey.TIME_IN_RANGE: "Zeit im Zielbereich",
+    MetricKey.GLUCOSE_CV: "Glukose-Variabilitaet",
+    MetricKey.TRAINING_LOAD: "Trainingslast",
+}
+
 
 def _num(value: Decimal) -> str:
     return format(value.normalize(), "f")
 
 
 def _metric_line(m: Metric) -> str:
-    base = f"- {m.key.value}: {_num(m.value)} {m.unit.value}"
+    label = METRIC_LABEL.get(m.key, m.key.value)
+    base = f"- {label}: {_num(m.value)} {m.unit.value}"
     if m.change_pct is not None:
-        return f"{base}, Aenderung {_num(m.change_pct)} % ({m.trend.value})"
-    return f"{base} ({m.trend.value})"
+        base += f", Aenderung {_num(m.change_pct)} %"
+    band = band_label(m.key, m.value)
+    if band is not None:
+        base += f" — Niveau: {band}"
+    return base
 
 
 def build_prompt(insight: WeeklyInsight, segment: str) -> str:
@@ -46,6 +66,10 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
         "",
         "REGELN (strikt einhalten):",
         "- Verwende AUSSCHLIESSLICH die unten genannten Zahlen. Erfinde keine Zahlen.",
+        "- Nutze die kanonischen Bezeichnungen der Kennzahlen; erfinde keine neuen.",
+        "- 'Niveau' zeigt das aktuelle Level. Rahme einen Anstieg/Abfall IMMER im "
+        "Kontext des Niveaus: ein Anstieg bei niedrigem Niveau ist 'beginnende "
+        "Erholung', nicht 'gut'; ein Wert kann steigen UND trotzdem niedrig sein.",
         "- Keine vagen Mengen wie 'knapp', 'fast', 'etwa', 'rund', 'Haelfte'.",
         "- Keine individuelle medizinische Empfehlung; nutze nur die Evidenz-Hinweise.",
         "- Kein Disclaimer noetig — der wird automatisch ergaenzt.",

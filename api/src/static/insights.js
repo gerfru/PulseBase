@@ -40,17 +40,56 @@ export function shiftWeek(year, week, delta) {
     return isoYearWeek(mon);
 }
 
+function _ddmm(d) {
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const mon = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return `${day}.${mon}.`;
+}
+
+// Datumsspanne (Mo–So) der ISO-Woche, z. B. "08.06.–14.06.".
+export function weekRangeLabel(year, week) {
+    const mon = isoWeekStart(year, week);
+    const sun = new Date(mon);
+    sun.setUTCDate(mon.getUTCDate() + 6);
+    return `${_ddmm(mon)}–${_ddmm(sun)}`;
+}
+
 // --- Render (pure, testbar) ---------------------------------------------- //
+
+const METRIC_LABEL = {
+    readiness: 'Erholung',
+    sleep: 'Schlaf',
+    training_form: 'Trainingsform',
+    stress: 'Stress',
+    body_battery: 'Body Battery',
+    hrv: 'HRV',
+    training_volume: 'Trainingsvolumen',
+    time_in_range: 'Zeit im Zielbereich',
+};
+const TREND_ARROW = {
+    up: '↑',
+    slightly_up: '↗',
+    stable: '→',
+    slightly_down: '↘',
+    down: '↓',
+};
+
+// Markdown-Fett rendern; esc() laeuft ZUERST, der Inhalt ist also schon sicher.
+export function mdInline(s) {
+    return esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
 
 export function renderInsight(data, segment) {
     if (!data) return '';
     const text = data.texts?.[segment] || {};
     const metrics = (data.insight?.metrics || [])
         .map((m) => {
+            const label = METRIC_LABEL[m.key] || m.key;
             const chg = m.change_pct != null ? ` (${esc(m.change_pct)} %)` : '';
+            const arrow = TREND_ARROW[m.trend] || '';
             return (
-                `<li><span class="font-medium">${esc(m.key)}</span>: ` +
-                `${esc(m.value)} ${esc(m.unit)}${chg} — ${esc(m.trend)}</li>`
+                `<li><span class="font-medium">${esc(label)}</span>: ` +
+                `${esc(m.value)} ${esc(m.unit)}${chg} ${arrow}</li>`
             );
         })
         .join('');
@@ -60,7 +99,7 @@ export function renderInsight(data, segment) {
             : 'Standardtext (Fallback)';
     return (
         `<ul class="insight-metrics mb-3">${metrics || '<li>Keine Kennzahlen.</li>'}</ul>` +
-        `<p class="insight-body whitespace-pre-line">${esc(text.body || '')}</p>` +
+        `<p class="insight-body whitespace-pre-line">${mdInline(text.body || '')}</p>` +
         `<p class="insight-badge text-xs text-slate-500 mt-2">${esc(badge)}</p>`
     );
 }
@@ -78,7 +117,9 @@ let waitingSince = null; // created_at, das eine Regenerierung uebertreffen muss
 
 function setWeekLabel() {
     const wk = document.getElementById('ins-week');
-    if (wk && state.year) wk.textContent = `KW ${state.week} · ${state.year}`;
+    if (wk && state.year) {
+        wk.textContent = `KW ${state.week} · ${state.year} · ${weekRangeLabel(state.year, state.week)}`;
+    }
 }
 
 function paint() {
