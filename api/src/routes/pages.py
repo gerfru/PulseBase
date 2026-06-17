@@ -57,6 +57,16 @@ async def dashboard(request: Request) -> Response:
     )
 
 
+@router.get("/insights")
+async def insights_page(request: Request) -> Response:
+    user = await _deps.require_user(request)
+    return _deps.templates.TemplateResponse(
+        request,
+        "insights.html",
+        {"user": user, "csrf_token": generate_csrf_token(request)},
+    )
+
+
 @router.get("/settings")
 async def settings_page(request: Request) -> Response:
     user = await _deps.require_user(request)

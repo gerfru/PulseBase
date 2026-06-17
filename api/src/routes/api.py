@@ -8,6 +8,7 @@ from fastapi import APIRouter
 
 from src.routes.api_glucose import router as glucose_router
 from src.routes.api_health import router as health_router
+from src.routes.api_insights import router as insights_router
 from src.routes.api_ml import router as ml_router
 from src.routes.api_seizures import router as seizures_router
 
@@ -16,3 +17,4 @@ router.include_router(health_router)
 router.include_router(ml_router)
 router.include_router(seizures_router)
 router.include_router(glucose_router)
+router.include_router(insights_router)
