@@ -9,7 +9,7 @@ Baut auf den Basis-Riegeln aus ``guard`` auf.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from src.insights.guard import EMAIL_RE, allowed_number_tokens, number_variants
@@ -158,6 +158,35 @@ def run_gate(
     last: CheckResult | None = None
     for attempt in range(1, max_retries + 2):
         text = generate()
+        result = post_check(text, insight, segment)
+        if result.passed:
+            return GateOutput(text=text, generator="llm", attempts=attempt)
+        last = result
+    return GateOutput(
+        text=fallback_text(insight, segment),
+        generator="fallback_template",
+        attempts=max_retries + 1,
+        failures=last.failures if last else (),
+    )
+
+
+async def arun_gate(
+    generate: Callable[[], Awaitable[str]],
+    insight: WeeklyInsight,
+    segment: str,
+    *,
+    max_retries: int = 2,
+) -> GateOutput:
+    """Async-Geschwister von ``run_gate`` fuer echte (async) Provider. Ein
+    Provider-Fehler zaehlt als gescheiterter Versuch — am Ende greift das
+    deterministische Fallback (fail-secure, Invariante 1)."""
+    last: CheckResult | None = None
+    for attempt in range(1, max_retries + 2):
+        try:
+            text = await generate()
+        except Exception:
+            last = CheckResult(passed=False, failures=("provider_error",))
+            continue
         result = post_check(text, insight, segment)
         if result.passed:
             return GateOutput(text=text, generator="llm", attempts=attempt)
