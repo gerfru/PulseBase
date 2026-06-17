@@ -1,4 +1,4 @@
-// Wochen-Insights (ADR-0003, P6). CSP-konform: keine Inline-Handler.
+// Insights (ADR-0003/0004). CSP-konform: keine Inline-Handler.
 // esc lokal halten — NICHT aus dashboard-utils importieren: das zieht
 // chart-utils.js, das beim Eval das globale `Chart` braucht (auf /insights
 // nicht geladen) und die ganze Modul-Kette werfen liesse.
@@ -10,48 +10,16 @@ function esc(s) {
         .replace(/"/g, '&quot;');
 }
 
-// --- ISO-Wochen-Helfer (pure, testbar) ----------------------------------- //
+// --- Datums-Helfer (pure, testbar) --------------------------------------- //
 
-export function isoWeekStart(year, week) {
-    // Montag der gegebenen ISO-Woche (ISO-Woche 1 enthaelt den 4. Januar).
-    const jan4 = new Date(Date.UTC(year, 0, 4));
-    const dow = (jan4.getUTCDay() + 6) % 7; // Mo=0
-    const mondayW1 = new Date(jan4);
-    mondayW1.setUTCDate(jan4.getUTCDate() - dow);
-    const d = new Date(mondayW1);
-    d.setUTCDate(mondayW1.getUTCDate() + (week - 1) * 7);
-    return d;
+function _ddmm(iso) {
+    const parts = String(iso).split('-'); // "YYYY-MM-DD"
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.` : String(iso);
 }
 
-export function isoYearWeek(d) {
-    const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-    const dayNum = (date.getUTCDay() + 6) % 7; // Mo=0
-    date.setUTCDate(date.getUTCDate() - dayNum + 3); // Donnerstag der Woche
-    const firstThu = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
-    const fDow = (firstThu.getUTCDay() + 6) % 7;
-    firstThu.setUTCDate(firstThu.getUTCDate() - fDow + 3);
-    const week = 1 + Math.round((date - firstThu) / (7 * 86400000));
-    return [date.getUTCFullYear(), week];
-}
-
-export function shiftWeek(year, week, delta) {
-    const mon = isoWeekStart(year, week);
-    mon.setUTCDate(mon.getUTCDate() + delta * 7);
-    return isoYearWeek(mon);
-}
-
-function _ddmm(d) {
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    const mon = String(d.getUTCMonth() + 1).padStart(2, '0');
-    return `${day}.${mon}.`;
-}
-
-// Datumsspanne (Mo–So) der ISO-Woche, z. B. "08.06.–14.06.".
-export function weekRangeLabel(year, week) {
-    const mon = isoWeekStart(year, week);
-    const sun = new Date(mon);
-    sun.setUTCDate(mon.getUTCDate() + 6);
-    return `${_ddmm(mon)}–${_ddmm(sun)}`;
+// Spanne aus ISO-Date-Strings, z. B. "08.06.–14.06.".
+export function periodRangeLabel(startIso, endIso) {
+    return `${_ddmm(startIso)}–${_ddmm(endIso)}`;
 }
 
 // --- Render (pure, testbar) ---------------------------------------------- //
@@ -106,19 +74,24 @@ export function renderInsight(data, segment) {
 
 // --- DOM-Anbindung ------------------------------------------------------- //
 
-const state = { year: null, week: null, data: null, segment: 'hobby' };
+const state = {
+    periodStart: null,
+    periodEnd: null,
+    data: null,
+    segment: 'hobby',
+};
 const PENDING_HTML =
-    '<p class="text-sm text-slate-500">Deine Wochen-Auswertung wird gerade ' +
-    'erstellt — beim ersten Mal kann das einen Moment dauern. Die Seite ' +
-    'aktualisiert sich automatisch, sobald sie fertig ist. 🙏</p>';
+    '<p class="text-sm text-slate-500">Deine Auswertung wird gerade erstellt — ' +
+    'beim ersten Mal kann das einen Moment dauern. Die Seite aktualisiert sich ' +
+    'automatisch, sobald sie fertig ist. 🙏</p>';
 
 let pollTimer = null;
 let waitingSince = null; // created_at, das eine Regenerierung uebertreffen muss
 
-function setWeekLabel() {
-    const wk = document.getElementById('ins-week');
-    if (wk && state.year) {
-        wk.textContent = `KW ${state.week} · ${state.year} · ${weekRangeLabel(state.year, state.week)}`;
+function setRangeLabel() {
+    const el = document.getElementById('ins-week');
+    if (el && state.periodStart && state.periodEnd) {
+        el.textContent = `Letzte 7 Tage · ${periodRangeLabel(state.periodStart, state.periodEnd)}`;
     }
 }
 
@@ -126,13 +99,13 @@ function paint() {
     if (!state.data) return;
     const el = document.getElementById('ins-content');
     if (el) el.innerHTML = renderInsight(state.data, state.segment);
-    setWeekLabel();
+    setRangeLabel();
 }
 
 function showPending() {
     const el = document.getElementById('ins-content');
     if (el) el.innerHTML = PENDING_HTML;
-    setWeekLabel();
+    setRangeLabel();
 }
 
 function schedulePoll() {
@@ -145,13 +118,12 @@ async function load() {
     if (el && !state.data) {
         el.innerHTML = '<p class="text-sm text-slate-500">Lade Auswertung…</p>';
     }
-    const q = state.year ? `?iso_year=${state.year}&iso_week=${state.week}` : '';
     try {
-        const res = await fetch(`/api/insights${q}`);
+        const res = await fetch('/api/insights');
         if (!res.ok) throw new Error(String(res.status));
         const data = await res.json();
-        state.year = data.iso_year;
-        state.week = data.iso_week;
+        state.periodStart = data.period_start;
+        state.periodEnd = data.period_end;
         const stale = waitingSince && data.created_at === waitingSince;
         if (data.status === 'pending' || stale) {
             showPending();
@@ -174,11 +146,7 @@ async function regenerate() {
     if (btn) btn.disabled = true;
     waitingSince = state.data?.created_at || null;
     try {
-        const res = await fetch('/api/insights/regenerate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ iso_year: state.year, iso_week: state.week }),
-        });
+        const res = await fetch('/api/insights/regenerate', { method: 'POST' });
         if (res.ok) {
             showPending();
             schedulePoll();
@@ -196,15 +164,7 @@ function setSegment(seg) {
     paint();
 }
 
-function goto(delta) {
-    [state.year, state.week] = shiftWeek(state.year, state.week, delta);
-    state.data = null; // neue Woche → Ladeanzeige
-    load();
-}
-
 function init() {
-    document.getElementById('ins-prev')?.addEventListener('click', () => goto(-1));
-    document.getElementById('ins-next')?.addEventListener('click', () => goto(1));
     document.getElementById('ins-regen')?.addEventListener('click', regenerate);
     document.querySelectorAll('.ins-seg').forEach((b) => {
         b.addEventListener('click', () => setSegment(b.dataset.seg));

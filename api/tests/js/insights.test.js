@@ -2,13 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
     mdInline,
     renderInsight,
-    shiftWeek,
-    weekRangeLabel,
+    periodRangeLabel,
 } from '../../src/static/insights.js';
 
 const DATA = {
-    iso_year: 2026,
-    iso_week: 24,
+    period_start: '2026-06-08',
+    period_end: '2026-06-14',
     insight: {
         metrics: [
             { key: 'time_in_range', value: '58', unit: '%', change_pct: null, trend: 'stable' },
@@ -48,9 +47,13 @@ describe('renderInsight', () => {
     });
 });
 
-describe('weekRangeLabel', () => {
-    it('returns the Mon–Sun date range of the ISO week', () => {
-        expect(weekRangeLabel(2026, 24)).toBe('08.06.–14.06.');
+describe('periodRangeLabel', () => {
+    it('formats the rolling window as dd.mm.–dd.mm.', () => {
+        expect(periodRangeLabel('2026-06-08', '2026-06-14')).toBe('08.06.–14.06.');
+    });
+
+    it('falls back to the raw input for malformed dates', () => {
+        expect(periodRangeLabel('garbage', '2026-06-14')).toBe('garbage–14.06.');
     });
 });
 
@@ -61,16 +64,5 @@ describe('mdInline', () => {
 
     it('escapes before bolding (XSS-safe)', () => {
         expect(mdInline('**<script>x</script>**')).not.toContain('<script>');
-    });
-});
-
-describe('shiftWeek', () => {
-    it('moves back across the year boundary', () => {
-        expect(shiftWeek(2026, 1, -1)).toEqual([2025, 52]);
-    });
-
-    it('round-trips forward and back', () => {
-        const [y, w] = shiftWeek(2026, 24, -3);
-        expect(shiftWeek(y, w, 3)).toEqual([2026, 24]);
     });
 });

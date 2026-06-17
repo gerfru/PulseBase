@@ -8,6 +8,7 @@ deterministische Fallback. Loggt nur Metadaten — nie Prompt/Response/Werte (C3
 from __future__ import annotations
 
 import time
+from datetime import date, timedelta
 
 import structlog
 
@@ -48,15 +49,14 @@ async def _gate_for_segment(
 
 async def generate_insight(
     user_id: int,
-    iso_year: int,
-    iso_week: int,
+    period_end: date,
     segment: str,
     *,
     provider: LlmProvider | None = None,
 ) -> GateOutput:
-    """Erzeugt geprueften Insight-Text fuer (User, Woche, Segment)."""
-    inputs = await gather_inputs(user_id, iso_year, iso_week)
-    insight = build_weekly_insight(iso_year, iso_week, inputs)
+    """Erzeugt geprueften Insight-Text fuer (User, Fenster, Segment)."""
+    inputs = await gather_inputs(user_id, period_end)
+    insight = build_weekly_insight(period_end - timedelta(days=6), period_end, inputs)
     assert_no_identifier(insight)  # Invariante 2 — vor jedem Prompt
 
     prov = provider if provider is not None else get_provider()
@@ -64,8 +64,7 @@ async def generate_insight(
     out = await _gate_for_segment(insight, segment, prov)
     logger.info(
         "insights.generate",
-        iso_year=iso_year,
-        iso_week=iso_week,
+        period_end=period_end.isoformat(),
         segment=segment,
         generator=out.generator,
         attempts=out.attempts,
@@ -77,14 +76,13 @@ async def generate_insight(
 
 async def generate_all_segments(
     user_id: int,
-    iso_year: int,
-    iso_week: int,
+    period_end: date,
     *,
     provider: LlmProvider | None = None,
 ) -> tuple[WeeklyInsight, dict[str, GateOutput]]:
     """Baut das Insight EINMAL und erzeugt geprueften Text fuer alle Segmente."""
-    inputs = await gather_inputs(user_id, iso_year, iso_week)
-    insight = build_weekly_insight(iso_year, iso_week, inputs)
+    inputs = await gather_inputs(user_id, period_end)
+    insight = build_weekly_insight(period_end - timedelta(days=6), period_end, inputs)
     assert_no_identifier(insight)  # Invariante 2 — vor jedem Prompt
 
     prov = provider if provider is not None else get_provider()
@@ -92,8 +90,7 @@ async def generate_all_segments(
     outputs = {seg: await _gate_for_segment(insight, seg, prov) for seg in SEGMENTS}
     logger.info(
         "insights.generate_all",
-        iso_year=iso_year,
-        iso_week=iso_week,
+        period_end=period_end.isoformat(),
         generators={seg: o.generator for seg, o in outputs.items()},
         # Nur Riegel-Namen (z.B. "disclaimer") — kein Health-Payload (C3).
         failures={seg: list(o.failures) for seg, o in outputs.items() if o.failures},

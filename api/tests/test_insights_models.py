@@ -1,5 +1,6 @@
 """Tests fuer das Schicht-1-Schema (kein I/O)."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -57,11 +58,11 @@ def test_trend_validator_allows_none_change():
     assert m.change_pct is None
 
 
-def test_iso_week_range():
+def test_period_order_rejects_end_before_start():
     with pytest.raises(ValidationError):
         WeeklyInsight(
-            iso_year=2026,
-            iso_week=54,
+            period_start=date(2026, 6, 14),
+            period_end=date(2026, 6, 8),
             metrics=[],
             flags=[],
             evidence=[],
@@ -72,8 +73,8 @@ def test_iso_week_range():
 def test_evidence_validated_against_catalog():
     # Bekannter Key passt, unbekannter wird abgelehnt.
     ok = WeeklyInsight(
-        iso_year=2026,
-        iso_week=24,
+        period_start=date(2026, 6, 8),
+        period_end=date(2026, 6, 14),
         metrics=[],
         flags=[],
         evidence=["glucose_tir"],
@@ -82,8 +83,8 @@ def test_evidence_validated_against_catalog():
     assert ok.evidence == ["glucose_tir"]
     with pytest.raises(ValidationError):
         WeeklyInsight(
-            iso_year=2026,
-            iso_week=24,
+            period_start=date(2026, 6, 8),
+            period_end=date(2026, 6, 14),
             metrics=[],
             flags=[],
             evidence=["does.not.exist"],

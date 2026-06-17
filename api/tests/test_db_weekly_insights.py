@@ -1,7 +1,7 @@
 """Tests fuer die Insight-Persistenz (gemockter Pool, keine echte DB)."""
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,11 +12,13 @@ from src.db.weekly_insights import (
 )
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
 
+_END = date(2026, 6, 14)
+
 
 def _insight() -> WeeklyInsight:
     return WeeklyInsight(
-        iso_year=2026,
-        iso_week=24,
+        period_start=date(2026, 6, 8),
+        period_end=_END,
         metrics=[
             Metric(
                 key=MetricKey.TIME_IN_RANGE,
@@ -75,9 +77,9 @@ async def test_get_reconstructs_insight_and_texts():
     pool.fetchrow = AsyncMock(return_value=parent)
     pool.fetch = AsyncMock(return_value=rows)
     with patch("src.db.weekly_insights.get_pool", AsyncMock(return_value=pool)):
-        stored = await get_weekly_insight(1, 2026, 24)
+        stored = await get_weekly_insight(1, _END)
     assert stored is not None
-    assert stored.insight.iso_week == 24
+    assert stored.insight.period_end == _END
     assert stored.texts["hobby"].generator == "llm"
     assert stored.catalog_version == "1.0.0"
 
@@ -86,4 +88,4 @@ async def test_get_miss_returns_none():
     pool = AsyncMock()
     pool.fetchrow = AsyncMock(return_value=None)
     with patch("src.db.weekly_insights.get_pool", AsyncMock(return_value=pool)):
-        assert await get_weekly_insight(1, 2026, 24) is None
+        assert await get_weekly_insight(1, _END) is None

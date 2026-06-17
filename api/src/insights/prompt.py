@@ -74,7 +74,8 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
         "- Keine individuelle medizinische Empfehlung; nutze nur die Evidenz-Hinweise.",
         "- Kein Disclaimer noetig — der wird automatisch ergaenzt.",
         "",
-        f"Woche {insight.iso_week}/{insight.iso_year}.",
+        "Zeitfenster: die letzten 7 Tage (Datum wird separat angezeigt — "
+        "nenne KEINE Datumsangaben im Text).",
         "Kennzahlen:",
     ]
     parts += [_metric_line(m) for m in insight.metrics] or ["- (keine Kennzahlen)"]

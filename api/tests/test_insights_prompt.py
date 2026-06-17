@@ -1,5 +1,6 @@
 """Tests fuer den Prompt-Builder (Schicht 2)."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -10,8 +11,8 @@ from src.insights.prompt import build_prompt
 
 def _insight(**kw) -> WeeklyInsight:
     base = dict(
-        iso_year=2026,
-        iso_week=24,
+        period_start=date(2026, 6, 8),
+        period_end=date(2026, 6, 14),
         metrics=[
             Metric(
                 key=MetricKey.TIME_IN_RANGE,
@@ -34,6 +35,8 @@ def test_prompt_contains_numbers_but_not_disclaimer():
     assert "58" in p and "-4.1" in p
     # Disclaimer wird deterministisch angehaengt, NICHT vom Modell verlangt.
     assert "kein medizinischer Rat" not in p
+    # Datum/Jahr gehoeren nicht in den Prompt (Number-Grounding-Schutz).
+    assert "2026" not in p
 
 
 def test_prompt_normalizes_numbers():

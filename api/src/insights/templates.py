@@ -51,7 +51,7 @@ def fallback_text(insight: WeeklyInsight, segment: str) -> str:
     disclaimer = SEGMENT_DISCLAIMERS[segment]
     if not insight.metrics:
         return (
-            f"Fuer Woche {insight.iso_week} liegen zu wenige Daten fuer eine "
+            "Fuer den aktuellen Zeitraum liegen zu wenige Daten fuer eine "
             f"Auswertung vor. {disclaimer}"
         )
 
@@ -60,4 +60,4 @@ def fallback_text(insight: WeeklyInsight, segment: str) -> str:
         val = _format_decimal(m.value)
         parts.append(f"{m.key.value}: {val} {m.unit.value} ({_TREND_WORD[m.trend]})")
     body = "; ".join(parts)
-    return f"Woche {insight.iso_week}: {body}. {disclaimer}"
+    return f"Auswertung des aktuellen Zeitraums — {body}. {disclaimer}"

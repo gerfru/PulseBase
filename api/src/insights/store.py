@@ -8,6 +8,8 @@ lazy beim ersten Aufruf (alle Segmente, eine Transaktion) und cacht sie.
 
 from __future__ import annotations
 
+from datetime import date
+
 from src.db.weekly_insights import (
     StoredInsight,
     TextRecord,
@@ -20,21 +22,18 @@ from src.insights.llm import LlmProvider, get_provider
 
 async def get_or_generate(
     user_id: int,
-    iso_year: int,
-    iso_week: int,
+    period_end: date,
     *,
     force: bool = False,
     provider: LlmProvider | None = None,
 ) -> StoredInsight:
     if not force:
-        cached = await get_weekly_insight(user_id, iso_year, iso_week)
+        cached = await get_weekly_insight(user_id, period_end)
         if cached is not None:
             return cached
 
     prov = provider if provider is not None else get_provider()
-    insight, outputs = await generate_all_segments(
-        user_id, iso_year, iso_week, provider=prov
-    )
+    insight, outputs = await generate_all_segments(user_id, period_end, provider=prov)
     model = prov.model if prov is not None else None
     texts = {
         segment: TextRecord(
@@ -46,6 +45,6 @@ async def get_or_generate(
     }
     await save_weekly_insight(user_id, insight, texts)
 
-    stored = await get_weekly_insight(user_id, iso_year, iso_week)
+    stored = await get_weekly_insight(user_id, period_end)
     assert stored is not None  # gerade gespeichert
     return stored

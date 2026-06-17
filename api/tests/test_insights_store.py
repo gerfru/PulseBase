@@ -1,6 +1,6 @@
 """Tests fuer die Cache-Orchestrierung get_or_generate."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
@@ -9,11 +9,13 @@ from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
 from src.insights.postcheck import GateOutput
 from src.insights.store import get_or_generate
 
+_END = date(2026, 6, 14)
+
 
 def _insight() -> WeeklyInsight:
     return WeeklyInsight(
-        iso_year=2026,
-        iso_week=24,
+        period_start=date(2026, 6, 8),
+        period_end=_END,
         metrics=[
             Metric(
                 key=MetricKey.TIME_IN_RANGE,
@@ -55,10 +57,10 @@ async def test_cache_hit_skips_generation():
         patch("src.insights.store.generate_all_segments", gen),
         patch("src.insights.store.save_weekly_insight", save),
     ):
-        out = await get_or_generate(1, 2026, 24)
+        out = await get_or_generate(1, _END)
     gen.assert_not_called()
     save.assert_not_called()
-    assert out.insight.iso_week == 24
+    assert out.insight.period_end == _END
 
 
 async def test_miss_generates_and_saves_with_provenance():
@@ -80,12 +82,12 @@ async def test_miss_generates_and_saves_with_provenance():
         ),
         patch("src.insights.store.save_weekly_insight", save),
     ):
-        out = await get_or_generate(1, 2026, 24, provider=_Fake())
+        out = await get_or_generate(1, _END, provider=_Fake())
     save.assert_awaited_once()
     saved_texts = save.await_args.args[2]
     assert saved_texts["hobby"].model_id == "fake"  # llm -> pinned model
     assert saved_texts["pro"].model_id is None  # fallback -> no model
-    assert out.insight.iso_week == 24
+    assert out.insight.period_end == _END
 
 
 async def test_force_regenerates_despite_cache():
@@ -100,5 +102,5 @@ async def test_force_regenerates_despite_cache():
         ),
         patch("src.insights.store.save_weekly_insight", AsyncMock()),
     ):
-        await get_or_generate(1, 2026, 24, force=True, provider=_Fake())
+        await get_or_generate(1, _END, force=True, provider=_Fake())
     assert get.await_count == 1  # cache pre-read skipped

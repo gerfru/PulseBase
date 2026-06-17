@@ -2,6 +2,12 @@
 
 Date: 2026-06-16 | Status: **Proposed** (Umsetzung von [ADR-0003](adr/0003-ai-weekly-insights.md))
 
+> **Kadenz-Update (2026-06-17, [ADR-0004](adr/0004-rolling-window-cadence.md)):** Die Insight
+> bezieht sich nicht mehr auf die fixe ISO-Woche, sondern auf ein **rollierendes 7-Tage-Fenster**
+> (`period_end = heute−1`, `period_start = period_end−6`); keine Kalender-Navigation. Wo unten
+> „ISO-Woche / `iso_year`/`iso_week`" steht, gilt jetzt „7-Tage-Fenster / `period_start`/`period_end`".
+> Datumsangaben stehen nur im UI, nicht im LLM-Text (Number-Grounding-Schutz).
+
 Synthese aus den vier Design-Dokumenten — ein ausführbarer, phasierter Pfad:
 
 - [Exploration](ai-insights-exploration.md) — Konzept, 3 Schichten, Eval-Strategie (8.4)

@@ -1,5 +1,6 @@
 """Tests fuer das deterministische Fallback-Template."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -11,8 +12,8 @@ from src.insights.templates import fallback_text
 
 def _insight(metrics) -> WeeklyInsight:
     return WeeklyInsight(
-        iso_year=2026,
-        iso_week=24,
+        period_start=date(2026, 6, 8),
+        period_end=date(2026, 6, 14),
         metrics=metrics,
         flags=[],
         evidence=[],
