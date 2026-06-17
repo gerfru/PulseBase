@@ -76,10 +76,10 @@ def test_evidence_validated_against_catalog():
         iso_week=24,
         metrics=[],
         flags=[],
-        evidence=["glucose.time_in_range"],
+        evidence=["glucose_tir"],
         catalog_version="1.0.0",
     )
-    assert ok.evidence == ["glucose.time_in_range"]
+    assert ok.evidence == ["glucose_tir"]
     with pytest.raises(ValidationError):
         WeeklyInsight(
             iso_year=2026,

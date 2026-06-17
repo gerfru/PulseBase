@@ -1,4 +1,34 @@
 {
+  "glucose_tir": {
+    "level": "meta",
+    "label": "Konsens-Leitlinie",
+    "metric_type": "trend",
+    "name": "Time in Range (CGM)",
+    "summary": "Time in Range (70–180 mg/dL) ist ein international konsentierter CGM-Kernindikator der glykämischen Kontrolle; höhere TIR ist mit geringerem Komplikationsrisiko assoziiert.",
+    "intended_use": "Bewertet den Anteil der Zeit im glykämischen Zielbereich über die Woche.",
+    "not_for": "Kein Ersatz für HbA1c oder ärztliche Diabetes-Therapieentscheidungen.",
+    "limitations": "Hängt von Sensor-Tragedauer und Kalibrierung ab; individuelle Zielbereiche können abweichen.",
+    "time_horizon": "Letzte 7 Tage (CGM-Messungen)",
+    "refs": [
+      "Battaglia M et al. (2019). Diabetes Care 42(8):1593–1603 — International Consensus on Time in Range",
+      "Beck RW et al. (2019). Diabetes Care 42(3):400–405"
+    ]
+  },
+  "acwr_injury_risk": {
+    "level": "replicated",
+    "label": "Repliziert (debattiert)",
+    "metric_type": "capacity",
+    "name": "Acute:Chronic Workload Ratio",
+    "summary": "Das Verhältnis akuter zu chronischer Last (ACWR) bildet schnelle Belastungssteigerungen ab; deutlich erhöhte Werte sind in mehreren Studien mit höherem Verletzungsrisiko assoziiert.",
+    "intended_use": "Markiert Wochen mit auffällig schnellem Belastungsanstieg als Hinweis zur Steuerung.",
+    "not_for": "Keine kausale oder individuelle Verletzungsprognose; kein medizinischer Befund.",
+    "limitations": "Methodisch debattiert (u. a. Impellizzeri 2020); abhängig von Berechnungsfenster und Sportart.",
+    "time_horizon": "Akut 7 Tage vs. chronisch 28–42 Tage",
+    "refs": [
+      "Gabbett TJ (2016). Br J Sports Med 50(5):273–280",
+      "Hulin BT et al. (2016). Br J Sports Med 50(4):231–236"
+    ]
+  },
   "energy_physical": {
     "level": "meta",
     "label": "Meta-Analyse",

@@ -73,7 +73,7 @@ def test_post_check_recommendation_ok_with_evidence():
             )
         ],
         flags=["low_time_in_range"],
-        evidence=["glucose.time_in_range"],
+        evidence=["glucose_tir"],
     )
     text = f"Zielbereich 58 %. Ratsam ist eine Anpassung. {_DISCLAIMER}"
     assert "evidence_grounding" not in post_check(text, insight, "hobby").failures

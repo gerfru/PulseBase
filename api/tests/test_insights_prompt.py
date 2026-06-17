@@ -54,7 +54,7 @@ def test_prompt_normalizes_numbers():
 
 
 def test_prompt_includes_evidence_statement():
-    ins = _insight(flags=["low_time_in_range"], evidence=["glucose.time_in_range"])
+    ins = _insight(flags=["low_time_in_range"], evidence=["glucose_tir"])
     p = build_prompt(ins, "pro")
     assert "Evidenz-Hinweise" in p
 
