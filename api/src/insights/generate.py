@@ -47,14 +47,17 @@ async def _gate_for_segment(
     return await arun_gate(_generate, insight, segment)
 
 
-async def generate_insight(
+async def generate_segment(
     user_id: int,
     period_end: date,
     segment: str,
     *,
     provider: LlmProvider | None = None,
-) -> GateOutput:
-    """Erzeugt geprueften Insight-Text fuer (User, Fenster, Segment)."""
+) -> tuple[WeeklyInsight, GateOutput]:
+    """Baut das Insight-Objekt und erzeugt geprueften Text fuer EIN Segment.
+
+    Gibt das Objekt mit zurueck, damit der Aufrufer (store) es zusammen mit dem
+    Text persistieren kann — die Basis fuer lazy Pro-Segment-Generierung."""
     inputs = await gather_inputs(user_id, period_end)
     insight = build_weekly_insight(period_end - timedelta(days=6), period_end, inputs)
     assert_no_identifier(insight)  # Invariante 2 — vor jedem Prompt
@@ -71,6 +74,18 @@ async def generate_insight(
         failures=out.failures,
         latency_ms=round((time.monotonic() - start) * 1000),
     )
+    return insight, out
+
+
+async def generate_insight(
+    user_id: int,
+    period_end: date,
+    segment: str,
+    *,
+    provider: LlmProvider | None = None,
+) -> GateOutput:
+    """Erzeugt geprueften Insight-Text fuer (User, Fenster, Segment)."""
+    _, out = await generate_segment(user_id, period_end, segment, provider=provider)
     return out
 
 

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 from src.db.weekly_insights import StoredInsight, TextRecord
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
 from src.insights.postcheck import GateOutput
-from src.insights.store import get_or_generate
+from src.insights.store import get_or_generate, get_or_generate_segment
 
 _END = date(2026, 6, 14)
 
@@ -104,3 +104,43 @@ async def test_force_regenerates_despite_cache():
     ):
         await get_or_generate(1, _END, force=True, provider=_Fake())
     assert get.await_count == 1  # cache pre-read skipped
+
+
+# --- lazy pro Segment ------------------------------------------------------ #
+
+
+async def test_segment_cache_hit_skips_generation():
+    gen = AsyncMock()
+    with (
+        patch(
+            "src.insights.store.get_weekly_insight", AsyncMock(return_value=_stored())
+        ),
+        patch("src.insights.store.generate_segment", gen),
+        patch("src.insights.store.save_weekly_insight", AsyncMock()),
+    ):
+        # _stored() enthaelt das Segment "hobby" -> kein LLM-Aufruf.
+        out = await get_or_generate_segment(1, _END, "hobby")
+    gen.assert_not_called()
+    assert out.insight.period_end == _END
+
+
+async def test_segment_miss_generates_and_saves_single_segment():
+    ins = _insight()
+    save = AsyncMock()
+    with (
+        patch(
+            "src.insights.store.get_weekly_insight",
+            AsyncMock(side_effect=[_stored(), _stored()]),
+        ),
+        patch(
+            "src.insights.store.generate_segment",
+            AsyncMock(return_value=(ins, GateOutput("y", "llm", 1))),
+        ),
+        patch("src.insights.store.save_weekly_insight", save),
+    ):
+        # "profi" fehlt im Cache -> nur dieses eine Segment wird generiert/gespeichert.
+        await get_or_generate_segment(1, _END, "profi", provider=_Fake())
+    save.assert_awaited_once()
+    saved_texts = save.await_args.args[2]
+    assert set(saved_texts) == {"profi"}
+    assert saved_texts["profi"].model_id == "fake"

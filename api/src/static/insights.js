@@ -113,13 +113,15 @@ function schedulePoll() {
     pollTimer = setTimeout(load, 5000);
 }
 
+// Liefert nur das aktive Segment (lazy) — andere Segmente werden erst beim
+// Tab-Wechsel angefordert; spart die ~2-min-Erstlatenz.
 async function load() {
     const el = document.getElementById('ins-content');
-    if (el && !state.data) {
+    if (el && !state.data?.texts?.[state.segment]) {
         el.innerHTML = '<p class="text-sm text-slate-500">Lade Auswertung…</p>';
     }
     try {
-        const res = await fetch('/api/insights');
+        const res = await fetch(`/api/insights?segment=${encodeURIComponent(state.segment)}`);
         if (!res.ok) throw new Error(String(res.status));
         const data = await res.json();
         state.periodStart = data.period_start;
@@ -146,7 +148,9 @@ async function regenerate() {
     if (btn) btn.disabled = true;
     waitingSince = state.data?.created_at || null;
     try {
-        const res = await fetch('/api/insights/regenerate', { method: 'POST' });
+        const res = await fetch(`/api/insights/regenerate?segment=${encodeURIComponent(state.segment)}`, {
+            method: 'POST',
+        });
         if (res.ok) {
             showPending();
             schedulePoll();
@@ -161,7 +165,12 @@ function setSegment(seg) {
     document.querySelectorAll('.ins-seg').forEach((b) => {
         b.setAttribute('aria-pressed', String(b.dataset.seg === seg));
     });
-    paint();
+    // Schon generiert → sofort zeichnen; sonst lazy nachladen (kick + Poll).
+    if (state.data?.texts?.[seg]) {
+        paint();
+    } else {
+        load();
+    }
 }
 
 function init() {

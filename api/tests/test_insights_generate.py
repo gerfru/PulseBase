@@ -5,7 +5,11 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
 from src.insights.collect import MetricInput
-from src.insights.generate import generate_all_segments, generate_insight
+from src.insights.generate import (
+    generate_all_segments,
+    generate_insight,
+    generate_segment,
+)
 from src.insights.models import MetricKey, Unit
 from src.insights.templates import SEGMENTS
 
@@ -31,6 +35,15 @@ class _FakeProvider:
 async def test_generate_returns_llm_text_when_valid():
     with patch("src.insights.generate.gather_inputs", AsyncMock(return_value=_INPUTS)):
         out = await generate_insight(1, _END, "hobby", provider=_FakeProvider(_VALID))
+    assert out.generator == "llm"
+
+
+async def test_generate_segment_returns_insight_and_output():
+    with patch("src.insights.generate.gather_inputs", AsyncMock(return_value=_INPUTS)):
+        insight, out = await generate_segment(
+            1, _END, "hobby", provider=_FakeProvider(_VALID)
+        )
+    assert insight.period_end == _END
     assert out.generator == "llm"
 
 

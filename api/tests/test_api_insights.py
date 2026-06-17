@@ -101,36 +101,59 @@ async def test_regenerate_kicks_force(client):
 # --- Hintergrund-Generierung ---------------------------------------------- #
 
 
+async def test_get_pending_when_segment_missing(client):
+    # Objekt da, aber das angeforderte Segment fehlt → lazy kick + pending.
+    stored = _stored()  # hat hobby + pro
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.api_insights.get_weekly_insight",
+            AsyncMock(return_value=stored),
+        ),
+        patch("src.routes.api_insights._kick", MagicMock()) as kick,
+    ):
+        r = await client.get("/api/insights?segment=profi")
+    assert r.status_code == 200
+    assert r.json()["status"] == "pending"
+    assert kick.call_args.args[2] == "profi"
+
+
+async def test_unknown_segment_rejected(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/insights?segment=enterprise")
+    assert r.status_code == 422
+
+
 async def test_generate_bg_clears_inflight_on_success():
     from src.routes.api_insights import _generate_bg, _inflight
 
-    _inflight.add((1, _END))
-    with patch("src.routes.api_insights.get_or_generate", AsyncMock()):
-        await _generate_bg(1, _END, False)
-    assert (1, _END) not in _inflight
+    _inflight.add((1, _END, "hobby"))
+    with patch("src.routes.api_insights.get_or_generate_segment", AsyncMock()):
+        await _generate_bg(1, _END, "hobby", False)
+    assert (1, _END, "hobby") not in _inflight
 
 
 async def test_generate_bg_clears_inflight_on_error():
     from src.routes.api_insights import _generate_bg, _inflight
 
-    _inflight.add((1, _END))
+    _inflight.add((1, _END, "hobby"))
     with patch(
-        "src.routes.api_insights.get_or_generate",
+        "src.routes.api_insights.get_or_generate_segment",
         AsyncMock(side_effect=RuntimeError("boom")),
     ):
-        await _generate_bg(1, _END, False)  # darf nicht werfen
-    assert (1, _END) not in _inflight
+        await _generate_bg(1, _END, "hobby", False)  # darf nicht werfen
+    assert (1, _END, "hobby") not in _inflight
 
 
-def test_kick_dedupes_same_window():
+def test_kick_dedupes_same_window_and_segment():
     from src.routes.api_insights import _inflight, _kick
 
-    _inflight.discard((9, _END))
+    _inflight.discard((9, _END, "hobby"))
     with (
         patch("src.routes.api_insights._generate_bg"),
         patch("src.routes.api_insights.asyncio.create_task") as ct,
     ):
-        _kick(9, _END, force=False)
-        _kick(9, _END, force=False)  # dedupliziert → kein zweiter Task
+        _kick(9, _END, "hobby", force=False)
+        _kick(9, _END, "hobby", force=False)  # dedupliziert → kein zweiter Task
     ct.assert_called_once()
-    _inflight.discard((9, _END))
+    _inflight.discard((9, _END, "hobby"))
