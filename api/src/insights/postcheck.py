@@ -18,6 +18,10 @@ from src.insights.templates import SEGMENT_DISCLAIMERS, fallback_text
 
 _NUMBER_RE = re.compile(r"[-−+]?\d+(?:[.,]\d+)?")
 
+# Unausgefuellte Template-Platzhalter, z. B. "[Datum]" / "[Zeitraum]" — ein
+# klarer Generierungs-Defekt; fail-secure ablehnen.
+_PLACEHOLDER_RE = re.compile(r"[\[{][^\]}\n]{0,40}[\]}]")
+
 # Hedging-/Zahlwoerter, die jeden Ziffern-Check umgehen wuerden.
 _NUMBER_WORDS_RE = re.compile(
     r"(?<!\w)(knapp|fast|etwa|ungef[aae]hr|rund|circa|ca\.|beinahe|"
@@ -79,6 +83,10 @@ def _check_number_words(text: str) -> bool:
     return _NUMBER_WORDS_RE.search(text) is None
 
 
+def _check_no_placeholder(text: str) -> bool:
+    return _PLACEHOLDER_RE.search(text) is None
+
+
 def _check_identifier_leak(text: str) -> bool:
     return EMAIL_RE.search(text) is None
 
@@ -127,6 +135,7 @@ def post_check(text: str, insight: WeeklyInsight, segment: str) -> CheckResult:
     checks: list[tuple[str, bool]] = [
         ("number_grounding", _check_number_grounding(text, insight)),
         ("number_words", _check_number_words(text)),
+        ("placeholder", _check_no_placeholder(text)),
         ("identifier_leak", _check_identifier_leak(text)),
         ("disclaimer", _check_disclaimer(text, segment)),
         ("coverage", _check_coverage(text, insight)),

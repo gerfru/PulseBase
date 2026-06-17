@@ -46,6 +46,11 @@ def test_post_check_flags_number_word():
     assert "number_words" in post_check(text, _insight(), "hobby").failures
 
 
+def test_post_check_flags_template_placeholder():
+    text = f"Am [Datum] lag der Zielbereich bei 58 %. {_DISCLAIMER}"
+    assert "placeholder" in post_check(text, _insight(), "hobby").failures
+
+
 def test_post_check_flags_missing_disclaimer():
     text = "Zielbereich 58 %."
     assert "disclaimer" in post_check(text, _insight(), "hobby").failures
