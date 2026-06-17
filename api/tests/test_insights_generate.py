@@ -4,8 +4,9 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
 from src.insights.collect import MetricInput
-from src.insights.generate import generate_insight
+from src.insights.generate import generate_all_segments, generate_insight
 from src.insights.models import MetricKey, Unit
+from src.insights.templates import SEGMENTS
 
 # TIME_IN_RANGE 58 (< 70) -> flag low_time_in_range + evidence; trend STABLE.
 _INPUTS = [
@@ -48,3 +49,14 @@ async def test_generate_falls_back_when_provider_disabled():
         out = await generate_insight(1, 2026, 24, "hobby")
     assert out.generator == "fallback_template"
     assert out.attempts == 0
+
+
+async def test_generate_all_segments_builds_once_for_all_segments():
+    with (
+        patch("src.insights.generate.gather_inputs", AsyncMock(return_value=_INPUTS)),
+        patch("src.insights.generate.get_provider", return_value=None),
+    ):
+        insight, outputs = await generate_all_segments(1, 2026, 24)
+    assert set(outputs) == set(SEGMENTS)
+    assert all(o.generator == "fallback_template" for o in outputs.values())
+    assert insight.iso_week == 24

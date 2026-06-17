@@ -1246,11 +1246,12 @@ async def test_delete_user_executes_transaction():
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
         await delete_user(1)
 
-    assert conn.execute.call_count == 9
+    assert conn.execute.call_count == 10
     deleted_tables = [call[0][0] for call in conn.execute.call_args_list]
     assert any("users" in q for q in deleted_tables)
     assert any("activities" in q for q in deleted_tables)
     assert any("ml_predictions" in q for q in deleted_tables)
+    assert any("weekly_insights" in q for q in deleted_tables)
 
 
 async def test_save_consent_executes_upsert():
