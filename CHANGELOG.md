@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.6.0](https://github.com/gerfru/PulseBase/compare/v1.5.0...v1.6.0) (2026-06-17)
+
+
+### Features
+
+* **insights:** /insights page + JSON endpoints (P6) ([#232](https://github.com/gerfru/PulseBase/issues/232)) ([cf88d72](https://github.com/gerfru/PulseBase/commit/cf88d726d11ea1d31e841bc7050c6a6afdea2c17))
+* **insights:** Feinschliff — Niveau-Kontext, Labels, Markdown ([#235](https://github.com/gerfru/PulseBase/issues/235)) ([90134f0](https://github.com/gerfru/PulseBase/commit/90134f0d57135969413c5390eac9a2d9183c0d54))
+* **insights:** persistence + cache-aware generation (P5) ([#230](https://github.com/gerfru/PulseBase/issues/230)) ([5d25c47](https://github.com/gerfru/PulseBase/commit/5d25c477ffba1706abcab409af94eff4847535dc))
+* **insights:** rolling 7-day window + lazy per-segment generation ([#236](https://github.com/gerfru/PulseBase/issues/236)) ([c857314](https://github.com/gerfru/PulseBase/commit/c857314531dbf54008172710cfe2442c455f3ac6))
+* **insights:** wire real week-bounded metrics + reuse evidence catalog ([#234](https://github.com/gerfru/PulseBase/issues/234)) ([9875ba7](https://github.com/gerfru/PulseBase/commit/9875ba74673dde9a8359efeb5166cf0a2b3c2ccf))
+
+
+### Bug Fixes
+
+* **insights:** /insights live-fixes (Chart-Bug, Disclaimer, async generation) ([#233](https://github.com/gerfru/PulseBase/issues/233)) ([816251c](https://github.com/gerfru/PulseBase/commit/816251c2d8cf4f1f23b6a78d43d952d7f5d0cc77))
+
 ## [1.5.0](https://github.com/gerfru/PulseBase/compare/v1.4.0...v1.5.0) (2026-06-17)
 
 
