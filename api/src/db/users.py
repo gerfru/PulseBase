@@ -235,6 +235,9 @@ async def delete_user(user_id: int) -> None:
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
+            await conn.execute(
+                "DELETE FROM weekly_insights WHERE user_id = $1", user_id
+            )
             await conn.execute("DELETE FROM ml_predictions WHERE user_id = $1", user_id)
             await conn.execute("DELETE FROM seizure_events WHERE user_id = $1", user_id)
             await conn.execute(
