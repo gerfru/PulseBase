@@ -1,5 +1,6 @@
 """Tests fuer die Basis-Riegel: Identifier-Gate + Number-Tokens (P1)."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -13,8 +14,8 @@ from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
 
 def _insight() -> WeeklyInsight:
     return WeeklyInsight(
-        iso_year=2026,
-        iso_week=24,
+        period_start=date(2026, 6, 8),
+        period_end=date(2026, 6, 14),
         metrics=[
             Metric(
                 key=MetricKey.TIME_IN_RANGE,
@@ -55,4 +56,6 @@ def test_allowed_number_tokens_includes_comma_and_sign():
     assert "58" in tokens
     assert "4.1" in tokens and "4,1" in tokens
     assert "-4.1" in tokens and "−4,1" in tokens
-    assert "24" in tokens  # iso_week
+    # Datum/Zeitfenster gehoert NICHT zu den erlaubten Tokens (steht im UI).
+    assert "24" not in tokens
+    assert "2026" not in tokens

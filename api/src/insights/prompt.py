@@ -61,7 +61,8 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
     # Der Disclaimer wird deterministisch angehaengt (siehe generate.py) — nicht
     # vom Modell verlangt, da es ihn unzuverlaessig woertlich reproduziert.
     parts: list[str] = [
-        "Du bist ein Gesundheits-Assistent. Schreibe eine kurze Wochen-Auswertung.",
+        "Du bist ein Gesundheits-Assistent. Schreibe eine kurze Auswertung der "
+        "letzten 7 Tage.",
         f"Tonlage: {_SEGMENT_TONE[segment]}.",
         "",
         "REGELN (strikt einhalten):",
@@ -71,10 +72,12 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
         "Kontext des Niveaus: ein Anstieg bei niedrigem Niveau ist 'beginnende "
         "Erholung', nicht 'gut'; ein Wert kann steigen UND trotzdem niedrig sein.",
         "- Keine vagen Mengen wie 'knapp', 'fast', 'etwa', 'rund', 'Haelfte'.",
+        "- Nenne KEIN Datum, keinen Zeitraum und keine Wochennummer; verwende keine "
+        "Platzhalter wie '[Datum]' oder '[Zeitraum]'. Beginne direkt mit der "
+        "Einordnung der Kennzahlen.",
         "- Keine individuelle medizinische Empfehlung; nutze nur die Evidenz-Hinweise.",
         "- Kein Disclaimer noetig — der wird automatisch ergaenzt.",
         "",
-        f"Woche {insight.iso_week}/{insight.iso_year}.",
         "Kennzahlen:",
     ]
     parts += [_metric_line(m) for m in insight.metrics] or ["- (keine Kennzahlen)"]

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}PulseBase — Wochen-Insights{% endblock %}
+{% block title %}PulseBase — Insights{% endblock %}
 {% block extra_head %}
 <script nonce="{{ nonce }}" src="/static/vendor/purify.min.js"></script>
 {% endblock %}
@@ -26,16 +26,12 @@
 
     <div class="dash-shell mx-auto w-full px-4 sm:px-6">
         <div class="card col-span-full">
-            <h1 class="text-xl font-bold mb-1">Wochen-Insights
+            <h1 class="text-xl font-bold mb-1">Insights
                 <span class="text-xs font-normal text-slate-500 dark:text-slate-400">— automatisierte Analyse, kein medizinischer Befund</span>
             </h1>
 
             <div class="flex items-center justify-between gap-3 mt-3 mb-4">
-                <div class="flex items-center gap-2">
-                    <button id="ins-prev" class="topbar-btn" aria-label="Vorige Woche">◀</button>
-                    <span id="ins-week" class="text-sm font-medium text-slate-700 dark:text-slate-300">…</span>
-                    <button id="ins-next" class="topbar-btn" aria-label="Nächste Woche">▶</button>
-                </div>
+                <span id="ins-week" class="text-sm font-medium text-slate-700 dark:text-slate-300">…</span>
                 <div class="flex items-center gap-1" role="tablist" aria-label="Tonlage">
                     <button class="topbar-btn ins-seg" data-seg="hobby" aria-pressed="true">Hobby</button>
                     <button class="topbar-btn ins-seg" data-seg="pro" aria-pressed="false">Pro</button>

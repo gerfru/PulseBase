@@ -89,9 +89,10 @@ def number_variants(value: Decimal) -> set[str]:
 
 
 def allowed_number_tokens(insight: WeeklyInsight) -> set[str]:
-    """Alle Zahl-Strings, die im Text vorkommen DUERFEN — Werte und
-    Aenderungen der Metriken plus Jahr/Woche."""
-    tokens: set[str] = {str(insight.iso_year), str(insight.iso_week)}
+    """Alle Zahl-Strings, die im Text vorkommen DUERFEN — Werte + Aenderungen der
+    Metriken. Das Datum/Zeitfenster gehoert NICHT dazu (steht im UI, nicht im
+    Text — sonst maskieren Tag/Monat echte Halluzinationen)."""
+    tokens: set[str] = set()
     for m in insight.metrics:
         tokens |= number_variants(m.value)
         if m.change_pct is not None:

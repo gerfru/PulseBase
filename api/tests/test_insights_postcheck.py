@@ -1,5 +1,6 @@
 """Tests fuer das fail-secure Output-Gate (P3)."""
 
+from datetime import date
 from decimal import Decimal
 
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
@@ -8,8 +9,8 @@ from src.insights.postcheck import arun_gate, post_check, run_gate
 
 def _insight(**kw) -> WeeklyInsight:
     base = dict(
-        iso_year=2026,
-        iso_week=24,
+        period_start=date(2026, 6, 8),
+        period_end=date(2026, 6, 14),
         metrics=[
             Metric(
                 key=MetricKey.TIME_IN_RANGE,
@@ -31,7 +32,7 @@ _DISCLAIMER = "Hinweis: kein medizinischer Rat."
 
 
 def test_post_check_passes_grounded_text():
-    text = f"Woche 24: Zielbereich 58 % (-4.1 %). {_DISCLAIMER}"
+    text = f"Zielbereich 58 % (-4.1 %). {_DISCLAIMER}"
     assert post_check(text, _insight(), "hobby").passed
 
 
@@ -45,8 +46,13 @@ def test_post_check_flags_number_word():
     assert "number_words" in post_check(text, _insight(), "hobby").failures
 
 
+def test_post_check_flags_template_placeholder():
+    text = f"Am [Datum] lag der Zielbereich bei 58 %. {_DISCLAIMER}"
+    assert "placeholder" in post_check(text, _insight(), "hobby").failures
+
+
 def test_post_check_flags_missing_disclaimer():
-    text = "Woche 24: Zielbereich 58 %."
+    text = "Zielbereich 58 %."
     assert "disclaimer" in post_check(text, _insight(), "hobby").failures
 
 
@@ -85,7 +91,7 @@ def test_post_check_flags_identifier_leak():
 
 
 def test_run_gate_returns_llm_text_when_valid():
-    good = f"Woche 24: Zielbereich 58 % (-4.1 %). {_DISCLAIMER}"
+    good = f"Zielbereich 58 % (-4.1 %). {_DISCLAIMER}"
     out = run_gate(lambda: good, _insight(), "hobby")
     assert out.generator == "llm"
     assert out.attempts == 1
@@ -103,7 +109,7 @@ def test_run_gate_falls_back_after_failures():
 
 
 async def test_arun_gate_returns_llm_when_valid():
-    good = f"Woche 24: Zielbereich 58 % (-4.1 %). {_DISCLAIMER}"
+    good = f"Zielbereich 58 % (-4.1 %). {_DISCLAIMER}"
 
     async def gen() -> str:
         return good

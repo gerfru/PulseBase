@@ -14,8 +14,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
+from src.db.activities import get_recent_activities
 from src.db.glucose import get_glucose_stats
-from src.db.health import get_hrv_trend, get_weekly_stats
+from src.db.health import get_hrv_trend
 from src.db.ml import get_ml_history
 from src.insights.evidence import CATALOG_VERSION, VALID_EVIDENCE_KEYS
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
@@ -137,8 +138,8 @@ def _evidence_for(flags: list[str]) -> list[str]:
 
 
 def build_weekly_insight(
-    iso_year: int,
-    iso_week: int,
+    period_start: date,
+    period_end: date,
     inputs: list[MetricInput],
     *,
     catalog_version: str = CATALOG_VERSION,
@@ -154,8 +155,8 @@ def build_weekly_insight(
             metrics.append(metric)
     flags = detect_flags(metrics)
     return WeeklyInsight(
-        iso_year=iso_year,
-        iso_week=iso_week,
+        period_start=period_start,
+        period_end=period_end,
         metrics=metrics,
         unavailable=unavailable,
         flags=flags,
@@ -196,27 +197,22 @@ def _hrv_mean(rows: Sequence[dict]) -> float | None:
     return sum(vals) / len(vals) if vals else None
 
 
-def _week_hours(wstats: Sequence[dict], monday: date) -> float | None:
-    for row in wstats:
-        if row.get("week") == monday:
-            return row.get("total_hours")
-    return None
+def _volume_hours(activities: Sequence[dict]) -> float | None:
+    secs = [a["duration_seconds"] for a in activities if a.get("duration_seconds")]
+    return sum(secs) / 3600.0 if secs else None
 
 
-async def gather_inputs(
-    user_id: int, iso_year: int, iso_week: int
-) -> list[MetricInput]:
-    """Sammelt bis zu 7 wochen-gebundene Metriken (Wochen-Mittel + Vorwochen-Delta)."""
-    monday = date.fromisocalendar(iso_year, iso_week, 1)
-    sunday = date.fromisocalendar(iso_year, iso_week, 7)
-    prev_monday = monday - timedelta(days=7)
-    prev_sunday = sunday - timedelta(days=7)
+async def gather_inputs(user_id: int, period_end: date) -> list[MetricInput]:
+    """Sammelt bis zu 7 Metriken fuer das rollierende 7-Tage-Fenster
+    [period_end-6 .. period_end] — Mittel + Vorfenster-Delta."""
+    prev_end = period_end - timedelta(days=7)
 
-    cur = await get_ml_history(user_id, days=6, end_date=sunday)
-    prev = await get_ml_history(user_id, days=6, end_date=prev_sunday)
-    hrv_cur = await get_hrv_trend(user_id, days=6, end_date=sunday)
-    hrv_prev = await get_hrv_trend(user_id, days=6, end_date=prev_sunday)
-    wstats = await get_weekly_stats(user_id, weeks=2, end_date=sunday)
+    cur = await get_ml_history(user_id, days=6, end_date=period_end)
+    prev = await get_ml_history(user_id, days=6, end_date=prev_end)
+    hrv_cur = await get_hrv_trend(user_id, days=6, end_date=period_end)
+    hrv_prev = await get_hrv_trend(user_id, days=6, end_date=prev_end)
+    acts_cur = await get_recent_activities(user_id, days=7, end_date=period_end)
+    acts_prev = await get_recent_activities(user_id, days=7, end_date=prev_end)
 
     inputs: list[MetricInput] = [
         MetricInput(
@@ -244,13 +240,13 @@ async def gather_inputs(
         MetricInput(
             MetricKey.TRAINING_VOLUME,
             Unit.H,
-            _dec(_week_hours(wstats, monday), "0.1"),
-            _dec(_week_hours(wstats, prev_monday), "0.1"),
+            _dec(_volume_hours(acts_cur), "0.1"),
+            _dec(_volume_hours(acts_prev), "0.1"),
         )
     )
-    # Glukose-TIR nutzt eine NOW-basierte Query → nur fuer die laufende/letzte Woche
-    # sinnvoll; fuer aeltere Wochen weggelassen (sonst falsches Fenster).
-    if sunday >= date.today() - timedelta(days=7):
+    # Glukose-TIR nutzt eine NOW-basierte Query → nur fuer das aktuelle Fenster
+    # sinnvoll; fuer aeltere Fenster weggelassen (sonst falsches Zeitfenster).
+    if period_end >= date.today() - timedelta(days=1):
         stats = await get_glucose_stats(user_id, days=7)
         inputs.append(
             MetricInput(

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from src.insights.models import WeeklyInsight
 
@@ -41,30 +41,29 @@ async def save_weekly_insight(
         async with conn.transaction():
             await conn.execute(
                 """INSERT INTO weekly_insights
-                       (user_id, iso_year, iso_week, insight_obj, catalog_version)
+                       (user_id, period_start, period_end, insight_obj, catalog_version)
                    VALUES ($1, $2, $3, $4::jsonb, $5)
-                   ON CONFLICT (user_id, iso_year, iso_week) DO UPDATE
-                   SET insight_obj = EXCLUDED.insight_obj,
+                   ON CONFLICT (user_id, period_end) DO UPDATE
+                   SET period_start = EXCLUDED.period_start,
+                       insight_obj = EXCLUDED.insight_obj,
                        catalog_version = EXCLUDED.catalog_version,
                        created_at = NOW()""",
                 user_id,
-                insight.iso_year,
-                insight.iso_week,
+                insight.period_start,
+                insight.period_end,
                 obj_json,
                 insight.catalog_version,
             )
             for segment, rec in texts.items():
                 await conn.execute(
                     """INSERT INTO weekly_insight_texts
-                           (user_id, iso_year, iso_week, segment, body,
-                            generator, model_id)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7)
-                       ON CONFLICT (user_id, iso_year, iso_week, segment) DO UPDATE
+                           (user_id, period_end, segment, body, generator, model_id)
+                       VALUES ($1, $2, $3, $4, $5, $6)
+                       ON CONFLICT (user_id, period_end, segment) DO UPDATE
                        SET body = EXCLUDED.body, generator = EXCLUDED.generator,
                            model_id = EXCLUDED.model_id, created_at = NOW()""",
                     user_id,
-                    insight.iso_year,
-                    insight.iso_week,
+                    insight.period_end,
                     segment,
                     rec.body,
                     rec.generator,
@@ -72,28 +71,24 @@ async def save_weekly_insight(
                 )
 
 
-async def get_weekly_insight(
-    user_id: int, iso_year: int, iso_week: int
-) -> StoredInsight | None:
-    """Liest Objekt + Texte; ``None`` wenn (User, Woche) nicht gespeichert."""
+async def get_weekly_insight(user_id: int, period_end: date) -> StoredInsight | None:
+    """Liest Objekt + Texte; ``None`` wenn (User, Fenster-Ende) nicht gespeichert."""
     pool = await get_pool()
     parent = await pool.fetchrow(
         """SELECT insight_obj, catalog_version, created_at
            FROM weekly_insights
-           WHERE user_id = $1 AND iso_year = $2 AND iso_week = $3""",
+           WHERE user_id = $1 AND period_end = $2""",
         user_id,
-        iso_year,
-        iso_week,
+        period_end,
     )
     if parent is None:
         return None
     rows = await pool.fetch(
         """SELECT segment, body, generator, model_id
            FROM weekly_insight_texts
-           WHERE user_id = $1 AND iso_year = $2 AND iso_week = $3""",
+           WHERE user_id = $1 AND period_end = $2""",
         user_id,
-        iso_year,
-        iso_week,
+        period_end,
     )
     obj = parent["insight_obj"]
     if isinstance(obj, str):  # asyncpg liefert JSONB als Text

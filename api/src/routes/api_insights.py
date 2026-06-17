@@ -1,10 +1,13 @@
-"""Wochen-Insights — JSON-Endpoints (ADR-0003, P6).
+"""Insights — JSON-Endpoints (ADR-0003 / ADR-0004).
 
-GET liefert die gespeicherte Insight (``status: ready``) oder stoesst die
-Generierung im Hintergrund an und antwortet sofort ``status: pending`` — die
-Generierung mit dem lokalen Modell dauert; sie blockiert den Request nicht. POST
-``regenerate`` erzwingt eine Neugenerierung (ratenlimitiert, C5). Immer per
-Session-User gescopet (BOLA, C4); JSON + sameSite=strict → kein CSRF.
+Rollierendes 7-Tage-Fenster (endet gestern). GET liefert das gespeicherte
+Segment (``status: ready``) oder stoesst dessen Generierung im Hintergrund an und
+antwortet sofort ``status: pending`` (lokale Generierung dauert; blockiert den
+Request nicht). **Lazy pro Segment:** nur das angeforderte Segment wird erzeugt —
+die uebrigen erst bei Bedarf (Tab-Wechsel), das spart die Erstlatenz.
+POST ``regenerate`` erzwingt eine Neugenerierung des angeforderten Segments
+(ratenlimitiert, C5). Immer per Session-User gescopet (BOLA, C4); JSON +
+sameSite=strict → kein CSRF.
 
 Teil des /api/*-Surface; via src.routes.api Aggregator registriert.
 """
@@ -16,39 +19,38 @@ from datetime import date, timedelta
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Query, Request
-from pydantic import BaseModel, field_validator
+from fastapi import APIRouter, HTTPException, Query, Request
 
 import src.deps as _deps
 from src.db.weekly_insights import StoredInsight, get_weekly_insight
 from src.deps import limiter
-from src.insights.store import get_or_generate
+from src.insights.store import get_or_generate_segment
+from src.insights.templates import SEGMENTS
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
 
 # In-Flight-Dedup + Task-Referenzen (verhindert GC der Hintergrund-Tasks).
-_inflight: set[tuple[int, int, int]] = set()
+_inflight: set[tuple[int, date, str]] = set()
 _bg_tasks: set[asyncio.Task[None]] = set()
 
 
-def _last_complete_week() -> tuple[int, int]:
-    """Die zuletzt abgeschlossene ISO-Woche (laufende Woche haette Teildaten)."""
-    iso = (date.today() - timedelta(weeks=1)).isocalendar()
-    return iso.year, iso.week
+def _current_period_end() -> date:
+    """Letzter vollstaendiger Tag (gestern) — 'heute' ist unvollstaendig."""
+    return date.today() - timedelta(days=1)
 
 
-def _resolve_week(iso_year: int | None, iso_week: int | None) -> tuple[int, int]:
-    if iso_year is not None and iso_week is not None:
-        return iso_year, iso_week
-    return _last_complete_week()
+def _valid_segment(segment: str) -> str:
+    if segment not in SEGMENTS:
+        raise HTTPException(status_code=422, detail="unknown segment")
+    return segment
 
 
-def _serialize(stored: StoredInsight, iso_year: int, iso_week: int) -> dict[str, Any]:
+def _serialize(stored: StoredInsight) -> dict[str, Any]:
     return {
         "status": "ready",
-        "iso_year": iso_year,
-        "iso_week": iso_week,
+        "period_start": stored.insight.period_start.isoformat(),
+        "period_end": stored.insight.period_end.isoformat(),
         "insight": stored.insight.model_dump(mode="json"),
         "texts": {
             seg: {"body": t.body, "generator": t.generator, "model_id": t.model_id}
@@ -60,59 +62,62 @@ def _serialize(stored: StoredInsight, iso_year: int, iso_week: int) -> dict[str,
     }
 
 
-async def _generate_bg(user_id: int, year: int, week: int, force: bool) -> None:
+async def _generate_bg(
+    user_id: int, period_end: date, segment: str, force: bool
+) -> None:
     try:
-        await get_or_generate(user_id, year, week, force=force)
+        await get_or_generate_segment(user_id, period_end, segment, force=force)
     except Exception:
-        logger.exception("insights.bg_generate_failed", iso_year=year, iso_week=week)
+        logger.exception(
+            "insights.bg_generate_failed",
+            period_end=period_end.isoformat(),
+            segment=segment,
+        )
     finally:
-        _inflight.discard((user_id, year, week))
+        _inflight.discard((user_id, period_end, segment))
 
 
-def _kick(user_id: int, year: int, week: int, *, force: bool) -> None:
-    """Startet die Hintergrund-Generierung, dedupliziert pro (user, Woche)."""
-    key = (user_id, year, week)
+def _kick(user_id: int, period_end: date, segment: str, *, force: bool) -> None:
+    """Startet die Hintergrund-Generierung, dedupliziert pro (user, Fenster, Segment)."""
+    key = (user_id, period_end, segment)
     if key in _inflight:
         return
     _inflight.add(key)
-    task = asyncio.create_task(_generate_bg(user_id, year, week, force))
+    task = asyncio.create_task(_generate_bg(user_id, period_end, segment, force))
     _bg_tasks.add(task)
     task.add_done_callback(_bg_tasks.discard)
+
+
+def _pending(period_end: date) -> dict[str, Any]:
+    return {
+        "status": "pending",
+        "period_start": (period_end - timedelta(days=6)).isoformat(),
+        "period_end": period_end.isoformat(),
+    }
 
 
 @router.get("/api/insights")
 @limiter.limit("30/minute")
 async def api_insights(
-    request: Request,
-    iso_year: int | None = Query(default=None),
-    iso_week: int | None = Query(default=None, ge=1, le=53),
+    request: Request, segment: str = Query("hobby")
 ) -> dict[str, Any]:
     user = await _deps.require_user(request)
-    year, week = _resolve_week(iso_year, iso_week)
-    stored = await get_weekly_insight(user["id"], year, week)
-    if stored is not None:
-        return _serialize(stored, year, week)
-    _kick(user["id"], year, week, force=False)
-    return {"status": "pending", "iso_year": year, "iso_week": week}
-
-
-class RegenerateBody(BaseModel):
-    iso_year: int
-    iso_week: int
-
-    @field_validator("iso_week")
-    @classmethod
-    def _valid_week(cls, v: int) -> int:
-        if not 1 <= v <= 53:
-            raise ValueError("iso_week must be in 1..53")
-        return v
+    seg = _valid_segment(segment)
+    period_end = _current_period_end()
+    stored = await get_weekly_insight(user["id"], period_end)
+    if stored is not None and seg in stored.texts:
+        return _serialize(stored)
+    _kick(user["id"], period_end, seg, force=False)
+    return _pending(period_end)
 
 
 @router.post("/api/insights/regenerate")
 @limiter.limit("5/hour")
 async def api_insights_regenerate(
-    request: Request, body: RegenerateBody
+    request: Request, segment: str = Query("hobby")
 ) -> dict[str, Any]:
     user = await _deps.require_user(request)
-    _kick(user["id"], body.iso_year, body.iso_week, force=True)
-    return {"status": "pending", "iso_year": body.iso_year, "iso_week": body.iso_week}
+    seg = _valid_segment(segment)
+    period_end = _current_period_end()
+    _kick(user["id"], period_end, seg, force=True)
+    return _pending(period_end)

@@ -8,6 +8,7 @@ binaeren Number-Grounding-Check).
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from enum import Enum
 
@@ -78,25 +79,24 @@ class Metric(BaseModel):
 
 
 class WeeklyInsight(BaseModel):
-    """Der Trust-Vertrag fuer eine ISO-Woche. Enthaelt nie einen Identifier —
-    ``iso_year``/``iso_week`` sind eine Zeitspanne, keine Person."""
+    """Der Trust-Vertrag fuer ein rollierendes 7-Tage-Fenster. Enthaelt nie einen
+    Identifier — ``period_start``/``period_end`` sind eine Zeitspanne, keine Person."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    iso_year: int
-    iso_week: int
+    period_start: date
+    period_end: date
     metrics: list[Metric]
     flags: list[str]
     evidence: list[str]
     catalog_version: str
     unavailable: list[MetricKey] = []
 
-    @field_validator("iso_week")
-    @classmethod
-    def _valid_week(cls, v: int) -> int:
-        if not 1 <= v <= 53:
-            raise ValueError("iso_week must be in 1..53")
-        return v
+    @model_validator(mode="after")
+    def _period_order(self) -> WeeklyInsight:
+        if self.period_end < self.period_start:
+            raise ValueError("period_end must be >= period_start")
+        return self
 
     @field_validator("evidence")
     @classmethod

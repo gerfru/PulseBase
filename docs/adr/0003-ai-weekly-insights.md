@@ -4,6 +4,11 @@
 
 Accepted — 2026-06-16
 
+> **Teilweise superseded durch [ADR-0004](0004-rolling-window-cadence.md) (2026-06-17):**
+> Die **Kadenz** wechselt von der fixen ISO-Woche auf ein **rollierendes 7-Tage-Fenster**
+> (endend gestern), ohne Kalender-Navigation. Architektur, Sicherheits-Invarianten 1–6,
+> das 3-Schichten-Pattern und „Zahlen aus Code, Worte aus dem LLM" bleiben unverändert.
+
 Verdichtet die Exploration [`docs/ai-insights-exploration.md`](../ai-insights-exploration.md)
 zu einer entscheidungsfesten Spec. Umsetzung phasiert gemäß
 [`docs/ai-insights-implementation-plan.md`](../ai-insights-implementation-plan.md).
