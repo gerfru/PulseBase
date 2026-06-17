@@ -1,63 +1,39 @@
-"""Evidenz-Katalog: In-Repo JSON, typisiert geladen (ADR-0003, kein RAG).
+"""Evidenz fuer KI-Wochen-Insights — Wiederverwendung des kuratierten Katalogs.
 
-Wird beim Import einmal geladen und validiert. ``VALID_EVIDENCE_KEYS`` speist den
-``evidence``-Validator von ``WeeklyInsight`` (Evidence-Grounding bei Konstruktion).
-``recommendation`` ist die einzige erlaubte Quelle fuer Empfehlungstexte
-(Regulatorik-Guard).
+Single Source of Truth: ``api/src/data/evidence_catalog.json`` (geladen via
+``src.evidence_catalog``), der schon im Dashboard genutzt wird und echte
+Primaerzitate traegt. ``VALID_EVIDENCE_KEYS`` speist den ``evidence``-Validator
+von ``WeeklyInsight`` (Grounding bei Konstruktion). ``statement_for`` liefert die
+erlaubte Kern-Aussage fuer den Prompt, ``caveats_for`` die Leitplanken
+(``not_for``/``limitations`` — was NICHT behauptet werden darf, Regulatorik-Guard).
 """
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from src.evidence_catalog import EVIDENCE
 
-from pydantic import BaseModel, ConfigDict, field_validator
+# Manuell gepflegte Provenance-Marke; bumpen, wenn sich der fuer Insights
+# relevante Katalog-Inhalt aendert (wird pro persistierter Insight gespeichert).
+CATALOG_VERSION = "evid-2026-06"
 
-_CATALOG_PATH = Path(__file__).parent / "evidence_catalog.json"
-
-EVIDENCE_LEVELS = frozenset({"guideline", "rct", "observational", "expert_opinion"})
-
-
-class EvidenceSource(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    citation: str
-    url: str = ""
+VALID_EVIDENCE_KEYS: frozenset[str] = frozenset(EVIDENCE)
 
 
-class EvidenceEntry(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    title: str
-    applies_to: list[str]
-    statement: str
-    recommendation: str
-    evidence_level: str
-    source: EvidenceSource
-    added: str
-    reviewed_by: str
-    deprecated: bool = False
-
-    @field_validator("evidence_level")
-    @classmethod
-    def _known_level(cls, v: str) -> str:
-        if v not in EVIDENCE_LEVELS:
-            raise ValueError(f"unknown evidence_level: {v!r}")
-        return v
+def statement_for(key: str) -> str:
+    """Erlaubte Kern-Aussage zu einem Evidenz-Key (summary + intended_use)."""
+    entry = EVIDENCE.get(key, {})
+    parts = [
+        str(entry.get("summary", "")).strip(),
+        str(entry.get("intended_use", "")).strip(),
+    ]
+    return " ".join(p for p in parts if p)
 
 
-class EvidenceCatalog(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    schema_version: str
-    entries: dict[str, EvidenceEntry]
-
-
-def load_catalog(path: Path = _CATALOG_PATH) -> EvidenceCatalog:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return EvidenceCatalog.model_validate(data)
-
-
-CATALOG: EvidenceCatalog = load_catalog()
-VALID_EVIDENCE_KEYS: frozenset[str] = frozenset(CATALOG.entries.keys())
-CATALOG_VERSION: str = CATALOG.schema_version
+def caveats_for(key: str) -> str:
+    """Leitplanken zu einem Evidenz-Key (not_for + limitations)."""
+    entry = EVIDENCE.get(key, {})
+    parts = [
+        str(entry.get("not_for", "")).strip(),
+        str(entry.get("limitations", "")).strip(),
+    ]
+    return " ".join(p for p in parts if p)

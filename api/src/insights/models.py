@@ -19,6 +19,13 @@ class MetricKey(str, Enum):
     GLUCOSE_CV = "glucose_cv"
     TIME_IN_RANGE = "time_in_range"
     TRAINING_LOAD = "training_load"
+    # Enrichment (append-only — bestehende Keys nie umbenennen):
+    READINESS = "readiness"
+    SLEEP = "sleep"
+    TRAINING_FORM = "training_form"
+    STRESS = "stress"
+    BODY_BATTERY = "body_battery"
+    TRAINING_VOLUME = "training_volume"
 
 
 class Unit(str, Enum):
@@ -27,6 +34,8 @@ class Unit(str, Enum):
     TSS = "TSS"
     MGDL = "mg/dL"
     MMOL = "mmol/L"
+    POINTS = "Punkte"  # 0–100-Scores; kein "/100" (würde Number-Grounding stören)
+    H = "h"
 
 
 class Trend(str, Enum):

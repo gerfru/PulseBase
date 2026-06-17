@@ -1,47 +1,29 @@
-"""Tests fuer den Evidenz-Katalog-Loader."""
+"""Tests fuer die Insights-Evidenz (Wiederverwendung des Produkt-Katalogs)."""
 
-import json
-
-import pytest
-from pydantic import ValidationError
-
-from src.insights.evidence import (
-    VALID_EVIDENCE_KEYS,
-    EvidenceCatalog,
-    load_catalog,
-)
+from src.insights.evidence import VALID_EVIDENCE_KEYS, caveats_for, statement_for
 
 
-def test_catalog_loads_and_exposes_keys():
-    assert "glucose.time_in_range" in VALID_EVIDENCE_KEYS
-    assert "training.acwr_injury_risk" in VALID_EVIDENCE_KEYS
+def test_valid_keys_include_models_and_new_entries():
+    for key in (
+        "energy_physical",
+        "energy_autonomic",
+        "energy_cognitive",
+        "sleep_score_custom",
+        "stress_score_custom",
+        "body_battery_custom",
+        "glucose_tir",
+        "acwr_injury_risk",
+    ):
+        assert key in VALID_EVIDENCE_KEYS
 
 
-def test_unknown_evidence_level_rejected(tmp_path):
-    bad = {
-        "schema_version": "1.0.0",
-        "entries": {
-            "x.y": {
-                "title": "t",
-                "applies_to": ["time_in_range"],
-                "statement": "s",
-                "recommendation": "r",
-                "evidence_level": "made_up",
-                "source": {"citation": "c"},
-                "added": "2026-06-16",
-                "reviewed_by": "owner",
-            }
-        },
-    }
-    p = tmp_path / "cat.json"
-    p.write_text(json.dumps(bad), encoding="utf-8")
-    with pytest.raises(ValidationError):
-        load_catalog(p)
+def test_statement_and_caveats_return_text():
+    assert "Time in Range" in statement_for("glucose_tir")
+    assert caveats_for("glucose_tir")  # not_for / limitations vorhanden
+    assert statement_for("acwr_injury_risk")
+    assert caveats_for("acwr_injury_risk")
 
 
-def test_extra_field_rejected(tmp_path):
-    bad = {"schema_version": "1.0.0", "entries": {}, "surprise": 1}
-    p = tmp_path / "cat.json"
-    p.write_text(json.dumps(bad), encoding="utf-8")
-    with pytest.raises(ValidationError):
-        EvidenceCatalog.model_validate(json.loads(p.read_text()))
+def test_unknown_key_yields_empty():
+    assert statement_for("does.not.exist") == ""
+    assert caveats_for("does.not.exist") == ""

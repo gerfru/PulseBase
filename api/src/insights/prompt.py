@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.insights.evidence import CATALOG
+from src.insights.evidence import VALID_EVIDENCE_KEYS, caveats_for, statement_for
 from src.insights.guard import assert_no_identifier
 from src.insights.models import Metric, WeeklyInsight
 from src.insights.templates import SEGMENT_DISCLAIMERS
@@ -55,13 +55,13 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
     ]
     parts += [_metric_line(m) for m in insight.metrics] or ["- (keine Kennzahlen)"]
 
-    evidence_lines = [
-        f"- {CATALOG.entries[k].statement}"
-        for k in insight.evidence
-        if k in CATALOG.entries
-    ]
-    if evidence_lines:
-        parts += ["", "Evidenz-Hinweise (nur diese verwenden):", *evidence_lines]
+    ev_keys = [k for k in insight.evidence if k in VALID_EVIDENCE_KEYS]
+    statements = [f"- {statement_for(k)}" for k in ev_keys if statement_for(k)]
+    if statements:
+        parts += ["", "Evidenz-Hinweise (nur diese verwenden):", *statements]
+    caveats = [f"- {caveats_for(k)}" for k in ev_keys if caveats_for(k)]
+    if caveats:
+        parts += ["", "Beachte (NICHT behaupten):", *caveats]
     if insight.unavailable:
         keys = ", ".join(k.value for k in insight.unavailable)
         parts += ["", f"Keine Daten fuer: {keys}."]

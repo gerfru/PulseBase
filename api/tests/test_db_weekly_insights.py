@@ -27,7 +27,7 @@ def _insight() -> WeeklyInsight:
             )
         ],
         flags=["low_time_in_range"],
-        evidence=["glucose.time_in_range"],
+        evidence=["glucose_tir"],
         catalog_version="1.0.0",
     )
 
