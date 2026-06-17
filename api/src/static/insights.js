@@ -1,5 +1,14 @@
 // Wochen-Insights (ADR-0003, P6). CSP-konform: keine Inline-Handler.
-import { esc } from './dashboard-utils.js';
+// esc lokal halten — NICHT aus dashboard-utils importieren: das zieht
+// chart-utils.js, das beim Eval das globale `Chart` braucht (auf /insights
+// nicht geladen) und die ganze Modul-Kette werfen liesse.
+function esc(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
 // --- ISO-Wochen-Helfer (pure, testbar) ----------------------------------- //
 
