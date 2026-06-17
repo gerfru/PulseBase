@@ -40,6 +40,20 @@ export function shiftWeek(year, week, delta) {
     return isoYearWeek(mon);
 }
 
+function _ddmm(d) {
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const mon = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return `${day}.${mon}.`;
+}
+
+// Datumsspanne (Mo–So) der ISO-Woche, z. B. "08.06.–14.06.".
+export function weekRangeLabel(year, week) {
+    const mon = isoWeekStart(year, week);
+    const sun = new Date(mon);
+    sun.setUTCDate(mon.getUTCDate() + 6);
+    return `${_ddmm(mon)}–${_ddmm(sun)}`;
+}
+
 // --- Render (pure, testbar) ---------------------------------------------- //
 
 const METRIC_LABEL = {
@@ -103,7 +117,9 @@ let waitingSince = null; // created_at, das eine Regenerierung uebertreffen muss
 
 function setWeekLabel() {
     const wk = document.getElementById('ins-week');
-    if (wk && state.year) wk.textContent = `KW ${state.week} · ${state.year}`;
+    if (wk && state.year) {
+        wk.textContent = `KW ${state.week} · ${state.year} · ${weekRangeLabel(state.year, state.week)}`;
+    }
 }
 
 function paint() {

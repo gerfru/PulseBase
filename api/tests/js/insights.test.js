@@ -3,6 +3,7 @@ import {
     mdInline,
     renderInsight,
     shiftWeek,
+    weekRangeLabel,
 } from '../../src/static/insights.js';
 
 const DATA = {
@@ -44,6 +45,12 @@ describe('renderInsight', () => {
 
     it('returns empty string for null data', () => {
         expect(renderInsight(null, 'hobby')).toBe('');
+    });
+});
+
+describe('weekRangeLabel', () => {
+    it('returns the Mon–Sun date range of the ISO week', () => {
+        expect(weekRangeLabel(2026, 24)).toBe('08.06.–14.06.');
     });
 });
 
