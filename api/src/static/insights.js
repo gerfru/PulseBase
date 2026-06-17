@@ -1,5 +1,14 @@
 // Wochen-Insights (ADR-0003, P6). CSP-konform: keine Inline-Handler.
-import { esc } from './dashboard-utils.js';
+// esc lokal halten — NICHT aus dashboard-utils importieren: das zieht
+// chart-utils.js, das beim Eval das globale `Chart` braucht (auf /insights
+// nicht geladen) und die ganze Modul-Kette werfen liesse.
+function esc(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
 // --- ISO-Wochen-Helfer (pure, testbar) ----------------------------------- //
 
@@ -59,33 +68,70 @@ export function renderInsight(data, segment) {
 // --- DOM-Anbindung ------------------------------------------------------- //
 
 const state = { year: null, week: null, data: null, segment: 'hobby' };
+const PENDING_HTML =
+    '<p class="text-sm text-slate-500">Deine Wochen-Auswertung wird gerade ' +
+    'erstellt — beim ersten Mal kann das einen Moment dauern. Die Seite ' +
+    'aktualisiert sich automatisch, sobald sie fertig ist. 🙏</p>';
 
-function paint() {
-    const el = document.getElementById('ins-content');
-    if (el) el.innerHTML = renderInsight(state.data, state.segment);
+let pollTimer = null;
+let waitingSince = null; // created_at, das eine Regenerierung uebertreffen muss
+
+function setWeekLabel() {
     const wk = document.getElementById('ins-week');
     if (wk && state.year) wk.textContent = `KW ${state.week} · ${state.year}`;
 }
 
+function paint() {
+    if (!state.data) return;
+    const el = document.getElementById('ins-content');
+    if (el) el.innerHTML = renderInsight(state.data, state.segment);
+    setWeekLabel();
+}
+
+function showPending() {
+    const el = document.getElementById('ins-content');
+    if (el) el.innerHTML = PENDING_HTML;
+    setWeekLabel();
+}
+
+function schedulePoll() {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(load, 5000);
+}
+
 async function load() {
     const el = document.getElementById('ins-content');
-    if (el) el.innerHTML = '<p class="text-sm text-slate-500">Lade Auswertung…</p>';
+    if (el && !state.data) {
+        el.innerHTML = '<p class="text-sm text-slate-500">Lade Auswertung…</p>';
+    }
     const q = state.year ? `?iso_year=${state.year}&iso_week=${state.week}` : '';
     try {
         const res = await fetch(`/api/insights${q}`);
         if (!res.ok) throw new Error(String(res.status));
-        state.data = await res.json();
-        state.year = state.data.iso_year;
-        state.week = state.data.iso_week;
+        const data = await res.json();
+        state.year = data.iso_year;
+        state.week = data.iso_week;
+        const stale = waitingSince && data.created_at === waitingSince;
+        if (data.status === 'pending' || stale) {
+            showPending();
+            schedulePoll();
+            return;
+        }
+        waitingSince = null;
+        clearTimeout(pollTimer);
+        state.data = data;
         paint();
     } catch (_) {
-        if (el) el.innerHTML = '<p class="text-sm text-red-500">Konnte Insights nicht laden.</p>';
+        if (el) {
+            el.innerHTML = '<p class="text-sm text-red-500">Konnte Insights nicht laden.</p>';
+        }
     }
 }
 
 async function regenerate() {
     const btn = document.getElementById('ins-regen');
     if (btn) btn.disabled = true;
+    waitingSince = state.data?.created_at || null;
     try {
         const res = await fetch('/api/insights/regenerate', {
             method: 'POST',
@@ -93,8 +139,8 @@ async function regenerate() {
             body: JSON.stringify({ iso_year: state.year, iso_week: state.week }),
         });
         if (res.ok) {
-            state.data = await res.json();
-            paint();
+            showPending();
+            schedulePoll();
         }
     } finally {
         if (btn) btn.disabled = false;
@@ -109,15 +155,15 @@ function setSegment(seg) {
     paint();
 }
 
+function goto(delta) {
+    [state.year, state.week] = shiftWeek(state.year, state.week, delta);
+    state.data = null; // neue Woche → Ladeanzeige
+    load();
+}
+
 function init() {
-    document.getElementById('ins-prev')?.addEventListener('click', () => {
-        [state.year, state.week] = shiftWeek(state.year, state.week, -1);
-        load();
-    });
-    document.getElementById('ins-next')?.addEventListener('click', () => {
-        [state.year, state.week] = shiftWeek(state.year, state.week, 1);
-        load();
-    });
+    document.getElementById('ins-prev')?.addEventListener('click', () => goto(-1));
+    document.getElementById('ins-next')?.addEventListener('click', () => goto(1));
     document.getElementById('ins-regen')?.addEventListener('click', regenerate);
     document.querySelectorAll('.ins-seg').forEach((b) => {
         b.addEventListener('click', () => setSegment(b.dataset.seg));

@@ -17,7 +17,7 @@ from src.insights.llm import LlmProvider, get_provider
 from src.insights.models import WeeklyInsight
 from src.insights.postcheck import GateOutput, arun_gate
 from src.insights.prompt import build_prompt
-from src.insights.templates import SEGMENTS, fallback_text
+from src.insights.templates import SEGMENT_DISCLAIMERS, SEGMENTS, fallback_text
 
 logger = structlog.get_logger(__name__)
 
@@ -25,7 +25,11 @@ logger = structlog.get_logger(__name__)
 async def _gate_for_segment(
     insight: WeeklyInsight, segment: str, prov: LlmProvider | None
 ) -> GateOutput:
-    """Ein Segment durchs Gate; ohne Provider direkt das Fallback."""
+    """Ein Segment durchs Gate; ohne Provider direkt das Fallback.
+
+    Der Disclaimer wird deterministisch an die LLM-Ausgabe angehaengt (statt vom
+    Modell verlangt) — so ist er rechtlich garantiert vorhanden und der Riegel
+    erreichbar."""
     if prov is None:
         return GateOutput(
             text=fallback_text(insight, segment),
@@ -33,7 +37,13 @@ async def _gate_for_segment(
             attempts=0,
         )
     prompt = build_prompt(insight, segment)
-    return await arun_gate(lambda: prov.complete(prompt), insight, segment)
+    disclaimer = SEGMENT_DISCLAIMERS[segment]
+
+    async def _generate() -> str:
+        raw = await prov.complete(prompt)
+        return f"{raw.strip()} {disclaimer}"
+
+    return await arun_gate(_generate, insight, segment)
 
 
 async def generate_insight(
@@ -85,6 +95,9 @@ async def generate_all_segments(
         iso_year=iso_year,
         iso_week=iso_week,
         generators={seg: o.generator for seg, o in outputs.items()},
+        # Nur Riegel-Namen (z.B. "disclaimer") — kein Health-Payload (C3).
+        failures={seg: list(o.failures) for seg, o in outputs.items() if o.failures},
+        attempts={seg: o.attempts for seg, o in outputs.items()},
         latency_ms=round((time.monotonic() - start) * 1000),
     )
     return insight, outputs

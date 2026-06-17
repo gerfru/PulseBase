@@ -38,7 +38,8 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
         raise ValueError(f"unknown segment: {segment!r}")
     assert_no_identifier(insight)  # Invariante 2 — vor jedem Prompt
 
-    disclaimer = SEGMENT_DISCLAIMERS[segment]
+    # Der Disclaimer wird deterministisch angehaengt (siehe generate.py) — nicht
+    # vom Modell verlangt, da es ihn unzuverlaessig woertlich reproduziert.
     parts: list[str] = [
         "Du bist ein Gesundheits-Assistent. Schreibe eine kurze Wochen-Auswertung.",
         f"Tonlage: {_SEGMENT_TONE[segment]}.",
@@ -47,7 +48,7 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
         "- Verwende AUSSCHLIESSLICH die unten genannten Zahlen. Erfinde keine Zahlen.",
         "- Keine vagen Mengen wie 'knapp', 'fast', 'etwa', 'rund', 'Haelfte'.",
         "- Keine individuelle medizinische Empfehlung; nutze nur die Evidenz-Hinweise.",
-        f'- Beende den Text exakt mit diesem Satz: "{disclaimer}"',
+        "- Kein Disclaimer noetig — der wird automatisch ergaenzt.",
         "",
         f"Woche {insight.iso_week}/{insight.iso_year}.",
         "Kennzahlen:",

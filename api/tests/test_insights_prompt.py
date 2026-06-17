@@ -29,10 +29,11 @@ def _insight(**kw) -> WeeklyInsight:
     return WeeklyInsight(**base)  # type: ignore[arg-type]
 
 
-def test_prompt_contains_numbers_and_disclaimer():
+def test_prompt_contains_numbers_but_not_disclaimer():
     p = build_prompt(_insight(), "hobby")
     assert "58" in p and "-4.1" in p
-    assert "Hinweis: kein medizinischer Rat." in p
+    # Disclaimer wird deterministisch angehaengt, NICHT vom Modell verlangt.
+    assert "kein medizinischer Rat" not in p
 
 
 def test_prompt_normalizes_numbers():

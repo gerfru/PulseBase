@@ -16,8 +16,8 @@ SEGMENTS = ("hobby", "pro", "profi")
 # ``_check_disclaimer``) und werden vom Fallback angehaengt.
 SEGMENT_DISCLAIMERS: dict[str, str] = {
     "hobby": "Hinweis: kein medizinischer Rat.",
-    "pro": "Entscheidungsunterstuetzung, keine medizinische Diagnose.",
-    "profi": "Entscheidungsunterstuetzung, keine medizinische Diagnose.",
+    "pro": "Entscheidungsunterstützung, keine medizinische Diagnose.",
+    "profi": "Entscheidungsunterstützung, keine medizinische Diagnose.",
 }
 
 _TREND_WORD: dict[Trend, str] = {
