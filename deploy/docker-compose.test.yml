@@ -31,7 +31,7 @@ services:
         max-file: "3"
 
   flyway-test:
-    image: flyway/flyway:12@sha256:4c7f14b4eea7a628c954a6905dfb25a8815e46a98d21a481f8160dd1eb04c7a3
+    image: flyway/flyway:12@sha256:c345513c9240ff3543599fac78f59d0fa3806c2e38ad7e75b6bc5533078c0bc9
     container_name: pulsebase-flyway-test
     command: migrate
     volumes:
