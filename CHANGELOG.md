@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/gerfru/PulseBase/compare/v1.6.0...v1.6.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **ci:** unblock PR queue — suppress gosu CVE-2026-27145 + pydantic-settings 2.14.2 ([#249](https://github.com/gerfru/PulseBase/issues/249)) ([dea2a1b](https://github.com/gerfru/PulseBase/commit/dea2a1baf4eed59fa9875f86eef7019f256f8de0))
+
 ## [1.6.0](https://github.com/gerfru/PulseBase/compare/v1.5.0...v1.6.0) (2026-06-17)
 
 
