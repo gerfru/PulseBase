@@ -160,6 +160,9 @@ PulseBase services communicate on the internal `internal` Docker network by serv
 (`db`, `api`, etc.). The `pulsebase-api` container also joins the external `proxy` network,
 which is shared with homelab-gateway's Caddy container.
 
+PulseBase does not configure or depend on the gateway's Tailscale IP. Its only
+home-gateway contract is the `pulsebase-api` service name on the `proxy` network.
+
 ```
 proxy (external Docker network)
   ├── gateway-caddy  (homelab-gateway)
