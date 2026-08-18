@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.2](https://github.com/gerfru/PulseBase/compare/v1.6.1...v1.6.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* explicitly delete both before the pip install. ([8777920](https://github.com/gerfru/PulseBase/commit/87779204d7d6f9339764029a0ccdc5df5f612647))
+* **ml:** cast Decimal DB value to float in sleep consistency calculation ([#278](https://github.com/gerfru/PulseBase/issues/278)) ([92e89d7](https://github.com/gerfru/PulseBase/commit/92e89d71ee175398a339c7b721a158be212a69c7))
+* **security:** add .trivyignore for base-image Python pkgs not in app venv ([#277](https://github.com/gerfru/PulseBase/issues/277)) ([9663e19](https://github.com/gerfru/PulseBase/commit/9663e19794fb8aee1a6c33d8b60aa50e12d81f94))
+* **security:** remove stale ensurepip bundle and dist-info before pip upgrade ([#276](https://github.com/gerfru/PulseBase/issues/276)) ([8777920](https://github.com/gerfru/PulseBase/commit/87779204d7d6f9339764029a0ccdc5df5f612647))
+* **security:** upgrade setuptools and msgpack to fix Trivy HIGH vulns ([#273](https://github.com/gerfru/PulseBase/issues/273)) ([6ea8bbc](https://github.com/gerfru/PulseBase/commit/6ea8bbc321f94db1fbe2d9bd3cf92ba70b59dfaf))
+
 ## [1.6.1](https://github.com/gerfru/PulseBase/compare/v1.6.0...v1.6.1) (2026-07-09)
 
 
