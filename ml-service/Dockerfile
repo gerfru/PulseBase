@@ -11,6 +11,7 @@ RUN uv export --frozen --no-dev -o requirements.txt && \
 FROM python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
 WORKDIR /app
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/* && \
+    pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "msgpack>=1.2.1" && \
     adduser --disabled-password --gecos "" appuser && \
     mkdir -p /app/models && chown appuser /app/models
 COPY --from=builder /venv /venv
