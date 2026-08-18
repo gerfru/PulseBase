@@ -12,6 +12,7 @@ FROM python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a279
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && \
+    pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "msgpack>=1.2.1" && \
     adduser --disabled-password --gecos "" appuser
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
