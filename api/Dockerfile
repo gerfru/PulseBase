@@ -1,5 +1,5 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1 AS builder
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS builder
 WORKDIR /build
 RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
@@ -8,7 +8,7 @@ RUN uv export --frozen --no-dev -o requirements.txt && \
     /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && \
