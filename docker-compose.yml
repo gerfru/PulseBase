@@ -88,7 +88,7 @@ services:
         condition: service_completed_successfully
     networks:
       - internal
-      - proxy
+      - gateway-garmin
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
       interval: 30s
@@ -231,5 +231,6 @@ volumes:
 networks:
   internal:
     driver: bridge
-  proxy:
-    external: true  # must exist: docker network create proxy
+  gateway-garmin:
+    external: true
+    name: gateway-garmin
