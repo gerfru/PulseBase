@@ -11,7 +11,7 @@ def _std_hours_circular(hours: list[float]) -> float:
     """
     if len(hours) < 2:
         return 0.0
-    angles = [h / 24.0 * 2 * math.pi for h in hours]
+    angles = [float(h) / 24.0 * 2 * math.pi for h in hours]
     sin_mean = sum(math.sin(a) for a in angles) / len(angles)
     cos_mean = sum(math.cos(a) for a in angles) / len(angles)
     R = math.sqrt(sin_mean**2 + cos_mean**2)
