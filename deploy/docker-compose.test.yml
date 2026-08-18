@@ -1,7 +1,7 @@
 services:
 
   db-test:
-    image: timescale/timescaledb:2.29.1-pg16@sha256:252a443e2936039b83dd8da1373d01e59e932d1054fa6adf1bc061f1d56ae60a
+    image: timescale/timescaledb:2.29.2-pg16@sha256:289d55704b1b3ee8263cd3805c6930f9cd54506835a8f19f9b85dad17d5c5a8a
     container_name: pulsebase-db-test
     restart: unless-stopped
     ports:
