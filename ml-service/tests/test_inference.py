@@ -74,7 +74,9 @@ class TestAnomalyWrappers:
                 new_callable=AsyncMock,
                 return_value=today_val,
             ),
-            patch("inference_anomaly.save_prediction", new_callable=AsyncMock),
+            patch(
+                "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
+            ),
         ):
             await fn(*args)
 
@@ -191,7 +193,7 @@ class TestRunEnergyMetrics:
         from inference_energy import _run_energy_metrics
 
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_energy_metrics(1, _TODAY, [], 185.0, [], [])
         # energy_physical + energy_autonomic + energy_cognitive always saved
@@ -215,7 +217,7 @@ class TestRunEnergyMetrics:
             for i in range(10)
         ]
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_energy_metrics(1, _TODAY, act_rows, 185.0, [], [])
         model_keys = [c.args[2] for c in mock_save.call_args_list]
@@ -227,7 +229,7 @@ class TestRunPhysicalEnergy:
         from inference_energy import _run_physical_energy
 
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             result = await _run_physical_energy(1, _TODAY, [], 185.0)
         mock_save.assert_called_once()
@@ -237,7 +239,9 @@ class TestRunPhysicalEnergy:
     async def test_returns_phys_dict_with_score_key(self):
         from inference_energy import _run_physical_energy
 
-        with patch("inference_energy.save_prediction", new_callable=AsyncMock):
+        with patch(
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
+        ):
             result = await _run_physical_energy(1, _TODAY, [], 185.0)
         assert "score" in result
 
@@ -247,7 +251,7 @@ class TestRunAcwr:
         from inference_energy import _run_acwr
 
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_acwr(1, _TODAY, {"atl": None, "ctl": None})
         mock_save.assert_not_called()
@@ -256,7 +260,7 @@ class TestRunAcwr:
         from inference_energy import _run_acwr
 
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_acwr(1, _TODAY, {"atl": 50.0, "ctl": 45.0})
         mock_save.assert_called_once()
@@ -268,7 +272,7 @@ class TestRunTrainingMonotony:
         from inference_energy import _run_training_monotony
 
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_training_monotony(1, _TODAY, [], 185.0)
         mock_save.assert_not_called()
@@ -287,7 +291,7 @@ class TestRunTrainingMonotony:
             for i in range(7)
         ]
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_training_monotony(1, _TODAY, act_rows, 185.0)
         model_keys = [c.args[2] for c in mock_save.call_args_list]
@@ -299,7 +303,7 @@ class TestRunAutonomicEnergy:
         from inference_energy import _run_autonomic_energy
 
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_autonomic_energy(1, _TODAY, [50.0] * 10)
         mock_save.assert_called_once()
@@ -312,7 +316,7 @@ class TestRunCognitiveEnergy:
 
         sleep_h = [{"total_h": 7.5} for _ in range(7)]
         with patch(
-            "inference_energy.save_prediction", new_callable=AsyncMock
+            "inference_energy.prediction_repository.save", new_callable=AsyncMock
         ) as mock_save:
             await _run_cognitive_energy(1, _TODAY, sleep_h)
         mock_save.assert_called_once()
@@ -695,7 +699,7 @@ class TestRunCorrelations:
                 return_value=[(80.0, 52.0), (75.0, 54.0)],  # 2 pairs → save
             ),
             patch(
-                "inference_anomaly.save_prediction", new_callable=AsyncMock
+                "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
             ) as mock_save,
         ):
             await _run_correlations(1, _TODAY)
@@ -723,7 +727,7 @@ class TestRunCorrelations:
                 return_value=[],
             ),
             patch(
-                "inference_anomaly.save_prediction", new_callable=AsyncMock
+                "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
             ) as mock_save,
         ):
             await _run_correlations(1, _TODAY)
@@ -750,7 +754,9 @@ class TestRunCorrelations:
                 new_callable=AsyncMock,
                 return_value=[],
             ) as m3,
-            patch("inference_anomaly.save_prediction", new_callable=AsyncMock),
+            patch(
+                "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
+            ),
         ):
             await _run_correlations(1, _TODAY)
         m1.assert_called_once_with(1)

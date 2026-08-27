@@ -13,8 +13,6 @@ from db import (
     get_sleep_sessions_14d,
     get_spo2_history,
     get_user_profile,
-    get_yesterday_prediction,
-    save_prediction,
 )
 from models.battery_pattern import predict_today as battery_predict_today
 from models.body_battery import compute_body_battery
@@ -29,8 +27,18 @@ from models.spo2_metrics import compute_spo2_trend
 from models.stress_metrics import compute_stress_score
 from models.training_effect import compute_banister_trimp, compute_training_effect_today
 from models.trimp import compute_trimp
+from repositories.predictions import PredictionRepository
 
 logger = structlog.get_logger(__name__)
+prediction_repository = PredictionRepository()
+
+
+async def save_prediction(*args: Any, **kwargs: Any) -> None:
+    await prediction_repository.save(*args, **kwargs)
+
+
+async def get_yesterday_prediction(user_id: int, model: str) -> float | None:
+    return await prediction_repository.get_yesterday(user_id, model)
 
 
 async def _save_and_log(

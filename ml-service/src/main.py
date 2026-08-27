@@ -31,7 +31,6 @@ from db import (
     init_pool,
     reconcile_ml_events,
     requeue_stale_ml_events,
-    save_prediction,
 )
 from inference_anomaly import (
     _run_anomaly,
@@ -55,10 +54,12 @@ from health_server import start_health_server
 from logging_config import configure_logging, configure_sentry
 from models.battery_pattern import fit_and_save as battery_fit_and_save
 from models.readiness import train_and_save
+from repositories.predictions import PredictionRepository
 from repositories.users import UserMLRepository
 
 configure_logging()
 logger = structlog.get_logger(__name__)
+prediction_repository = PredictionRepository()
 user_repository = UserMLRepository()
 
 
@@ -121,7 +122,7 @@ async def run_training(user_id: int, settings: Settings) -> None:
     rows = await get_readiness_training_rows(user_id)
     meta = train_and_save(rows, model_path)
     if meta:
-        await save_prediction(
+        await prediction_repository.save(
             user_id, date.today(), "model_meta_rf", float(meta["n_rows"]), meta
         )
         logger.info(

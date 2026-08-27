@@ -3,15 +3,16 @@ from typing import Any
 
 import structlog
 
-from db import save_prediction
 from models.energy_metrics import (
     compute_autonomic_energy,
     compute_cognitive_energy,
     compute_physical_energy,
 )
 from models.training_load import compute_acwr, compute_training_monotony
+from repositories.predictions import PredictionRepository
 
 logger = structlog.get_logger(__name__)
+prediction_repository = PredictionRepository()
 
 
 async def _run_physical_energy(
@@ -21,7 +22,9 @@ async def _run_physical_energy(
     hrmax: float,
 ) -> dict[str, Any]:
     phys = compute_physical_energy(act_rows, hrmax, today)
-    await save_prediction(user_id, today, "energy_physical", phys.get("score"), phys)
+    await prediction_repository.save(
+        user_id, today, "energy_physical", phys.get("score"), phys
+    )
     logger.info(
         "energy_physical.done",
         user_id=user_id,
@@ -34,7 +37,7 @@ async def _run_physical_energy(
 async def _run_acwr(user_id: int, today: date, phys: dict[str, Any]) -> None:
     if phys.get("atl") is not None and phys.get("ctl") is not None:
         acwr_result = compute_acwr(phys["atl"], phys["ctl"])
-        await save_prediction(
+        await prediction_repository.save(
             user_id, today, "acwr", acwr_result.get("acwr"), acwr_result
         )
         logger.info(
@@ -53,7 +56,7 @@ async def _run_training_monotony(
 ) -> None:
     mono_result = compute_training_monotony(act_rows, hrmax, today)
     if mono_result.get("monotony") is not None:
-        await save_prediction(
+        await prediction_repository.save(
             user_id,
             today,
             "training_monotony",
@@ -70,7 +73,9 @@ async def _run_training_monotony(
 
 async def _run_autonomic_energy(user_id: int, today: date, hrv_hist: list) -> None:
     auton = compute_autonomic_energy(hrv_hist)
-    await save_prediction(user_id, today, "energy_autonomic", auton.get("score"), auton)
+    await prediction_repository.save(
+        user_id, today, "energy_autonomic", auton.get("score"), auton
+    )
     logger.info(
         "energy_autonomic.done",
         user_id=user_id,
@@ -81,7 +86,9 @@ async def _run_autonomic_energy(user_id: int, today: date, hrv_hist: list) -> No
 
 async def _run_cognitive_energy(user_id: int, today: date, sleep_h: list) -> None:
     cog = compute_cognitive_energy(sleep_h)
-    await save_prediction(user_id, today, "energy_cognitive", cog.get("score"), cog)
+    await prediction_repository.save(
+        user_id, today, "energy_cognitive", cog.get("score"), cog
+    )
     logger.info(
         "energy_cognitive.done",
         user_id=user_id,

@@ -66,14 +66,15 @@ async def test_run_training_saves_meta_and_logs_when_trained(monkeypatch):
         "train_and_save",
         MagicMock(return_value={"n_rows": 30, "importances": {}}),
     )
-    monkeypatch.setattr(main, "save_prediction", AsyncMock())
+    save = AsyncMock()
+    monkeypatch.setattr(main.prediction_repository, "save", save)
     monkeypatch.setattr(main, "get_body_battery_history", AsyncMock(return_value=[1]))
     monkeypatch.setattr(main, "battery_fit_and_save", MagicMock(return_value=True))
 
     settings = MagicMock()
     settings.model_dir = Path("/tmp")
     await main.run_training(1, settings)
-    main.save_prediction.assert_awaited_once()
+    save.assert_awaited_once()
 
 
 async def test_run_training_insufficient_data_skips_save(monkeypatch):
@@ -81,14 +82,15 @@ async def test_run_training_insufficient_data_skips_save(monkeypatch):
 
     monkeypatch.setattr(main, "get_readiness_training_rows", AsyncMock(return_value=[]))
     monkeypatch.setattr(main, "train_and_save", MagicMock(return_value=None))
-    monkeypatch.setattr(main, "save_prediction", AsyncMock())
+    save = AsyncMock()
+    monkeypatch.setattr(main.prediction_repository, "save", save)
     monkeypatch.setattr(main, "get_body_battery_history", AsyncMock(return_value=[]))
     monkeypatch.setattr(main, "battery_fit_and_save", MagicMock(return_value=False))
 
     settings = MagicMock()
     settings.model_dir = Path("/tmp")
     await main.run_training(1, settings)
-    main.save_prediction.assert_not_awaited()
+    save.assert_not_awaited()
 
 
 # ── main._write_alive_sentinel + _configure_ml_scheduler ──────────────────────
