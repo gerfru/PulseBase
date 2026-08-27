@@ -13,6 +13,8 @@ from repositories.base import (
     IntradayRepository,
     SleepRepository,
 )
+from repositories.tokens import TimescaleTokenRepository
+from repositories.user_sync import TimescaleUserSyncRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -37,6 +39,8 @@ class TimescaleRepository(
     def __init__(self, db_url: str) -> None:
         self._db_url = db_url
         self._pool: asyncpg.Pool | None = None
+        self._tokens: TimescaleTokenRepository | None = None
+        self._user_sync: TimescaleUserSyncRepository | None = None
 
     @property
     def _db(self) -> asyncpg.Pool:
@@ -46,7 +50,21 @@ class TimescaleRepository(
 
     async def init(self) -> None:
         self._pool = await asyncpg.create_pool(self._db_url, min_size=2, max_size=5)
+        self._tokens = TimescaleTokenRepository(self._pool)
+        self._user_sync = TimescaleUserSyncRepository(self._pool)
         logger.info("Database connection pool initialized")
+
+    @property
+    def _token_repo(self) -> TimescaleTokenRepository:
+        if self._tokens is None:
+            self._tokens = TimescaleTokenRepository(self._db)
+        return self._tokens
+
+    @property
+    def _user_sync_repo(self) -> TimescaleUserSyncRepository:
+        if self._user_sync is None:
+            self._user_sync = TimescaleUserSyncRepository(self._db)
+        return self._user_sync
 
     async def close(self) -> None:
         if self._pool:
@@ -291,77 +309,29 @@ class TimescaleRepository(
     # ── Tokens ────────────────────────────────────────────────────────────────
 
     async def get_user_token(self, user_id: int, service: str) -> bytes | None:
-        async with self._db.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT token_data FROM user_tokens WHERE user_id = $1 AND service = $2",
-                user_id,
-                service,
-            )
-        return bytes(row["token_data"]) if row else None
+        return await self._token_repo.get_user_token(user_id, service)
 
     async def save_user_token(
         self, user_id: int, service: str, token_data: bytes
     ) -> None:
-        async with self._db.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO user_tokens (user_id, service, token_data)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (user_id, service) DO UPDATE
-                    SET token_data = $3, updated_at = NOW()
-                """,
-                user_id,
-                service,
-                token_data,
-            )
+        await self._token_repo.save_user_token(user_id, service, token_data)
 
     # ── Users ─────────────────────────────────────────────────────────────────
 
     async def get_active_users(self) -> list[dict]:
-        async with self._db.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT id, name, garmin_email FROM users "
-                "WHERE garmin_linked = true AND is_active = true"
-            )
-        return [dict(r) for r in rows]
+        return await self._user_sync_repo.get_active_users()
 
     async def get_sync_requested_users(self) -> list[dict]:
-        async with self._db.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT id, name, garmin_email FROM users "
-                "WHERE garmin_linked = true AND is_active = true AND sync_requested = true"
-            )
-        return [dict(r) for r in rows]
+        return await self._user_sync_repo.get_sync_requested_users()
 
     async def get_libre_users(self) -> list[dict]:
-        async with self._db.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT id, name FROM users WHERE libre_linked = true AND is_active = true"
-            )
-        return [dict(r) for r in rows]
+        return await self._user_sync_repo.get_libre_users()
 
     async def mark_sync_done(self, user_id: int) -> None:
-        async with self._db.acquire() as conn:
-            await conn.execute(
-                "UPDATE users SET sync_requested = false, last_sync_at = NOW() WHERE id = $1",
-                user_id,
-            )
+        await self._user_sync_repo.mark_sync_done(user_id)
 
     async def set_ml_requested(self, user_id: int) -> None:
-        async with self._db.acquire() as conn:
-            await conn.execute(
-                "UPDATE users SET ml_requested = true WHERE id = $1",
-                user_id,
-            )
-            await conn.execute(
-                """
-                INSERT INTO service_events (event_type, user_id)
-                VALUES ('ml_requested', $1)
-                ON CONFLICT (event_type, user_id)
-                WHERE status IN ('pending', 'processing') DO NOTHING
-                """,
-                user_id,
-            )
+        await self._user_sync_repo.set_ml_requested(user_id)
 
     # ── Glucose ───────────────────────────────────────────────────────────────
 
