@@ -254,6 +254,9 @@ async def _write_alive_sentinel() -> None:
 
 def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
+    event_consumer_enabled = (
+        getattr(settings, "ml_event_consumer_enabled", False) is True
+    )
     scheduler.add_job(
         run_all_users,
         CronTrigger(hour=settings.ml_infer_hour, minute=0),
@@ -266,15 +269,16 @@ def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
         args=[settings, True],
         id="weekly_training",
     )
-    scheduler.add_job(
-        run_on_request,
-        "interval",
-        minutes=2,
-        args=[settings],
-        id="on_request",
-    )
-    if getattr(settings, "ml_event_consumer_enabled", False) is True:
+    if event_consumer_enabled:
         logger.info("ml_event_listener.enabled")
+    else:
+        scheduler.add_job(
+            run_on_request,
+            "interval",
+            minutes=2,
+            args=[settings],
+            id="on_request",
+        )
     scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", infer_hour=settings.ml_infer_hour)
@@ -314,7 +318,7 @@ async def main() -> None:  # pragma: no cover
 
     scheduler = _configure_ml_scheduler(settings)
     listener_task = None
-    if settings.ml_event_consumer_enabled:
+    if settings.ml_event_consumer_enabled is True:
         listener_task = asyncio.create_task(
             run_ml_event_listener(settings, shutdown_event)
         )
