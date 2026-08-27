@@ -32,6 +32,12 @@ from .health import (
     get_today_steps,
     get_today_stress,
 )
+from .events import (
+    claim_ml_events,
+    complete_event,
+    fail_event,
+    requeue_stale_ml_events,
+)
 from .pool import close_pool, get_pool, init_pool
 from .users_ml import (
     count_energy_gaps,
@@ -46,6 +52,8 @@ from .users_ml import (
 
 __all__ = [
     "close_pool",
+    "claim_ml_events",
+    "complete_event",
     "count_energy_gaps",
     "get_active_users",
     "get_activity_trimp_inputs",
@@ -83,7 +91,9 @@ __all__ = [
     "get_todays_activity_hr_records",
     "get_user_profile",
     "get_yesterday_prediction",
+    "fail_event",
     "init_pool",
     "mark_ml_done",
     "save_prediction",
+    "requeue_stale_ml_events",
 ]

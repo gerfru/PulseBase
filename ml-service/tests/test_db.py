@@ -22,6 +22,12 @@ from db.users_ml import (
     mark_ml_done,
     save_prediction,
 )
+from db.events import (
+    claim_ml_events,
+    complete_event,
+    fail_event,
+    requeue_stale_ml_events,
+)
 
 
 @pytest.fixture
@@ -62,6 +68,61 @@ class TestSavePrediction:
         await save_prediction(1, date(2026, 5, 1), "m", 1.0, None)
         args = pool.execute.call_args.args
         assert None in args
+
+
+@pytest.fixture
+def event_pool():
+    pool = MagicMock()
+    pool.execute = AsyncMock()
+    conn = MagicMock()
+    conn.fetch = AsyncMock()
+    transaction = MagicMock()
+    pool.acquire.return_value.__aenter__ = AsyncMock(return_value=conn)
+    pool.acquire.return_value.__aexit__ = AsyncMock(return_value=False)
+    conn.transaction.return_value.__aenter__ = AsyncMock(return_value=transaction)
+    conn.transaction.return_value.__aexit__ = AsyncMock(return_value=False)
+    with patch("db.pool._pool", pool):
+        yield pool, conn
+
+
+class TestMlEvents:
+    async def test_claims_pending_ml_events_atomically(self, event_pool):
+        pool, conn = event_pool
+        conn.fetch.return_value = [{"id": 7, "user_id": 42, "attempts": 1}]
+
+        result = await claim_ml_events(limit=3)
+
+        assert result == [{"id": 7, "user_id": 42, "attempts": 1}]
+        conn.transaction.return_value.__aenter__.assert_awaited_once()
+        assert conn.fetch.call_args.args[1] == 3
+        assert "FOR UPDATE SKIP LOCKED" in conn.fetch.call_args.args[0]
+
+    async def test_complete_event_updates_only_processing_ml_event(self, event_pool):
+        pool, conn = event_pool
+
+        await complete_event(7)
+
+        pool.execute.assert_awaited_once()
+        assert pool.execute.call_args.args[1] == 7
+        assert "status = 'completed'" in pool.execute.call_args.args[0]
+
+    async def test_fail_event_requeues_with_bounded_error(self, event_pool):
+        pool, conn = event_pool
+        error = "x" * 5000
+
+        await fail_event(7, error, max_attempts=4, retry_delay_seconds=30)
+
+        args = pool.execute.call_args.args
+        assert args[1:4] == (7, 4, 30)
+        assert len(args[4]) == 2000
+        assert "status = CASE" in args[0]
+
+    async def test_requeues_stale_events_and_returns_count(self, event_pool):
+        pool, conn = event_pool
+        pool.execute.return_value = "UPDATE 2"
+
+        assert await requeue_stale_ml_events(lease_seconds=900) == 2
+        assert pool.execute.call_args.args[1] == 900
 
     async def test_none_value_is_passed_through(self, pool):
         await save_prediction(1, date(2026, 5, 1), "m", None)

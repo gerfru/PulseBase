@@ -12,7 +12,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from main import _backfill_and_train, run_all_users, run_inference, run_on_request
+from main import (
+    _backfill_and_train,
+    process_ml_events,
+    run_all_users,
+    run_inference,
+    run_on_request,
+)
 
 
 def _make_settings() -> MagicMock:
@@ -220,6 +226,45 @@ class TestRunOnRequest:
             await run_on_request(settings)
 
         mock_backfill.assert_called_once_with(7)
+
+
+class TestProcessMlEvents:
+    async def test_completes_event_and_clears_legacy_flag(self):
+        settings = _make_settings()
+        event = {"id": 8, "user_id": 42, "attempts": 1}
+
+        with (
+            patch("main.requeue_stale_ml_events", new_callable=AsyncMock),
+            patch("main.claim_ml_events", new_callable=AsyncMock, return_value=[event]),
+            patch("main._backfill_and_train", new_callable=AsyncMock),
+            patch("main.run_inference", new_callable=AsyncMock),
+            patch("main.complete_event", new_callable=AsyncMock) as mock_complete,
+            patch("main.mark_ml_done", new_callable=AsyncMock) as mock_done,
+        ):
+            await process_ml_events(settings)
+
+        mock_complete.assert_awaited_once_with(8)
+        mock_done.assert_awaited_once_with(42)
+
+    async def test_retries_failed_event_without_clearing_flag(self):
+        settings = _make_settings()
+        event = {"id": 9, "user_id": 43, "attempts": 1}
+
+        with (
+            patch("main.requeue_stale_ml_events", new_callable=AsyncMock),
+            patch("main.claim_ml_events", new_callable=AsyncMock, return_value=[event]),
+            patch(
+                "main._backfill_and_train",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("temporary"),
+            ),
+            patch("main.fail_event", new_callable=AsyncMock) as mock_fail,
+            patch("main.mark_ml_done", new_callable=AsyncMock) as mock_done,
+        ):
+            await process_ml_events(settings)
+
+        mock_fail.assert_awaited_once_with(9, "temporary")
+        mock_done.assert_not_awaited()
 
 
 # ── run_inference ─────────────────────────────────────────────────────────────
