@@ -7,13 +7,14 @@ from typing import Any, TypeVar
 import garminconnect
 import structlog
 from tenacity import Retrying, stop_after_attempt, wait_exponential
+from resilience import CircuitBreaker
 
 logger = structlog.get_logger(__name__)
 
 _T = TypeVar("_T")
 
 
-def garmin_call(fn: Callable[[], _T]) -> _T:
+def garmin_call(fn: Callable[[], _T], breaker: CircuitBreaker | None = None) -> _T:
     """Call a synchronous Garmin API function with up to 3 retries and exponential backoff."""
     for attempt in Retrying(
         stop=stop_after_attempt(3),
@@ -21,14 +22,16 @@ def garmin_call(fn: Callable[[], _T]) -> _T:
         reraise=True,
     ):
         with attempt:
-            return fn()
+            return breaker.call(fn) if breaker else fn()
     raise RuntimeError(
         "unreachable: tenacity reraises on exhaustion"
     )  # pragma: no cover
 
 
-async def garmin_call_async(fn: Callable[[], _T]) -> _T:
-    return await asyncio.to_thread(garmin_call, fn)
+async def garmin_call_async(
+    fn: Callable[[], _T], breaker: CircuitBreaker | None = None
+) -> _T:
+    return await asyncio.to_thread(garmin_call, fn, breaker)
 
 
 class GarminClient:
@@ -37,6 +40,11 @@ class GarminClient:
         self.password = password
         self.token_dir = token_dir
         self._client: Any = None
+        self._breaker = CircuitBreaker()
+
+    @property
+    def breaker(self) -> CircuitBreaker:
+        return self._breaker
 
     def connect(self) -> None:
         Path(self.token_dir).mkdir(parents=True, exist_ok=True)

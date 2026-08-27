@@ -63,7 +63,7 @@ async def backfill_records_for_user(
             db_id = act["db_id"]
             try:
                 details = await garmin_call_async(
-                    lambda: client.get_activity_details(garmin_id)
+                    lambda: client.get_activity_details(garmin_id), client.breaker
                 )
                 records = map_records(details)
                 if records:

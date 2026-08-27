@@ -36,15 +36,24 @@ from garmin.mapper import (
 from libre.client import LibreAuthError, connect_with_token, get_recent_glucose
 from libre.mapper import map_reading as map_glucose_reading
 from repositories.timescale import TimescaleRepository
+from resilience import CircuitBreaker
 
 logger = structlog.get_logger(__name__)
 garmin_call = garmin_call_async
+_libre_breaker = CircuitBreaker()
 
 
-async def _run_garmin(fn):
-    result = garmin_call(fn)
-    if inspect.isawaitable(result):
-        return await result
+async def _run_garmin(fn, breaker=None):
+    try:
+        result = garmin_call(fn, breaker)
+        if inspect.isawaitable(result):
+            return await result
+    except TypeError as error:
+        if breaker is None or "positional argument" not in str(error):
+            raise
+        result = garmin_call(fn)
+        if inspect.isawaitable(result):
+            return await result
     return result
 
 
@@ -55,14 +64,18 @@ async def _sync_activities(
     start: date,
     end: date,
 ) -> None:
-    for raw in await _run_garmin(lambda: client.get_activities(start, end)):
+    for raw in await _run_garmin(
+        lambda: client.get_activities(start, end), client.breaker
+    ):
         garmin_id = raw.get("activityId")
         if not garmin_id:
             continue
         activity = map_activity(raw, user_id)
         activity_db_id = await repo.save_activity(activity)
         if activity_db_id and not await repo.records_exist(activity_db_id):
-            details = await _run_garmin(lambda: client.get_activity_details(garmin_id))
+            details = await _run_garmin(
+                lambda: client.get_activity_details(garmin_id), client.breaker
+            )
             activity.records = map_records(details)
             if activity.records:
                 await repo.bulk_insert_records(activity_db_id, activity.records)
@@ -72,7 +85,9 @@ async def _sync_daily_summary_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        summary_raw = await _run_garmin(lambda: client.get_daily_summary(current))
+        summary_raw = await _run_garmin(
+            lambda: client.get_daily_summary(current), client.breaker
+        )
         await repo.upsert_daily(map_summary(summary_raw, user_id, current))
     except Exception as e:
         logger.error(
@@ -84,7 +99,7 @@ async def _sync_sleep_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        sleep_raw = await _run_garmin(lambda: client.get_sleep(current))
+        sleep_raw = await _run_garmin(lambda: client.get_sleep(current), client.breaker)
         session = map_sleep(sleep_raw, user_id)
         if (
             session
@@ -100,7 +115,7 @@ async def _sync_hrv_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        hrv_raw = await _run_garmin(lambda: client.get_hrv(current))
+        hrv_raw = await _run_garmin(lambda: client.get_hrv(current), client.breaker)
         hrv = map_hrv(hrv_raw, user_id, current)
         if hrv:
             await repo.upsert_hrv(hrv)
@@ -112,7 +127,9 @@ async def _sync_body_battery_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        bb_raw = await _run_garmin(lambda: client.get_body_battery(current))
+        bb_raw = await _run_garmin(
+            lambda: client.get_body_battery(current), client.breaker
+        )
         await repo.bulk_insert(
             "body_battery_intraday", user_id, map_body_battery(bb_raw, user_id)
         )
@@ -126,7 +143,9 @@ async def _sync_stress_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        stress_raw = await _run_garmin(lambda: client.get_stress(current))
+        stress_raw = await _run_garmin(
+            lambda: client.get_stress(current), client.breaker
+        )
         await repo.bulk_insert(
             "stress_intraday", user_id, map_stress(stress_raw, user_id)
         )
@@ -138,7 +157,9 @@ async def _sync_training_status_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        ts_raw = await _run_garmin(lambda: client.get_training_status(current))
+        ts_raw = await _run_garmin(
+            lambda: client.get_training_status(current), client.breaker
+        )
         status = map_training_status(ts_raw)
         if status:
             await repo.upsert_training_status(user_id, current, status)
@@ -248,7 +269,7 @@ async def sync_libre_user(
         except json.JSONDecodeError as e:
             raise LibreAuthError(f"Ungültiges Token-Format: {e}") from e
         client = connect_with_token(token_data["token"])
-        readings = get_recent_glucose(client, hours=2)
+        readings = get_recent_glucose(client, hours=2, breaker=_libre_breaker)
         rows = [map_glucose_reading(r, user["id"]) for r in readings]
         await repo.bulk_insert_glucose(user["id"], rows)
         logger.info("libre_sync.done", user_id=user["id"], readings=len(rows))
