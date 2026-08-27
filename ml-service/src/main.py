@@ -21,12 +21,16 @@ from db import (
     get_hrmax,
     get_hrv_history_for_energy,
     get_ml_requested_users,
+    claim_ml_events,
+    complete_event,
+    fail_event,
     get_readiness_training_rows,
     get_sleep_data_7d,
     get_today_daily_summary,
     get_todays_activity_hr_records,
     init_pool,
     mark_ml_done,
+    requeue_stale_ml_events,
     save_prediction,
 )
 from inference_anomaly import (
@@ -155,6 +159,32 @@ async def run_on_request(settings: Settings) -> None:
             await mark_ml_done(uid)
 
 
+async def process_ml_events(settings: Settings, batch_size: int = 10) -> None:
+    await requeue_stale_ml_events()
+    for event in await claim_ml_events(batch_size):
+        event_id = int(event["id"])
+        user_id = int(event["user_id"])
+        try:
+            await _backfill_and_train(user_id, settings)
+            await run_inference(user_id, settings)
+            await complete_event(event_id)
+            await mark_ml_done(user_id)
+            logger.info("ml_event.completed", event_id=event_id, user_id=user_id)
+        except Exception as error:
+            terminal = int(event["attempts"]) >= 5
+            await fail_event(event_id, str(error))
+            if terminal:
+                await mark_ml_done(user_id)
+            logger.error(
+                "ml_event.failed",
+                event_id=event_id,
+                user_id=user_id,
+                terminal=terminal,
+                error=str(error),
+                exc_info=True,
+            )
+
+
 async def run_all_users(settings: Settings, include_training: bool = False) -> None:
     users = await get_active_users()
     if not users:
@@ -195,6 +225,16 @@ def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
         args=[settings],
         id="on_request",
     )
+    if getattr(settings, "ml_event_consumer_enabled", False) is True:
+        scheduler.add_job(
+            process_ml_events,
+            "interval",
+            seconds=30,
+            args=[settings],
+            id="ml_event_consumer",
+            max_instances=1,
+            coalesce=True,
+        )
     scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", infer_hour=settings.ml_infer_hour)
