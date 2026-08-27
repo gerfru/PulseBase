@@ -120,6 +120,23 @@ def test_configure_ml_scheduler_adds_jobs_and_starts(monkeypatch):
     fake.start.assert_called_once()
 
 
+def test_configure_ml_scheduler_replaces_legacy_poller_when_events_enabled(monkeypatch):
+    import main
+
+    fake = MagicMock()
+    monkeypatch.setattr(main, "AsyncIOScheduler", lambda: fake)
+    settings = MagicMock()
+    settings.ml_infer_hour = 7
+    settings.ml_train_weekday = "sun"
+    settings.ml_event_consumer_enabled = True
+
+    main._configure_ml_scheduler(settings)
+
+    job_ids = [call.kwargs["id"] for call in fake.add_job.call_args_list]
+    assert "ml_event_consumer" not in job_ids
+    assert "on_request" not in job_ids
+
+
 # ── backfill_energy.main: backfill returning >0 skips up-to-date log ──────────
 
 

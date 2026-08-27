@@ -14,11 +14,19 @@ Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.app.example
 | `env/.env.app` | api, sync-service, ml-service | Per-Service-DB-Credentials (`DB_APP_*`, `DB_SYNC_*`, `DB_ML_*`), FERNET_KEY, SENTRY_DSN |
 | `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, TRIMP_* |
 | `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS |
-| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR |
+| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR, ML_EVENT_CONSUMER_ENABLED |
 | `env/.env.backup` | backup-Container | AGE_RECIPIENT, BACKUP_HOUR/MINUTE, BACKUP_RETENTION_DAYS, RCLONE_REMOTE (DB-Creds aus `env/.env`) |
 
 > **Warum diese Trennung?** Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nur für Flyway-Migrationen nötig. App-Services bekommen je eine eigene Least-Privilege-Rolle (V24): api liest `DB_APP_*` (breit), sync-service liest `DB_SYNC_*`, ml-service liest `DB_ML_*` — alle mit eng-granulierten Rechten. Damit sind Admin-Creds nie im Prozess-Environment von api/sync/ml sichtbar (H-11).
 > `SENTRY_DSN` steht zentral in `env/.env.app` und wird von allen drei Services gelesen.
+
+### ML-Event-Consumer
+
+`ML_EVENT_CONSUMER_ENABLED=false` ist der Standard. In diesem Modus verarbeitet der
+Legacy-Poller `ml_requested`-Flags weiterhin alle zwei Minuten. Bei `true` verarbeitet
+der Event-Consumer durable `service_events` über Reconciliation und `LISTEN/NOTIFY`;
+der Legacy-Poller wird dann nicht parallel gestartet, um doppelte ML-Läufe zu vermeiden.
+Vor einer Aktivierung zuerst im Teststack prüfen und die Events-/Retry-Logs beobachten.
 
 ---
 
