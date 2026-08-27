@@ -15,6 +15,17 @@ from repositories.base import (
 )
 from repositories.tokens import TimescaleTokenRepository
 from repositories.user_sync import TimescaleUserSyncRepository
+from repositories.activities import (
+    TimescaleActivityRecordRepository,
+    TimescaleActivityRepository,
+)
+from repositories.health import (
+    TimescaleDailyRepository,
+    TimescaleHrvRepository,
+    TimescaleSleepRepository,
+)
+from repositories.intraday import TimescaleIntradayRepository
+from repositories.glucose import TimescaleGlucoseRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -41,6 +52,13 @@ class TimescaleRepository(
         self._pool: asyncpg.Pool | None = None
         self._tokens: TimescaleTokenRepository | None = None
         self._user_sync: TimescaleUserSyncRepository | None = None
+        self._activities: TimescaleActivityRepository | None = None
+        self._activity_records: TimescaleActivityRecordRepository | None = None
+        self._daily: TimescaleDailyRepository | None = None
+        self._sleep: TimescaleSleepRepository | None = None
+        self._hrv: TimescaleHrvRepository | None = None
+        self._intraday: TimescaleIntradayRepository | None = None
+        self._glucose: TimescaleGlucoseRepository | None = None
 
     @property
     def _db(self) -> asyncpg.Pool:
@@ -52,6 +70,13 @@ class TimescaleRepository(
         self._pool = await asyncpg.create_pool(self._db_url, min_size=2, max_size=5)
         self._tokens = TimescaleTokenRepository(self._pool)
         self._user_sync = TimescaleUserSyncRepository(self._pool)
+        self._activities = TimescaleActivityRepository(self._pool)
+        self._activity_records = TimescaleActivityRecordRepository(self._pool)
+        self._daily = TimescaleDailyRepository(self._pool)
+        self._sleep = TimescaleSleepRepository(self._pool)
+        self._hrv = TimescaleHrvRepository(self._pool)
+        self._intraday = TimescaleIntradayRepository(self._pool)
+        self._glucose = TimescaleGlucoseRepository(self._pool)
         logger.info("Database connection pool initialized")
 
     @property
@@ -66,6 +91,63 @@ class TimescaleRepository(
             self._user_sync = TimescaleUserSyncRepository(self._db)
         return self._user_sync
 
+    def _domain_repo(self, repository, factory):
+        if repository is None:
+            repository = factory(self._db)
+        return repository
+
+    async def records_exist(self, activity_id: int) -> bool:
+        return await self._domain_repo(
+            self._activities, TimescaleActivityRepository
+        ).records_exist(activity_id)
+
+    async def get_activities_without_records(self, user_id: int) -> list[dict]:
+        return await self._domain_repo(
+            self._activities, TimescaleActivityRepository
+        ).get_activities_without_records(user_id)
+
+    async def bulk_insert_records(self, activity_id: int, records: list) -> None:
+        await self._domain_repo(
+            self._activity_records, TimescaleActivityRecordRepository
+        ).bulk_insert_records(activity_id, records)
+
+    async def upsert_daily(self, summary: DailySummary) -> None:
+        await self._domain_repo(self._daily, TimescaleDailyRepository).upsert_daily(
+            summary
+        )
+
+    async def upsert_training_status(
+        self, user_id: int, day: date, status: str
+    ) -> None:
+        await self._domain_repo(
+            self._daily, TimescaleDailyRepository
+        ).upsert_training_status(user_id, day, status)
+
+    async def save_sleep(self, session: SleepSession) -> int | None:
+        return await self._domain_repo(
+            self._sleep, TimescaleSleepRepository
+        ).save_sleep(session)
+
+    async def sleep_exists(self, garmin_sleep_id: int) -> bool:
+        return await self._domain_repo(
+            self._sleep, TimescaleSleepRepository
+        ).sleep_exists(garmin_sleep_id)
+
+    async def upsert_hrv(self, hrv: HRVDaily) -> None:
+        await self._domain_repo(self._hrv, TimescaleHrvRepository).upsert_hrv(hrv)
+
+    async def bulk_insert(
+        self, table: str, user_id: int, readings: list[tuple[Any, ...]]
+    ) -> None:
+        await self._domain_repo(
+            self._intraday, TimescaleIntradayRepository
+        ).bulk_insert(table, user_id, readings)
+
+    async def bulk_insert_glucose(self, user_id: int, rows: list[dict]) -> None:
+        await self._domain_repo(
+            self._glucose, TimescaleGlucoseRepository
+        ).bulk_insert_glucose(user_id, rows)
+
     async def close(self) -> None:
         if self._pool:
             await self._pool.close()
@@ -73,6 +155,11 @@ class TimescaleRepository(
     # ── Activities ────────────────────────────────────────────────────────────
 
     async def save_activity(self, activity: Activity) -> int | None:
+        return await self._domain_repo(
+            self._activities, TimescaleActivityRepository
+        ).save_activity(activity)
+
+    async def _legacy_save_activity(self, activity: Activity) -> int | None:
         async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -119,7 +206,7 @@ class TimescaleRepository(
             )
             return row["id"] if row else None
 
-    async def records_exist(self, activity_id: int) -> bool:
+    async def _legacy_records_exist(self, activity_id: int) -> bool:
         async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT 1 FROM activity_records WHERE activity_id = $1 LIMIT 1",
@@ -127,7 +214,7 @@ class TimescaleRepository(
             )
             return row is not None
 
-    async def get_activities_without_records(self, user_id: int) -> list[dict]:
+    async def _legacy_get_activities_without_records(self, user_id: int) -> list[dict]:
         async with self._db.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -145,7 +232,9 @@ class TimescaleRepository(
 
     # ── Activity Records (GPS Tracks) ─────────────────────────────────────────
 
-    async def bulk_insert_records(self, activity_id: int, records: list) -> None:
+    async def _legacy_bulk_insert_records(
+        self, activity_id: int, records: list
+    ) -> None:
         if not records:
             return
         rows = [
@@ -179,7 +268,7 @@ class TimescaleRepository(
 
     # ── Daily Summary ─────────────────────────────────────────────────────────
 
-    async def upsert_daily(self, summary: DailySummary) -> None:
+    async def _legacy_upsert_daily(self, summary: DailySummary) -> None:
         async with self._db.acquire() as conn:
             await conn.execute(
                 """
@@ -216,7 +305,7 @@ class TimescaleRepository(
                 summary.intensity_vigorous,
             )
 
-    async def upsert_training_status(
+    async def _legacy_upsert_training_status(
         self, user_id: int, day: date, status: str
     ) -> None:
         async with self._db.acquire() as conn:
@@ -234,7 +323,7 @@ class TimescaleRepository(
 
     # ── Sleep ─────────────────────────────────────────────────────────────────
 
-    async def save_sleep(self, session: SleepSession) -> int | None:
+    async def _legacy_save_sleep(self, session: SleepSession) -> int | None:
         async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -259,7 +348,7 @@ class TimescaleRepository(
             )
             return row["id"] if row else None
 
-    async def sleep_exists(self, garmin_sleep_id: int) -> bool:
+    async def _legacy_sleep_exists(self, garmin_sleep_id: int) -> bool:
         async with self._db.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT id FROM sleep_sessions WHERE garmin_sleep_id = $1",
@@ -269,7 +358,7 @@ class TimescaleRepository(
 
     # ── HRV ──────────────────────────────────────────────────────────────────
 
-    async def upsert_hrv(self, hrv: HRVDaily) -> None:
+    async def _legacy_upsert_hrv(self, hrv: HRVDaily) -> None:
         async with self._db.acquire() as conn:
             await conn.execute(
                 """
@@ -289,7 +378,7 @@ class TimescaleRepository(
 
     # ── Intraday (Body Battery, Stress, SpO2) ─────────────────────────────────
 
-    async def bulk_insert(  # type: ignore[override]
+    async def _legacy_bulk_insert(  # type: ignore[override]
         self, table: str, user_id: int, readings: list[tuple[Any, ...]]
     ) -> None:
         if not readings:
@@ -335,7 +424,7 @@ class TimescaleRepository(
 
     # ── Glucose ───────────────────────────────────────────────────────────────
 
-    async def bulk_insert_glucose(self, user_id: int, rows: list[dict]) -> None:
+    async def _legacy_bulk_insert_glucose(self, user_id: int, rows: list[dict]) -> None:
         if not rows:
             return
         async with self._db.acquire() as conn:
