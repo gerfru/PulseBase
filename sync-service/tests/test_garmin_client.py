@@ -1,11 +1,13 @@
 """Tests for sync-service src/garmin/client.py — GarminClient."""
 
+import asyncio
+import threading
 from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from garmin.client import GarminClient
+from garmin.client import GarminClient, garmin_call_async
 
 
 @pytest.fixture
@@ -25,6 +27,22 @@ def client(token_dir):
 @pytest.fixture
 def client_no_password(token_dir):
     return GarminClient(email="test@garmin.com", password="", token_dir=token_dir)
+
+
+async def test_garmin_call_async_does_not_block_event_loop():
+    started = threading.Event()
+    release = threading.Event()
+
+    def blocking_call():
+        started.set()
+        release.wait(timeout=1)
+        return "ok"
+
+    task = asyncio.create_task(garmin_call_async(blocking_call))
+    assert await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+    release.set()
+
+    assert await task == "ok"
 
 
 # ── connect() ────────────────────────────────────────────────────────────────

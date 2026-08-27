@@ -353,6 +353,15 @@ class TimescaleRepository(
                 "UPDATE users SET ml_requested = true WHERE id = $1",
                 user_id,
             )
+            await conn.execute(
+                """
+                INSERT INTO service_events (event_type, user_id)
+                VALUES ('ml_requested', $1)
+                ON CONFLICT (event_type, user_id)
+                WHERE status IN ('pending', 'processing') DO NOTHING
+                """,
+                user_id,
+            )
 
     # ── Glucose ───────────────────────────────────────────────────────────────
 

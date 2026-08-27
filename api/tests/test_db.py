@@ -386,7 +386,13 @@ async def test_request_sync():
     pool = _pool_mock()
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
         await request_sync(1)
-    pool.execute.assert_called_once()
+    assert pool.execute.await_count == 2
+    assert pool.execute.await_args_list[0].args == (
+        "UPDATE users SET sync_requested = true WHERE id = $1",
+        1,
+    )
+    assert "INSERT INTO service_events" in pool.execute.await_args_list[1].args[0]
+    assert pool.execute.await_args_list[1].args[1] == 1
 
 
 async def test_get_sync_status_with_row():

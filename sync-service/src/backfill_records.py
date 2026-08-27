@@ -21,7 +21,7 @@ from crypto import (
     serialize_token_dir,
     fernet_encrypt,
 )
-from garmin.client import GarminClient, garmin_call
+from garmin.client import GarminClient, garmin_call_async
 from garmin.mapper import map_records
 from repositories.timescale import TimescaleRepository
 
@@ -56,13 +56,15 @@ async def backfill_records_for_user(
             password="",  # nosec B106 — intentionally empty; auth uses stored tokens
             token_dir=tmpdir,
         )
-        client.connect()
+        await asyncio.to_thread(client.connect)
 
         for act in missing:
             garmin_id = act["garmin_activity_id"]
             db_id = act["db_id"]
             try:
-                details = garmin_call(lambda: client.get_activity_details(garmin_id))
+                details = await garmin_call_async(
+                    lambda: client.get_activity_details(garmin_id)
+                )
                 records = map_records(details)
                 if records:
                     await repo.bulk_insert_records(db_id, records)

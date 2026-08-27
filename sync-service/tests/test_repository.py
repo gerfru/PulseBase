@@ -302,8 +302,13 @@ class TestSetMlRequested:
     async def test_calls_execute_with_user_id(self, mock_repo):
         repo, conn = mock_repo
         await repo.set_ml_requested(3)
-        conn.execute.assert_called_once()
-        assert 3 in conn.execute.call_args.args
+        assert conn.execute.await_count == 2
+        assert conn.execute.await_args_list[0].args == (
+            "UPDATE users SET ml_requested = true WHERE id = $1",
+            3,
+        )
+        assert "INSERT INTO service_events" in conn.execute.await_args_list[1].args[0]
+        assert conn.execute.await_args_list[1].args[1] == 3
 
 
 # ── Glucose ───────────────────────────────────────────────────────────────────
