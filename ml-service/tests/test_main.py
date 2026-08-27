@@ -4,6 +4,7 @@ Tests run_all_users, run_on_request, and run_inference. All DB calls and
 inference sub-functions are mocked — no DB connection required.
 """
 
+import asyncio
 import signal
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from main import (
     _backfill_and_train,
     process_ml_events,
+    run_ml_event_listener,
     run_all_users,
     run_inference,
     run_on_request,
@@ -235,6 +237,7 @@ class TestProcessMlEvents:
 
         with (
             patch("main.requeue_stale_ml_events", new_callable=AsyncMock),
+            patch("main.reconcile_ml_events", new_callable=AsyncMock),
             patch("main.claim_ml_events", new_callable=AsyncMock, return_value=[event]),
             patch("main._backfill_and_train", new_callable=AsyncMock),
             patch("main.run_inference", new_callable=AsyncMock),
@@ -252,6 +255,7 @@ class TestProcessMlEvents:
 
         with (
             patch("main.requeue_stale_ml_events", new_callable=AsyncMock),
+            patch("main.reconcile_ml_events", new_callable=AsyncMock),
             patch("main.claim_ml_events", new_callable=AsyncMock, return_value=[event]),
             patch(
                 "main._backfill_and_train",
@@ -265,6 +269,57 @@ class TestProcessMlEvents:
 
         mock_fail.assert_awaited_once_with(9, "temporary")
         mock_done.assert_not_awaited()
+
+
+class TestMlEventListener:
+    async def test_notification_wakes_consumer_and_closes_connection(self):
+        settings = _make_settings()
+        settings.db_url = "postgresql://test"
+        stop_event = asyncio.Event()
+        connection = MagicMock()
+        connection.add_listener = AsyncMock(
+            side_effect=lambda _channel, callback: callback(
+                None, 0, "service_events", "1"
+            )
+        )
+        connection.close = AsyncMock()
+
+        async def process(_settings):
+            stop_event.set()
+
+        with patch(
+            "main.asyncpg.connect", new_callable=AsyncMock, return_value=connection
+        ):
+            await run_ml_event_listener(settings, stop_event, process)
+
+        connection.add_listener.assert_awaited_once()
+        connection.close.assert_awaited_once()
+
+    async def test_reconnects_after_connection_failure(self):
+        settings = _make_settings()
+        settings.db_url = "postgresql://test"
+        stop_event = asyncio.Event()
+        first = MagicMock()
+        first.add_listener = AsyncMock(side_effect=ConnectionError("gone"))
+        first.close = AsyncMock()
+        second = MagicMock()
+        second.add_listener = AsyncMock(
+            side_effect=lambda _channel, callback: callback(
+                None, 0, "service_events", "1"
+            )
+        )
+        second.close = AsyncMock()
+        connect = AsyncMock(side_effect=[first, second])
+
+        async def process(_settings):
+            stop_event.set()
+
+        with patch("main.asyncpg.connect", connect):
+            await run_ml_event_listener(settings, stop_event, process)
+
+        assert connect.await_count == 2
+        first.close.assert_awaited_once()
+        second.close.assert_awaited_once()
 
 
 # ── run_inference ─────────────────────────────────────────────────────────────
@@ -383,15 +438,16 @@ class TestShutdown:
         mock_loop = MagicMock()
         mock_loop.add_signal_handler.side_effect = _capture_handler
 
-        mock_event = MagicMock()
-        mock_event.wait = AsyncMock()
-        mock_event.set = MagicMock()
-        mock_event.is_set.return_value = False
+        shutdown_event = asyncio.Event()
+
+        async def finish_initial_run(*_args, **_kwargs):
+            shutdown_event.set()
 
         mock_scheduler = MagicMock()
 
         mock_settings = MagicMock()
         mock_settings.sentry_dsn = ""
+        mock_settings.ml_event_consumer_enabled = False
 
         mock_pool = AsyncMock()
         with (
@@ -399,10 +455,10 @@ class TestShutdown:
             patch("main.get_pool", new_callable=AsyncMock, return_value=mock_pool),
             patch("main.close_pool", new_callable=AsyncMock),
             patch("main.start_health_server", new_callable=AsyncMock),
-            patch("main.run_all_users", new_callable=AsyncMock),
+            patch("main.run_all_users", side_effect=finish_initial_run),
             patch("main._configure_ml_scheduler", return_value=mock_scheduler),
             patch("main.asyncio.get_running_loop", return_value=mock_loop),
-            patch("main.asyncio.Event", return_value=mock_event),
+            patch("main.asyncio.Event", return_value=shutdown_event),
             patch("main.Settings", return_value=mock_settings),
         ):
             await main()
@@ -417,7 +473,7 @@ class TestShutdown:
         # Call the captured SIGTERM handler — it must NOT add another scheduler.shutdown call
         captured_sigterm_handler()
 
-        mock_event.set.assert_called_once()
+        assert shutdown_event.is_set()
         assert mock_scheduler.shutdown.call_count == shutdown_calls_before, (
             "SIGTERM handler must not call scheduler.shutdown directly (blocking)"
         )

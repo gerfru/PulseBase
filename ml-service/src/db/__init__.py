@@ -36,6 +36,7 @@ from .events import (
     claim_ml_events,
     complete_event,
     fail_event,
+    reconcile_ml_events,
     requeue_stale_ml_events,
 )
 from .pool import close_pool, get_pool, init_pool
@@ -96,4 +97,5 @@ __all__ = [
     "mark_ml_done",
     "save_prediction",
     "requeue_stale_ml_events",
+    "reconcile_ml_events",
 ]

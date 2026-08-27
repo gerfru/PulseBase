@@ -26,6 +26,7 @@ from db.events import (
     claim_ml_events,
     complete_event,
     fail_event,
+    reconcile_ml_events,
     requeue_stale_ml_events,
 )
 
@@ -123,6 +124,16 @@ class TestMlEvents:
 
         assert await requeue_stale_ml_events(lease_seconds=900) == 2
         assert pool.execute.call_args.args[1] == 900
+
+    async def test_reconciles_legacy_flags_without_duplicate_events(self, event_pool):
+        pool, conn = event_pool
+        pool.execute.return_value = "INSERT 0 1"
+
+        assert await reconcile_ml_events() == 1
+        query = pool.execute.call_args.args[0]
+        assert "ml_requested = true" in query
+        assert "NOT EXISTS" in query
+        assert "ON CONFLICT" in query
 
     async def test_none_value_is_passed_through(self, pool):
         await save_prediction(1, date(2026, 5, 1), "m", None)

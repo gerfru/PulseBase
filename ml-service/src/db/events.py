@@ -33,6 +33,28 @@ async def claim_ml_events(limit: int = 10) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+async def reconcile_ml_events() -> int:
+    result = await _pool_or_raise().execute(
+        """
+                INSERT INTO service_events (event_type, user_id)
+                SELECT 'ml_requested', u.id
+                FROM users AS u
+                WHERE u.ml_requested = true
+                    AND u.is_active = true
+                    AND NOT EXISTS (
+                            SELECT 1
+                            FROM service_events AS event
+                            WHERE event.event_type = 'ml_requested'
+                                AND event.user_id = u.id
+                                AND event.status IN ('pending', 'processing')
+                    )
+                ON CONFLICT (event_type, user_id)
+                WHERE status IN ('pending', 'processing') DO NOTHING
+                """
+    )
+    return int(result.rsplit(" ", 1)[-1])
+
+
 async def complete_event(event_id: int) -> None:
     await _pool_or_raise().execute(
         """
