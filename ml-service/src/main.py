@@ -17,12 +17,10 @@ from db import (
     close_pool,
     get_pool,
     count_energy_gaps,
-    get_active_users,
     get_activity_trimp_inputs,
     get_body_battery_history,
     get_hrmax,
     get_hrv_history_for_energy,
-    get_ml_requested_users,
     claim_ml_events,
     complete_event,
     fail_event,
@@ -31,7 +29,6 @@ from db import (
     get_today_daily_summary,
     get_todays_activity_hr_records,
     init_pool,
-    mark_ml_done,
     reconcile_ml_events,
     requeue_stale_ml_events,
 )
@@ -58,10 +55,24 @@ from logging_config import configure_logging, configure_sentry
 from models.battery_pattern import fit_and_save as battery_fit_and_save
 from models.readiness import train_and_save
 from repositories.predictions import PredictionRepository
+from repositories.users import UserMLRepository
 
 configure_logging()
 logger = structlog.get_logger(__name__)
 prediction_repository = PredictionRepository()
+user_repository = UserMLRepository()
+
+
+async def get_active_users():
+    return await user_repository.get_active()
+
+
+async def get_ml_requested_users():
+    return await user_repository.get_ml_requested()
+
+
+async def mark_ml_done(user_id: int) -> None:
+    await user_repository.mark_ml_done(user_id)
 
 
 async def run_inference(user_id: int, settings: Settings) -> None:
