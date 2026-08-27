@@ -1,4 +1,5 @@
 from collections.abc import Callable
+import asyncio
 from datetime import date
 from pathlib import Path
 from typing import Any, TypeVar
@@ -24,6 +25,10 @@ def garmin_call(fn: Callable[[], _T]) -> _T:
     raise RuntimeError(
         "unreachable: tenacity reraises on exhaustion"
     )  # pragma: no cover
+
+
+async def garmin_call_async(fn: Callable[[], _T]) -> _T:
+    return await asyncio.to_thread(garmin_call, fn)
 
 
 class GarminClient:

@@ -38,6 +38,8 @@ production database — always add a new migration file.
 | `V25__ml_feedback.sql` | Creates `ml_feedback` table for 👍/👎 item-level feedback on ML predictions |
 | `V26__single_use_tokens.sql` | Adds `verification_token_hash`, `verification_token_expires_at`, `deletion_token_hash`, `deletion_token_expires_at` to `users` — single-use, server-side-verified tokens (replaces replayable stateless itsdangerous payloads) |
 | `V27__user_consent_events.sql` | Creates immutable `user_consent_events` audit table — append-only log of every consent change for GDPR Art. 5(2) accountability; `user_consents` remains the current-state table |
+| `V34__service_events.sql` | Adds durable `service_events` for the sync/ML trigger migration; `LISTEN/NOTIFY` is only a wake-up signal while legacy flags remain active |
+| `V35__service_events_sync_select.sql` | Grants `SELECT` on `service_events` to `pulse_sync`, required by the deduplicating `ON CONFLICT` insert |
 | `V28__session_version.sql` | Adds `session_version INTEGER NOT NULL DEFAULT 0` to `users` — bumped on password reset to invalidate all existing signed session cookies |
 | `V29__round_gps_precision.sql` | Rounds `activity_records.lat`/`lng` to 4 decimal places (~11 m) for GDPR Art. 5(1)(c) data minimisation |
 | `V30__consent_audit_set_null.sql` | Changes `user_consents` and `user_consent_events` FK on `user_id` from `ON DELETE CASCADE` to `ON DELETE SET NULL` — pseudonymise instead of erase, preserving the consent audit trail (GDPR Art. 5(2)) |

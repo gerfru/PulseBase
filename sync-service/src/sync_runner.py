@@ -4,7 +4,9 @@ Separated from main.py (orchestrator) so that sync logic can be tested
 and imported independently without pulling in APScheduler + signal handling.
 """
 
+import asyncio
 import json
+import inspect
 import tempfile
 import uuid
 from datetime import date, timedelta
@@ -20,7 +22,7 @@ from crypto import (
     restore_token_dir,
     serialize_token_dir,
 )
-from garmin.client import GarminClient, garmin_call
+from garmin.client import GarminClient, garmin_call_async
 from garmin.mapper import (
     map_activity,
     map_body_battery,
@@ -36,6 +38,14 @@ from libre.mapper import map_reading as map_glucose_reading
 from repositories.timescale import TimescaleRepository
 
 logger = structlog.get_logger(__name__)
+garmin_call = garmin_call_async
+
+
+async def _run_garmin(fn):
+    result = garmin_call(fn)
+    if inspect.isawaitable(result):
+        return await result
+    return result
 
 
 async def _sync_activities(
@@ -45,14 +55,14 @@ async def _sync_activities(
     start: date,
     end: date,
 ) -> None:
-    for raw in garmin_call(lambda: client.get_activities(start, end)):
+    for raw in await _run_garmin(lambda: client.get_activities(start, end)):
         garmin_id = raw.get("activityId")
         if not garmin_id:
             continue
         activity = map_activity(raw, user_id)
         activity_db_id = await repo.save_activity(activity)
         if activity_db_id and not await repo.records_exist(activity_db_id):
-            details = garmin_call(lambda: client.get_activity_details(garmin_id))
+            details = await _run_garmin(lambda: client.get_activity_details(garmin_id))
             activity.records = map_records(details)
             if activity.records:
                 await repo.bulk_insert_records(activity_db_id, activity.records)
@@ -62,7 +72,7 @@ async def _sync_daily_summary_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        summary_raw = garmin_call(lambda: client.get_daily_summary(current))
+        summary_raw = await _run_garmin(lambda: client.get_daily_summary(current))
         await repo.upsert_daily(map_summary(summary_raw, user_id, current))
     except Exception as e:
         logger.error(
@@ -74,7 +84,7 @@ async def _sync_sleep_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        sleep_raw = garmin_call(lambda: client.get_sleep(current))
+        sleep_raw = await _run_garmin(lambda: client.get_sleep(current))
         session = map_sleep(sleep_raw, user_id)
         if (
             session
@@ -90,7 +100,7 @@ async def _sync_hrv_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        hrv_raw = garmin_call(lambda: client.get_hrv(current))
+        hrv_raw = await _run_garmin(lambda: client.get_hrv(current))
         hrv = map_hrv(hrv_raw, user_id, current)
         if hrv:
             await repo.upsert_hrv(hrv)
@@ -102,7 +112,7 @@ async def _sync_body_battery_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        bb_raw = garmin_call(lambda: client.get_body_battery(current))
+        bb_raw = await _run_garmin(lambda: client.get_body_battery(current))
         await repo.bulk_insert(
             "body_battery_intraday", user_id, map_body_battery(bb_raw, user_id)
         )
@@ -116,7 +126,7 @@ async def _sync_stress_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        stress_raw = garmin_call(lambda: client.get_stress(current))
+        stress_raw = await _run_garmin(lambda: client.get_stress(current))
         await repo.bulk_insert(
             "stress_intraday", user_id, map_stress(stress_raw, user_id)
         )
@@ -128,7 +138,7 @@ async def _sync_training_status_for_day(
     client: GarminClient, repo: TimescaleRepository, user_id: int, current: date
 ) -> None:
     try:
-        ts_raw = garmin_call(lambda: client.get_training_status(current))
+        ts_raw = await _run_garmin(lambda: client.get_training_status(current))
         status = map_training_status(ts_raw)
         if status:
             await repo.upsert_training_status(user_id, current, status)
@@ -163,7 +173,7 @@ async def _get_garmin_token(
     return blob
 
 
-def _init_garmin_client(
+async def _init_garmin_client(
     user: dict, blob: bytes, settings: Settings, tmpdir: str
 ) -> GarminClient:
     raw = fernet_decrypt(blob, require_fernet_key(settings))
@@ -173,7 +183,7 @@ def _init_garmin_client(
         password="",  # nosec B106 — intentionally empty; auth uses stored tokens
         token_dir=tmpdir,
     )
-    client.connect()
+    await asyncio.to_thread(client.connect)
     return client
 
 
@@ -203,7 +213,7 @@ async def sync_user(
             logger.warning("sync.no_token", user_id=user["id"])
             return
         with tempfile.TemporaryDirectory() as tmpdir:
-            client = _init_garmin_client(user, blob, settings, tmpdir)
+            client = await _init_garmin_client(user, blob, settings, tmpdir)
             await _sync_date_range(client, repo, user["id"], days)
             serialized = serialize_token_dir(tmpdir)
             encrypted = fernet_encrypt(serialized, require_fernet_key(settings))
@@ -274,8 +284,10 @@ async def process_sync_requests(
                 "sync.manual.failed", user_id=user["id"], error=str(e), exc_info=True
             )
         finally:
-            await repo.set_ml_requested(user["id"])
-            await repo.mark_sync_done(user["id"])
+            try:
+                await repo.set_ml_requested(user["id"])
+            finally:
+                await repo.mark_sync_done(user["id"])
 
 
 async def sync_all_users(
@@ -291,5 +303,7 @@ async def sync_all_users(
         except Exception as e:
             logger.error("sync.failed", user_id=user["id"], error=str(e), exc_info=True)
         finally:
-            await repo.set_ml_requested(user["id"])
-            await repo.mark_sync_done(user["id"])
+            try:
+                await repo.set_ml_requested(user["id"])
+            finally:
+                await repo.mark_sync_done(user["id"])
