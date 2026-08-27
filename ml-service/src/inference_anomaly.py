@@ -18,12 +18,13 @@ from db import (
     get_today_spo2,
     get_today_steps,
     get_today_stress,
-    save_prediction,
 )
 from models.anomaly import detect_metric_anomaly
 from models.correlation import compute_sleep_hrv_correlation
+from repositories.predictions import PredictionRepository
 
 logger = structlog.get_logger(__name__)
+prediction_repository = PredictionRepository()
 
 
 async def _run_anomaly_for(
@@ -37,7 +38,9 @@ async def _run_anomaly_for(
     history = await history_fn(user_id)
     today_val = await today_fn(user_id)
     result = detect_metric_anomaly(history, today_val)
-    await save_prediction(user_id, today, model_key, result.get("z_score"), result)
+    await prediction_repository.save(
+        user_id, today, model_key, result.get("z_score"), result
+    )
     logger.info(
         "anomaly.done",
         metric=log_key,
@@ -114,7 +117,7 @@ async def _run_correlations(user_id: int, today: date) -> None:
             continue
         xs, ys = zip(*pairs)
         corr = compute_sleep_hrv_correlation(list(xs), list(ys))
-        await save_prediction(user_id, today, model_key, corr.get("r"), corr)
+        await prediction_repository.save(user_id, today, model_key, corr.get("r"), corr)
         logger.info(
             "correlation.done",
             user_id=user_id,

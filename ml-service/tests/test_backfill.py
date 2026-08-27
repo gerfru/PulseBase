@@ -153,7 +153,7 @@ async def test_run_anomaly_for_saves_prediction():
     today_fn = AsyncMock(return_value=80.0)
 
     with patch(
-        "inference_anomaly.save_prediction", new_callable=AsyncMock
+        "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
     ) as mock_save:
         await _run_anomaly_for(
             user_id=1,
@@ -174,7 +174,7 @@ async def test_run_anomaly_for_works_with_none_today_value():
     today_fn = AsyncMock(return_value=None)
 
     with patch(
-        "inference_anomaly.save_prediction", new_callable=AsyncMock
+        "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
     ) as mock_save:
         await _run_anomaly_for(
             user_id=1,
@@ -205,7 +205,9 @@ async def test_run_correlations_skips_when_no_pairs():
             new_callable=AsyncMock,
             return_value=[],
         ),
-        patch("inference_anomaly.save_prediction", new_callable=AsyncMock) as mock_save,
+        patch(
+            "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
+        ) as mock_save,
     ):
         await _run_correlations(user_id=1, today=date(2026, 4, 27))
     mock_save.assert_not_called()
@@ -241,7 +243,9 @@ async def test_run_correlations_saves_when_pairs_present():
             new_callable=AsyncMock,
             return_value=[],
         ),
-        patch("inference_anomaly.save_prediction", new_callable=AsyncMock) as mock_save,
+        patch(
+            "inference_anomaly.prediction_repository.save", new_callable=AsyncMock
+        ) as mock_save,
     ):
         await _run_correlations(user_id=1, today=date(2026, 4, 27))
     mock_save.assert_called_once()

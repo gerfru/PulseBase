@@ -11,8 +11,6 @@ from typing import Any
 from db import (
     get_backfill_activity_hrv_data,
     get_backfill_sleep_daily_gaps,
-    get_prediction_for_date,
-    save_prediction,
 )
 from models.body_battery import compute_body_battery
 from models.energy_metrics import (
@@ -23,8 +21,20 @@ from models.energy_metrics import (
 from models.hrv_recovery import compute_hrv_recovery_trajectory
 from models.running_economy import compute_running_economy
 from models.stress_metrics import compute_stress_score
+from repositories.predictions import PredictionRepository
 
 logger = structlog.get_logger(__name__)
+prediction_repository = PredictionRepository()
+
+
+async def save_prediction(*args: Any, **kwargs: Any) -> None:
+    await prediction_repository.save(*args, **kwargs)
+
+
+async def get_prediction_for_date(
+    user_id: int, prediction_date: date, model: str
+) -> float | None:
+    return await prediction_repository.get_for_date(user_id, prediction_date, model)
 
 
 def _compute_trimp(act_rows: list[dict[str, Any]], hrmax: float, target: date) -> float:
