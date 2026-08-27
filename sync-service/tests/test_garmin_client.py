@@ -50,7 +50,7 @@ async def test_garmin_call_async_does_not_block_event_loop():
 
 def test_connect_token_login_success(client, token_dir):
     mock_instance = MagicMock()
-    with patch("garmin.client.garminconnect") as mock_gc:
+    with patch("pulsebase_garmin.client.garminconnect") as mock_gc:
         mock_gc.Garmin.return_value = mock_instance
         client.connect()
     mock_instance.login.assert_called_once_with(token_dir)
@@ -59,7 +59,7 @@ def test_connect_token_login_success(client, token_dir):
 def test_connect_token_login_fails_falls_back_to_fresh_login(client, token_dir):
     mock_instance = MagicMock()
     mock_instance.login.side_effect = [Exception("token invalid"), None]
-    with patch("garmin.client.garminconnect") as mock_gc:
+    with patch("pulsebase_garmin.client.garminconnect") as mock_gc:
         mock_gc.Garmin.return_value = mock_instance
         client.connect()
     assert mock_instance.login.call_count == 2
@@ -68,7 +68,7 @@ def test_connect_token_login_fails_falls_back_to_fresh_login(client, token_dir):
 
 def test_connect_no_password_uses_token_only(client_no_password, token_dir):
     mock_instance = MagicMock()
-    with patch("garmin.client.garminconnect") as mock_gc:
+    with patch("pulsebase_garmin.client.garminconnect") as mock_gc:
         mock_gc.Garmin.return_value = mock_instance
         client_no_password.connect()
     mock_instance.login.assert_called_once_with(token_dir)

@@ -1,0 +1,9 @@
+**
+!sync-service/
+!sync-service/pyproject.toml
+!sync-service/uv.lock
+!sync-service/src/
+!sync-service/src/**
+!packages/
+!packages/pulsebase_garmin/
+!packages/pulsebase_garmin/**

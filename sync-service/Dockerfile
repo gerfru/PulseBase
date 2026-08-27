@@ -1,11 +1,11 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM python:3.14-slim@sha256:83ff1d245a3d57d04152252d3ef9cb361494d0b3395abd65a5ebe91c401c8e83 AS builder
-WORKDIR /build
+WORKDIR /build/sync-service
 RUN pip install --no-cache-dir uv
-COPY pyproject.toml uv.lock ./
-RUN uv export --frozen --no-dev -o requirements.txt && \
-    python -m venv /venv && \
-    /venv/bin/pip install --no-cache-dir -r requirements.txt
+COPY sync-service/pyproject.toml sync-service/uv.lock ./
+COPY packages/pulsebase_garmin /build/packages/pulsebase_garmin
+RUN UV_PROJECT_ENVIRONMENT=/venv uv sync \
+  --frozen --no-dev --no-editable --no-install-project
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM python:3.14-slim@sha256:83ff1d245a3d57d04152252d3ef9cb361494d0b3395abd65a5ebe91c401c8e83
@@ -20,7 +20,7 @@ ENV PATH="/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 USER appuser
-COPY src/ ./src/
+COPY sync-service/src/ ./src/
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
 CMD ["python", "src/main.py"]

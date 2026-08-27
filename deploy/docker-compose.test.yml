@@ -65,7 +65,9 @@ services:
         max-file: "3"
 
   api-test:
-    build: ../api
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
     container_name: pulsebase-api-test
     restart: unless-stopped
     ports:

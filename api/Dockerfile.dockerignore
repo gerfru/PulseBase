@@ -1,0 +1,9 @@
+**
+!api/
+!api/pyproject.toml
+!api/uv.lock
+!api/src/
+!api/src/**
+!packages/
+!packages/pulsebase_garmin/
+!packages/pulsebase_garmin/**

@@ -1033,11 +1033,11 @@ dependencies = [
     { name = "cryptography" },
     { name = "email-validator" },
     { name = "fastapi" },
-    { name = "garminconnect" },
     { name = "httpx" },
     { name = "itsdangerous" },
     { name = "jinja2" },
     { name = "psutil" },
+    { name = "pulsebase-garmin" },
     { name = "pydantic-settings" },
     { name = "pylibrelinkup" },
     { name = "python-multipart" },
@@ -1066,13 +1066,13 @@ requires-dist = [
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "email-validator", specifier = ">=2.0.0" },
     { name = "fastapi", specifier = ">=0.136.1,!=0.136.3" },
-    { name = "garminconnect", specifier = ">=0.3.5" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "playwright", marker = "extra == 'dev'", specifier = ">=1.52.0" },
     { name = "psutil", specifier = ">=6.0.0" },
+    { name = "pulsebase-garmin", directory = "../packages/pulsebase_garmin" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
     { name = "pylibrelinkup", specifier = ">=0.10.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
@@ -1086,6 +1086,21 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.47.0" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "pulsebase-garmin"
+version = "0.1.0"
+source = { directory = "../packages/pulsebase_garmin" }
+dependencies = [
+    { name = "garminconnect" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "garminconnect", specifier = ">=0.3.5" },
+    { name = "structlog", specifier = ">=24.4.0" },
+]
 
 [[package]]
 name = "pycparser"

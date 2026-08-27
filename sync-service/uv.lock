@@ -616,6 +616,21 @@ wheels = [
 ]
 
 [[package]]
+name = "pulsebase-garmin"
+version = "0.1.0"
+source = { directory = "../packages/pulsebase_garmin" }
+dependencies = [
+    { name = "garminconnect" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "garminconnect", specifier = ">=0.3.5" },
+    { name = "structlog", specifier = ">=24.4.0" },
+]
+
+[[package]]
 name = "pulsebase-sync"
 version = "1.6.2"
 source = { virtual = "." }
@@ -623,7 +638,7 @@ dependencies = [
     { name = "apscheduler" },
     { name = "asyncpg" },
     { name = "cryptography" },
-    { name = "garminconnect" },
+    { name = "pulsebase-garmin" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pylibrelinkup" },
@@ -645,8 +660,8 @@ requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.2" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cryptography", specifier = ">=50.0.0" },
-    { name = "garminconnect", specifier = ">=0.3.5" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
+    { name = "pulsebase-garmin", directory = "../packages/pulsebase_garmin" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
     { name = "pylibrelinkup", specifier = ">=0.10.0" },
