@@ -1,9 +1,11 @@
 import asyncio
 import signal
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import date
 from pathlib import Path
 
+import asyncpg
 import structlog
 from structlog.contextvars import bind_contextvars, clear_contextvars
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -30,6 +32,7 @@ from db import (
     get_todays_activity_hr_records,
     init_pool,
     mark_ml_done,
+    reconcile_ml_events,
     requeue_stale_ml_events,
     save_prediction,
 )
@@ -161,6 +164,7 @@ async def run_on_request(settings: Settings) -> None:
 
 async def process_ml_events(settings: Settings, batch_size: int = 10) -> None:
     await requeue_stale_ml_events()
+    await reconcile_ml_events()
     for event in await claim_ml_events(batch_size):
         event_id = int(event["id"])
         user_id = int(event["user_id"])
@@ -183,6 +187,50 @@ async def process_ml_events(settings: Settings, batch_size: int = 10) -> None:
                 error=str(error),
                 exc_info=True,
             )
+
+
+async def run_ml_event_listener(
+    settings: Settings,
+    stop_event: asyncio.Event,
+    process_events: Callable[[Settings], Awaitable[None]] = process_ml_events,
+) -> None:
+    while not stop_event.is_set():
+        connection = None
+        wakeup = asyncio.Event()
+
+        def on_event(*_args: object) -> None:
+            wakeup.set()
+
+        try:
+            connection = await asyncpg.connect(settings.db_url)
+            await connection.add_listener("service_events", on_event)
+            logger.info("ml_event_listener.connected")
+            while not stop_event.is_set():
+                wakeup_task = asyncio.create_task(wakeup.wait())
+                stop_task = asyncio.create_task(stop_event.wait())
+                done, pending = await asyncio.wait(
+                    {wakeup_task, stop_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                wakeup.clear()
+                if not stop_event.is_set():
+                    await process_events(settings)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            logger.warning("ml_event_listener.disconnected", error=str(error))
+            if not stop_event.is_set():
+                try:
+                    await asyncio.wait_for(stop_event.wait(), timeout=5)
+                except TimeoutError:
+                    pass
+        finally:
+            if connection is not None:
+                await connection.close()
+                logger.info("ml_event_listener.closed")
 
 
 async def run_all_users(settings: Settings, include_training: bool = False) -> None:
@@ -226,15 +274,7 @@ def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
         id="on_request",
     )
     if getattr(settings, "ml_event_consumer_enabled", False) is True:
-        scheduler.add_job(
-            process_ml_events,
-            "interval",
-            seconds=30,
-            args=[settings],
-            id="ml_event_consumer",
-            max_instances=1,
-            coalesce=True,
-        )
+        logger.info("ml_event_listener.enabled")
     scheduler.add_job(_write_alive_sentinel, "interval", minutes=1, id="healthcheck")
     scheduler.start()
     logger.info("scheduler.started", infer_hour=settings.ml_infer_hour)
@@ -273,12 +313,19 @@ async def main() -> None:  # pragma: no cover
             logger.info("ml.initial_run_cancelled")
 
     scheduler = _configure_ml_scheduler(settings)
+    listener_task = None
+    if settings.ml_event_consumer_enabled:
+        listener_task = asyncio.create_task(
+            run_ml_event_listener(settings, shutdown_event)
+        )
 
     try:
         await shutdown_event.wait()
     finally:
         logger.info("shutdown.graceful_start")
         scheduler.shutdown(wait=True)
+        if listener_task is not None:
+            await listener_task
         await close_pool()
         logger.info("shutdown.complete")
 
