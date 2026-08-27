@@ -4,6 +4,7 @@ from pathlib import Path
 
 import structlog
 from pylibrelinkup import PyLibreLinkUp  # type: ignore[import-untyped]
+from resilience import CircuitBreaker
 
 logger = structlog.get_logger(__name__)
 
@@ -58,7 +59,17 @@ def connect_with_token(token: str) -> PyLibreLinkUp:
     return client
 
 
-def get_recent_glucose(client: PyLibreLinkUp, hours: int = 2) -> list:
+def get_recent_glucose(
+    client: PyLibreLinkUp,
+    hours: int = 2,
+    breaker: CircuitBreaker | None = None,
+) -> list:
+    if breaker is not None:
+        return breaker.call(lambda: _get_recent_glucose(client, hours))
+    return _get_recent_glucose(client, hours)
+
+
+def _get_recent_glucose(client: PyLibreLinkUp, hours: int = 2) -> list:
     """Fetch glucose readings from all connections for the last N hours."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     readings: list = []
