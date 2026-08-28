@@ -35,8 +35,11 @@ from .health import (
 from .events import (
     claim_ml_events,
     complete_event,
+    delete_completed_ml_events,
     fail_event,
+    get_ml_queue_metrics,
     reconcile_ml_events,
+    replay_failed_ml_event,
     requeue_stale_ml_events,
 )
 from .pool import close_pool, get_pool, init_pool
@@ -56,6 +59,7 @@ __all__ = [
     "claim_ml_events",
     "complete_event",
     "count_energy_gaps",
+    "delete_completed_ml_events",
     "get_active_users",
     "get_activity_trimp_inputs",
     "get_backfill_activity_hrv_data",
@@ -93,9 +97,11 @@ __all__ = [
     "get_user_profile",
     "get_yesterday_prediction",
     "fail_event",
+    "get_ml_queue_metrics",
     "init_pool",
     "mark_ml_done",
     "save_prediction",
     "requeue_stale_ml_events",
     "reconcile_ml_events",
+    "replay_failed_ml_event",
 ]

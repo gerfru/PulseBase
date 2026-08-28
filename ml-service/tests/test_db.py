@@ -75,6 +75,7 @@ class TestSavePrediction:
 def event_pool():
     pool = MagicMock()
     pool.execute = AsyncMock()
+    pool.fetchrow = AsyncMock(return_value={"status": "completed"})
     conn = MagicMock()
     conn.fetch = AsyncMock()
     transaction = MagicMock()
@@ -101,21 +102,24 @@ class TestMlEvents:
     async def test_complete_event_updates_only_processing_ml_event(self, event_pool):
         pool, conn = event_pool
 
-        await complete_event(7)
+        assert await complete_event(7) == "completed"
 
-        pool.execute.assert_awaited_once()
-        assert pool.execute.call_args.args[1] == 7
-        assert "status = 'completed'" in pool.execute.call_args.args[0]
+        pool.fetchrow.assert_awaited_once()
+        assert pool.fetchrow.call_args.args[1] == 7
+        assert "generation > claimed_generation" in pool.fetchrow.call_args.args[0]
 
     async def test_fail_event_requeues_with_bounded_error(self, event_pool):
         pool, conn = event_pool
         error = "x" * 5000
+        pool.fetchrow.return_value = {"status": "pending"}
 
-        await fail_event(7, error, max_attempts=4, retry_delay_seconds=30)
+        with patch("db.events.random.uniform", return_value=1.0):
+            assert await fail_event(7, error, attempts=3, max_attempts=4) == "pending"
 
-        args = pool.execute.call_args.args
-        assert args[1:4] == (7, 4, 30)
-        assert len(args[4]) == 2000
+        args = pool.fetchrow.call_args.args
+        assert args[1] == 7
+        assert len(args[2]) == 2000
+        assert args[3:6] == (3, 4, 120)
         assert "status = CASE" in args[0]
 
     async def test_requeues_stale_events_and_returns_count(self, event_pool):

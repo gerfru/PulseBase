@@ -26,6 +26,7 @@ from main import (
 def _make_settings() -> MagicMock:
     s = MagicMock()
     s.model_dir = Path("/tmp/ml_models")
+    s.ml_event_sweep_seconds = 30
     return s
 
 
@@ -186,8 +187,7 @@ class TestRunOnRequest:
         mock_train.assert_called_once_with(42, settings)
         mock_infer.assert_called_once_with(42, settings)
 
-    async def test_mark_ml_done_called_even_on_failure(self):
-        """mark_ml_done is called in finally block — even when run_training raises."""
+    async def test_failure_remains_requested_for_retry(self):
         settings = _make_settings()
         users = [{"id": 99}]
 
@@ -206,7 +206,7 @@ class TestRunOnRequest:
         ):
             await run_on_request(settings)
 
-        mock_done.assert_called_once_with(99)
+        mock_done.assert_not_called()
 
     async def test_backfills_when_energy_gaps_exist(self):
         """When energy gaps > 0, backfill_user is called before training."""
@@ -238,11 +238,24 @@ class TestProcessMlEvents:
         with (
             patch("main.requeue_stale_ml_events", new_callable=AsyncMock),
             patch("main.reconcile_ml_events", new_callable=AsyncMock),
-            patch("main.claim_ml_events", new_callable=AsyncMock, return_value=[event]),
+            patch(
+                "main.claim_ml_events",
+                new_callable=AsyncMock,
+                side_effect=[[event], []],
+            ),
             patch("main._backfill_and_train", new_callable=AsyncMock),
             patch("main.run_inference", new_callable=AsyncMock),
-            patch("main.complete_event", new_callable=AsyncMock) as mock_complete,
+            patch(
+                "main.complete_event",
+                new_callable=AsyncMock,
+                return_value="completed",
+            ) as mock_complete,
             patch("main.mark_ml_done", new_callable=AsyncMock) as mock_done,
+            patch(
+                "main.get_ml_queue_metrics",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
         ):
             await process_ml_events(settings)
 
@@ -256,18 +269,31 @@ class TestProcessMlEvents:
         with (
             patch("main.requeue_stale_ml_events", new_callable=AsyncMock),
             patch("main.reconcile_ml_events", new_callable=AsyncMock),
-            patch("main.claim_ml_events", new_callable=AsyncMock, return_value=[event]),
+            patch(
+                "main.claim_ml_events",
+                new_callable=AsyncMock,
+                side_effect=[[event], []],
+            ),
             patch(
                 "main._backfill_and_train",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("temporary"),
             ),
-            patch("main.fail_event", new_callable=AsyncMock) as mock_fail,
+            patch(
+                "main.fail_event",
+                new_callable=AsyncMock,
+                return_value="pending",
+            ) as mock_fail,
             patch("main.mark_ml_done", new_callable=AsyncMock) as mock_done,
+            patch(
+                "main.get_ml_queue_metrics",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
         ):
             await process_ml_events(settings)
 
-        mock_fail.assert_awaited_once_with(9, "temporary")
+        mock_fail.assert_awaited_once_with(9, "temporary", 1)
         mock_done.assert_not_awaited()
 
 
