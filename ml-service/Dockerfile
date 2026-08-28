@@ -1,5 +1,5 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:83ff1d245a3d57d04152252d3ef9cb361494d0b3395abd65a5ebe91c401c8e83 AS builder
+FROM python:3.14-slim@sha256:cae66f2ef0ec51a9891263eeee7f987dacf0a9879e8aa9353d5606e0530619a5 AS builder
 WORKDIR /build
 RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
@@ -8,7 +8,7 @@ RUN uv export --frozen --no-dev -o requirements.txt && \
     /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:83ff1d245a3d57d04152252d3ef9cb361494d0b3395abd65a5ebe91c401c8e83
+FROM python:3.14-slim@sha256:cae66f2ef0ec51a9891263eeee7f987dacf0a9879e8aa9353d5606e0530619a5
 WORKDIR /app
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/* && \
     find /usr/local/lib/python*/ensurepip/_bundled -name "setuptools*.whl" -delete 2>/dev/null; true && \
