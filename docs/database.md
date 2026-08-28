@@ -40,6 +40,7 @@ production database — always add a new migration file.
 | `V27__user_consent_events.sql` | Creates immutable `user_consent_events` audit table — append-only log of every consent change for GDPR Art. 5(2) accountability; `user_consents` remains the current-state table |
 | `V34__service_events.sql` | Adds durable `service_events` for the sync/ML trigger migration; `LISTEN/NOTIFY` is only a wake-up signal while legacy flags remain active |
 | `V35__service_events_sync_select.sql` | Grants `SELECT` on `service_events` to `pulse_sync`, required by the deduplicating `ON CONFLICT` insert |
+| `V36__service_events_cutover.sql` | Completes ADR-0005: generation-based retrigger safety, update notifications, retention index, legacy-flag backfill, and row-level ownership policies |
 | `V28__session_version.sql` | Adds `session_version INTEGER NOT NULL DEFAULT 0` to `users` — bumped on password reset to invalidate all existing signed session cookies |
 | `V29__round_gps_precision.sql` | Rounds `activity_records.lat`/`lng` to 4 decimal places (~11 m) for GDPR Art. 5(1)(c) data minimisation |
 | `V30__consent_audit_set_null.sql` | Changes `user_consents` and `user_consent_events` FK on `user_id` from `ON DELETE CASCADE` to `ON DELETE SET NULL` — pseudonymise instead of erase, preserving the consent audit trail (GDPR Art. 5(2)) |
@@ -48,6 +49,33 @@ production database — always add a new migration file.
 ---
 
 ## Tables
+
+### `service_events`
+
+Durable, coalescing work queue for `sync_requested` and `ml_requested` (ADR-0005).
+`LISTEN/NOTIFY` is only a wake-up signal; consumers always claim durable rows with
+`FOR UPDATE SKIP LOCKED`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `BIGSERIAL PK` | Stable job identifier |
+| `event_type` | `TEXT` | `sync_requested` or `ml_requested` |
+| `user_id` | `INTEGER → users(id)` | Work partition key |
+| `payload` | `JSONB` | Version, correlation ID, and cause; no health values or secrets |
+| `status` | `TEXT` | `pending`, `processing`, `completed`, or `failed` |
+| `generation` | `INTEGER` | Incremented when an open job is retriggered |
+| `claimed_generation` | `INTEGER` | Generation owned by the current processing lease |
+| `available_at` | `TIMESTAMPTZ` | Retry/backoff eligibility |
+| `attempts` | `INTEGER` | Current bounded retry count |
+| `claimed_at` | `TIMESTAMPTZ` | Processing-lease start |
+| `processed_at` | `TIMESTAMPTZ` | Completion or terminal-failure time |
+| `last_error` | `TEXT` | Sanitized error summary, bounded to 2000 characters in code |
+| `created_at` | `TIMESTAMPTZ` | Initial enqueue time |
+
+One partial unique index permits at most one open row per `(event_type, user_id)`.
+If `generation` advances during processing, acknowledgement returns that row to
+`pending`; otherwise it becomes `completed`. Completed rows are retained for 30 days.
+Row-level security enforces API → sync and sync → ML ownership.
 
 ### `users`
 
