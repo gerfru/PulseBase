@@ -102,6 +102,30 @@ Data synced per user per day:
 - Body battery intraday (every ~5 min)
 - Stress intraday (every ~5 min)
 
+### Inter-service work channel
+
+Manual sync and post-sync ML work use the durable PostgreSQL queue from
+[ADR-0005](adr/0005-inter-service-work-channel.md):
+
+```text
+API --transaction--> service_events(sync_requested)
+          │ NOTIFY wake-up
+          ▼
+        sync-service
+          │ transaction
+          ▼
+        service_events(ml_requested)
+          │ NOTIFY wake-up
+          ▼
+         ml-service
+```
+
+Consumers claim with `FOR UPDATE SKIP LOCKED`, retry transient failures with exponential
+backoff and jitter, and recover expired processing leases. A generation counter preserves
+requests arriving while the same user is already being processed. Startup and 30-second
+sweeps recover missed notifications. Legacy user flags remain temporarily for rollback but
+are no longer the API status source.
+
 ### Libre Sync (every 5 minutes, if `libre_linked = true`)
 
 ```

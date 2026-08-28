@@ -13,20 +13,25 @@ Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.app.example
 | `env/.env` | db, flyway | Admin-DB-Credentials, HOST_IP |
 | `env/.env.app` | api, sync-service, ml-service | Per-Service-DB-Credentials (`DB_APP_*`, `DB_SYNC_*`, `DB_ML_*`), FERNET_KEY, SENTRY_DSN |
 | `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, TRIMP_* |
-| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS |
-| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR, ML_EVENT_CONSUMER_ENABLED |
+| `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SYNC_EVENT_* |
+| `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR, ML_EVENT_* |
 | `env/.env.backup` | backup-Container | AGE_RECIPIENT, BACKUP_HOUR/MINUTE, BACKUP_RETENTION_DAYS, RCLONE_REMOTE (DB-Creds aus `env/.env`) |
 
 > **Warum diese Trennung?** Admin-Credentials (`DB_USER`/`DB_PASSWORD`) sind nur für Flyway-Migrationen nötig. App-Services bekommen je eine eigene Least-Privilege-Rolle (V24): api liest `DB_APP_*` (breit), sync-service liest `DB_SYNC_*`, ml-service liest `DB_ML_*` — alle mit eng-granulierten Rechten. Damit sind Admin-Creds nie im Prozess-Environment von api/sync/ml sichtbar (H-11).
 > `SENTRY_DSN` steht zentral in `env/.env.app` und wird von allen drei Services gelesen.
 
-### ML-Event-Consumer
+### Service-Event-Consumer
 
-`ML_EVENT_CONSUMER_ENABLED=false` ist der Standard. In diesem Modus verarbeitet der
-Legacy-Poller `ml_requested`-Flags weiterhin alle zwei Minuten. Bei `true` verarbeitet
-der Event-Consumer durable `service_events` über Reconciliation und `LISTEN/NOTIFY`;
-der Legacy-Poller wird dann nicht parallel gestartet, um doppelte ML-Läufe zu vermeiden.
-Vor einer Aktivierung zuerst im Teststack prüfen und die Events-/Retry-Logs beobachten.
+`SYNC_EVENT_CONSUMER_ENABLED=true` und `ML_EVENT_CONSUMER_ENABLED=true` aktivieren den
+durable Kanal aus [ADR-0005](adr/0005-inter-service-work-channel.md). PostgreSQL
+`LISTEN/NOTIFY` weckt den jeweiligen Consumer; `service_events` bleibt die dauerhafte
+Source of Truth. Startup-Drain und ein 30-Sekunden-Sweep verarbeiten auch Notifications,
+die während eines Neustarts oder Verbindungsabbruchs verloren gingen.
+
+`false` aktiviert für den jeweiligen Service ausschließlich den Legacy-Flag-Poller als
+Rollback-Pfad. Event-Consumer und Poller laufen nie parallel. Die strukturierten Logs
+`sync_queue.snapshot` und `ml_queue.snapshot` enthalten `pending`, `processing`, `failed`
+und `oldest_pending_seconds`. Abgeschlossene Aufträge werden nach 30 Tagen gelöscht.
 
 ---
 
@@ -96,7 +101,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 | `SESSION_SECRET` | string | ✓ | — | Signierungsschlüssel für Starlette SessionMiddleware. Min. 32 Zeichen, zufällig. Rotation invalidiert alle aktiven Sessions. |
 | `HTTPS_ONLY` | bool | — | `true` | `true` → Cookies nur über HTTPS (`secure=True`). Auf `false` setzen für lokale Entwicklung ohne TLS. |
 
-### Datenbankverbindung
+### API-Datenbankverbindung
 
 | Variable | Typ | Pflicht | Default | Beschreibung |
 |----------|-----|---------|---------|--------------|
@@ -135,7 +140,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 
 ## `env/.env.sync` — Sync-Service
 
-### Datenbankverbindung
+### Sync-Datenbankverbindung
 
 Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_SYNC_USER`, `DB_SYNC_PASSWORD` kommen aus `env/.env.app` (eigene Least-Privilege-Rolle, V24).
 
@@ -146,6 +151,8 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_SYNC_U
 | `SYNC_INTERVAL_HOURS` | int | — | `2` | Polling-Intervall in Stunden für den Garmin-Sync. Libre-Sync läuft alle 5 Minuten unabhängig davon. |
 | `SYNC_LOOKBACK_DAYS` | int | — | `30` | Wie viele Tage beim initialen Backfill (erster Sync nach Account-Verknüpfung) geholt werden |
 | `SYNC_DAILY_DAYS` | int | — | `2` | Wie viele Tage pro Interval-Run nachgeladen werden |
+| `SYNC_EVENT_CONSUMER_ENABLED` | bool | — | `true` | Durable `sync_requested`-Queue konsumieren; `false` aktiviert den Minuten-Poller als Rollback |
+| `SYNC_EVENT_SWEEP_SECONDS` | int | — | `30` | Maximale Wartezeit zwischen Queue-Sweeps, falls kein `NOTIFY` eintrifft |
 
 *(FERNET_KEY und SENTRY_DSN kommen aus `env/.env.app` — gemeinsam für alle App-Services)*
 
@@ -159,7 +166,7 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_SYNC_U
 
 ## `env/.env.ml` — ML-Service
 
-### Datenbankverbindung
+### ML-Datenbankverbindung
 
 `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_ML_USER`, `DB_ML_PASSWORD` kommen aus `env/.env.app` (eigene Least-Privilege-Rolle, V24).
 
@@ -171,6 +178,8 @@ Wie API — `DB_HOST`, `DB_PORT`, `DB_NAME` (mit denselben Defaults). `DB_SYNC_U
 |----------|-----|---------|---------|--------------|
 | `ML_INFER_HOUR` | int | — | `7` | Stunde (UTC) für die tägliche Inferenz (Predictions für alle User) |
 | `ML_TRAIN_WEEKDAY` | int | — | `6` | Wochentag für das wöchentliche Re-Training (0 = Montag, 6 = Sonntag) |
+| `ML_EVENT_CONSUMER_ENABLED` | bool | — | `true` | Durable `ml_requested`-Queue konsumieren; `false` aktiviert den Zwei-Minuten-Poller als Rollback |
+| `ML_EVENT_SWEEP_SECONDS` | int | — | `30` | Maximale Wartezeit zwischen Queue-Sweeps, falls kein `NOTIFY` eintrifft |
 
 ### Modell-Speicherort
 
