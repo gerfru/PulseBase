@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gerfru/PulseBase/deploy/release-manifest.schema.json",
+  "title": "PulseBase release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release", "git_sha", "repository", "images"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "release": {
+      "type": "string",
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "repository": {
+      "const": "gerfru/PulseBase"
+    },
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["api", "sync", "ml", "backup", "migrations"],
+      "properties": {
+        "api": {"$ref": "#/$defs/image"},
+        "sync": {"$ref": "#/$defs/image"},
+        "ml": {"$ref": "#/$defs/image"},
+        "backup": {"$ref": "#/$defs/image"},
+        "migrations": {"$ref": "#/$defs/image"}
+      }
+    }
+  },
+  "$defs": {
+    "image": {
+      "type": "string",
+      "pattern": "^ghcr\\.io/gerfru/pulsebase-[a-z0-9-]+@sha256:[0-9a-f]{64}$"
+    }
+  }
+}

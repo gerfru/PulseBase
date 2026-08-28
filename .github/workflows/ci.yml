@@ -373,6 +373,41 @@ jobs:
           docker compose --env-file env/.env --env-file env/.env.app \
             -f docker-compose.yml -f deploy/docker-compose.public.yml -f deploy/docker-compose.public.ci.yml down -v
 
+  release-compose:
+    name: Release Compose Contract
+    needs: [lint, typecheck, test]
+    if: ${{ !cancelled() && github.head_ref != 'release-please--branches--main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Prepare env files
+        run: |
+          for n in "" .app .api .sync .ml; do
+            cp "env/.env${n}.example" "env/.env${n}"
+          done
+
+      - name: Validate image-only Compose model
+        run: |
+          digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          export RELEASE_VERSION=v0.0.0
+          export API_IMAGE="ghcr.io/gerfru/pulsebase-api@$digest"
+          export SYNC_IMAGE="ghcr.io/gerfru/pulsebase-sync@$digest"
+          export ML_IMAGE="ghcr.io/gerfru/pulsebase-ml@$digest"
+          export BACKUP_IMAGE="ghcr.io/gerfru/pulsebase-backup@$digest"
+          export MIGRATIONS_IMAGE="ghcr.io/gerfru/pulsebase-migrations@$digest"
+          docker compose --env-file env/.env --env-file env/.env.app \
+            -f deploy/docker-compose.release.yml config --format json \
+            | python3 deploy/validate_release_compose.py
+          python3 -m unittest discover -s deploy/tests -p 'test_*.py'
+
+      - name: Build migrations artifact
+        run: |
+          docker build -f db/Dockerfile -t pulsebase-migrations:ci .
+          docker run --rm --entrypoint sh pulsebase-migrations:ci -c \
+            'test -n "$(find /flyway/sql -name "V*.sql" -print -quit)"'
+
   backup-smoke:
     name: Backup Smoke
     needs: [lint, typecheck, test]
@@ -467,7 +502,7 @@ jobs:
     name: CI OK (All Green Gate)
     runs-on: ubuntu-latest
     if: always()
-    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, check-e2e-secrets, e2e, deploy-public-smoke, backup-smoke, trivy]
+    needs: [check-pr-size, lint, js-lint, security, typecheck, test, js-test, check-e2e-secrets, e2e, deploy-public-smoke, release-compose, backup-smoke, trivy]
     steps:
       - name: All checks passed
         run: |
