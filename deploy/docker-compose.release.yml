@@ -1,0 +1,217 @@
+name: pulsebase-production
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app-security: &app-security
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - "no-new-privileges:true"
+  labels:
+    - "monitoring=true"
+  logging: *default-logging
+
+services:
+  db:
+    image: timescale/timescaledb:2.29.2-pg16@sha256:289d55704b1b3ee8263cd3805c6930f9cd54506835a8f19f9b85dad17d5c5a8a
+    container_name: pulsebase-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: garmin
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    labels:
+      - "monitoring=true"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d garmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.00"
+    logging: *default-logging
+
+  flyway:
+    image: ${MIGRATIONS_IMAGE:?MIGRATIONS_IMAGE must be an immutable digest}
+    container_name: pulsebase-flyway
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/garmin
+      FLYWAY_USER: ${DB_USER}
+      FLYWAY_PASSWORD: ${DB_PASSWORD}
+      FLYWAY_CONNECT_RETRIES: 10
+      FLYWAY_MIXED: "true"
+      FLYWAY_PLACEHOLDERS_DB_APP_USER: ${DB_APP_USER}
+      FLYWAY_PLACEHOLDERS_DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      FLYWAY_PLACEHOLDERS_DB_SYNC_USER: ${DB_SYNC_USER}
+      FLYWAY_PLACEHOLDERS_DB_SYNC_PASSWORD: ${DB_SYNC_PASSWORD}
+      FLYWAY_PLACEHOLDERS_DB_ML_USER: ${DB_ML_USER}
+      FLYWAY_PLACEHOLDERS_DB_ML_PASSWORD: ${DB_ML_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  api:
+    <<: *app-security
+    image: ${API_IMAGE:?API_IMAGE must be an immutable digest}
+    pull_policy: always
+    container_name: pulsebase-api
+    stop_grace_period: 45s
+    env_file:
+      - ../env/.env.app
+      - ../env/.env.api
+    environment:
+      APP_VERSION: ${RELEASE_VERSION:?RELEASE_VERSION is required}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: garmin
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    networks:
+      - internal
+      - gateway-garmin
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.50"
+
+  sync-service:
+    <<: *app-security
+    image: ${SYNC_IMAGE:?SYNC_IMAGE must be an immutable digest}
+    pull_policy: always
+    container_name: pulsebase-sync
+    stop_grace_period: 120s
+    env_file:
+      - ../env/.env.app
+      - ../env/.env.sync
+    environment:
+      APP_VERSION: ${RELEASE_VERSION:?RELEASE_VERSION is required}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: garmin
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    networks:
+      - internal
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - test -f /tmp/sync_alive && python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+
+  ml-service:
+    <<: *app-security
+    image: ${ML_IMAGE:?ML_IMAGE must be an immutable digest}
+    pull_policy: always
+    container_name: pulsebase-ml
+    stop_grace_period: 120s
+    env_file:
+      - ../env/.env.app
+      - ../env/.env.ml
+    environment:
+      APP_VERSION: ${RELEASE_VERSION:?RELEASE_VERSION is required}
+      MODEL_DIR: /app/models
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: garmin
+    volumes:
+      - ml-models:/app/models
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    networks:
+      - internal
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - test -f /tmp/ml_alive && python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.00"
+
+  backup:
+    <<: *app-security
+    image: ${BACKUP_IMAGE:?BACKUP_IMAGE must be an immutable digest}
+    pull_policy: always
+    container_name: pulsebase-backup
+    env_file:
+      - path: ../env/.env.backup
+        required: false
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: garmin
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backups:/backups
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+
+volumes:
+  timescale-data:
+  ml-models:
+  backups:
+
+networks:
+  internal:
+    driver: bridge
+  gateway-garmin:
+    external: true
+    name: gateway-garmin
