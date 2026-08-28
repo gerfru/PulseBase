@@ -1,11 +1,11 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM python:3.14-slim@sha256:cae66f2ef0ec51a9891263eeee7f987dacf0a9879e8aa9353d5606e0530619a5 AS builder
-WORKDIR /build
+WORKDIR /build/api
 RUN pip install --no-cache-dir uv
-COPY pyproject.toml uv.lock ./
-RUN uv export --frozen --no-dev -o requirements.txt && \
-    python -m venv /venv && \
-    /venv/bin/pip install --no-cache-dir -r requirements.txt
+COPY api/pyproject.toml api/uv.lock ./
+COPY packages/pulsebase_garmin /build/packages/pulsebase_garmin
+RUN UV_PROJECT_ENVIRONMENT=/venv uv sync \
+    --frozen --no-dev --no-editable --no-install-project
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM python:3.14-slim@sha256:cae66f2ef0ec51a9891263eeee7f987dacf0a9879e8aa9353d5606e0530619a5
@@ -21,7 +21,7 @@ ENV PATH="/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 USER appuser
-COPY src/ ./src/
+COPY api/src/ ./src/
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
     CMD curl -f http://localhost:8000/ready || exit 1
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "30"]

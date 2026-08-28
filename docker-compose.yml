@@ -67,7 +67,9 @@ services:
         max-file: "2"
 
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     container_name: pulsebase-api
     restart: unless-stopped
     stop_grace_period: 45s
@@ -107,7 +109,9 @@ services:
         max-file: "3"
 
   sync-service:
-    build: ./sync-service
+    build:
+      context: .
+      dockerfile: sync-service/Dockerfile
     container_name: pulsebase-sync
     restart: unless-stopped
     stop_grace_period: 120s

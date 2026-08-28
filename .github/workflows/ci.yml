@@ -87,11 +87,11 @@ jobs:
         run: pip install pip-audit==2.8.0 uv==0.7.8
       - name: pip-audit api
         run: |
-          uv export --frozen --no-hashes --directory api/ -o /tmp/req-api.txt
+          uv export --frozen --no-hashes --no-emit-package pulsebase-garmin --directory api/ -o /tmp/req-api.txt
           pip-audit -r /tmp/req-api.txt
       - name: pip-audit sync-service
         run: |
-          uv export --frozen --no-hashes --directory sync-service/ -o /tmp/req-sync.txt
+          uv export --frozen --no-hashes --no-emit-package pulsebase-garmin --directory sync-service/ -o /tmp/req-sync.txt
           pip-audit -r /tmp/req-sync.txt
       - name: pip-audit ml-service
         run: |
@@ -140,7 +140,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build api image
-        run: docker build -t pulsebase-api:ci api/
+        run: docker build -f api/Dockerfile -t pulsebase-api:ci .
       - name: Scan api
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -159,7 +159,7 @@ jobs:
           path: trivy-api.txt
           retention-days: 90
       - name: Build sync image
-        run: docker build -t pulsebase-sync:ci sync-service/
+        run: docker build -f sync-service/Dockerfile -t pulsebase-sync:ci .
       - name: Scan sync
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
