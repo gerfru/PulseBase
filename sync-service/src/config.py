@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     sync_interval_hours: int = 2
     sync_lookback_days: int = 30
     sync_daily_days: int = 2  # days fetched per interval run
+    sync_event_consumer_enabled: bool = True
+    sync_event_sweep_seconds: int = 30
     fernet_key: str
     sentry_dsn: str = ""
     token_base_dir: Path = Path("/app/tokens")
