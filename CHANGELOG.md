@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.7.0](https://github.com/gerfru/PulseBase/compare/v1.6.2...v1.7.0) (2026-08-28)
+
+
+### Features
+
+* add feature-flagged ml event consumer ([#288](https://github.com/gerfru/PulseBase/issues/288)) ([5809688](https://github.com/gerfru/PulseBase/commit/58096883ac07418f3607110c04ef65a473b44a3b))
+* add immutable release topology ([#306](https://github.com/gerfru/PulseBase/issues/306)) ([192fa56](https://github.com/gerfru/PulseBase/commit/192fa56d6e454da14ed04f43df6fdc6783faaf2d))
+* add ml event listener recovery ([#289](https://github.com/gerfru/PulseBase/issues/289)) ([2e2914a](https://github.com/gerfru/PulseBase/commit/2e2914af71a6cd92bfe5eff3e564a195574f25ee))
+* add provider circuit breakers ([#295](https://github.com/gerfru/PulseBase/issues/295)) ([794148e](https://github.com/gerfru/PulseBase/commit/794148ecdb53f9f7c84a5ad9c57348f30d6d2699))
+* add sync event queue core ([#301](https://github.com/gerfru/PulseBase/issues/301)) ([b85135b](https://github.com/gerfru/PulseBase/commit/b85135ba73b27cbca1d50a242097158eeeceeb02))
+* complete ML event consumer cutover ([#303](https://github.com/gerfru/PulseBase/issues/303)) ([5288ae3](https://github.com/gerfru/PulseBase/commit/5288ae3f3d48c023afa42d8d312b4c94aa1e4455))
+* enable sync event consumer ([#302](https://github.com/gerfru/PulseBase/issues/302)) ([4ec3c88](https://github.com/gerfru/PulseBase/commit/4ec3c88dfc0bfdf7f7cc5a07847bad647b8f1b49))
+* implement architecture review improvements ([#286](https://github.com/gerfru/PulseBase/issues/286)) ([a8f3ff7](https://github.com/gerfru/PulseBase/commit/a8f3ff7d21a0f5944b48de3f6dee2871f991a91b))
+* make service event producers atomic ([#300](https://github.com/gerfru/PulseBase/issues/300)) ([f059a27](https://github.com/gerfru/PulseBase/commit/f059a271f2537d4f68fcdcfb4c7188b3d190c21f))
+* prevent duplicate ml event processing ([#290](https://github.com/gerfru/PulseBase/issues/290)) ([f35fec5](https://github.com/gerfru/PulseBase/commit/f35fec545674f26d318acf8f9de4ab43c6bf3a04))
+
 ## [1.6.2](https://github.com/gerfru/PulseBase/compare/v1.6.1...v1.6.2) (2026-08-18)
 
 
