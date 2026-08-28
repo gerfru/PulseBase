@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     model_dir: Path = Path("/app/models")
     ml_infer_hour: int = 7
     ml_train_weekday: int = 6  # Sunday (0=Monday)
-    ml_event_consumer_enabled: bool = False
+    ml_event_consumer_enabled: bool = True
+    ml_event_sweep_seconds: int = 30
     sentry_dsn: str = ""
 
     @property

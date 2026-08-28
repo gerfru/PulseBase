@@ -135,7 +135,7 @@ def test_configure_ml_scheduler_replaces_legacy_poller_when_events_enabled(monke
     main._configure_ml_scheduler(settings)
 
     job_ids = [call.kwargs["id"] for call in fake.add_job.call_args_list]
-    assert "ml_event_consumer" not in job_ids
+    assert "service_events_retention" in job_ids
     assert "on_request" not in job_ids
 
 

@@ -23,7 +23,9 @@ from db import (
     get_hrv_history_for_energy,
     claim_ml_events,
     complete_event,
+    delete_completed_ml_events,
     fail_event,
+    get_ml_queue_metrics,
     get_readiness_training_rows,
     get_sleep_data_7d,
     get_today_daily_summary,
@@ -158,8 +160,8 @@ async def run_on_request(settings: Settings) -> None:
 
     Checks `ml_requested = true` in users table (set by sync-service). Backfills
     energy history gaps (up to 30 days) before training so the first inference after
-    a fresh account link has a complete baseline. mark_ml_done resets the flag and
-    records last_ml_at regardless of success or failure.
+    a fresh account link has a complete baseline. Failed runs keep the flag set so
+    the rollback poller retries them.
     """
     users = await get_ml_requested_users()
     for user in users:
@@ -170,35 +172,50 @@ async def run_on_request(settings: Settings) -> None:
             logger.info("ml_request.done", user_id=uid)
         except Exception as e:
             logger.error("ml_request.failed", user_id=uid, error=str(e), exc_info=True)
-        finally:
-            await mark_ml_done(uid)
+            continue
+        await mark_ml_done(uid)
 
 
 async def process_ml_events(settings: Settings, batch_size: int = 10) -> None:
-    await requeue_stale_ml_events()
+    stale = await requeue_stale_ml_events()
+    if stale:
+        logger.warning("ml_queue.stale_requeued", count=stale)
     await reconcile_ml_events()
-    for event in await claim_ml_events(batch_size):
-        event_id = int(event["id"])
-        user_id = int(event["user_id"])
-        try:
-            await _backfill_and_train(user_id, settings)
-            await run_inference(user_id, settings)
-            await complete_event(event_id)
-            await mark_ml_done(user_id)
-            logger.info("ml_event.completed", event_id=event_id, user_id=user_id)
-        except Exception as error:
-            terminal = int(event["attempts"]) >= 5
-            await fail_event(event_id, str(error))
-            if terminal:
+    while True:
+        events = await claim_ml_events(batch_size)
+        if not events:
+            break
+        for event in events:
+            event_id = int(event["id"])
+            user_id = int(event["user_id"])
+            attempts = int(event["attempts"])
+            try:
+                await _backfill_and_train(user_id, settings)
+                await run_inference(user_id, settings)
                 await mark_ml_done(user_id)
-            logger.error(
-                "ml_event.failed",
-                event_id=event_id,
-                user_id=user_id,
-                terminal=terminal,
-                error=str(error),
-                exc_info=True,
-            )
+                status = await complete_event(event_id)
+                logger.info(
+                    "ml_event.completed",
+                    event_id=event_id,
+                    user_id=user_id,
+                    status=status,
+                )
+            except Exception as error:
+                status = await fail_event(event_id, str(error), attempts)
+                terminal = status == "failed"
+                if terminal:
+                    await mark_ml_done(user_id)
+                logger.error(
+                    "ml_event.failed",
+                    event_id=event_id,
+                    user_id=user_id,
+                    attempts=attempts,
+                    terminal=terminal,
+                    error_type=type(error).__name__,
+                    exc_info=True,
+                )
+
+    logger.info("ml_queue.snapshot", **(await get_ml_queue_metrics()))
 
 
 async def run_ml_event_listener(
@@ -206,6 +223,7 @@ async def run_ml_event_listener(
     stop_event: asyncio.Event,
     process_events: Callable[[Settings], Awaitable[None]] = process_ml_events,
 ) -> None:
+    sweep_seconds = max(int(settings.ml_event_sweep_seconds), 1)
     while not stop_event.is_set():
         connection = None
         wakeup = asyncio.Event()
@@ -218,18 +236,20 @@ async def run_ml_event_listener(
             await connection.add_listener("service_events", on_event)
             logger.info("ml_event_listener.connected")
             while not stop_event.is_set():
+                await process_events(settings)
+                if stop_event.is_set():
+                    break
                 wakeup_task = asyncio.create_task(wakeup.wait())
                 stop_task = asyncio.create_task(stop_event.wait())
                 done, pending = await asyncio.wait(
                     {wakeup_task, stop_task},
+                    timeout=sweep_seconds,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 for task in pending:
                     task.cancel()
                 await asyncio.gather(*pending, return_exceptions=True)
                 wakeup.clear()
-                if not stop_event.is_set():
-                    await process_events(settings)
         except asyncio.CancelledError:
             raise
         except Exception as error:
@@ -283,6 +303,12 @@ def _configure_ml_scheduler(settings: Settings) -> AsyncIOScheduler:
     )
     if event_consumer_enabled:
         logger.info("ml_event_listener.enabled")
+        scheduler.add_job(
+            delete_completed_ml_events,
+            "interval",
+            hours=24,
+            id="service_events_retention",
+        )
     else:
         scheduler.add_job(
             run_on_request,
