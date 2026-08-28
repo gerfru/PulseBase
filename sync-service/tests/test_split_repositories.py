@@ -27,8 +27,12 @@ async def test_token_repository_reads_and_writes_tokens():
 async def test_user_sync_repository_writes_ml_event():
     pool, conn = make_pool()
     repository = TimescaleUserSyncRepository(pool)
+    conn.transaction = MagicMock()
+    conn.transaction.return_value.__aenter__ = AsyncMock()
+    conn.transaction.return_value.__aexit__ = AsyncMock(return_value=False)
 
     await repository.set_ml_requested(7)
 
+    conn.transaction.return_value.__aenter__.assert_awaited_once()
     assert conn.execute.await_count == 2
     assert "service_events" in conn.execute.await_args_list[1].args[0]

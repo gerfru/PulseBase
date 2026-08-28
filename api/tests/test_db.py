@@ -383,23 +383,33 @@ async def test_get_user_sex_defaults_to_male():
 async def test_request_sync():
     from src.db.users import request_sync
 
-    pool = _pool_mock()
+    pool = MagicMock()
+    conn = MagicMock()
+    conn.execute = AsyncMock()
+    pool.acquire.return_value.__aenter__ = AsyncMock(return_value=conn)
+    pool.acquire.return_value.__aexit__ = AsyncMock(return_value=False)
+    conn.transaction.return_value.__aenter__ = AsyncMock()
+    conn.transaction.return_value.__aexit__ = AsyncMock(return_value=False)
     with patch("src.db.users.get_pool", AsyncMock(return_value=pool)):
         await request_sync(1)
-    assert pool.execute.await_count == 2
-    assert pool.execute.await_args_list[0].args == (
+
+    conn.transaction.return_value.__aenter__.assert_awaited_once()
+    assert conn.execute.await_count == 2
+    assert conn.execute.await_args_list[0].args == (
         "UPDATE users SET sync_requested = true WHERE id = $1",
         1,
     )
-    assert "INSERT INTO service_events" in pool.execute.await_args_list[1].args[0]
-    assert pool.execute.await_args_list[1].args[1] == 1
+    enqueue_sql = conn.execute.await_args_list[1].args[0]
+    assert "INSERT INTO service_events" in enqueue_sql
+    assert "generation = service_events.generation + 1" in enqueue_sql
+    assert conn.execute.await_args_list[1].args[1] == 1
 
 
 async def test_get_sync_status_with_row():
     from src.db.users import get_sync_status
 
     ts = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
-    row = {"sync_requested": True, "last_sync_at": ts}
+    row = {"pending": True, "last_sync_at": ts}
     with patch(
         "src.db.users.get_pool", AsyncMock(return_value=_pool_mock(fetchrow=row))
     ):
@@ -422,7 +432,7 @@ async def test_get_ml_status_pending():
     from src.db.users import get_ml_status
 
     ts = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
-    row = {"ml_requested": True, "last_ml_at": ts}
+    row = {"pending": True, "last_ml_at": ts}
     with patch(
         "src.db.users.get_pool", AsyncMock(return_value=_pool_mock(fetchrow=row))
     ):
