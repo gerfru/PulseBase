@@ -5,8 +5,10 @@ from pathlib import Path
 import structlog
 
 from config import Settings
+from events import run_sync_event_consumer
 from health_server import set_pool as set_health_pool, start_health_server
 from logging_config import configure_logging, configure_sentry
+from repositories.service_events import TimescaleServiceEventRepository
 from repositories.timescale import TimescaleRepository
 from scheduler import configure_scheduler
 from sync_runner import process_sync_requests, sync_all_libre, sync_all_users
@@ -69,18 +71,37 @@ async def main() -> None:  # pragma: no cover
         await repo.close()
         return
 
+    queue = TimescaleServiceEventRepository(repo._db)
+
     scheduler = configure_scheduler(
         repo,
         settings,
         sync_all_users_fn=sync_all_users,
         process_sync_requests_fn=process_sync_requests,
         sync_all_libre_fn=sync_all_libre,
+        cleanup_events_fn=queue.delete_completed_events,
     )
-    await shutdown_event.wait()
+    consumer_task = None
+    if settings.sync_event_consumer_enabled is True:
+        consumer_task = asyncio.create_task(
+            run_sync_event_consumer(
+                settings.db_url,
+                queue,
+                repo,
+                settings,
+                shutdown_event,
+            )
+        )
 
-    logger.info("shutdown.graceful_start")
-    scheduler.shutdown(wait=True)
-    logger.info("shutdown.complete")
+    try:
+        await shutdown_event.wait()
+    finally:
+        logger.info("shutdown.graceful_start")
+        scheduler.shutdown(wait=True)
+        if consumer_task is not None:
+            await consumer_task
+        await repo.close()
+        logger.info("shutdown.complete")
 
 
 if __name__ == "__main__":  # pragma: no cover
