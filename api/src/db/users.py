@@ -187,29 +187,62 @@ async def get_user_sex(user_id: int) -> str:
 
 async def request_sync(user_id: int) -> None:
     pool = await get_pool()
-    await pool.execute(
-        "UPDATE users SET sync_requested = true WHERE id = $1",
-        user_id,
-    )
-    await pool.execute(
-        """
-        INSERT INTO service_events (event_type, user_id)
-        VALUES ('sync_requested', $1)
-        ON CONFLICT (event_type, user_id)
-        WHERE status IN ('pending', 'processing') DO NOTHING
-        """,
-        user_id,
-    )
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "UPDATE users SET sync_requested = true WHERE id = $1",
+                user_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO service_events (event_type, user_id, payload)
+                VALUES (
+                    'sync_requested',
+                    $1,
+                    jsonb_build_object(
+                        'schema_version', 1,
+                        'correlation_id', gen_random_uuid()::text,
+                        'cause', 'manual'
+                    )
+                )
+                ON CONFLICT (event_type, user_id)
+                WHERE status IN ('pending', 'processing') DO UPDATE
+                SET generation = service_events.generation + 1,
+                    payload = EXCLUDED.payload,
+                    available_at = CASE
+                        WHEN service_events.status = 'pending' THEN NOW()
+                        ELSE service_events.available_at
+                    END,
+                    attempts = CASE
+                        WHEN service_events.status = 'pending' THEN 0
+                        ELSE service_events.attempts
+                    END,
+                    last_error = CASE
+                        WHEN service_events.status = 'pending' THEN NULL
+                        ELSE service_events.last_error
+                    END
+                """,
+                user_id,
+            )
 
 
 async def get_sync_status(user_id: int) -> dict[str, Any]:
     pool = await get_pool()
     row = await pool.fetchrow(
-        "SELECT sync_requested, last_sync_at FROM users WHERE id = $1",
+        """
+        SELECT users.last_sync_at,
+               EXISTS (
+                   SELECT 1 FROM service_events AS event
+                   WHERE event.event_type = 'sync_requested'
+                     AND event.user_id = users.id
+                     AND event.status IN ('pending', 'processing')
+               ) AS pending
+        FROM users WHERE users.id = $1
+        """,
         user_id,
     )
     return {
-        "pending": row["sync_requested"] if row else False,
+        "pending": bool(row["pending"]) if row else False,
         "last_sync_at": row["last_sync_at"].isoformat()
         if row and row["last_sync_at"]
         else None,
@@ -219,11 +252,20 @@ async def get_sync_status(user_id: int) -> dict[str, Any]:
 async def get_ml_status(user_id: int) -> dict[str, Any]:
     pool = await get_pool()
     row = await pool.fetchrow(
-        "SELECT ml_requested, last_ml_at FROM users WHERE id = $1",
+        """
+        SELECT users.last_ml_at,
+               EXISTS (
+                   SELECT 1 FROM service_events AS event
+                   WHERE event.event_type = 'ml_requested'
+                     AND event.user_id = users.id
+                     AND event.status IN ('pending', 'processing')
+               ) AS pending
+        FROM users WHERE users.id = $1
+        """,
         user_id,
     )
     return {
-        "pending": row["ml_requested"] if row else False,
+        "pending": bool(row["pending"]) if row else False,
         "last_ml_at": row["last_ml_at"].isoformat()
         if row and row["last_ml_at"]
         else None,

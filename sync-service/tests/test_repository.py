@@ -301,13 +301,21 @@ class TestMarkSyncDone:
 class TestSetMlRequested:
     async def test_calls_execute_with_user_id(self, mock_repo):
         repo, conn = mock_repo
+        conn.transaction = MagicMock()
+        conn.transaction.return_value.__aenter__ = AsyncMock()
+        conn.transaction.return_value.__aexit__ = AsyncMock(return_value=False)
+
         await repo.set_ml_requested(3)
+
+        conn.transaction.return_value.__aenter__.assert_awaited_once()
         assert conn.execute.await_count == 2
         assert conn.execute.await_args_list[0].args == (
             "UPDATE users SET ml_requested = true WHERE id = $1",
             3,
         )
-        assert "INSERT INTO service_events" in conn.execute.await_args_list[1].args[0]
+        enqueue_sql = conn.execute.await_args_list[1].args[0]
+        assert "INSERT INTO service_events" in enqueue_sql
+        assert "generation = service_events.generation + 1" in enqueue_sql
         assert conn.execute.await_args_list[1].args[1] == 3
 
 

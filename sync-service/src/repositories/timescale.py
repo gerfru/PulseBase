@@ -413,11 +413,17 @@ class TimescaleRepository(
     async def get_sync_requested_users(self) -> list[dict]:
         return await self._user_sync_repo.get_sync_requested_users()
 
+    async def get_sync_user(self, user_id: int) -> dict | None:
+        return await self._user_sync_repo.get_sync_user(user_id)
+
     async def get_libre_users(self) -> list[dict]:
         return await self._user_sync_repo.get_libre_users()
 
     async def mark_sync_done(self, user_id: int) -> None:
         await self._user_sync_repo.mark_sync_done(user_id)
+
+    async def clear_sync_requested(self, user_id: int) -> None:
+        await self._user_sync_repo.clear_sync_requested(user_id)
 
     async def set_ml_requested(self, user_id: int) -> None:
         await self._user_sync_repo.set_ml_requested(user_id)

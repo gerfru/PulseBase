@@ -135,7 +135,7 @@ class TestProcessSyncRequests:
         repo.set_ml_requested.assert_called_once_with(42)
         repo.mark_sync_done.assert_called_once_with(42)
 
-    async def test_sets_ml_requested_and_marks_done_even_on_failure(self):
+    async def test_failure_remains_requested_for_retry(self):
         repo = AsyncMock()
         repo.get_sync_requested_users.return_value = [
             {"id": 99, "garmin_email": "x@test.com"}
@@ -147,9 +147,8 @@ class TestProcessSyncRequests:
         with patch("sync_runner.sync_user", side_effect=failing_sync):
             await process_sync_requests(repo, daily_days=7, settings=MagicMock())
 
-        # Both side-effects must fire from the finally block even on error
-        repo.set_ml_requested.assert_called_once_with(99)
-        repo.mark_sync_done.assert_called_once_with(99)
+        repo.set_ml_requested.assert_not_called()
+        repo.mark_sync_done.assert_not_called()
 
     async def test_no_requested_users_is_noop(self):
         repo = AsyncMock()

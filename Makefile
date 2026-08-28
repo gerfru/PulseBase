@@ -53,8 +53,8 @@ sync: network
 
 trigger-sync: ## Garmin-Sync für alle aktiven User anfordern (sync-service verarbeitet binnen 1 Minute)
 	$(DC) exec -T db psql -U garmin_app -d garmin \
-	  -c "UPDATE users SET sync_requested = true WHERE garmin_linked = true AND is_active = true;"
-	@echo "Sync angefordert — läuft binnen 1 Minute. Fortschritt: make logs-sync"
+	  -c "WITH requested AS (UPDATE users SET sync_requested = true WHERE garmin_linked = true AND is_active = true RETURNING id) INSERT INTO service_events (event_type, user_id, payload) SELECT 'sync_requested', id, jsonb_build_object('schema_version', 1, 'correlation_id', gen_random_uuid()::text, 'cause', 'operator') FROM requested ON CONFLICT (event_type, user_id) WHERE status IN ('pending', 'processing') DO UPDATE SET generation = service_events.generation + 1, payload = EXCLUDED.payload, available_at = CASE WHEN service_events.status = 'pending' THEN NOW() ELSE service_events.available_at END, attempts = CASE WHEN service_events.status = 'pending' THEN 0 ELSE service_events.attempts END, last_error = CASE WHEN service_events.status = 'pending' THEN NULL ELSE service_events.last_error END;"
+	@echo "Sync angefordert — Event-Consumer startet sofort. Fortschritt: make logs-sync"
 
 logs-dashboard:
 	$(DC) logs -f api

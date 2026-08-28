@@ -304,11 +304,9 @@ async def process_sync_requests(
             logger.error(
                 "sync.manual.failed", user_id=user["id"], error=str(e), exc_info=True
             )
-        finally:
-            try:
-                await repo.set_ml_requested(user["id"])
-            finally:
-                await repo.mark_sync_done(user["id"])
+            continue
+        await repo.set_ml_requested(user["id"])
+        await repo.mark_sync_done(user["id"])
 
 
 async def sync_all_users(
