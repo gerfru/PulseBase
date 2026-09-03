@@ -6,7 +6,7 @@
     <p class="text-slate-600 dark:text-slate-400 text-sm mb-8">Melde dich an</p>
 
     <div class="w-full max-w-sm">
-        <div class="card">
+        <div class="card card-form">
             {% if request.query_params.get("deleted") %}
             <div role="status" aria-live="polite" class="mb-4 px-4 py-3 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-300 text-sm">Konto erfolgreich gelöscht. Alle Daten wurden entfernt.</div>
             {% endif %}
