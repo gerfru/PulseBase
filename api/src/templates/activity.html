@@ -7,7 +7,7 @@
 {% endblock %}
 {% block content %}
 
-    <div class="card mx-4 mt-4 flex flex-col gap-2">
+    <div class="card card-status mx-4 mt-4 flex flex-col gap-2">
         <a class="inline-flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors no-underline w-fit" href="/dashboard">← Dashboard</a>
         <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100 m-0" id="act-title">—</h1>
         <div class="text-sm text-slate-600 dark:text-slate-400" id="act-meta">—</div>
@@ -18,7 +18,7 @@
     <div class="px-4 pb-10 flex flex-col gap-4">
 
         <!-- Training Effect -->
-        <div class="card hidden" id="effect-card">
+        <div class="card card-metric hidden" id="effect-card">
             <h2>Trainingswirkung</h2>
             <p class="card-desc">Garmin Firstbeat · Skala 0–5 · 1–2 Erhalt · 2–3 Verbesserung · 3–4 Stark verbessernd · 4–5 Überbelastung</p>
             <div id="effect-aerobic" class="effect-row">
@@ -40,7 +40,7 @@
         </div>
 
         <!-- RPE Rating -->
-        <div class="card" id="rpe-card">
+        <div class="card card-form" id="rpe-card">
             <h2>Anstrengung (RPE)</h2>
             <p class="card-desc">Rating of Perceived Exertion — deine subjektive Einschätzung der Belastung · Skala 1 (sehr leicht) bis 10 (maximale Anstrengung) · Foster et al. (2001)</p>
             <div class="rpe-chips" id="rpe-chips"></div>
@@ -64,14 +64,14 @@
         </div>
 
         <!-- Laufökonomie -->
-        <div class="card hidden" id="economy-card">
+        <div class="card card-metric hidden" id="economy-card">
             <h2>Laufökonomie</h2>
             <p class="card-desc">Biomechanische Effizienz-Kennzahlen · Garmin Running Dynamics</p>
             <div id="economy-rows"></div>
         </div>
 
         <!-- GPS Map -->
-        <div class="card hidden" id="map-card">
+        <div class="card card-metric hidden" id="map-card">
             <div class="flex items-center justify-between gap-2 mb-2">
                 <h2 class="mb-0">GPS-Track</h2>
                 <div id="map-layer-control" class="hidden items-center gap-1.5">
@@ -93,19 +93,19 @@
 
         <!-- Charts -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            <div class="card hidden" id="hr-card">
+            <div class="card card-metric hidden" id="hr-card">
                 <h2>Herzfrequenz</h2>
                 <div class="chart-wrap"><canvas id="hr-chart"></canvas></div>
             </div>
-            <div class="card hidden" id="pace-card">
+            <div class="card card-metric hidden" id="pace-card">
                 <h2 id="pace-title">Pace</h2>
                 <div class="chart-wrap"><canvas id="pace-chart"></canvas></div>
             </div>
-            <div class="card hidden" id="elev-card">
+            <div class="card card-metric hidden" id="elev-card">
                 <h2>Höhenprofil</h2>
                 <div class="chart-wrap"><canvas id="elev-chart"></canvas></div>
             </div>
-            <div class="card hidden" id="cadence-card">
+            <div class="card card-metric hidden" id="cadence-card">
                 <h2>Kadenz</h2>
                 <div class="chart-wrap"><canvas id="cadence-chart"></canvas></div>
             </div>

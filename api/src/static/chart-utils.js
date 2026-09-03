@@ -36,18 +36,22 @@ export function fmtHours(seconds) {
 }
 
 // Accessibility: versteckte Datentabelle je Diagramm (WCAG 1.1.1).
-// Das aria-label des Canvas fasst nur zusammen — diese sr-only-<table> macht
-// jeden Einzel-Messpunkt fuer Screenreader zugaenglich. Canvas verweist via
-// aria-describedby auf die Tabelle. Idempotent: ersetzt bei Re-Render.
+// Das aria-label des Canvas fasst nur zusammen — diese Tabelle macht jeden
+// Einzel-Messpunkt fuer Screenreader zugaenglich. Ein sr-only-Wrapper begrenzt
+// ihre intrinsische Breite. Canvas verweist via aria-describedby auf die
+// Tabelle. Idempotent: ersetzt bei Re-Render.
 // createElement statt innerHTML (kein XSS mit dynamischen Werten).
 export function buildChartDataTable(canvas, labels, datasets, captionText = '') {
     if (!canvas?.id) return;
     const tableId = `${canvas.id}-table`;
-    document.getElementById(tableId)?.remove();
+    const wrapperId = `${tableId}-wrapper`;
+    document.getElementById(wrapperId)?.remove();
 
+    const wrapper = document.createElement('div');
+    wrapper.id = wrapperId;
+    wrapper.className = 'sr-only';
     const table = document.createElement('table');
     table.id = tableId;
-    table.className = 'sr-only';
 
     if (captionText) {
         const caption = document.createElement('caption');
@@ -84,6 +88,7 @@ export function buildChartDataTable(canvas, labels, datasets, captionText = '') 
     });
     table.appendChild(tbody);
 
-    canvas.insertAdjacentElement('afterend', table);
+    wrapper.appendChild(table);
+    canvas.insertAdjacentElement('afterend', wrapper);
     canvas.setAttribute('aria-describedby', tableId);
 }

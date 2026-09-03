@@ -12,7 +12,7 @@
                 <span class="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">PulseBase</span>
                 <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.name }}</span>
             </a>
-            <nav class="flex items-center gap-1" aria-label="Konto">
+            <nav class="flex items-center gap-1" aria-label="Hauptnavigation">
                 {% if user.epilepsy_mode %}
                 <a href="/epilepsy" class="topbar-btn">Anfallstagebuch</a>
                 {% endif %}
@@ -41,7 +41,7 @@
     <!-- ── Onboarding-/Datenlatenz-Hinweis (einmalig, dismissbar) ── -->
     <div id="onboarding-hint" class="px-4 sm:px-6 pt-5 is-hidden">
         <div role="status" class="flex items-start gap-3 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-800 dark:text-sky-200 text-sm">
-            <span class="shrink-0">⏳</span>
+            <span class="shrink-0" aria-hidden="true">⏳</span>
             <span class="flex-1">
                 Deine Daten füllen sich nach und nach: erste Trends nach ~7 Tagen,
                 die ML-Prognose nach ~30 Tagen Daten. Solange einzelne Kacheln noch leer bleiben, ist das normal.
@@ -71,7 +71,7 @@
     <!-- ── Hero Card (immer sichtbar) ───────────────────────────── -->
     <div class="px-4 sm:px-6 pt-5">
         <div class="hero-card-wrap">
-            <div class="card" id="bento-hero">
+            <div class="card card-hero" id="bento-hero">
                 <div class="skeleton" aria-hidden="true">
                     <div class="hero-grid">
                         <div class="hero-ring-panel">
@@ -123,13 +123,13 @@
     <!-- ── Tab: Training ─────────────────────────────────────────── -->
     <div id="tab-training" role="tabpanel" aria-labelledby="tab-btn-training" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12">
 
-        <div class="card col-span-full" id="weekly-card">
+        <div class="card card-metric col-span-full" id="weekly-card">
             <h2>Trainingsübersicht</h2>
             <div class="chart-wrap"><canvas id="weekly-chart"></canvas></div>
             <p class="empty hidden" id="weekly-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full" data-href="/metrics/physical">
+        <div class="card card-metric col-span-full" data-href="/metrics/physical">
             <h2><a class="card-title-link" href="/metrics/physical">Training Load</a> <span class="text-sm font-normal text-slate-600 dark:text-slate-400 ml-1">Ermüdung · Fitness · Form</span></h2>
             <div class="flex gap-6 mb-3 text-sm">
                 <span>Ermüdung&nbsp;<strong id="tl-atl">—</strong></span>
@@ -140,13 +140,13 @@
             <p class="empty hidden" id="training-load-empty">Noch keine Aktivitätsdaten</p>
         </div>
 
-        <div class="card col-span-full" data-href="/metrics/intensity-minutes">
+        <div class="card card-metric col-span-full" data-href="/metrics/intensity-minutes">
             <h2><a class="card-title-link" href="/metrics/intensity-minutes">Intensitätsminuten</a></h2>
             <div class="chart-wrap"><canvas id="intensity-chart"></canvas></div>
             <p class="empty hidden" id="intensity-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full">
+        <div class="card card-collection col-span-full">
             <h2>Letzte Aktivitäten</h2>
             <div id="activities-container">
                 <div class="skeleton" aria-hidden="true">
@@ -164,37 +164,37 @@
     <!-- ── Tab: Verlauf ──────────────────────────────────────────── -->
     <div id="tab-verlauf" role="tabpanel" aria-labelledby="tab-btn-verlauf" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12 hidden">
 
-        <div class="card" data-href="/metrics/body-battery-custom">
+        <div class="card card-metric" data-href="/metrics/body-battery-custom">
             <h2><a class="card-title-link" href="/metrics/body-battery-custom">Body Battery</a></h2>
             <div class="chart-wrap"><canvas id="battery-chart"></canvas></div>
             <p class="empty hidden" id="battery-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card" data-href="/metrics/hr-zscore">
+        <div class="card card-metric" data-href="/metrics/hr-zscore">
             <h2><a class="card-title-link" href="/metrics/hr-zscore">Ruhepuls</a></h2>
             <div class="chart-wrap"><canvas id="hr-chart"></canvas></div>
             <p class="empty hidden" id="hr-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card" data-href="/metrics/steps">
+        <div class="card card-metric" data-href="/metrics/steps">
             <h2><a class="card-title-link" href="/metrics/steps">Schritte</a></h2>
             <div class="chart-wrap"><canvas id="steps-chart"></canvas></div>
             <p class="empty hidden" id="steps-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card" data-href="/metrics/stress-score-custom">
+        <div class="card card-metric" data-href="/metrics/stress-score-custom">
             <h2><a class="card-title-link" href="/metrics/stress-score-custom">Stress</a></h2>
             <div class="chart-wrap"><canvas id="stress-chart"></canvas></div>
             <p class="empty hidden" id="stress-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full">
+        <div class="card card-metric col-span-full">
             <h2>Kalorien</h2>
             <div class="chart-wrap"><canvas id="calories-chart"></canvas></div>
             <p class="empty hidden" id="calories-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full hidden" id="ml-verlauf-card">
+        <div class="card card-insight col-span-full hidden" id="ml-verlauf-card">
             <h2>KI-Einblicke <span class="text-xs font-normal text-slate-500 dark:text-slate-400">— automatisierte Analyse, kein medizinischer Befund</span></h2>
             <div id="ml-verlauf-content"></div>
         </div>
@@ -204,25 +204,25 @@
     <!-- ── Tab: Erholung ─────────────────────────────────────────── -->
     <div id="tab-erholung" role="tabpanel" aria-labelledby="tab-btn-erholung" tabindex="0" class="tab-panel grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 pt-6 pb-12 hidden">
 
-        <div class="card" data-href="/metrics/sleep-score-custom">
+        <div class="card card-metric" data-href="/metrics/sleep-score-custom">
             <h2><a class="card-title-link" href="/metrics/sleep-score-custom">Schlaf-Score</a></h2>
             <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
             <p class="empty hidden" id="sleep-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card" data-href="/metrics/hrv-status-custom">
+        <div class="card card-metric" data-href="/metrics/hrv-status-custom">
             <h2><a class="card-title-link" href="/metrics/hrv-status-custom">HRV-Verlauf</a></h2>
             <div class="chart-wrap"><canvas id="hrv-trend-chart"></canvas></div>
             <p class="empty hidden" id="hrv-trend-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full" data-href="/metrics/sleep-score-custom">
+        <div class="card card-metric col-span-full" data-href="/metrics/sleep-score-custom">
             <h2><a class="card-title-link" href="/metrics/sleep-score-custom">Schlafphasen</a></h2>
             <div class="chart-wrap"><canvas id="sleep-stages-chart"></canvas></div>
             <p class="empty hidden" id="sleep-stages-empty">Noch keine Daten</p>
         </div>
 
-        <div class="card col-span-full hidden" id="ml-erholung-card">
+        <div class="card card-insight col-span-full hidden" id="ml-erholung-card">
             <h2>KI-Einblicke <span class="text-xs font-normal text-slate-500 dark:text-slate-400">— automatisierte Analyse, kein medizinischer Befund</span></h2>
             <div id="ml-erholung-content"></div>
         </div>

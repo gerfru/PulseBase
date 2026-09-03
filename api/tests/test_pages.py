@@ -46,6 +46,32 @@ async def test_dashboard_renders_skeleton_placeholders(client):
     assert "Lade…" not in hero
 
 
+async def test_dashboard_labels_main_navigation(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/dashboard")
+    assert r.status_code == 200
+    assert (
+        '<nav class="flex items-center gap-1" aria-label="Hauptnavigation">' in r.text
+    )
+
+
+async def test_dashboard_hides_decorative_onboarding_icon(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/dashboard")
+    assert r.status_code == 200
+    assert '<span class="shrink-0" aria-hidden="true">⏳</span>' in r.text
+
+
+async def test_dashboard_uses_content_specific_surface_roles(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/dashboard")
+    assert r.status_code == 200
+    assert 'class="card card-hero"' in r.text
+    assert 'class="card card-metric' in r.text
+    assert 'class="card card-collection' in r.text
+    assert 'class="card card-insight' in r.text
+
+
 # ── ML detail pages ───────────────────────────────────────────────────────────
 
 

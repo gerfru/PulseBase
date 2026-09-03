@@ -64,14 +64,15 @@ describe('buildChartDataTable', () => {
         canvas = document.getElementById('c1');
     });
 
-    it('creates an sr-only table after the canvas with one row per label', () => {
+    it('creates a table in an sr-only wrapper after the canvas', () => {
         buildChartDataTable(canvas, ['Mo', 'Di', 'Mi'], [{ label: 'Puls', data: [60, 62, 58] }], 'Ruhepuls');
         const table = document.getElementById('c1-table');
+        const wrapper = document.getElementById('c1-table-wrapper');
         expect(table).toBeTruthy();
         expect(table.tagName).toBe('TABLE');
-        expect(table.classList.contains('sr-only')).toBe(true);
-        // table sits directly after the canvas
-        expect(canvas.nextElementSibling).toBe(table);
+        expect(wrapper.classList.contains('sr-only')).toBe(true);
+        expect(wrapper.firstElementChild).toBe(table);
+        expect(canvas.nextElementSibling).toBe(wrapper);
         // one tbody row per label
         expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
     });
@@ -114,6 +115,7 @@ describe('buildChartDataTable', () => {
         buildChartDataTable(canvas, ['Mo', 'Di'], [{ label: 'Puls', data: [60, 62] }], '');
         buildChartDataTable(canvas, ['Mo'], [{ label: 'Puls', data: [61] }], '');
         expect(document.querySelectorAll('#c1-table').length).toBe(1);
+        expect(document.querySelectorAll('#c1-table-wrapper').length).toBe(1);
         expect(document.querySelectorAll('table').length).toBe(1);
         expect(document.querySelectorAll('#c1-table tbody tr')).toHaveLength(1);
     });

@@ -71,6 +71,34 @@ html:not(.dark) {
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
 }
+.card-hero {
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--card-border));
+}
+.card-metric {
+  box-shadow: 0 1px 3px rgba(0,0,0,.18), 0 3px 12px rgba(0,0,0,.1);
+}
+.card-collection,
+.card-status,
+.card-insight {
+  box-shadow: none;
+}
+.card-collection {
+  background: var(--surface);
+}
+.card-form {
+  box-shadow: 0 1px 3px rgba(0,0,0,.14);
+}
+.card-insight {
+  line-height: 1.6;
+}
+.prose-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.625;
+}
 .card h2 {
   font-size: var(--text-xs);
   color: var(--muted);
@@ -187,6 +215,16 @@ html:not(.dark) .tab-btn.active { color: #047857; border-bottom-color: #047857; 
 .topbar-btn:hover { background: var(--surface-2); color: var(--text); }
 .topbar-btn-danger:hover { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
 .topbar-divider { width: 1px; height: 20px; background: var(--card-border); margin: 0 var(--sp-2); }
+@media (max-width: 640px) {
+  .dash-topbar .dash-shell { flex-wrap: wrap; }
+  .dash-topbar nav[aria-label="Hauptnavigation"] {
+    flex: 1 0 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .dash-topbar .topbar-btn { padding: 5px 8px; }
+  .dash-topbar .topbar-divider { display: none; }
+}
 
 /* ── View Toolbar + Segmented Time-Range ───────────────────────────────── */
 .view-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
@@ -861,12 +899,12 @@ html:not(.dark) .recommendation-block { background: rgba(16,185,129,.07); }
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }
 }
-.hero-card-wrap > .card,
-.tab-panel > .card { animation: card-in var(--dur-base) var(--ease-out) backwards; }
-.tab-panel > .card:nth-child(1) { animation-delay: 0ms;   }
-.tab-panel > .card:nth-child(2) { animation-delay: 40ms;  }
-.tab-panel > .card:nth-child(3) { animation-delay: 80ms;  }
-.tab-panel > .card:nth-child(4) { animation-delay: 120ms; }
+.hero-card-wrap > .card-hero,
+.tab-panel > .card-metric { animation: card-in var(--dur-base) var(--ease-out) backwards; }
+.tab-panel > .card-metric:nth-child(1) { animation-delay: 0ms;   }
+.tab-panel > .card-metric:nth-child(2) { animation-delay: 40ms;  }
+.tab-panel > .card-metric:nth-child(3) { animation-delay: 80ms;  }
+.tab-panel > .card-metric:nth-child(4) { animation-delay: 120ms; }
 
 /* ── Skeleton-Screens — perceived performance, 300-ms-Regel ─────────────────────
    Wrapper bleibt 300 ms unsichtbar; kommt der echte Inhalt vorher, wird das Markup
