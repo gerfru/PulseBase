@@ -2,6 +2,10 @@
 
 Key architectural choices and the reasoning behind them.
 
+Screen ownership, navigation, user tasks, surface roles, and motion policy are defined
+in [PulseBase UX Structure](design-ux-artifacts.md). This document owns the technical
+and visual implementation decisions that support that structure.
+
 ---
 
 ## No Grafana

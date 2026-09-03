@@ -778,24 +778,32 @@ async def test_privacy_page_returns_200(client):
     r = await client.get("/privacy")
     assert r.status_code == 200
     assert "Datenschutz" in r.text
+    assert 'class="prose-layout' in r.text
+    assert 'class="card ' not in r.text
 
 
 async def test_terms_page_returns_200(client):
     r = await client.get("/terms")
     assert r.status_code == 200
     assert "Nutzungsbedingungen" in r.text
+    assert 'class="prose-layout' in r.text
+    assert 'class="card ' not in r.text
 
 
 async def test_imprint_page_returns_200(client):
     r = await client.get("/imprint")
     assert r.status_code == 200
     assert "Impressum" in r.text
+    assert 'class="prose-layout' in r.text
+    assert 'class="card ' not in r.text
 
 
 async def test_accessibility_page_returns_200(client):
     r = await client.get("/accessibility")
     assert r.status_code == 200
     assert "Barrierefreiheit" in r.text
+    assert 'class="prose-layout' in r.text
+    assert 'class="card ' not in r.text
 
 
 async def test_register_without_terms_consent_returns_400(client):
