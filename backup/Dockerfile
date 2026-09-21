@@ -1,6 +1,6 @@
 # PulseBase backup sidecar: pg_dump (PG16) + age encryption + optional rclone offsite.
 # Connects to the db service over the internal network (no docker socket, no extra privilege).
-FROM postgres:18-alpine@sha256:6c538e7206ea40ff740ef27883529390a690b6ead6ba96b44c67a9f7c638e8fd
+FROM postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
 
 # age   = backup encryption (X25519 / ChaCha20-Poly1305), Alpine community
 # rclone = optional offsite copy (3-2-1 rule)
