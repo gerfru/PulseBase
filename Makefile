@@ -1,4 +1,4 @@
-.PHONY: network up up-public down-public logs-public config-public restore-test backup down clean reset dashboard analytics sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy backfill-records tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
+.PHONY: network up up-public down-public logs-public config-public restore-test backup down clean reset dashboard analytics sync full-sync trigger-sync logs-dashboard logs-analytics logs-sync logs-all status migrate db gen-secrets setup add-host setup-user backfill-energy backfill-records tailwind-build test test-env-up test-env-down test-seed test-user test-e2e test-e2e-seeded test-all test-all-seeded test-coverage test-js test-js-coverage secure-env
 
 DC := docker compose --env-file env/.env --env-file env/.env.app
 # Public SaaS deployment (bundled Caddy + Let's Encrypt). The overlay decouples
@@ -50,6 +50,32 @@ analytics: network
 
 sync: network
 	$(DC) build sync-service && $(DC) up -d --force-recreate sync-service
+
+full-sync: ## Garmin-Backfill für alle aktiven User (DAYS=730)
+	@days="$${DAYS:-730}"; \
+	case "$$days" in *[!0-9]*|'') echo "FEHLER: DAYS muss eine positive Ganzzahl sein"; exit 2;; esac; \
+	[ "$$days" -gt 0 ] || { echo "FEHLER: DAYS muss größer als 0 sein"; exit 2; }; \
+	$(DC) pause sync-service || { echo "FEHLER: sync-service konnte nicht pausiert werden"; exit 1; }; \
+	trap '$(DC) unpause sync-service >/dev/null 2>&1 || true' EXIT; \
+	trap 'exit 130' INT; \
+	trap 'exit 143' TERM; \
+	printf '%s\n' \
+	  'import asyncio' \
+	  'from config import Settings' \
+	  'from repositories.timescale import TimescaleRepository' \
+	  'from sync_runner import sync_all_users' \
+	  '' \
+	  'async def run():' \
+	  '    settings = Settings()' \
+	  '    repo = TimescaleRepository(settings.db_url)' \
+	  '    try:' \
+	  '        await repo.init()' \
+	  "        await sync_all_users(repo, days=$$days, settings=settings)" \
+	  '    finally:' \
+	  '        await repo.close()' \
+	  '' \
+	  'asyncio.run(run())' \
+	| $(DC) run --rm --no-deps -T -e PYTHONPATH=/app/src sync-service python -
 
 trigger-sync: ## Garmin-Sync für alle aktiven User anfordern (sync-service verarbeitet binnen 1 Minute)
 	$(DC) exec -T db psql -U garmin_app -d garmin \

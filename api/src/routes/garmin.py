@@ -82,7 +82,7 @@ async def garmin_link(
         )
         return RedirectResponse("/?linked=1", status_code=303)
     except Exception as e:
-        logger.error(
+        logger.exception(
             "garmin.link.fail",
             user_id=user["id"],
             reason=type(e).__name__,
@@ -91,7 +91,11 @@ async def garmin_link(
         return _deps.templates.TemplateResponse(
             request,
             "link_garmin.html",
-            {"user": user, "error": "Login fehlgeschlagen. Bitte Zugangsdaten prüfen."},
+            {
+                "user": user,
+                "error": "Login fehlgeschlagen. Bitte Zugangsdaten prüfen.",
+                "csrf_token": generate_csrf_token(request),
+            },
             status_code=400,
         )
 

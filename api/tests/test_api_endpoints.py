@@ -222,6 +222,9 @@ async def test_garmin_link_invalid_credentials_returns_400(client):
             },
         )
     assert r.status_code == 400
+    csrf_marker = 'name="csrf_token" value="'
+    assert csrf_marker in r.text
+    assert r.text.split(csrf_marker, 1)[1].split('"', 1)[0]
 
 
 async def test_garmin_unlink_redirects(client):
