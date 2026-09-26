@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/gerfru/PulseBase/compare/v1.7.0...v1.7.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* harden Garmin linking and full sync ([#331](https://github.com/gerfru/PulseBase/issues/331)) ([0d0015d](https://github.com/gerfru/PulseBase/commit/0d0015d0feeb181351e7fb7a777c07aa67d258f0))
+
 ## [1.7.0](https://github.com/gerfru/PulseBase/compare/v1.6.2...v1.7.0) (2026-08-28)
 
 
