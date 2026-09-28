@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.8.0](https://github.com/gerfru/PulseBase/compare/v1.7.0...v1.8.0) (2026-09-28)
+
+
+### Features
+
+* persist daily insights jobs ([#341](https://github.com/gerfru/PulseBase/issues/341)) ([218e10a](https://github.com/gerfru/PulseBase/commit/218e10a0ed22f4daca3ccfb1192fe14d4bc8d2f0))
+* schedule daily insights at 05:00 Europe/Vienna ([#340](https://github.com/gerfru/PulseBase/issues/340)) ([fb813d8](https://github.com/gerfru/PulseBase/commit/fb813d8ae5aadc6a72d3e6efd86e46a65e9abbfc))
+* unify insights into a single report ([#342](https://github.com/gerfru/PulseBase/issues/342)) ([1d596d6](https://github.com/gerfru/PulseBase/commit/1d596d68c00925c12d5039670468a8b7a7606c52))
+
+
+### Bug Fixes
+
+* harden Garmin linking and full sync ([#331](https://github.com/gerfru/PulseBase/issues/331)) ([0d0015d](https://github.com/gerfru/PulseBase/commit/0d0015d0feeb181351e7fb7a777c07aa67d258f0))
+
 ## [1.7.0](https://github.com/gerfru/PulseBase/compare/v1.6.2...v1.7.0) (2026-08-28)
 
 
