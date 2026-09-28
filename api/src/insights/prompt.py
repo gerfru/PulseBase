@@ -13,29 +13,8 @@ from decimal import Decimal
 from src.insights.bands import band_label
 from src.insights.evidence import VALID_EVIDENCE_KEYS, caveats_for, statement_for
 from src.insights.guard import assert_no_identifier
-from src.insights.models import Metric, MetricKey, WeeklyInsight
-from src.insights.templates import SEGMENT_DISCLAIMERS
-
-_SEGMENT_TONE: dict[str, str] = {
-    "hobby": "kurz, motivierend, alltagssprachlich",
-    "pro": "sachlich-knapp, mit Zahlen und Evidenz (fuer Trainer/Health-Pros)",
-    "profi": "praezise und fachlich (fuer Profi-Sportler und Staff)",
-}
-
-# Kanonische deutsche Labels (konsistent mit dem Dashboard) — sonst erfindet das
-# Modell eigene Bezeichnungen ("Motivationshoehe" etc.).
-METRIC_LABEL: dict[MetricKey, str] = {
-    MetricKey.READINESS: "Erholung (Readiness)",
-    MetricKey.SLEEP: "Schlaf",
-    MetricKey.TRAINING_FORM: "Trainingsform",
-    MetricKey.STRESS: "Stress",
-    MetricKey.BODY_BATTERY: "Body Battery",
-    MetricKey.HRV: "HRV",
-    MetricKey.TRAINING_VOLUME: "Trainingsvolumen",
-    MetricKey.TIME_IN_RANGE: "Zeit im Zielbereich",
-    MetricKey.GLUCOSE_CV: "Glukose-Variabilitaet",
-    MetricKey.TRAINING_LOAD: "Trainingslast",
-}
+from src.insights.models import Metric, WeeklyInsight
+from src.insights.templates import METRIC_LABEL
 
 
 def _num(value: Decimal) -> str:
@@ -53,19 +32,26 @@ def _metric_line(m: Metric) -> str:
     return base
 
 
-def build_prompt(insight: WeeklyInsight, segment: str) -> str:
-    if segment not in SEGMENT_DISCLAIMERS:
-        raise ValueError(f"unknown segment: {segment!r}")
+def build_prompt(insight: WeeklyInsight) -> str:
     assert_no_identifier(insight)  # Invariante 2 — vor jedem Prompt
 
     # Der Disclaimer wird deterministisch angehaengt (siehe generate.py) — nicht
     # vom Modell verlangt, da es ihn unzuverlaessig woertlich reproduziert.
     parts: list[str] = [
-        "Du bist ein Gesundheits-Assistent. Schreibe eine kurze Auswertung der "
+        "Du bist ein Gesundheits-Assistent. Schreibe eine ausführliche Auswertung der "
         "letzten 7 Tage.",
-        f"Tonlage: {_SEGMENT_TONE[segment]}.",
+        "Tonlage: sachlich, alltagssprachlich, mit Einordnung der Zahlen.",
         "",
         "REGELN (strikt einhalten):",
+        "- Gliedere den Text in genau drei Abschnitte mit den Überschriften "
+        "'Zusammenfassung', 'Kennzahlen' und 'Einordnung', jeweils auf einer eigenen Zeile.",
+        "- Zusammenfassung: Beschreibe die wichtigsten beobachteten Signale in "
+        "mehreren vollständigen Sätzen, ohne aus einem einzelnen Trend eine Diagnose abzuleiten.",
+        "- Kennzahlen: Erläutere jede vorhandene Kennzahl in einer eigenen Zeile mit "
+        "ihrem Wert, ihrer Einheit und einer sachlichen Einordnung. Fehlen Daten, "
+        "benenne die Lücke statt sie zu ergänzen.",
+        "- Einordnung: Erkläre das Gesamtbild in mehreren Sätzen. Behaupte keine "
+        "Ursache und gib keine individuelle Handlungsempfehlung ohne belegte Evidenz.",
         "- Verwende AUSSCHLIESSLICH die unten genannten Zahlen. Erfinde keine Zahlen.",
         "- Nutze die kanonischen Bezeichnungen der Kennzahlen; erfinde keine neuen.",
         "- 'Niveau' zeigt das aktuelle Level. Rahme einen Anstieg/Abfall IMMER im "
@@ -73,8 +59,8 @@ def build_prompt(insight: WeeklyInsight, segment: str) -> str:
         "Erholung', nicht 'gut'; ein Wert kann steigen UND trotzdem niedrig sein.",
         "- Keine vagen Mengen wie 'knapp', 'fast', 'etwa', 'rund', 'Haelfte'.",
         "- Nenne KEIN Datum, keinen Zeitraum und keine Wochennummer; verwende keine "
-        "Platzhalter wie '[Datum]' oder '[Zeitraum]'. Beginne direkt mit der "
-        "Einordnung der Kennzahlen.",
+        "Platzhalter wie '[Datum]' oder '[Zeitraum]'. Beginne mit der "
+        "Überschrift 'Zusammenfassung'.",
         "- Keine individuelle medizinische Empfehlung; nutze nur die Evidenz-Hinweise.",
         "- Kein Disclaimer noetig — der wird automatisch ergaenzt.",
         "",

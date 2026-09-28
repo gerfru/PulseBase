@@ -30,21 +30,13 @@
                 <span class="text-xs font-normal text-slate-500 dark:text-slate-400">— automatisierte Analyse, kein medizinischer Befund</span>
             </h1>
 
-            <div class="flex items-center justify-between gap-3 mt-3 mb-4">
+            <div class="mt-3 mb-4">
                 <span id="ins-week" class="text-sm font-medium text-slate-700 dark:text-slate-300">…</span>
-                <div class="flex items-center gap-1" role="tablist" aria-label="Tonlage">
-                    <button class="topbar-btn ins-seg" data-seg="hobby" aria-pressed="true">Hobby</button>
-                    <button class="topbar-btn ins-seg" data-seg="pro" aria-pressed="false">Pro</button>
-                    <button class="topbar-btn ins-seg" data-seg="profi" aria-pressed="false">Profi</button>
-                </div>
             </div>
 
+            <p id="ins-status" class="text-sm text-slate-600 dark:text-slate-400 mb-3" aria-live="polite" hidden></p>
             <div id="ins-content" aria-live="polite">
                 <p class="text-sm text-slate-500">Lade Auswertung…</p>
-            </div>
-
-            <div class="mt-4 flex items-center justify-end">
-                <button id="ins-regen" class="topbar-btn">Neu generieren</button>
             </div>
         </div>
     </div>

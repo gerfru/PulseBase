@@ -8,6 +8,10 @@ Accepted — 2026-06-16
 > Die **Kadenz** wechselt von der fixen ISO-Woche auf ein **rollierendes 7-Tage-Fenster**
 > (endend gestern), ohne Kalender-Navigation. Architektur, Sicherheits-Invarianten 1–6,
 > das 3-Schichten-Pattern und „Zahlen aus Code, Worte aus dem LLM" bleiben unverändert.
+>
+> **Präsentation ab 2026-09-28 durch [ADR-0007](0007-unified-insights-report.md) ersetzt:**
+> Statt drei Segmenttexten gibt es einen ausführlichen, gegliederten Bericht. Die
+> Sicherheits-Invarianten und die deterministische Fakten-/LLM-Trennung bleiben erhalten.
 
 Verdichtet die Exploration [`docs/ai-insights-exploration.md`](../ai-insights-exploration.md)
 zu einer entscheidungsfesten Spec. Umsetzung phasiert gemäß

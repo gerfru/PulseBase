@@ -3,8 +3,6 @@
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
 from src.insights.prompt import build_prompt
 
@@ -31,8 +29,11 @@ def _insight(**kw) -> WeeklyInsight:
 
 
 def test_prompt_contains_numbers_but_not_disclaimer():
-    p = build_prompt(_insight(), "hobby")
+    p = build_prompt(_insight())
     assert "58" in p and "-4.1" in p
+    assert "Tonlage: sachlich, alltagssprachlich" in p
+    assert "'Zusammenfassung', 'Kennzahlen' und 'Einordnung'" in p
+    assert "Erläutere jede vorhandene Kennzahl" in p
     # Disclaimer wird deterministisch angehaengt, NICHT vom Modell verlangt.
     assert "kein medizinischer Rat" not in p
     # Datum/Jahr gehoeren nicht in den Prompt (Number-Grounding-Schutz).
@@ -52,13 +53,13 @@ def test_prompt_normalizes_numbers():
             )
         ]
     )
-    p = build_prompt(ins, "hobby")
+    p = build_prompt(ins)
     assert "75 %" in p and "75.0" not in p
 
 
 def test_prompt_includes_evidence_statement():
     ins = _insight(flags=["low_time_in_range"], evidence=["glucose_tir"])
-    p = build_prompt(ins, "pro")
+    p = build_prompt(ins)
     assert "Evidenz-Hinweise" in p
 
 
@@ -74,13 +75,8 @@ def test_prompt_uses_label_band_and_context_rule():
             )
         ]
     )
-    p = build_prompt(ins, "pro")
+    p = build_prompt(ins)
     assert "Trainingsform" in p  # kanonisches Label, nicht der rohe Key
     assert "Niveau: hohe Belastung" in p  # 28 ist niedrig -> Belastung
     assert "im Kontext des Niveaus" in p  # Interpretations-Regel
     assert "training_form" not in p
-
-
-def test_prompt_unknown_segment_raises():
-    with pytest.raises(ValueError):
-        build_prompt(_insight(), "enterprise")
