@@ -1,3 +1,3 @@
-FROM flyway/flyway:13@sha256:41c3b4eefcdeee3fe164cb38a420300e13232fb2e15ce873832ba410532780c3
+FROM flyway/flyway:13@sha256:e62cc87181a7114070060ee30ccd77d56871b365078e1cb12343b929e63ed84b
 
 COPY db/migrations/ /flyway/sql/

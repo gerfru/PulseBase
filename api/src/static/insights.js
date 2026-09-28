@@ -1,4 +1,4 @@
-// Insights (ADR-0003/0004). CSP-konform: keine Inline-Handler.
+// Insights (ADR-0008). CSP-konform: keine Inline-Handler.
 // esc lokal halten — NICHT aus dashboard-utils importieren: das zieht
 // chart-utils.js, das beim Eval das globale `Chart` braucht (auf /insights
 // nicht geladen) und die ganze Modul-Kette werfen liesse.
@@ -24,88 +24,113 @@ export function periodRangeLabel(startIso, endIso) {
 
 // --- Render (pure, testbar) ---------------------------------------------- //
 
-const METRIC_LABEL = {
-    readiness: 'Erholung',
-    sleep: 'Schlaf',
-    training_form: 'Trainingsform',
-    stress: 'Stress',
-    body_battery: 'Body Battery',
-    hrv: 'HRV',
-    training_volume: 'Trainingsvolumen',
-    time_in_range: 'Zeit im Zielbereich',
-};
-const TREND_ARROW = {
-    up: '↑',
-    slightly_up: '↗',
-    stable: '→',
-    slightly_down: '↘',
-    down: '↓',
-};
+const REPORT_HEADINGS = new Set(['Zusammenfassung', 'Kennzahlen', 'Einordnung', 'Hinweis']);
 
 // Markdown-Fett rendern; esc() laeuft ZUERST, der Inhalt ist also schon sicher.
 export function mdInline(s) {
     return esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
-export function renderInsight(data, segment) {
-    if (!data) return '';
-    const text = data.texts?.[segment] || {};
-    const metrics = (data.insight?.metrics || [])
-        .map((m) => {
-            const label = METRIC_LABEL[m.key] || m.key;
-            const chg = m.change_pct != null ? ` (${esc(m.change_pct)} %)` : '';
-            const arrow = TREND_ARROW[m.trend] || '';
-            return (
-                `<li><span class="font-medium">${esc(label)}</span>: ` +
-                `${esc(m.value)} ${esc(m.unit)}${chg} ${arrow}</li>`
-            );
+function renderBody(body) {
+    return String(body || '')
+        .split(/(?=^(?:Zusammenfassung|Kennzahlen|Einordnung|Hinweis)$)/m)
+        .filter((section) => section.trim())
+        .map((section) => {
+            const [heading, ...lines] = section.trim().split(/\r?\n/);
+            if (!REPORT_HEADINGS.has(heading)) {
+                return `<p class="insight-body whitespace-pre-line">${mdInline(section)}</p>`;
+            }
+            const content = lines.join('\n').trim();
+            const items = content.split(/\r?\n/).filter((line) => line.trim());
+            const bodyHtml =
+                heading === 'Kennzahlen' && items.every((line) => line.startsWith('- '))
+                    ? `<ul class="list-disc pl-5 space-y-1">${items.map((line) => `<li>${mdInline(line.slice(2))}</li>`).join('')}</ul>`
+                    : `<p class="insight-body whitespace-pre-line">${mdInline(content)}</p>`;
+            return `<section class="mb-4"><h2 class="text-sm font-semibold mb-2">${esc(heading)}</h2>${bodyHtml}</section>`;
         })
         .join('');
+}
+
+export function renderInsight(data) {
+    if (!data) return '';
+    const text = data.text || {};
     const badge =
         text.generator === 'llm'
             ? `KI-generiert${text.model_id ? ` · ${esc(text.model_id)}` : ''}`
             : 'Standardtext (Fallback)';
-    return (
-        `<ul class="insight-metrics mb-3">${metrics || '<li>Keine Kennzahlen.</li>'}</ul>` +
-        `<p class="insight-body whitespace-pre-line">${mdInline(text.body || '')}</p>` +
-        `<p class="insight-badge text-xs text-slate-500 mt-2">${esc(badge)}</p>`
+    return `${renderBody(text.body)}<p class="insight-badge text-xs text-slate-500 mt-2">${esc(badge)}</p>`;
+}
+
+export function visibleReport(data) {
+    return data?.status === 'ready' ? data : (data?.report ?? null);
+}
+
+export function statusMessage(data) {
+    if (!data || data.status === 'ready') return '';
+    const period = periodRangeLabel(data.period_start, data.period_end);
+    const previous = data.report ? ' Der letzte fertige Bericht bleibt sichtbar.' : '';
+    if (data.status === 'pending') return `Der Bericht für ${period} wird erstellt.${previous}`;
+    if (data.status === 'failed') return `Der Bericht für ${period} konnte nicht erstellt werden.${previous}`;
+    return `Für ${period} ist noch kein neuer Bericht verfügbar. Die Erstellung ist täglich um 05:00 Uhr (Wien) geplant.${previous}`;
+}
+
+const REPORT_CLOCK = new Intl.DateTimeFormat('de-AT', {
+    timeZone: 'Europe/Vienna',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+});
+
+function viennaClock(now) {
+    const parts = Object.fromEntries(
+        REPORT_CLOCK.formatToParts(now)
+            .filter(({ type }) => type !== 'literal')
+            .map(({ type, value }) => [type, value]),
     );
+    return { day: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour) };
+}
+
+export function shouldRefreshAtFive(lastRefreshDay, now) {
+    const { day, hour } = viennaClock(now);
+    return hour >= 5 && lastRefreshDay !== day;
 }
 
 // --- DOM-Anbindung ------------------------------------------------------- //
 
 const state = {
-    periodStart: null,
-    periodEnd: null,
     data: null,
-    segment: 'hobby',
 };
-const PENDING_HTML =
-    '<p class="text-sm text-slate-500">Deine Auswertung wird gerade erstellt — ' +
-    'beim ersten Mal kann das einen Moment dauern. Die Seite aktualisiert sich ' +
-    'automatisch, sobald sie fertig ist. 🙏</p>';
 
 let pollTimer = null;
-let waitingSince = null; // created_at, das eine Regenerierung uebertreffen muss
+let dailyRefreshDay = null;
 
-function setRangeLabel() {
+function setRangeLabel(data) {
     const el = document.getElementById('ins-week');
-    if (el && state.periodStart && state.periodEnd) {
-        el.textContent = `Letzte 7 Tage · ${periodRangeLabel(state.periodStart, state.periodEnd)}`;
+    if (!el) return;
+    const report = visibleReport(data);
+    if (report) {
+        el.textContent = `Bericht · ${periodRangeLabel(report.period_start, report.period_end)}`;
+    } else {
+        el.textContent = `Zeitraum · ${periodRangeLabel(data.period_start, data.period_end)}`;
     }
 }
 
-function paint() {
-    if (!state.data) return;
+function paint(data) {
+    const status = document.getElementById('ins-status');
+    if (status) {
+        status.textContent = statusMessage(data);
+        status.hidden = data.status === 'ready';
+    }
     const el = document.getElementById('ins-content');
-    if (el) el.innerHTML = renderInsight(state.data, state.segment);
-    setRangeLabel();
-}
-
-function showPending() {
-    const el = document.getElementById('ins-content');
-    if (el) el.innerHTML = PENDING_HTML;
-    setRangeLabel();
+    const report = visibleReport(data);
+    if (el) {
+        el.innerHTML = report
+            ? renderInsight(report)
+            : '<p class="text-sm text-slate-500">Noch kein Bericht vorhanden.</p>';
+    }
+    setRangeLabel(data);
 }
 
 function schedulePoll() {
@@ -113,72 +138,47 @@ function schedulePoll() {
     pollTimer = setTimeout(load, 5000);
 }
 
-// Liefert nur das aktive Segment (lazy) — andere Segmente werden erst beim
-// Tab-Wechsel angefordert; spart die ~2-min-Erstlatenz.
 async function load() {
     const el = document.getElementById('ins-content');
-    if (el && !state.data?.texts?.[state.segment]) {
+    if (el && !visibleReport(state.data)) {
         el.innerHTML = '<p class="text-sm text-slate-500">Lade Auswertung…</p>';
     }
     try {
-        const res = await fetch(`/api/insights?segment=${encodeURIComponent(state.segment)}`);
+        const res = await fetch('/api/insights');
         if (!res.ok) throw new Error(String(res.status));
         const data = await res.json();
-        state.periodStart = data.period_start;
-        state.periodEnd = data.period_end;
-        const stale = waitingSince && data.created_at === waitingSince;
-        if (data.status === 'pending' || stale) {
-            showPending();
-            schedulePoll();
-            return;
-        }
-        waitingSince = null;
-        clearTimeout(pollTimer);
         state.data = data;
-        paint();
+        paint(data);
+        if (data.status === 'pending') schedulePoll();
+        else clearTimeout(pollTimer);
     } catch (_) {
-        if (el) {
+        if (visibleReport(state.data)) {
+            const status = document.getElementById('ins-status');
+            if (status) {
+                status.textContent = 'Der Bericht konnte nicht aktualisiert werden.';
+                status.hidden = false;
+            }
+        } else if (el) {
             el.innerHTML = '<p class="text-sm text-red-500">Konnte Insights nicht laden.</p>';
         }
+        clearTimeout(pollTimer);
     }
 }
 
-async function regenerate() {
-    const btn = document.getElementById('ins-regen');
-    if (btn) btn.disabled = true;
-    waitingSince = state.data?.created_at || null;
-    try {
-        const res = await fetch(`/api/insights/regenerate?segment=${encodeURIComponent(state.segment)}`, {
-            method: 'POST',
-        });
-        if (res.ok) {
-            showPending();
-            schedulePoll();
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
-}
-
-function setSegment(seg) {
-    state.segment = seg;
-    document.querySelectorAll('.ins-seg').forEach((b) => {
-        b.setAttribute('aria-pressed', String(b.dataset.seg === seg));
-    });
-    // Schon generiert → sofort zeichnen; sonst lazy nachladen (kick + Poll).
-    if (state.data?.texts?.[seg]) {
-        paint();
-    } else {
+function refreshAtFive() {
+    const now = new Date();
+    if (shouldRefreshAtFive(dailyRefreshDay, now)) {
+        dailyRefreshDay = viennaClock(now).day;
         load();
     }
+    setTimeout(refreshAtFive, 60000 - (Date.now() % 60000) + 200);
 }
 
 function init() {
-    document.getElementById('ins-regen')?.addEventListener('click', regenerate);
-    document.querySelectorAll('.ins-seg').forEach((b) => {
-        b.addEventListener('click', () => setSegment(b.dataset.seg));
-    });
+    const now = new Date();
+    if (viennaClock(now).hour >= 5) dailyRefreshDay = viennaClock(now).day;
     load();
+    refreshAtFive();
 }
 
 if (typeof document !== 'undefined' && document.getElementById('ins-content')) {

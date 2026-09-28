@@ -141,6 +141,48 @@ async def test_ml_insights_page_loads(authenticated_page):
     assert authenticated_page.url.endswith("/metrics/hr-zscore")
 
 
+async def test_insights_page_keeps_previous_report_visible(isolated_page):
+    page = isolated_page
+    await page.goto("/insights")
+    await (
+        page.locator("#ins-content")
+        .get_by_text("Noch kein Bericht vorhanden.")
+        .wait_for()
+    )
+    assert await page.locator("#ins-regen").count() == 0
+
+    async def report_pending(route):
+        await route.fulfill(
+            json={
+                "status": "pending",
+                "period_start": "2026-06-09",
+                "period_end": "2026-06-15",
+                "report": {
+                    "status": "ready",
+                    "period_start": "2026-06-08",
+                    "period_end": "2026-06-14",
+                    "text": {
+                        "body": "Zusammenfassung\nLetzter fertiger Bericht.",
+                        "generator": "fallback_template",
+                        "model_id": None,
+                    },
+                },
+            }
+        )
+
+    await page.route("**/api/insights", report_pending)
+    await page.reload()
+    await page.get_by_text("Letzter fertiger Bericht.").wait_for()
+    assert "09.06.–15.06." in await page.locator("#ins-status").inner_text()
+    assert "08.06.–14.06." in await page.locator("#ins-week").inner_text()
+    assert await page.locator("#ins-regen").count() == 0
+    await page.set_viewport_size({"width": 375, "height": 812})
+    assert await page.evaluate(
+        "document.documentElement.scrollWidth <= window.innerWidth"
+    )
+    await page.unroute("**/api/insights", report_pending)
+
+
 @requires_data
 async def test_activity_detail_page_loads(authenticated_page):
     await authenticated_page.goto("/dashboard")

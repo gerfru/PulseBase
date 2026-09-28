@@ -225,14 +225,14 @@ async def _sync_date_range(
 
 async def sync_user(
     user: dict, repo: TimescaleRepository, days: int, settings: Settings
-) -> None:
+) -> bool:
     bind_contextvars(job_id=str(uuid.uuid4())[:8])
     try:
         logger.info("sync.started", user_id=user["id"], days=days)
         blob = await _get_garmin_token(user, repo, settings)
         if blob is None:
             logger.warning("sync.no_token", user_id=user["id"])
-            return
+            return False
         with tempfile.TemporaryDirectory() as tmpdir:
             client = await _init_garmin_client(user, blob, settings, tmpdir)
             await _sync_date_range(client, repo, user["id"], days)
@@ -240,6 +240,7 @@ async def sync_user(
             encrypted = fernet_encrypt(serialized, require_fernet_key(settings))
             await repo.save_user_token(user["id"], "garmin", encrypted)
         logger.info("sync.done", user_id=user["id"])
+        return True
     finally:
         clear_contextvars()
 
@@ -299,7 +300,8 @@ async def process_sync_requests(
     for user in users:
         logger.info("sync.manual.started", user_id=user["id"])
         try:
-            await sync_user(user, repo, days=daily_days, settings=settings)
+            if not await sync_user(user, repo, days=daily_days, settings=settings):
+                continue
         except Exception as e:
             logger.error(
                 "sync.manual.failed", user_id=user["id"], error=str(e), exc_info=True
@@ -318,11 +320,9 @@ async def sync_all_users(
         return
     for user in users:
         try:
-            await sync_user(user, repo, days=days, settings=settings)
+            if not await sync_user(user, repo, days=days, settings=settings):
+                continue
+            await repo.set_ml_requested(user["id"])
+            await repo.mark_sync_done(user["id"])
         except Exception as e:
             logger.error("sync.failed", user_id=user["id"], error=str(e), exc_info=True)
-        finally:
-            try:
-                await repo.set_ml_requested(user["id"])
-            finally:
-                await repo.mark_sync_done(user["id"])
