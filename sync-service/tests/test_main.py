@@ -101,7 +101,7 @@ class TestSyncAllUsers:
 
         assert 2 in synced_ids, "user 2 must be synced even after user 1 fails"
 
-    async def test_mark_sync_done_called_for_all_users(self):
+    async def test_mark_sync_done_only_after_success(self):
         repo = AsyncMock()
         repo.get_active_users.return_value = [
             {"id": 10, "garmin_email": "x@test.com"},
@@ -111,14 +111,21 @@ class TestSyncAllUsers:
         async def partial_failure(user, repo, days, settings):
             if user["id"] == 10:
                 raise RuntimeError("fail")
+            return True
 
         with patch("sync_runner.sync_user", side_effect=partial_failure):
             await sync_all_users(repo, days=7, settings=MagicMock())
 
-        # mark_sync_done must be called for both users (finally block)
-        called_ids = [c.args[0] for c in repo.mark_sync_done.call_args_list]
-        assert 10 in called_ids
-        assert 20 in called_ids
+        repo.set_ml_requested.assert_awaited_once_with(20)
+        repo.mark_sync_done.assert_awaited_once_with(20)
+
+    async def test_no_token_does_not_trigger_ml_or_mark_done(self):
+        repo = AsyncMock()
+        repo.get_active_users.return_value = [{"id": 10, "garmin_email": "x@test.com"}]
+        with patch("sync_runner.sync_user", new_callable=AsyncMock, return_value=False):
+            await sync_all_users(repo, days=7, settings=MagicMock())
+        repo.set_ml_requested.assert_not_awaited()
+        repo.mark_sync_done.assert_not_awaited()
 
 
 # ── process_sync_requests — ML flag + cleanup ─────────────────────────────────
@@ -149,6 +156,16 @@ class TestProcessSyncRequests:
 
         repo.set_ml_requested.assert_not_called()
         repo.mark_sync_done.assert_not_called()
+
+    async def test_missing_token_remains_requested_for_retry(self):
+        repo = AsyncMock()
+        repo.get_sync_requested_users.return_value = [
+            {"id": 99, "garmin_email": "x@test.com"}
+        ]
+        with patch("sync_runner.sync_user", new_callable=AsyncMock, return_value=False):
+            await process_sync_requests(repo, daily_days=7, settings=MagicMock())
+        repo.set_ml_requested.assert_not_awaited()
+        repo.mark_sync_done.assert_not_awaited()
 
     async def test_no_requested_users_is_noop(self):
         repo = AsyncMock()
@@ -488,8 +505,9 @@ class TestSyncUser:
         settings.token_base_dir = Path("/nonexistent")
         settings.fernet_key = "key"
 
-        await sync_user(user, repo, days=7, settings=settings)
+        result = await sync_user(user, repo, days=7, settings=settings)
 
+        assert result is False
         repo.save_activity.assert_not_called()
 
     async def test_full_sync_with_token_from_repo(self):
@@ -510,8 +528,9 @@ class TestSyncUser:
             patch("sync_runner._sync_day", new_callable=AsyncMock),
         ):
             MockClient.return_value.connect = MagicMock()
-            await sync_user(user, repo, days=2, settings=settings)
+            result = await sync_user(user, repo, days=2, settings=settings)
 
+        assert result is True
         repo.save_user_token.assert_awaited_once()
 
     async def test_migrates_token_from_filesystem_when_not_in_db(self, tmp_path):

@@ -18,7 +18,7 @@ async def process_sync_events(
     settings: Any,
     *,
     batch_size: int = 10,
-    sync_user_fn: Callable[..., Awaitable[None]] = sync_user,
+    sync_user_fn: Callable[..., Awaitable[bool]] = sync_user,
 ) -> None:
     stale = await queue.requeue_stale_events()
     if stale:
@@ -46,12 +46,14 @@ async def process_sync_events(
 
             logger.info("sync_event.started", event_id=event_id, user_id=user_id)
             try:
-                await sync_user_fn(
+                success = await sync_user_fn(
                     user,
                     repo,
                     days=settings.sync_daily_days,
                     settings=settings,
                 )
+                if not success:
+                    raise RuntimeError("sync_not_completed")
                 await repo.set_ml_requested(user_id)
                 await repo.mark_sync_done(user_id)
                 status = await queue.complete_event(event_id)

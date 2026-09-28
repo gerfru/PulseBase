@@ -103,7 +103,7 @@ class TestProcessSyncEvents:
         }
         repo = AsyncMock()
         repo.get_sync_user.return_value = {"id": 42, "garmin_email": "x@test.com"}
-        sync = AsyncMock()
+        sync = AsyncMock(return_value=True)
 
         await process_sync_events(queue, repo, settings(), sync_user_fn=sync)
 
@@ -129,6 +129,26 @@ class TestProcessSyncEvents:
         await process_sync_events(queue, repo, settings(), sync_user_fn=sync)
 
         queue.fail_event.assert_awaited_once_with(6, "temporary", 2)
+        repo.set_ml_requested.assert_not_awaited()
+        repo.mark_sync_done.assert_not_awaited()
+        queue.complete_event.assert_not_awaited()
+
+    async def test_no_token_retries_without_marking_sync_done(self):
+        queue = AsyncMock()
+        queue.requeue_stale_events.return_value = 0
+        queue.claim_sync_events.side_effect = [
+            [{"id": 7, "user_id": 44, "attempts": 1}],
+            [],
+        ]
+        queue.fail_event.return_value = "pending"
+        queue.queue_metrics.return_value = {}
+        repo = AsyncMock()
+        repo.get_sync_user.return_value = {"id": 44, "garmin_email": "x@test.com"}
+        sync = AsyncMock(return_value=False)
+
+        await process_sync_events(queue, repo, settings(), sync_user_fn=sync)
+
+        queue.fail_event.assert_awaited_once_with(7, "sync_not_completed", 1)
         repo.set_ml_requested.assert_not_awaited()
         repo.mark_sync_done.assert_not_awaited()
         queue.complete_event.assert_not_awaited()
