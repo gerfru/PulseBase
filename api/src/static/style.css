@@ -217,7 +217,7 @@ html:not(.dark) .tab-btn.active { color: #047857; border-bottom-color: #047857; 
 .topbar-divider { width: 1px; height: 20px; background: var(--card-border); margin: 0 var(--sp-2); }
 @media (max-width: 640px) {
   .dash-topbar .dash-shell { flex-wrap: wrap; }
-  .dash-topbar nav[aria-label="Hauptnavigation"] {
+  .dash-topbar nav {
     flex: 1 0 100%;
     min-width: 0;
     flex-wrap: wrap;

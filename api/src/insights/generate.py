@@ -18,98 +18,57 @@ from src.insights.llm import LlmProvider, get_provider
 from src.insights.models import WeeklyInsight
 from src.insights.postcheck import GateOutput, arun_gate
 from src.insights.prompt import build_prompt
-from src.insights.templates import SEGMENT_DISCLAIMERS, SEGMENTS, fallback_text
+from src.insights.templates import DISCLAIMER, fallback_text
 
 logger = structlog.get_logger(__name__)
 
 
-async def _gate_for_segment(
-    insight: WeeklyInsight, segment: str, prov: LlmProvider | None
+async def _gate_for_report(
+    insight: WeeklyInsight, prov: LlmProvider | None
 ) -> GateOutput:
-    """Ein Segment durchs Gate; ohne Provider direkt das Fallback.
+    """Den Bericht durchs Gate; ohne Provider direkt das Fallback.
 
     Der Disclaimer wird deterministisch an die LLM-Ausgabe angehaengt (statt vom
     Modell verlangt) — so ist er rechtlich garantiert vorhanden und der Riegel
     erreichbar."""
     if prov is None:
         return GateOutput(
-            text=fallback_text(insight, segment),
+            text=fallback_text(insight),
             generator="fallback_template",
             attempts=0,
         )
-    prompt = build_prompt(insight, segment)
-    disclaimer = SEGMENT_DISCLAIMERS[segment]
+    prompt = build_prompt(insight)
 
     async def _generate() -> str:
         raw = await prov.complete(prompt)
-        return f"{raw.strip()} {disclaimer}"
+        return f"{raw.strip()}\n\nHinweis\n{DISCLAIMER}"
 
-    return await arun_gate(_generate, insight, segment)
+    return await arun_gate(_generate, insight)
 
 
-async def generate_segment(
+async def generate_insight(
     user_id: int,
     period_end: date,
-    segment: str,
     *,
     provider: LlmProvider | None = None,
 ) -> tuple[WeeklyInsight, GateOutput]:
-    """Baut das Insight-Objekt und erzeugt geprueften Text fuer EIN Segment.
+    """Baut das Insight-Objekt und erzeugt einen geprueften Bericht.
 
     Gibt das Objekt mit zurueck, damit der Aufrufer (store) es zusammen mit dem
-    Text persistieren kann — die Basis fuer lazy Pro-Segment-Generierung."""
+    Text persistieren kann."""
     inputs = await gather_inputs(user_id, period_end)
     insight = build_weekly_insight(period_end - timedelta(days=6), period_end, inputs)
     assert_no_identifier(insight)  # Invariante 2 — vor jedem Prompt
 
     prov = provider if provider is not None else get_provider()
     start = time.monotonic()
-    out = await _gate_for_segment(insight, segment, prov)
+    out = await _gate_for_report(insight, prov)
     logger.info(
         "insights.generate",
         period_end=period_end.isoformat(),
-        segment=segment,
         generator=out.generator,
         attempts=out.attempts,
         failures=out.failures,
         latency_ms=round((time.monotonic() - start) * 1000),
     )
     return insight, out
-
-
-async def generate_insight(
-    user_id: int,
-    period_end: date,
-    segment: str,
-    *,
-    provider: LlmProvider | None = None,
-) -> GateOutput:
-    """Erzeugt geprueften Insight-Text fuer (User, Fenster, Segment)."""
-    _, out = await generate_segment(user_id, period_end, segment, provider=provider)
-    return out
-
-
-async def generate_all_segments(
-    user_id: int,
-    period_end: date,
-    *,
-    provider: LlmProvider | None = None,
-) -> tuple[WeeklyInsight, dict[str, GateOutput]]:
-    """Baut das Insight EINMAL und erzeugt geprueften Text fuer alle Segmente."""
-    inputs = await gather_inputs(user_id, period_end)
-    insight = build_weekly_insight(period_end - timedelta(days=6), period_end, inputs)
-    assert_no_identifier(insight)  # Invariante 2 — vor jedem Prompt
-
-    prov = provider if provider is not None else get_provider()
-    start = time.monotonic()
-    outputs = {seg: await _gate_for_segment(insight, seg, prov) for seg in SEGMENTS}
-    logger.info(
-        "insights.generate_all",
-        period_end=period_end.isoformat(),
-        generators={seg: o.generator for seg, o in outputs.items()},
-        # Nur Riegel-Namen (z.B. "disclaimer") — kein Health-Payload (C3).
-        failures={seg: list(o.failures) for seg, o in outputs.items() if o.failures},
-        attempts={seg: o.attempts for seg, o in outputs.items()},
-        latency_ms=round((time.monotonic() - start) * 1000),
-    )
-    return insight, outputs

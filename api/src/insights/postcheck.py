@@ -14,9 +14,11 @@ from dataclasses import dataclass, field
 
 from src.insights.guard import EMAIL_RE, allowed_number_tokens, number_variants
 from src.insights.models import Trend, WeeklyInsight
-from src.insights.templates import SEGMENT_DISCLAIMERS, fallback_text
+from src.insights.templates import DISCLAIMER, fallback_text
 
 _NUMBER_RE = re.compile(r"[-−+]?\d+(?:[.,]\d+)?")
+_SECTION_HEADINGS = ("Zusammenfassung", "Kennzahlen", "Einordnung", "Hinweis")
+_SECTION_RE = re.compile(r"(?m)^(Zusammenfassung|Kennzahlen|Einordnung|Hinweis)[ \t]*$")
 
 # Unausgefuellte Template-Platzhalter, z. B. "[Datum]" / "[Zeitraum]" — ein
 # klarer Generierungs-Defekt; fail-secure ablehnen.
@@ -91,9 +93,18 @@ def _check_identifier_leak(text: str) -> bool:
     return EMAIL_RE.search(text) is None
 
 
-def _check_disclaimer(text: str, segment: str) -> bool:
-    disclaimer = SEGMENT_DISCLAIMERS.get(segment)
-    return disclaimer is not None and disclaimer in text
+def _check_disclaimer(text: str) -> bool:
+    return DISCLAIMER in text
+
+
+def _check_sections(text: str) -> bool:
+    parts = _SECTION_RE.split(text.strip())
+    return (
+        len(parts) == 2 * len(_SECTION_HEADINGS) + 1
+        and not parts[0].strip()
+        and tuple(parts[1::2]) == _SECTION_HEADINGS
+        and all(part.strip() for part in parts[2::2])
+    )
 
 
 def _check_coverage(text: str, insight: WeeklyInsight) -> bool:
@@ -129,15 +140,16 @@ def _check_trend_direction(text: str, insight: WeeklyInsight) -> bool:
     return True
 
 
-def post_check(text: str, insight: WeeklyInsight, segment: str) -> CheckResult:
+def post_check(text: str, insight: WeeklyInsight) -> CheckResult:
     """Fail-secure Output-Gate. Jeder Riegel ist deterministisch; das Ergebnis
     nennt die gescheiterten Riegel."""
     checks: list[tuple[str, bool]] = [
+        ("sections", _check_sections(text)),
         ("number_grounding", _check_number_grounding(text, insight)),
         ("number_words", _check_number_words(text)),
         ("placeholder", _check_no_placeholder(text)),
         ("identifier_leak", _check_identifier_leak(text)),
-        ("disclaimer", _check_disclaimer(text, segment)),
+        ("disclaimer", _check_disclaimer(text)),
         ("coverage", _check_coverage(text, insight)),
         ("evidence_grounding", _check_evidence_grounding(text, insight)),
         ("trend_direction", _check_trend_direction(text, insight)),
@@ -157,7 +169,6 @@ class GateOutput:
 def run_gate(
     generate: Callable[[], str],
     insight: WeeklyInsight,
-    segment: str,
     *,
     max_retries: int = 2,
 ) -> GateOutput:
@@ -167,12 +178,12 @@ def run_gate(
     last: CheckResult | None = None
     for attempt in range(1, max_retries + 2):
         text = generate()
-        result = post_check(text, insight, segment)
+        result = post_check(text, insight)
         if result.passed:
             return GateOutput(text=text, generator="llm", attempts=attempt)
         last = result
     return GateOutput(
-        text=fallback_text(insight, segment),
+        text=fallback_text(insight),
         generator="fallback_template",
         attempts=max_retries + 1,
         failures=last.failures if last else (),
@@ -182,7 +193,6 @@ def run_gate(
 async def arun_gate(
     generate: Callable[[], Awaitable[str]],
     insight: WeeklyInsight,
-    segment: str,
     *,
     max_retries: int = 2,
 ) -> GateOutput:
@@ -196,12 +206,12 @@ async def arun_gate(
         except Exception:
             last = CheckResult(passed=False, failures=("provider_error",))
             continue
-        result = post_check(text, insight, segment)
+        result = post_check(text, insight)
         if result.passed:
             return GateOutput(text=text, generator="llm", attempts=attempt)
         last = result
     return GateOutput(
-        text=fallback_text(insight, segment),
+        text=fallback_text(insight),
         generator="fallback_template",
         attempts=max_retries + 1,
         failures=last.failures if last else (),

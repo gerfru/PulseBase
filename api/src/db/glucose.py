@@ -1,3 +1,6 @@
+from datetime import datetime
+from decimal import Decimal
+
 from .pool import get_pool
 
 
@@ -49,3 +52,23 @@ async def get_glucose_stats(user_id: int, days: int = 14) -> dict:
         days,
     )
     return dict(row) if row else {}
+
+
+async def get_glucose_tir_for_window(
+    user_id: int, start_at: datetime, end_at: datetime
+) -> Decimal | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT ROUND(
+            100.0 * COUNT(*) FILTER (WHERE value_mgdl BETWEEN 70 AND 180)
+            / NULLIF(COUNT(*), 0), 1
+        ) AS tir_pct
+        FROM glucose_readings
+        WHERE user_id = $1 AND time >= $2 AND time < $3
+        """,
+        user_id,
+        start_at,
+        end_at,
+    )
+    return row["tir_pct"] if row else None

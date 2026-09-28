@@ -15,11 +15,12 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from src.db.activities import get_recent_activities
-from src.db.glucose import get_glucose_stats
+from src.db.glucose import get_glucose_tir_for_window
 from src.db.health import get_hrv_trend
 from src.db.ml import get_ml_history
 from src.insights.evidence import CATALOG_VERSION, VALID_EVIDENCE_KEYS
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
+from src.insights.window import window_bounds
 
 _STABLE_BAND = Decimal("2")
 _STRONG_BAND = Decimal("10")
@@ -244,15 +245,7 @@ async def gather_inputs(user_id: int, period_end: date) -> list[MetricInput]:
             _dec(_volume_hours(acts_prev), "0.1"),
         )
     )
-    # Glukose-TIR nutzt eine NOW-basierte Query → nur fuer das aktuelle Fenster
-    # sinnvoll; fuer aeltere Fenster weggelassen (sonst falsches Zeitfenster).
-    if period_end >= date.today() - timedelta(days=1):
-        stats = await get_glucose_stats(user_id, days=7)
-        inputs.append(
-            MetricInput(
-                MetricKey.TIME_IN_RANGE,
-                Unit.PERCENT,
-                _dec(stats.get("tir_pct"), "0.1"),
-            )
-        )
+    start_at, end_at = window_bounds(period_end)
+    tir = await get_glucose_tir_for_window(user_id, start_at, end_at)
+    inputs.append(MetricInput(MetricKey.TIME_IN_RANGE, Unit.PERCENT, _dec(tir, "0.1")))
     return inputs

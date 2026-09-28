@@ -1,6 +1,6 @@
 """Tests fuer Schicht-1-Builder + rollierenden 7-Tage-Adapter."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
@@ -92,7 +92,6 @@ def test_period_order_preserved():
 
 # --- gather_inputs (rollierend, gemockt) ----------------------------------- #
 
-# Klar in der Vergangenheit -> Glukose (NOW-basiert) entfaellt.
 _PAST_END = date.today() - timedelta(days=30)
 
 
@@ -110,7 +109,7 @@ def _patches(ml_cur, ml_prev, hrv, acts_cur, acts_prev):
     )
 
 
-async def test_gather_inputs_aggregates_window_and_skips_glucose_for_past_window():
+async def test_gather_inputs_aggregates_window_and_includes_historical_glucose():
     ml_cur = {
         "energy_autonomic": [{"value": 80}, {"value": 78}],
         "energy_cognitive": [{"value": 70}],
@@ -125,7 +124,15 @@ async def test_gather_inputs_aggregates_window_and_skips_glucose_for_past_window
     acts_cur = [{"duration_seconds": 19800}]
     acts_prev: list[dict] = []
     p1, p2, p3 = _patches(ml_cur, ml_prev, hrv, acts_cur, acts_prev)
-    with p1, p2, p3:
+    with (
+        p1,
+        p2,
+        p3,
+        patch(
+            "src.insights.collect.get_glucose_tir_for_window",
+            AsyncMock(return_value=75.0),
+        ),
+    ):
         inputs = await gather_inputs(1, _PAST_END)
     by = {i.key: i for i in inputs}
     assert by[MetricKey.READINESS].value == Decimal(
@@ -134,7 +141,7 @@ async def test_gather_inputs_aggregates_window_and_skips_glucose_for_past_window
     assert by[MetricKey.SLEEP].value == Decimal("82")
     assert by[MetricKey.HRV].value == Decimal("60")
     assert by[MetricKey.TRAINING_VOLUME].value == Decimal("5.5")
-    assert MetricKey.TIME_IN_RANGE not in by  # vergangenes Fenster -> kein NOW-Glukose
+    assert by[MetricKey.TIME_IN_RANGE].value == Decimal("75.0")
 
 
 async def test_gather_inputs_includes_glucose_for_current_window():
@@ -145,10 +152,40 @@ async def test_gather_inputs_includes_glucose_for_current_window():
         p2,
         p3,
         patch(
-            "src.insights.collect.get_glucose_stats",
-            AsyncMock(return_value={"tir_pct": 75.0}),
+            "src.insights.collect.get_glucose_tir_for_window",
+            AsyncMock(return_value=75.0),
         ),
     ):
         inputs = await gather_inputs(1, period_end)
     by = {i.key: i for i in inputs}
     assert by[MetricKey.TIME_IN_RANGE].value == Decimal("75.0")
+
+
+async def test_gather_inputs_bounds_glucose_window_across_summer_time():
+    p1, p2, p3 = _patches({}, {}, [], [], [])
+    with (
+        p1,
+        p2,
+        p3,
+        patch(
+            "src.insights.collect.get_glucose_tir_for_window",
+            AsyncMock(return_value=None),
+        ) as get_tir,
+    ):
+        inputs = await gather_inputs(1, date(2026, 3, 29))
+
+    get_tir.assert_awaited_once_with(
+        1,
+        datetime(2026, 3, 22, 23, tzinfo=timezone.utc),
+        datetime(2026, 3, 29, 22, tzinfo=timezone.utc),
+    )
+    assert {metric.key for metric in inputs if metric.value is None} == {
+        MetricKey.READINESS,
+        MetricKey.SLEEP,
+        MetricKey.TRAINING_FORM,
+        MetricKey.STRESS,
+        MetricKey.BODY_BATTERY,
+        MetricKey.HRV,
+        MetricKey.TRAINING_VOLUME,
+        MetricKey.TIME_IN_RANGE,
+    }

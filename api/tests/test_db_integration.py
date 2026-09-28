@@ -5,9 +5,11 @@ Requires the test DB stack to be running. Skip unless DB_INT_TEST=true:
     or manually: DB_INT_TEST=true pytest api/tests/test_db_integration.py
 """
 
+import asyncio
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch
 
 import asyncpg
 import bcrypt
@@ -45,6 +47,178 @@ async def _insert_test_user(conn: asyncpg.Connection, suffix: str) -> int:
         pw_hash,
     )
     return user_id
+
+
+@_skip
+@pytest.mark.asyncio
+async def test_insights_daily_jobs_claim_and_recovery_with_real_database():
+    from src.db.insight_jobs import (
+        claim_daily_jobs,
+        complete_daily_job,
+        enqueue_daily_jobs,
+        get_daily_job_status,
+        requeue_stale_daily_jobs,
+    )
+
+    conn = await _conn()
+    pool = await asyncpg.create_pool(**_DB)
+    user_id = None
+    period_end = date(2036, 11, 15)
+    try:
+        user_id = await _insert_test_user(conn, uuid.uuid4().hex[:8])
+        await conn.execute(
+            "UPDATE users SET garmin_linked = TRUE WHERE id = $1", user_id
+        )
+        with patch("src.db.insight_jobs.get_pool", AsyncMock(return_value=pool)):
+            assert await enqueue_daily_jobs(period_end) == 1
+            assert await enqueue_daily_jobs(period_end) == 0
+
+            claims = await asyncio.gather(claim_daily_jobs(), claim_daily_jobs())
+            claimed = [job for batch in claims for job in batch]
+            assert len(claimed) == 1
+            assert claimed[0]["user_id"] == user_id
+            assert claimed[0]["attempts"] == 1
+
+            await conn.execute(
+                "UPDATE insights_daily_jobs SET claimed_at = NOW() - INTERVAL '1 hour' "
+                "WHERE user_id = $1 AND period_end = $2",
+                user_id,
+                period_end,
+            )
+            assert await requeue_stale_daily_jobs(lease_seconds=1) == 1
+            assert await get_daily_job_status(user_id, period_end) == "pending"
+            await conn.execute(
+                "UPDATE insights_daily_jobs SET available_at = NOW() - INTERVAL '1 minute' "
+                "WHERE user_id = $1 AND period_end = $2",
+                user_id,
+                period_end,
+            )
+            retry = await claim_daily_jobs()
+            assert len(retry) == 1 and retry[0]["attempts"] == 2
+            await complete_daily_job(user_id, period_end, retry[0]["attempts"])
+            assert await get_daily_job_status(user_id, period_end) == "completed"
+
+            published_end = period_end + timedelta(days=1)
+            await conn.execute(
+                "INSERT INTO weekly_insights "
+                "(user_id, period_start, period_end, insight_obj, catalog_version) "
+                "VALUES ($1, $2, $3, '{}'::jsonb, 'test')",
+                user_id,
+                published_end - timedelta(days=6),
+                published_end,
+            )
+            await conn.execute(
+                "INSERT INTO weekly_insight_texts "
+                "(user_id, period_end, segment, body, generator) "
+                "VALUES ($1, $2, 'report', 'Test', 'fallback_template')",
+                user_id,
+                published_end,
+            )
+            assert await enqueue_daily_jobs(published_end) == 0
+
+            recovering_end = period_end + timedelta(days=2)
+            assert await enqueue_daily_jobs(recovering_end) == 1
+            recovery_claim = await claim_daily_jobs()
+            assert len(recovery_claim) == 1
+            await conn.execute(
+                "INSERT INTO weekly_insights "
+                "(user_id, period_start, period_end, insight_obj, catalog_version) "
+                "VALUES ($1, $2, $3, '{}'::jsonb, 'test')",
+                user_id,
+                recovering_end - timedelta(days=6),
+                recovering_end,
+            )
+            await conn.execute(
+                "INSERT INTO weekly_insight_texts "
+                "(user_id, period_end, segment, body, generator) "
+                "VALUES ($1, $2, 'report', 'Test', 'fallback_template')",
+                user_id,
+                recovering_end,
+            )
+            await conn.execute(
+                "UPDATE insights_daily_jobs SET claimed_at = NOW() - INTERVAL '1 hour' "
+                "WHERE user_id = $1 AND period_end = $2",
+                user_id,
+                recovering_end,
+            )
+            assert await requeue_stale_daily_jobs(lease_seconds=1) == 1
+            status = await conn.fetchrow(
+                "SELECT status, finished_at, last_error FROM insights_daily_jobs "
+                "WHERE user_id = $1 AND period_end = $2",
+                user_id,
+                recovering_end,
+            )
+            assert status["status"] == "completed"
+            assert status["finished_at"] is not None
+            assert status["last_error"] is None
+    finally:
+        if user_id is not None:
+            await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+        await pool.close()
+        await conn.close()
+
+
+@_skip
+@pytest.mark.asyncio
+async def test_insights_latest_report_is_scoped_and_published_only_once():
+    from src.db.weekly_insights import (
+        TextRecord,
+        get_latest_weekly_insight,
+        get_weekly_insight,
+        save_weekly_insight,
+    )
+    from src.insights.models import WeeklyInsight
+
+    conn = await _conn()
+    pool = await asyncpg.create_pool(**_DB)
+    user_id = None
+    other_user_id = None
+    period_end = date(2036, 11, 14)
+    try:
+        user_id = await _insert_test_user(conn, uuid.uuid4().hex[:8])
+        other_user_id = await _insert_test_user(conn, uuid.uuid4().hex[:8])
+        insight = WeeklyInsight(
+            period_start=period_end - timedelta(days=6),
+            period_end=period_end,
+            metrics=[],
+            flags=[],
+            evidence=[],
+            catalog_version="test",
+        )
+        with patch("src.db.weekly_insights.get_pool", AsyncMock(return_value=pool)):
+            await save_weekly_insight(
+                user_id,
+                insight,
+                TextRecord("Erster Bericht", "fallback_template", None),
+            )
+            await save_weekly_insight(
+                user_id,
+                insight,
+                TextRecord("Ueberschrieben", "fallback_template", None),
+            )
+            latest = await get_latest_weekly_insight(
+                user_id, period_end + timedelta(days=1)
+            )
+            assert latest is not None
+            assert latest.insight.period_end == period_end
+            assert latest.text.body == "Erster Bericht"
+            assert (
+                await get_weekly_insight(user_id, period_end + timedelta(days=1))
+                is None
+            )
+            assert await get_latest_weekly_insight(user_id, period_end) is None
+            assert (
+                await get_latest_weekly_insight(
+                    other_user_id, period_end + timedelta(days=1)
+                )
+                is None
+            )
+    finally:
+        for test_user_id in (user_id, other_user_id):
+            if test_user_id is not None:
+                await conn.execute("DELETE FROM users WHERE id = $1", test_user_id)
+        await pool.close()
+        await conn.close()
 
 
 # ── get_user_by_id ────────────────────────────────────────────────────────────
