@@ -12,7 +12,7 @@ Dateien liegen unter `env/`. Vorlagen: `env/.env.example`, `env/.env.app.example
 |-------|-------------|---------|
 | `env/.env` | db, flyway | Admin-DB-Credentials, HOST_IP |
 | `env/.env.app` | api, sync-service, ml-service | Per-Service-DB-Credentials (`DB_APP_*`, `DB_SYNC_*`, `DB_ML_*`), FERNET_KEY, SENTRY_DSN |
-| `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, TRIMP_* |
+| `env/.env.api` | api | SESSION_SECRET, RESEND_*, APP_BASE_URL, TRIMP_*, INSIGHTS_DAILY_ENABLED |
 | `env/.env.sync` | sync-service | SYNC_INTERVAL_HOURS, SYNC_LOOKBACK_DAYS, SYNC_DAILY_DAYS, SYNC_EVENT_* |
 | `env/.env.ml` | ml-service | ML_INFER_HOUR, ML_TRAIN_WEEKDAY, MODEL_DIR, ML_EVENT_* |
 | `env/.env.backup` | backup-Container | AGE_RECIPIENT, BACKUP_HOUR/MINUTE, BACKUP_RETENTION_DAYS, RCLONE_REMOTE (DB-Creds aus `env/.env`) |
@@ -119,6 +119,20 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 |----------|-----|---------|---------|--------------|
 | `TRIMP_LOOKBACK_DAYS` | int | — | `7` | Wie viele Tage der historische ATL/CTL-Verlauf im Dashboard angezeigt wird |
 | `TRIMP_FORECAST_DAYS` | int | — | `7` | Wie viele Tage die ATL-Abklingkurve in die Zukunft projiziert wird |
+
+### Taeglicher Insights-Bericht
+
+| Variable | Typ | Pflicht | Default | Beschreibung |
+|----------|-----|---------|---------|--------------|
+| `INSIGHTS_DAILY_ENABLED` | bool | — | `true` | Scheduler und Job-Worker der API aktivieren; `false` stoppt beides als Kill-Switch. |
+
+Die Berichte werden ausschliesslich um 05:00 Uhr `Europe/Vienna` fuer die sieben
+abgeschlossenen lokalen Kalendertage bis gestern eingeplant. Die Uhrzeit und Zeitzone
+sind feste Produktpolitik, keine pro-Nutzer-Konfiguration. Bei mehreren API-Prozessen
+verhindern eindeutige Datenbankschluessel und atomische Claims doppelte Auftraege.
+Bereits eingeplante, unterbrochene Jobs werden nach Neustart wieder aufgenommen;
+ein vollstaendig verpasster 05:00-Lauf wird nicht nachgeholt. Die Flyway-Migration
+`V37__insights_daily_jobs.sql` muss vor dem Start der aktualisierten API laufen.
 
 ### E-Mail (Password-Reset via Resend)
 
@@ -246,6 +260,7 @@ aus `env/.env` (Admin-Rolle) — hier nicht duplizieren. Runbook: [deployment-pu
 | `HTTPS_ONLY` | — | — | default `true` | — | — |
 | `TRIMP_LOOKBACK_DAYS` | — | — | default `7` | — | — |
 | `TRIMP_FORECAST_DAYS` | — | — | default `7` | — | — |
+| `INSIGHTS_DAILY_ENABLED` | — | — | default `true` | — | — |
 | `RESEND_API_KEY` | — | — | optional `""` | — | — |
 | `RESEND_FROM_EMAIL` | — | — | default | — | — |
 | `APP_BASE_URL` | — | — | default `""` (Beispiel: URL) | — | — |

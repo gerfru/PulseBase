@@ -760,6 +760,24 @@ Returns historical ML prediction values grouped by model.
 
 ---
 
+### `GET /api/insights`
+
+Returns the authenticated user's single structured report for the seven completed
+Vienna calendar days through yesterday. Read-only: opening the page never starts
+generation. The API schedules jobs daily at 05:00 `Europe/Vienna`; the removed
+`POST /api/insights/regenerate` endpoint is not supported.
+
+When the report is complete, `status` is `ready` and the response includes
+`period_start`, `period_end`, `insight`, `text` (`body`, `generator`, `model_id`),
+`catalog_version`, `created_at`, and `ai_generated`. Otherwise `status` is
+`pending` (queued or processing), `failed` (retries exhausted), or `stale`
+(no current job). In those states `period_start` and `period_end` identify the
+target window; `report` holds the last earlier ready response with its **own**
+dates, or `null` if no earlier report exists. The `segment` query parameter is
+rejected.
+
+---
+
 ### `GET /api/ml-insights`
 
 Returns the latest ML model outputs for the authenticated user. All models write daily

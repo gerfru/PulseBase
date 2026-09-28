@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://host.docker.internal:11434"  # OLLAMA_BASE_URL
     ollama_model: str = "llama3.1:8b"  # OLLAMA_MODEL
     ollama_timeout_seconds: int = 30  # OLLAMA_TIMEOUT_SECONDS
+    insights_daily_enabled: bool = True
 
     @field_validator("fernet_key")
     @classmethod

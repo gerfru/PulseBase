@@ -6,11 +6,10 @@ import time
 import uuid
 from collections import deque
 from collections.abc import AsyncGenerator
-
-import psutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import psutil
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -33,9 +32,10 @@ from src.deps import (
     require_user,
     settings,
 )
+from src.insights.scheduler import run_daily_worker, start_daily_scheduler
 from src.logging_config import _release, configure_logging, configure_sentry
-from src.routes import account, api as api_routes
-from src.routes import auth, garmin, libre, pages
+from src.routes import account, auth, garmin, libre, pages
+from src.routes import api as api_routes
 
 configure_logging()
 logger = structlog.get_logger(__name__)
@@ -168,9 +168,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # pragma: no co
     configure_sentry(
         settings, integrations=[StarletteIntegration(), FastApiIntegration()]
     )
-    yield
-    await pool.close()
-    logger.info("db.pool_closed")
+    worker_stop = asyncio.Event()
+    daily_scheduler = None
+    daily_worker = None
+    try:
+        if settings.insights_daily_enabled:
+            daily_scheduler = start_daily_scheduler()
+            daily_worker = asyncio.create_task(run_daily_worker(worker_stop))
+        yield
+    finally:
+        if daily_scheduler is not None:
+            daily_scheduler.shutdown(wait=False)
+        if daily_worker is not None:
+            worker_stop.set()
+            daily_worker.cancel()
+            try:
+                await daily_worker
+            except asyncio.CancelledError:
+                pass
+        await pool.close()
+        logger.info("db.pool_closed")
 
 
 app = FastAPI(title="PulseBase API", version=_release(), lifespan=lifespan)

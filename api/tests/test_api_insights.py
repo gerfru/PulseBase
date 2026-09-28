@@ -1,11 +1,12 @@
-"""Tests fuer die Insights-Endpoints (rollierend, async/Hintergrund-Generierung)."""
+"""Tests fuer den lesenden Insights-Tagesbericht."""
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from src.db.weekly_insights import StoredInsight, TextRecord
 from src.insights.models import Metric, MetricKey, Trend, Unit, WeeklyInsight
+from src.insights.window import current_period_end
 from src.routes.api_insights import _current_period_end, _serialize
 from tests.conftest import TEST_USER
 
@@ -31,10 +32,7 @@ def _stored() -> StoredInsight:
     )
     return StoredInsight(
         insight=insight,
-        texts={
-            "hobby": TextRecord("Hobby-Text", "llm", "m"),
-            "pro": TextRecord("Pro-Text", "fallback_template", None),
-        },
+        text=TextRecord("Bericht", "llm", "m"),
         catalog_version="1.0.0",
         created_at=datetime(2026, 6, 16, tzinfo=timezone.utc),
     )
@@ -44,14 +42,22 @@ def test_serialize_shape():
     d = _serialize(_stored())
     assert d["status"] == "ready"
     assert d["period_start"] == "2026-06-08" and d["period_end"] == "2026-06-14"
-    assert d["texts"]["hobby"]["generator"] == "llm"
+    assert d["text"]["generator"] == "llm"
+    assert "texts" not in d
     assert d["ai_generated"] is True
     assert d["insight"]["metrics"][0]["key"] == "time_in_range"
     assert d["created_at"].startswith("2026-06-16")
 
 
-def test_current_period_end_is_yesterday():
-    assert _current_period_end() == date.today() - timedelta(days=1)
+def test_route_uses_local_window():
+    with patch("src.routes.api_insights.current_period_end", return_value=_END):
+        assert _current_period_end() == _END
+
+
+def test_current_period_end_uses_vienna_calendar_date():
+    assert current_period_end(
+        datetime(2026, 9, 28, 22, 30, tzinfo=timezone.utc)
+    ) == date(2026, 9, 28)
 
 
 async def test_get_ready_from_cache_scoped(client):
@@ -66,94 +72,107 @@ async def test_get_ready_from_cache_scoped(client):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ready"
-    assert body["texts"]["hobby"]["body"] == "Hobby-Text"
+    assert body["text"]["body"] == "Bericht"
     assert g.await_args.args[0] == TEST_USER["id"]  # BOLA: session user
 
 
-async def test_get_pending_kicks_background(client):
+async def test_get_pending_does_not_start_generation(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch(
             "src.routes.api_insights.get_weekly_insight", AsyncMock(return_value=None)
         ),
-        patch("src.routes.api_insights._kick", MagicMock()) as kick,
+        patch(
+            "src.routes.api_insights.get_daily_job_status",
+            AsyncMock(return_value="processing"),
+        ) as status,
+        patch(
+            "src.routes.api_insights.get_latest_weekly_insight",
+            AsyncMock(return_value=None),
+        ) as latest,
     ):
         r = await client.get("/api/insights")
     assert r.status_code == 200
     assert r.json()["status"] == "pending"
-    kick.assert_called_once()
-    assert kick.call_args.args[0] == TEST_USER["id"]
-    assert kick.call_args.kwargs.get("force") is False
+    assert r.json()["report"] is None
+    status.assert_awaited_once()
+    assert status.await_args.args[0] == TEST_USER["id"]
+    latest.assert_awaited_once()
 
 
-async def test_regenerate_kicks_force(client):
-    with (
-        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
-        patch("src.routes.api_insights._kick", MagicMock()) as kick,
-    ):
+async def test_regeneration_endpoint_is_gone(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
         r = await client.post("/api/insights/regenerate")
-    assert r.status_code == 200
-    assert r.json()["status"] == "pending"
-    kick.assert_called_once()
-    assert kick.call_args.kwargs.get("force") is True
+    assert r.status_code in (404, 405)
 
 
-# --- Hintergrund-Generierung ---------------------------------------------- #
-
-
-async def test_get_pending_when_segment_missing(client):
-    # Objekt da, aber das angeforderte Segment fehlt → lazy kick + pending.
-    stored = _stored()  # hat hobby + pro
+async def test_get_stale_when_only_legacy_segments_exist(client):
     with (
         patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
         patch(
             "src.routes.api_insights.get_weekly_insight",
-            AsyncMock(return_value=stored),
+            AsyncMock(return_value=None),
         ),
-        patch("src.routes.api_insights._kick", MagicMock()) as kick,
+        patch(
+            "src.routes.api_insights.get_daily_job_status", AsyncMock(return_value=None)
+        ),
+        patch(
+            "src.routes.api_insights.get_latest_weekly_insight",
+            AsyncMock(return_value=None),
+        ),
     ):
-        r = await client.get("/api/insights?segment=profi")
+        r = await client.get("/api/insights")
     assert r.status_code == 200
-    assert r.json()["status"] == "pending"
-    assert kick.call_args.args[2] == "profi"
+    assert r.json()["status"] == "stale"
+    assert r.json()["report"] is None
 
 
-async def test_unknown_segment_rejected(client):
-    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
-        r = await client.get("/api/insights?segment=enterprise")
-    assert r.status_code == 422
-
-
-async def test_generate_bg_clears_inflight_on_success():
-    from src.routes.api_insights import _generate_bg, _inflight
-
-    _inflight.add((1, _END, "hobby"))
-    with patch("src.routes.api_insights.get_or_generate_segment", AsyncMock()):
-        await _generate_bg(1, _END, "hobby", False)
-    assert (1, _END, "hobby") not in _inflight
-
-
-async def test_generate_bg_clears_inflight_on_error():
-    from src.routes.api_insights import _generate_bg, _inflight
-
-    _inflight.add((1, _END, "hobby"))
-    with patch(
-        "src.routes.api_insights.get_or_generate_segment",
-        AsyncMock(side_effect=RuntimeError("boom")),
-    ):
-        await _generate_bg(1, _END, "hobby", False)  # darf nicht werfen
-    assert (1, _END, "hobby") not in _inflight
-
-
-def test_kick_dedupes_same_window_and_segment():
-    from src.routes.api_insights import _inflight, _kick
-
-    _inflight.discard((9, _END, "hobby"))
+async def test_get_stale_returns_previous_with_its_own_dates(client):
+    target = date(2026, 6, 15)
     with (
-        patch("src.routes.api_insights._generate_bg"),
-        patch("src.routes.api_insights.asyncio.create_task") as ct,
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch("src.routes.api_insights.current_period_end", return_value=target),
+        patch(
+            "src.routes.api_insights.get_weekly_insight", AsyncMock(return_value=None)
+        ),
+        patch(
+            "src.routes.api_insights.get_daily_job_status", AsyncMock(return_value=None)
+        ),
+        patch(
+            "src.routes.api_insights.get_latest_weekly_insight",
+            AsyncMock(return_value=_stored()),
+        ) as latest,
     ):
-        _kick(9, _END, "hobby", force=False)
-        _kick(9, _END, "hobby", force=False)  # dedupliziert → kein zweiter Task
-    ct.assert_called_once()
-    _inflight.discard((9, _END, "hobby"))
+        r = await client.get("/api/insights")
+    body = r.json()
+    assert body["status"] == "stale"
+    assert body["period_end"] == "2026-06-15"
+    assert body["report"]["period_end"] == "2026-06-14"
+    assert body["report"]["text"]["body"] == "Bericht"
+    latest.assert_awaited_once_with(TEST_USER["id"], target)
+
+
+async def test_get_failed_retains_previous_report(client):
+    with (
+        patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)),
+        patch(
+            "src.routes.api_insights.get_weekly_insight", AsyncMock(return_value=None)
+        ),
+        patch(
+            "src.routes.api_insights.get_daily_job_status",
+            AsyncMock(return_value="failed"),
+        ),
+        patch(
+            "src.routes.api_insights.get_latest_weekly_insight",
+            AsyncMock(return_value=_stored()),
+        ),
+    ):
+        r = await client.get("/api/insights")
+    assert r.json()["status"] == "failed"
+    assert r.json()["report"]["period_end"] == "2026-06-14"
+
+
+async def test_segment_parameter_rejected(client):
+    with patch("src.deps.require_user", AsyncMock(return_value=TEST_USER)):
+        r = await client.get("/api/insights?segment=profi")
+    assert r.status_code == 422
