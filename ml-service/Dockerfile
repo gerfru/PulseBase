@@ -14,6 +14,7 @@ RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/
     find /usr/local/lib/python*/ensurepip/_bundled -name "setuptools*.whl" -delete 2>/dev/null; true && \
     find /usr/local/lib/python*/site-packages -maxdepth 1 \( -name "setuptools-70*.dist-info" -o -name "msgpack-1.1*.dist-info" \) -exec rm -rf {} + 2>/dev/null; true && \
     pip install --no-cache-dir "setuptools>=78.1.1" "msgpack>=1.2.1" && \
+    python -m pip uninstall --yes pip && \
     adduser --disabled-password --gecos "" appuser && \
     mkdir -p /app/models && chown appuser /app/models
 COPY --from=builder /venv /venv
