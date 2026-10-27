@@ -4,7 +4,8 @@ FROM postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810
 
 # age   = backup encryption (X25519 / ChaCha20-Poly1305), Alpine community
 # rclone = optional offsite copy (3-2-1 rule)
-RUN apk upgrade --no-cache && apk add --no-cache age rclone
+RUN apk upgrade --no-cache && apk add --no-cache age rclone && \
+    rm -f /usr/local/bin/gosu
 
 COPY backup.sh restore.sh entrypoint.sh /scripts/
 RUN chmod +x /scripts/*.sh \
