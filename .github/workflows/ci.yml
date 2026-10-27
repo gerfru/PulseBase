@@ -54,7 +54,7 @@ jobs:
         with:
           # Ruff 0.16+ also formats Python code fences inside Markdown by default.
           # Keep Markdown reformatting separate from this Python linter upgrade.
-          args: format --check --config 'extend-exclude = ["*.md"]' --force-exclude .
+          args: format --check --config=extend-exclude=["*.md"] --force-exclude .
           version: "0.17.3"
 
   js-lint:
