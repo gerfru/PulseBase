@@ -1,5 +1,5 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:82abc9f53600280b0757126f83c5a7d47088592d2acb6b4c0b9e97f76865508c AS builder
+FROM python:3.14-slim@sha256:cd89c30eda26ee911a4611b18680086e0ea42e6f5f8cbe653d07fa7958c9cec8 AS builder
 WORKDIR /build/api
 RUN pip install --no-cache-dir uv
 COPY api/pyproject.toml api/uv.lock ./
@@ -8,7 +8,7 @@ RUN UV_PROJECT_ENVIRONMENT=/venv uv sync \
     --frozen --no-dev --no-editable --no-install-project
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-FROM python:3.14-slim@sha256:82abc9f53600280b0757126f83c5a7d47088592d2acb6b4c0b9e97f76865508c
+FROM python:3.14-slim@sha256:cd89c30eda26ee911a4611b18680086e0ea42e6f5f8cbe653d07fa7958c9cec8
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && \
