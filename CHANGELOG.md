@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.1](https://github.com/gerfru/PulseBase/compare/v1.8.0...v1.8.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **security:** update dnspython to 2.9.0 ([#368](https://github.com/gerfru/PulseBase/issues/368)) ([1f790c2](https://github.com/gerfru/PulseBase/commit/1f790c28eae440f4ae4ff762570cc652ac68cc85))
+* **security:** update Python dependencies and harden runtime images ([#362](https://github.com/gerfru/PulseBase/issues/362)) ([e876216](https://github.com/gerfru/PulseBase/commit/e876216bef6e13e0092b72a0df8f492008d96de4))
+* **security:** upgrade and require Vite 8.3.3 ([#365](https://github.com/gerfru/PulseBase/issues/365)) ([a28921a](https://github.com/gerfru/PulseBase/commit/a28921a6398d9e43fdf8eef410486cba8632a116))
+
 ## [1.8.0](https://github.com/gerfru/PulseBase/compare/v1.7.0...v1.8.0) (2026-09-28)
 
 
