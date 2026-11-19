@@ -33,7 +33,7 @@ services:
         max-file: "3"
 
   flyway:
-    image: flyway/flyway:13@sha256:4c535796a4a08daf542ac266b4f218e01e35051a8103de876536dfcdd1808471
+    image: flyway/flyway:13@sha256:9d5a0f832e80523102ab5a3ff8add9cdf8d7025de771bc5e573609af74ffbed7
     container_name: pulsebase-flyway
     command: migrate
     volumes:
